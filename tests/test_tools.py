@@ -139,3 +139,24 @@ def test_ui_jsonable_handles_numpy_and_nan():
 
     assert ui.jsonable({"a": np.float64(1.5), "b": float("nan"), "c": (np.int64(2),)}) == {"a": 1.5, "b": None, "c": [2]}
     assert ui.table([{"x": math.inf}])["rows"][0]["x"] == "inf"
+
+
+def test_llm_tool_generates_and_applies(monkeypatch):
+    import json as _json
+
+    import hani2.llm_service as llm
+
+    s = make_session(is_admin=True)
+    s.start()
+    s.wait_for_turn()
+    outcome = {i.name: list(i.all)[0] for i in s.issues}
+    monkeypatch.setattr(llm, "is_llm_configured", lambda: True)
+    monkeypatch.setattr(llm, "_call_llm", lambda prompt, settings=None: _json.dumps(
+        {"text": "How about this?", "outcome": outcome, "reasoning": "fair"}))
+    tool = s.tool_controller.find("LLM")
+    tool.on_action("generate", {"instruction": "be fair"})
+    assert s.wait(lambda: not tool.busy, 10)
+    assert tool.generated and tool.generated["text"] == "How about this?", tool.status
+    tool.on_action("apply", {})
+    assert s.draft == outcome and s.draft_text == "How about this?"
+    assert "instruction_prompt" in __import__("hani2.config", fromlist=["x"]).load_llm_settings()
