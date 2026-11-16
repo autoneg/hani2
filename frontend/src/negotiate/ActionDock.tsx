@@ -538,7 +538,7 @@ function Finished({ st }: { st: SessionState }) {
   );
 }
 
-export function ActionDock() {
+export function ActionDock({ embedded = false }: { embedded?: boolean }) {
   const st = useStore((s) => s.state);
   if (!st) return null;
   let body: React.ReactNode;
@@ -548,7 +548,11 @@ export function ActionDock() {
   else if (st.phase === "finished") body = <Finished st={st} />;
   else body = <Intro st={st} />;
   return (
-    <div className="scroll-thin max-h-[64vh] overflow-y-auto border-t border-line bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4">
+    <div
+      className={`scroll-thin overflow-y-auto bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4 ${
+        embedded ? "min-w-0 flex-1" : "max-h-[64vh] border-t border-line"
+      }`}
+    >
       <div className="mx-auto w-full max-w-4xl">{body}</div>
     </div>
   );

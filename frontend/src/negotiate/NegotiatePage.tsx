@@ -34,12 +34,23 @@ function useIsDesktop() {
   return d;
 }
 
-function Center() {
+/** History on top; below it the action dock, with the offer generators (the
+ *  side pane) next to it when `withSide` is set (the full view). */
+function Center({ withSide = false }: { withSide?: boolean }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
       <FloatingPanels />
       <Thread />
-      <ActionDock />
+      {withSide ? (
+        <div className="flex max-h-[64vh] min-h-[340px] shrink-0 border-t border-line">
+          <ActionDock embedded />
+          <div className="flex min-h-0 w-[340px] shrink-0 flex-col border-l border-line bg-surface xl:w-[400px]">
+            <ToolPane panes={["side"]} className="min-h-0 flex-1" label="Offer generators" />
+          </div>
+        </div>
+      ) : (
+        <ActionDock />
+      )}
     </div>
   );
 }
@@ -64,15 +75,10 @@ function Desktop() {
           {has("lower") && <ToolPane panes={["lower"]} className="flex-1" label="Lower tools" />}
         </div>
       )}
-      <Center />
+      <Center withSide={sideCol} />
       {simpleCol && (
         <div className="flex min-h-0 flex-col border-l border-line bg-surface" style={{ width: `${share * 100}%`, minWidth: 320 }}>
           <ToolPane panes={["upper", "lower", "side"]} className="flex-1" label="Tools" />
-        </div>
-      )}
-      {sideCol && (
-        <div className="flex min-h-0 w-[320px] shrink-0 flex-col border-l border-line bg-surface xl:w-[360px]">
-          <ToolPane panes={["side"]} className="flex-1" label="Offer helpers" />
         </div>
       )}
       {assistantOpen &&

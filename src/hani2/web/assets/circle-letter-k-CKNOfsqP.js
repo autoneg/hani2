@@ -1,0 +1,1 @@
+import{c as t}from"./index-C4OFHAFp.js";const e={name:"circle-letter-k",size:24,node:[["path",{d:"M9 16V8",key:"ydmt1j"}],["path",{d:"m11 12 4 4",key:"12i9ze"}],["path",{d:"m15 8-6 6",key:"r7kjba"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

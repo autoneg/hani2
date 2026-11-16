@@ -33,9 +33,11 @@ The layout menu offers three views. The current view is part of the session stat
 
 | View | Desktop layout |
 | --- | --- |
-| `full` | A left column with the **upper** and **lower** tool panes, the thread and action dock in the middle, and the **side** pane on the right. |
+| `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
 | `simple` | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
 | `focus` | The thread and action dock only. |
+
+![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
 
 Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. The left column's width follows `layout.sizes.tools` (a fraction between 0.2 and 0.6, default 0.36), and a region listed in `layout.collapsed` (`tools` or `side`) is hidden. These two are set through the support agent's layout control; there is no participant control for them.
 

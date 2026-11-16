@@ -105,7 +105,7 @@ The layout button in the header switches between three views:
 
 | View | What you see |
 | --- | --- |
-| Full | Upper and lower tool panes on the left, the thread and action dock in the middle, the side pane on the right |
+| Full | Upper and lower tool panes on the left; on the right the thread on top, with the action dock and the offer generators side by side below it |
 | Simple | The thread and action dock, with one tools area on the right that holds every tool |
 | Focus | The thread and action dock only |
 
