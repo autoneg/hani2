@@ -1,0 +1,1 @@
+import{c as t}from"./index-BTRHTAEV.js";const e={name:"square-letter-e",size:24,node:[["path",{d:"M15 8H9.5a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5H15",key:"1qch15"}],["path",{d:"M9 12h4",key:"wrur8x"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const r=t(e);export{e as __iconData,r as default};

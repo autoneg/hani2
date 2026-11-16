@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Columns3, LayoutPanelLeft, LogOut, Maximize2, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
+import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
 import { send, useStore } from "../store";
 import { Anchor } from "../ui/Anchor";
 import { clock } from "../ui/format";
 import { api } from "../api";
 import { navigate } from "../router";
+import { Modal } from "../ui/Modal";
 
 let brandCache: string | null = null;
 function useBrand(explicit?: string) {
@@ -132,8 +133,43 @@ const MenuItem = ({ icon: I, children, onClick, active }: any) => (
   </button>
 );
 
+function PasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [f, setF] = useState({ old: "", new: "", confirm: "" });
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <Modal open={open} onClose={onClose} title="Change password">
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (f.new !== f.confirm) return setErr("The new passwords do not match.");
+          try {
+            await api("/api/auth/password", { body: { old: f.old, new: f.new } });
+            useStore.getState().pushToast({ message: "Password changed", level: "success" });
+            setF({ old: "", new: "", confirm: "" });
+            setErr(null);
+            onClose();
+          } catch (e: any) {
+            setErr(e.message);
+          }
+        }}
+      >
+        {err && <div className="rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{err}</div>}
+        {(["old", "new", "confirm"] as const).map((k) => (
+          <label key={k}>
+            <span className="label">{k === "old" ? "Current password" : k === "new" ? "New password" : "Repeat the new password"}</span>
+            <input className="field" type="password" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} required />
+          </label>
+        ))}
+        <button className="btn-primary">Change password</button>
+      </form>
+    </Modal>
+  );
+}
+
 export function Header({ onSettings }: { onSettings: () => void }) {
   const st = useStore((s) => s.state);
+  const [pw, setPw] = useState(false);
   const assistantOpen = useStore((s) => s.assistantOpen);
   const setAssistant = useStore((s) => s.setAssistantOpen);
   if (!st) return null;
@@ -240,12 +276,18 @@ export function Header({ onSettings }: { onSettings: () => void }) {
             </MenuItem>
           )}
           {st.mode === "main" && (
+            <MenuItem icon={KeyRound} onClick={() => setPw(true)}>
+              Change password
+            </MenuItem>
+          )}
+          {st.mode === "main" && (
             <MenuItem icon={LogOut} onClick={logout}>
               Log out
             </MenuItem>
           )}
         </Menu>
       </div>
+      <PasswordDialog open={pw} onClose={() => setPw(false)} />
     </header>
   );
 }

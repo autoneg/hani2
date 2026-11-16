@@ -1,1 +1,0 @@
-import{c as t}from"./index-DjwocvzU.js";const e={name:"letter-p",size:24,node:[["path",{d:"M6 12h8a4 4 0 000-8H7a1 1 0 00-1 1v15",key:"i6awvr"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

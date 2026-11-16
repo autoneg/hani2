@@ -46,7 +46,7 @@ With registration allowed, the login page offers a **Register** form that asks f
 
 Usernames must be at most 64 characters with no spaces or path characters (`/ \ : * ? " < > |`). The names `ai`, `agent`, `guest` and `admin2`, and anything starting with `prolific_`, are reserved. Passwords need at least 4 characters.
 
-The web app has no form for changing one's own password. Admins reset passwords in the admin console or with `hani2 users passwd`. (The API endpoint `POST /api/auth/password` with `old` and `new` exists for clients that need it.)
+Users change their own password from the account menu (*Change password*) in the top-right corner of the negotiation page. Admins reset any password in the admin console or with `hani2 users passwd`.
 
 ## OAuth with GitHub and Google
 
