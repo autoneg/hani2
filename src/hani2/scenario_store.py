@@ -155,11 +155,8 @@ def load_scenario(
 
 
 def display_for(scenario: Scenario, scenario_dir: str | None = None):
-    """The OutcomeDisplay for a scenario: built-in map, then ``display.py``."""
-    name = str(getattr(scenario.outcome_space, "name", "") or "")
-    for key, disp in DISPLAY_MAP.items():
-        if name == key or name.startswith(key) or name.split("/")[-1].startswith(key):
-            return disp
+    """The OutcomeDisplay for a scenario: its own ``display.py`` first, then the
+    built-in display matching the outcome-space name, else the default."""
     if scenario_dir:
         f = Path(scenario_dir) / "display.py"
         if f.exists():
@@ -172,6 +169,10 @@ def display_for(scenario: Scenario, scenario_dir: str | None = None):
                         return v()
             except Exception as e:  # pragma: no cover
                 print(f"[hani2] could not load {f}: {e}")
+    name = str(getattr(scenario.outcome_space, "name", "") or "")
+    for key, disp in DISPLAY_MAP.items():
+        if name == key or name.startswith(key) or name.split("/")[-1].startswith(key):
+            return disp
     return DefaultOutcomeDisplay()
 
 
