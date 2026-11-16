@@ -19,7 +19,8 @@ from hani2.tools.ui import jsonable
 
 
 def _dumps(msg: dict[str, Any]) -> str:
-    return json.dumps(msg, default=lambda o: jsonable(o))
+    """JSON for the browser: NaN/inf are not valid JSON, so sanitise everything."""
+    return json.dumps(jsonable(msg), allow_nan=False)
 
 
 class Hub:

@@ -100,6 +100,15 @@ def jsonable(x: Any) -> Any:
         return {str(k): jsonable(v) for k, v in x.items()}
     if isinstance(x, (list, tuple, set)):
         return [jsonable(v) for v in x]
+    try:
+        import numpy as np
+
+        if isinstance(x, np.floating):
+            return jsonable(float(x))
+    except Exception:  # pragma: no cover
+        pass
+    if hasattr(x, "isoformat"):
+        return x.isoformat()
     return str(x)
 
 

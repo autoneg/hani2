@@ -1,0 +1,174 @@
+@import "@fontsource-variable/instrument-sans";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: 245 246 248;
+  --surface: 255 255 255;
+  --sunken: 238 240 244;
+  --line: 222 226 233;
+  --ink: 23 32 51;
+  --muted: 93 102 120;
+  --you: 59 75 219;
+  --partner: 217 130 27;
+  --good: 18 148 106;
+  --bad: 210 69 59;
+  --warn: 196 132 0;
+  --font-scale: 1;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: 13 17 25;
+    --surface: 21 27 38;
+    --sunken: 16 21 30;
+    --line: 41 50 66;
+    --ink: 229 233 241;
+    --muted: 148 158 177;
+    --you: 124 138 255;
+    --partner: 240 165 72;
+    --good: 52 199 148;
+    --bad: 240 103 92;
+    --warn: 230 175 50;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: 13 17 25;
+  --surface: 21 27 38;
+  --sunken: 16 21 30;
+  --line: 41 50 66;
+  --ink: 229 233 241;
+  --muted: 148 158 177;
+  --you: 124 138 255;
+  --partner: 240 165 72;
+  --good: 52 199 148;
+  --bad: 240 103 92;
+  --warn: 230 175 50;
+  color-scheme: dark;
+}
+
+html {
+  font-size: calc(15px * var(--font-scale));
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--you));
+  outline-offset: 2px;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 select-none;
+  }
+  .btn-primary {
+    @apply btn bg-you text-white hover:bg-you/90;
+  }
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:bg-sunken;
+  }
+  .btn-ghost {
+    @apply btn text-muted hover:bg-sunken hover:text-ink;
+  }
+  .btn-success {
+    @apply btn bg-good text-white hover:bg-good/90;
+  }
+  .btn-danger {
+    @apply btn border border-bad/40 bg-surface text-bad hover:bg-bad/10;
+  }
+  .field {
+    @apply w-full rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-muted/70 focus:border-you focus:outline-none focus:ring-2 focus:ring-you/20 disabled:opacity-60;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-muted;
+  }
+  .panel {
+    @apply rounded-xl border border-line bg-surface;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md bg-sunken px-1.5 py-0.5 text-xs text-ink;
+  }
+}
+
+/* markdown */
+.md {
+  @apply text-sm leading-relaxed;
+}
+.md h1 { @apply mb-2 mt-3 text-xl font-semibold; }
+.md h2 { @apply mb-2 mt-3 text-lg font-semibold; }
+.md h3 { @apply mb-1.5 mt-2.5 text-base font-semibold; }
+.md h4 { @apply mb-1 mt-2 text-sm font-semibold; }
+.md p { @apply my-1.5; }
+.md ul { @apply my-1.5 list-disc pl-5; }
+.md ol { @apply my-1.5 list-decimal pl-5; }
+.md li { @apply my-0.5; }
+.md a { @apply text-you underline underline-offset-2; }
+.md code { @apply rounded bg-sunken px-1 py-0.5 text-[0.85em]; }
+.md pre { @apply my-2 overflow-x-auto rounded-lg bg-sunken p-2.5 text-xs; }
+.md pre code { @apply bg-transparent p-0; }
+.md blockquote { @apply my-2 border-l-2 border-you/50 pl-3 text-muted; }
+.md table { @apply my-2 w-full border-collapse text-xs; }
+.md th { @apply border-b border-line px-2 py-1 text-left font-semibold; }
+.md td { @apply border-b border-line/60 px-2 py-1; }
+.md > :first-child { @apply mt-0; }
+.md > :last-child { @apply mb-0; }
+.md-sm { @apply text-[0.8rem]; }
+.md-lg { @apply text-base; }
+
+/* highlights driven by the support agent */
+@keyframes hani-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--you) / 0.55); }
+  50% { box-shadow: 0 0 0 7px rgb(var(--you) / 0); }
+}
+.hl-pulse {
+  animation: hani-pulse 1.6s ease-in-out infinite;
+  outline: 2px solid rgb(var(--you));
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+.hl-glow {
+  box-shadow: 0 0 0 3px rgb(var(--you) / 0.35), 0 0 24px 4px rgb(var(--you) / 0.35);
+  border-radius: 10px;
+}
+.hl-spotlight {
+  position: relative;
+  z-index: 45;
+  box-shadow: 0 0 0 9999px rgb(10 14 22 / 0.55);
+  border-radius: 10px;
+}
+
+@keyframes hani-dots {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+.dot { animation: hani-dots 1.2s infinite ease-in-out; }
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes hani-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.enter { animation: hani-in 0.22s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hl-pulse, .dot, .enter { animation: none !important; }
+}
+
+.scroll-thin { scrollbar-width: thin; scrollbar-color: rgb(var(--line)) transparent; }
+
+/* plotly modebar & background */
+.js-plotly-plot .plotly .modebar { display: none !important; }

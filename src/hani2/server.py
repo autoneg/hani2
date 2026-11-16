@@ -524,7 +524,9 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
     loop = asyncio.get_running_loop()
     try:
         snap = await loop.run_in_executor(None, s.snapshot)
-        await websocket.send_text(json.dumps({"type": "state", "state": snap}, default=str))
+        from hani2.hub import _dumps
+
+        await websocket.send_text(_dumps({"type": "state", "state": snap}))
         for t in list(s.tools):
             hub.tool_changed(sid, s.tool_state(t)["id"])
         while True:
