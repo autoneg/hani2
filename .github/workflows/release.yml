@@ -51,5 +51,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: uv pip install -e ".[docs]"
+      - run: uv venv && uv pip install -e ".[docs]"
       - run: uv run --no-sync mkdocs gh-deploy --force

@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install
-        run: uv pip install -e ".[dev]"
+        run: uv venv && uv pip install -e ".[dev]"
       - name: Test
         run: uv run --no-sync pytest -q
 
@@ -38,5 +38,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: uv pip install -e ".[docs]"
+      - run: uv venv && uv pip install -e ".[docs]"
       - run: uv run --no-sync mkdocs build --strict

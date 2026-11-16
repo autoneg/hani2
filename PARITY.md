@@ -82,10 +82,12 @@ This file is a development note; it is not part of the user documentation or the
 - [-] Hard-coded finalist fallback list (use `PROLIFIC_FINALISTS` or the pool)
 
 ## Events & analytics
-- [x] SQLite event log (same event types + support_agent), sessions table
+- [x] SQLite event log (same event types + support_agent), sessions table; logged: login/logout, page views, tab changes, tool open/close/interactions, dialogs, offers/accept/end, scenario load/start, support-agent actions
+- [~] Per-button click events: actions are logged by meaning (counter-offer, accept, end…) rather than as raw clicks
 - [x] Analytics in the admin console (by type, timeline, filters, sessions, CSV export)
 - [-] Separate analytics app and event-DB experiment CLI (both were broken entry points)
 
 ## Other
 - [x] Per-negotiation LLM logging, Ollama local fallback
+- [x] Message helpers / LLM tool accept any litellm provider (was ollama/openai/anthropic only)
 - [x] Docs (self-contained), tutorials (support agent levels 0–9, tools), examples, offline test helpers
