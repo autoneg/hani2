@@ -168,7 +168,7 @@ function PasswordDialog({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-export function Header({ onSettings }: { onSettings: () => void }) {
+export function Header({ onSettings, device = "desktop" }: { onSettings: () => void; device?: "desktop" | "tablet" | "phone" }) {
   const st = useStore((s) => s.state);
   const [pw, setPw] = useState(false);
   const assistantOpen = useStore((s) => s.assistantOpen);
@@ -211,7 +211,7 @@ export function Header({ onSettings }: { onSettings: () => void }) {
       <div className="flex-1 md:hidden" />
       <Timer />
       <div className="flex items-center gap-1">
-        {ap?.allowed && (
+        {ap?.allowed && device === "desktop" && (
           <div className="hidden items-center gap-1.5 lg:flex">
             {ap.can_choose && ap.drivers && (
               <select className="field w-36 py-1 text-xs" value={ap.driver ?? ""} onChange={(e) => send({ type: "autopilot", active: !!ap.active, driver: e.target.value })} aria-label="Autopilot driver">
@@ -242,6 +242,7 @@ export function Header({ onSettings }: { onSettings: () => void }) {
             <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
           </button>
         )}
+        {device !== "phone" && (
         <Menu
           button={
             <button className="btn-ghost px-2" aria-label="Layout">
@@ -250,20 +251,23 @@ export function Header({ onSettings }: { onSettings: () => void }) {
           }
         >
           <div className="px-2.5 pb-1 pt-1.5 text-xs text-muted">Layout</div>
-          <MenuItem icon={Columns3} active={view === "full"} onClick={() => send({ type: "layout", view: "full" })}>
-            Full: all tool panes
+          <MenuItem icon={Columns3} active={view !== "focus"} onClick={() => send({ type: "layout", view: "full" })}>
+            {device === "tablet" ? "Show the tools" : "Full: all tool panes"}
           </MenuItem>
+          {device === "desktop" && (
           <MenuItem icon={LayoutPanelLeft} active={view === "simple"} onClick={() => send({ type: "layout", view: "simple" })}>
             Simple: one tools area
           </MenuItem>
+          )}
           <MenuItem icon={Maximize2} active={view === "focus"} onClick={() => send({ type: "layout", view: "focus" })}>
             Focus: negotiation only
           </MenuItem>
         </Menu>
+        )}
         <button className="btn-ghost px-2" onClick={onSettings} aria-label="Settings">
           <Settings2 size={17} />
         </button>
-        <ThemeButton />
+        {device !== "phone" && <ThemeButton />}
         <Menu
           button={
             <button className="btn-ghost gap-1.5 px-2" aria-label="Account">
@@ -276,6 +280,11 @@ export function Header({ onSettings }: { onSettings: () => void }) {
             <div className="font-medium">{st.display_name}</div>
             <div className="text-xs text-muted">{st.mode === "guest" ? "Playground" : st.user}</div>
           </div>
+          {ap?.allowed && device !== "desktop" && (
+            <MenuItem icon={Plane} onClick={() => ap.available && send({ type: "autopilot", active: !ap.active })}>
+              {ap.active ? "Stop autopilot" : ap.available ? "Start autopilot" : "Autopilot unavailable"}
+            </MenuItem>
+          )}
           {st.is_admin && (
             <MenuItem icon={Shield} onClick={() => navigate("/admin")}>
               Administration

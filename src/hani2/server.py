@@ -441,6 +441,10 @@ def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         s.push_state()
         ev.log_event(s.sid, ev.EventType.TAB_CHANGED, user=s.user, component=str(msg.get("name")))
         return None
+    if t == "device":
+        s.ss["device"] = str(msg.get("device") or "")[:16]
+        s.ss["orientation"] = "landscape" if msg.get("landscape") else "portrait"
+        return None
     if t == "pref":
         return s.set_pref(str(msg.get("key")), msg.get("value"))
     if t == "layout":

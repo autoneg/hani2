@@ -167,6 +167,8 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             view_mode=ss.get("view_mode", ""),
             view_source=ss.get("view_source", ""),
             user_agent=ss.get("user_agent", ""),
+            device=ss.get("device", ""),
+            orientation=ss.get("orientation", ""),
             support_agent=bool(ss.get("support_agent_used", False)),
             autopilot=bool(ss.get("autopilot_used", False)),
         )

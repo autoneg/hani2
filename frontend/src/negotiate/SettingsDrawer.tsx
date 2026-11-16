@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { send, useStore } from "../store";
+import { getDeviceChoice, setDeviceChoice, type DeviceChoice } from "../device";
 
 function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -74,6 +75,18 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
             <select className="field w-32" value={p.offer_display} onChange={(e) => setP("offer_display", e.target.value)}>
               <option value="text">Sentences</option>
               <option value="table">Issue chips</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-3 py-2">
+            <div className="flex-1">
+              <div className="text-sm">Layout for</div>
+              <div className="text-xs text-muted">Automatic picks phone, tablet or desktop from your screen</div>
+            </div>
+            <select className="field w-32" defaultValue={getDeviceChoice()} onChange={(e) => setDeviceChoice(e.target.value as DeviceChoice)}>
+              <option value="auto">Automatic</option>
+              <option value="desktop">Desktop</option>
+              <option value="tablet">Tablet</option>
+              <option value="phone">Phone</option>
             </select>
           </label>
           <label className="flex items-center gap-3 py-2">

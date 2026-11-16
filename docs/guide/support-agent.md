@@ -42,6 +42,22 @@ hani2 --support-agent auto       # only admins see the assistant
 HANI2_SUPPORT_AGENT=off hani2    # the same switch as an environment variable
 ```
 
+### Running without a support agent
+
+For studies or competitions where participants must negotiate on their own (for example the
+Human-Agent Negotiation competition), switch the agent off for everyone. Any of these works:
+
+- start the server with `hani2 --support-agent off` (or `HANI2_SUPPORT_AGENT=off`);
+- set **Who gets the assistant** to *Nobody* in the admin console (`"mode": "off"`);
+- create a dedicated experiment with `hani2 experiment create han --no-support-agent`, which
+  writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and turns the
+  autopilot off, then run it with `hani2 --experiment han`.
+
+With the agent off there is no Assistant button, status board, reserved-value warning from the
+agent, or Support Agent autopilot driver, and the WebMCP `hani2_ask_assistant` tool reports that
+the session has no assistant. Add `--no-webmcp` to the experiment command to also keep browser AI
+agents out (see [WebMCP](webmcp.md)).
+
 The participant can switch their agent off and on with the switch in the dock header. A switched-off agent does not answer chat messages, does not speak up on its own and does not react to events. Prolific participants start with the agent switched off; they can still turn it on.
 
 !!! note

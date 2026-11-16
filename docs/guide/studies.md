@@ -225,6 +225,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `view_mode` | The layout in use at the end (`full`, `simple` or `focus`). |
 | `view_source` | `query` when the layout came from the `?view=` URL parameter, else `default`. |
 | `user_agent` | The browser's user agent string. |
+| `device` / `orientation` | The layout in use (`desktop`, `tablet` or `phone`) and `landscape` or `portrait`. |
 | `support_agent` | Whether the support agent acted (sent a message or changed something) during this negotiation. |
 | `autopilot` | Whether the autopilot was switched on during this negotiation. |
 

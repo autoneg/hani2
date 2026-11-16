@@ -41,7 +41,25 @@ The layout menu offers three views. The current view is part of the session stat
 
 Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. The left column's width follows `layout.sizes.tools` (a fraction between 0.2 and 0.6, default 0.36), and a region listed in `layout.collapsed` (`tools` or `side`) is hidden. These two are set through the support agent's layout control; there is no participant control for them.
 
-On screens narrower than 1024 pixels the page uses a mobile layout instead: a bottom bar with **Negotiate**, **Tools** and, when there is a support agent, **Assistant**. Negotiate shows the thread and action dock, Tools shows all tools in one tabbed area, and Assistant shows the chat.
+## Phones and tablets
+
+The page picks one of three layouts from the screen:
+
+| Layout | When | Arrangement |
+| --- | --- | --- |
+| Desktop | 1024 pixels wide or more with a mouse; touch screens 1400 pixels or wider | The views above. |
+| Tablet | 640–1023 pixels wide, or a touch screen narrower than 1400 pixels | **Landscape:** the thread and action dock, with one tools column (all tools as tabs, offer generators first) on the right. **Portrait:** the thread and action dock fill the screen and a **Tools** tray along the bottom expands to show the tools. The assistant slides over from the right. *Focus* hides the tools. |
+| Phone | narrower than 640 pixels | A bottom bar with **Negotiate**, **Tools** and, when there is a support agent, **Assistant**; one of them at a time. |
+
+<div class="grid" markdown>
+
+![Tablet, landscape](../assets/screens/tablet-landscape.png)
+
+![Tablet, portrait with the tools tray open](../assets/screens/tablet-portrait.png)
+
+</div>
+
+On tablets and phones buttons and inputs are taller for touch, the autopilot moves into the account menu, and the layout menu offers only *Show the tools* and *Focus* (tablets; none on phones). A participant can force a layout under **Settings → Layout for** (kept in the browser), and `?device=phone`, `?device=tablet` or `?device=desktop` in the URL does the same. The layout in use is stored with every result (`device` and `orientation` columns).
 
 ## Tool panes
 

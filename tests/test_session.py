@@ -157,3 +157,21 @@ def test_webmcp_policy(hani2_home):
     assert make_session().snapshot()["webmcp"] == {"enabled": True, "actions": False}
     p2 = make_session(user="prolific_W2", mode="guest", partner=None, query={"noautostart": "1"})
     assert p2.snapshot()["webmcp"]["enabled"] is True
+
+
+def test_no_support_agent_experiment(hani2_home, monkeypatch):
+    from typer.testing import CliRunner
+
+    from hani2.cli import app
+
+    r = CliRunner().invoke(app, ["experiment", "create", "han", "--no-support-agent", "--no-webmcp"])
+    assert r.exit_code == 0, r.output
+    monkeypatch.setenv("HANI2_EXPERIMENT", "han")
+    from hani2.session import NegotiationSession
+
+    s = NegotiationSession("x", "alice", query={"agents": "BoulwareTBNegotiator"})
+    s.load()
+    snap = s.snapshot()
+    assert s.support_agent is None and snap["support"] is None
+    assert snap["autopilot"]["available"] is False and snap["webmcp"]["enabled"] is False
+    s.start()

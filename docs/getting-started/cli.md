@@ -118,7 +118,7 @@ Experiments are self-contained studies with their own settings, scenarios and re
 ### `hani2 experiment create`
 
 ```bash
-hani2 experiment create NAME [--force]
+hani2 experiment create NAME [--force] [--no-support-agent] [--no-webmcp]
 ```
 
 Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) with:
@@ -128,7 +128,7 @@ Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) wi
 - copies of `consent.md`, `scenario_order.txt` and `announcements.md` from the active settings,
 - `scenarios/`, a copy of the current scenarios folder (or of the bundled samples).
 
-`--force`, `-f` overwrites existing files. The command prints how to run the experiment:
+`--force`, `-f` overwrites existing files. `--no-support-agent` writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and `{"allowed": false}` to its `autopilot_settings.json`, so participants negotiate without an assistant (as in a competition). `--no-webmcp` sets `webmcp.enabled` to `false` in the experiment's `env.json`. The command prints how to run the experiment:
 
 ```bash
 hani2 --experiment NAME

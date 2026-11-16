@@ -538,7 +538,7 @@ function Finished({ st }: { st: SessionState }) {
   );
 }
 
-export function ActionDock({ embedded = false }: { embedded?: boolean }) {
+export function ActionDock({ embedded = false, maxHeight = "max-h-[64vh]" }: { embedded?: boolean; maxHeight?: string }) {
   const st = useStore((s) => s.state);
   if (!st) return null;
   let body: React.ReactNode;
@@ -550,7 +550,7 @@ export function ActionDock({ embedded = false }: { embedded?: boolean }) {
   return (
     <div
       className={`scroll-thin overflow-y-auto bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4 ${
-        embedded ? "min-w-0 flex-1" : "max-h-[64vh] border-t border-line"
+        embedded ? "min-w-0 flex-1" : `${maxHeight} border-t border-line`
       }`}
     >
       <div className="mx-auto w-full max-w-4xl">{body}</div>

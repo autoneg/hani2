@@ -172,3 +172,9 @@ body {
 
 /* plotly modebar & background */
 .js-plotly-plot .plotly .modebar { display: none !important; }
+
+/* touch devices: comfortable targets */
+[data-device="phone"] .btn,
+[data-device="tablet"] .btn { min-height: 2.5rem; }
+[data-device="phone"] .field,
+[data-device="tablet"] .field { min-height: 2.5rem; font-size: 16px; }

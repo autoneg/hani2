@@ -145,6 +145,8 @@ def generate(
 def experiment_create(
     name: str,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files.")] = False,
+    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run this experiment without a support agent (e.g. a competition).")] = False,
+    no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
 ):
     """Scaffold a self-contained experiment folder."""
     from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, experiments_root, get_settings_file, scenarios_dir
@@ -164,6 +166,19 @@ def experiment_create(
     src_scen = scenarios_dir() if scenarios_dir().is_dir() else DEFAULT_SCENARIOS
     if force or not sdst.exists():
         shutil.copytree(src_scen, sdst, dirs_exist_ok=True)
+    import json as _json
+
+    if no_support_agent:
+        (exp / "support_agent_settings.json").write_text(_json.dumps({"mode": "off"}, indent=2))
+        auto = exp / "autopilot_settings.json"
+        auto.write_text(_json.dumps({"allowed": False}, indent=2))
+        typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
+    if no_webmcp:
+        envf = exp / "env.json"
+        env = _json.loads(envf.read_text()) if envf.exists() else {}
+        env["webmcp"] = {"enabled": False}
+        envf.write_text(_json.dumps(env, indent=2))
+        typer.echo("  WebMCP: off (env.json)")
     typer.echo(f"Created experiment at {exp}")
     typer.echo(f"Run it with:  hani2 --experiment {name}")
 

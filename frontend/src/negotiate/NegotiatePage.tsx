@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bot, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
+import { Bot, ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
 import { api, ApiError } from "../api";
 import { navigate, queryParams } from "../router";
 import { useStore } from "../store";
@@ -10,6 +10,7 @@ import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
 import { ToolPane } from "./ToolPane";
 import { stopWebMCP, syncWebMCP } from "../webmcp";
+import { useDevice } from "../device";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -22,21 +23,10 @@ function useMedia(q: string) {
   return d;
 }
 
-function useIsDesktop() {
-  const q = "(min-width: 1024px)";
-  const [d, setD] = useState(() => window.matchMedia(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia(q);
-    const on = () => setD(m.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, []);
-  return d;
-}
 
 /** History on top; below it the action dock, with the offer generators (the
  *  side pane) next to it when `withSide` is set (the full view). */
-function Center({ withSide = false }: { withSide?: boolean }) {
+function Center({ withSide = false, dockMax }: { withSide?: boolean; dockMax?: string }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
       <FloatingPanels />
@@ -49,7 +39,7 @@ function Center({ withSide = false }: { withSide?: boolean }) {
           </div>
         </div>
       ) : (
-        <ActionDock />
+        <ActionDock maxHeight={dockMax} />
       )}
     </div>
   );
@@ -89,6 +79,56 @@ function Desktop() {
             <Assistant />
           </div>
         ))}
+    </div>
+  );
+}
+
+/** The assistant as a slide-over panel (tablets, narrow desktops). */
+function AssistantOverlay() {
+  const open = useStore((s) => s.assistantOpen);
+  if (!open) return null;
+  return (
+    <div className="absolute bottom-0 right-0 top-14 z-40 flex w-full max-w-[420px] shadow-pop">
+      <Assistant />
+    </div>
+  );
+}
+
+/** Tablets. Landscape: the negotiation plus one tools column. Portrait: the
+ *  negotiation with a tool tray along the bottom that expands on demand. */
+function Tablet({ landscape }: { landscape: boolean }) {
+  const st = useStore((s) => s.state)!;
+  const [trayOpen, setTrayOpen] = useState(false);
+  const focus = st.layout.view === "focus";
+  const hasTools = st.tools.some((t) => t.visible);
+  if (landscape) {
+    return (
+      <div className="flex min-h-0 flex-1">
+        <Center />
+        {!focus && hasTools && (
+          <div className="flex min-h-0 w-[42%] min-w-[340px] max-w-[520px] flex-col border-l border-line bg-surface">
+            <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />
+          </div>
+        )}
+        <AssistantOverlay />
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <Center dockMax={trayOpen ? "max-h-[30vh]" : "max-h-[58vh]"} />
+      {!focus && hasTools && (
+        <div className={`flex shrink-0 flex-col border-t border-line bg-surface ${trayOpen ? "h-[42vh]" : ""}`}>
+          <button className="flex items-center justify-between px-4 py-2.5 text-sm font-medium" onClick={() => setTrayOpen(!trayOpen)} aria-expanded={trayOpen}>
+            <span className="flex items-center gap-2">
+              <LayoutGrid size={16} /> Tools
+            </span>
+            {trayOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          </button>
+          {trayOpen && <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />}
+        </div>
+      )}
+      <AssistantOverlay />
     </div>
   );
 }
@@ -138,7 +178,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   const connect = useStore((s) => s.connect);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
-  const desktop = useIsDesktop();
+  const { device, landscape } = useDevice();
   useAutoOpenAssistant();
 
   useEffect(() => {
@@ -169,6 +209,10 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   useEffect(() => () => stopWebMCP(), []);
 
   useEffect(() => {
+    if (connected) useStore.getState().send({ type: "device", device, landscape });
+  }, [connected, device, landscape]);
+
+  useEffect(() => {
     if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: location.pathname, width: window.innerWidth } });
   }, [connected, mode]);
 
@@ -193,13 +237,13 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
     );
   return (
     <div className="relative flex h-[100dvh] flex-col">
-      <Header onSettings={() => setSettings(true)} />
+      <Header onSettings={() => setSettings(true)} device={device} />
       {!connected && (
         <div className="flex items-center justify-center gap-2 bg-warn/15 px-3 py-1 text-xs text-warn" role="status">
           <WifiOff size={13} /> Reconnecting…
         </div>
       )}
-      {desktop ? <Desktop /> : <Mobile />}
+      {device === "desktop" ? <Desktop /> : device === "tablet" ? <Tablet landscape={landscape} /> : <Mobile />}
       <StatusBoard />
       <ConfirmDialog />
       <SettingsDrawer open={settings} onClose={() => setSettings(false)} />
