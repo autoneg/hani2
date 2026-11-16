@@ -246,7 +246,11 @@ def generate(
         typer.echo(f"Unknown type(s): {unknown}. Available: {list(MAKER_MAP)}")
         raise typer.Exit(code=2)
 
-    base = (base or scenarios_dir()).expanduser()
+    if base is None:
+        from hani2.scenario_store import base_dir
+
+        base = base_dir()
+    base = base.expanduser()
     rng = random.Random(seed)
     print(f"Scenario base : {base}")
     print(f"Types         : {', '.join(chosen)}")

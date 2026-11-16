@@ -140,7 +140,7 @@ def attach_mechanism(mechanism, log_path: str | os.PathLike) -> None:
     except Exception:  # noqa: BLE001
         return
     print(
-        f"[hani] LLM call log for negotiation {getattr(mechanism, 'id', '?')}: "
+        f"[hani2] LLM call log for negotiation {getattr(mechanism, 'id', '?')}: "
         f"{log_path}",
         flush=True,
     )

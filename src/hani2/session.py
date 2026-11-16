@@ -49,7 +49,6 @@ USER_PREFS: dict[str, Any] = {
     "last_offer_on_top": True,
     "offer_display": "text",  # text | table
     "font_scale": 1.0,
-    "compact": False,
 }
 
 #: Per-session settings only admins may change (defaults may be overridden in
@@ -165,7 +164,7 @@ class NegotiationSession:
             self.admin_prefs["time_limit"] = None
             self.admin_prefs["show_partner_type"] = True
         if mode == "guest":
-            self.admin_prefs["load_existing"] = bool(self.query.get("load_existing", False))
+            self.admin_prefs["load_existing"] = str(self.query.get("load_existing", "")).strip().lower() in ("1", "true", "yes", "on")
             self.admin_prefs["predefined_order"] = False
 
         self.phase = "idle"  # idle | ready | running | ended | questionnaire | finished
@@ -460,6 +459,8 @@ class NegotiationSession:
             self.ss["start_at_dt"] = None
             self.ss["negotiation_running"] = False
             self.ss["human_ended_negotiation"] = False
+            self.ss["support_agent_used"] = False
+            self.ss["autopilot_used"] = self.autopilot_active
             self.history = []
             self.highlights = []
             self.annotations = {}
@@ -1042,6 +1043,12 @@ class NegotiationSession:
     def _agent_event(self, name: str) -> None:
         sa = self.support_agent
         if sa is None:
+            return
+        if name == "action_requested" and self.autopilot_active and sa.autopilot:
+            from hani2.support_agent import autopilot as ap
+
+            delay = float(ap.load_autopilot_settings().get("step_delay", 0.0) or 0.0)
+            self.submit(sa.autopilot_step, delay)
             return
         nmi = None
         try:

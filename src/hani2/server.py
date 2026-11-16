@@ -161,7 +161,8 @@ def api_me(request: Request):
         "email": meta.get("email"),
         "is_admin": auth.is_admin_user(u),
         "consented": auth.get_user_consent(u),
-        "needs_consent": bool(get_env("auth.enforce_consent", False)) and not auth.get_user_consent(u),
+        "needs_consent": bool(get_env("auth.enforce_consent", False)) and not auth.get_user_consent(u)
+        and not auth.is_admin_user(u),
     }
 
 
@@ -355,7 +356,8 @@ def api_session(request: Request, response: Response, body: dict = Body(default=
         else:
             gid = request.cookies.get(GUEST_COOKIE) or uuid.uuid4().hex[:12]
             response.set_cookie(GUEST_COOKIE, gid, max_age=MAX_AGE, samesite="lax")
-            user, display = "guest", "Guest"
+            # each browser gets its own results folder (no concurrent writes to one file)
+            user, display = f"guest_{gid}", "Guest"
             sid = f"guest:{gid}"
             if current_user(request) and is_admin:
                 display = current_user(request)  # type: ignore

@@ -180,6 +180,7 @@ class ScenarioInfoTool(Tool):
         info = s.info or {}
         role = str(self.session_state.get("human_id", "")).replace(" (You)", "")
         descs = info.get("issue_description", {}) or {}
+        descs = {(role if str(k).lower() == role.lower() else k): v for k, v in descs.items()}
         rows = []
         for issue in s.outcome_space.issues:
             d = descs.get(role, {}).get(issue.name, "") if isinstance(descs.get(role), dict) else descs.get(issue.name, "")
@@ -193,7 +194,8 @@ class ScenarioInfoTool(Tool):
         if info.get("short_description"):
             comps.append(ui.markdown(info["short_description"]))
         comps.append(ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50))
-        hints = (info.get("hints") or {}).get(role) or {}
+        hints_all = info.get("hints") or {}
+        hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
         if hints:
             comps.append(ui.kv(hints, title="Hints"))
         if info.get("long_description"):

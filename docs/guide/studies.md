@@ -43,7 +43,7 @@ HANI2_EXPERIMENT=pilot hani2
 
 While an experiment is active:
 
-- **Settings files.** Any settings file placed in the experiment folder takes priority over the one in the settings folder: `env.json`, `llm_settings.json`, `support_agent_settings.json`, `autopilot_settings.json`, `consent.md`, `announcements.md` and `scenario_order.txt`. For the JSON files, the experiment's file replaces the settings-folder file (it is still merged over the bundled defaults). Files you do not add are read from the settings folder as usual.
+- **Settings files.** Any settings file placed in the experiment folder takes priority over the one in the settings folder: `env.json`, `llm_settings.json`, `support_agent_settings.json`, `autopilot_settings.json`, `consent.md`, `announcements.md` and `scenario_order.txt`. For the JSON files, the experiment's file is merged over the settings-folder file, which is merged over the bundled defaults. Files you do not add are read from the settings folder as usual.
 - **Scenarios** come from `<experiment>/scenarios`.
 - **The questionnaire** comes from `<experiment>/questionnaires/per_negotiation.yaml`.
 - **Results** go to `<experiment>/results` instead of `~/negmas/hani2/db`. This includes the per-participant folders, the event log and the agent group files (`results/groups/`).
@@ -152,7 +152,7 @@ Everything is written under the *results root*: `~/negmas/hani2/db` (`$HANI2_HOM
     └── llm_logs/<mechanism id>.jsonl  # only with HANI2_LLM_LOG=1
 ```
 
-The folder name is the user name: the account name for logged-in users, `guest` for every playground visitor, and `prolific_<PID>` for Prolific participants. Playground visitors therefore share one folder. Prolific participants have a few extra files, described in [Prolific](prolific.md). For `llm_logs/`, see [Language models](llms.md).
+The folder name is the user name: the account name for logged-in users, `guest_<id>` for each playground browser, and `prolific_<PID>` for Prolific participants. Playground visitors therefore do not share a folder. Prolific participants have a few extra files, described in [Prolific](prolific.md). For `llm_logs/`, see [Language models](llms.md).
 
 ### The trace logs
 

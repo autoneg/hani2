@@ -10,7 +10,7 @@ Tools come from three places, in this order:
 ``"tools": {"disabled": ["Trace", ...]}`` removes tools by name and
 ``"tools": {"overrides": {"Trace": {"pane": "side", "enabled": true}}}``
 changes the defaults (``pane``, ``timing``, ``enabled``, ``admin_only``,
-``guest``, ``order``) of any tool.
+``guest``, ``order``, ``at_front``) of any tool. Names are case-insensitive.
 """
 
 from __future__ import annotations
@@ -97,13 +97,13 @@ def discover_tool_classes() -> list[type[Tool]]:
 def tool_specs() -> list[ToolSpec]:
     cfg = get_env("tools", {}) or {}
     disabled = {str(x).lower() for x in cfg.get("disabled", []) or []}
-    overrides: dict[str, dict[str, Any]] = cfg.get("overrides", {}) or {}
+    overrides: dict[str, dict[str, Any]] = {str(k).lower(): v for k, v in (cfg.get("overrides", {}) or {}).items()}
     specs = []
     for cls in discover_tool_classes():
         name = cls.name or cls.__name__
         if name.lower() in disabled:
             continue
-        o = overrides.get(name, {})
+        o = overrides.get(name.lower(), {})
         specs.append(
             ToolSpec(
                 cls=cls,

@@ -32,7 +32,7 @@ A table of every session the server holds in memory, refreshed every five second
 
 | Column | Meaning |
 | --- | --- |
-| `user` | The user name (`guest` for the playground, `prolific_<PID>` for Prolific participants) |
+| `user` | The user name (`guest_<id>` for playground visitors, `prolific_<PID>` for Prolific participants) |
 | `mode` | `main` (`/app`) or `guest` (`/play`) |
 | `phase` | `idle`, `ready`, `starting`, `running`, `ended`, `questionnaire` or `finished` |
 | `round` | Negotiations started in this session |
@@ -142,7 +142,6 @@ Edits `autopilot_settings.json`.
 | Drivers offered (none ticked offers all) | `allowed_drivers` |
 | Pause between steps (s) | `step_delay` |
 
-The `end_in_practice` key is not shown here; edit the file to change it. See [Autopilot](autopilot.md).
 
 ## Texts
 

@@ -37,7 +37,7 @@ JSON files are then **merged over the built-in defaults**: HANI2 starts from its
 {"negotiation": {"n_steps": 30}}
 ```
 
-Only one user file takes part in the merge. If an experiment has its own `env.json`, the one in the settings folder is ignored completely, not merged.
+The JSON files are merged in layers: the bundled defaults, then the settings folder, then the experiment folder. A key set in a later layer wins; keys it does not mention keep their earlier value.
 
 Text files (`consent.md`, `announcements.md`, `scenario_order.txt`) are taken from the first location that has them.
 
@@ -152,7 +152,7 @@ The Prolific flow overrides some of these per round (for example the time limits
 | --- | --- |
 | `tools.extra` | Extra tool classes, as `"module:Class"` or `"module.Class"`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
-| `tools.overrides` | Per-tool changes keyed by the exact tool name: `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`. |
+| `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`. |
 
 ```json
 {
@@ -213,9 +213,8 @@ See [Support agent](support-agent.md).
 | `allowed` | `false` | Master switch for autopilot. |
 | `driver` | `"Support Agent"` | Default driver: `"Support Agent"` or a negotiator name. |
 | `allowed_drivers` | `null` | Drivers offered in the selector. `null`: all. |
-| `step_delay` | `0.5` | Seconds between steps of a negotiator driver. |
+| `step_delay` | `0.5` | Seconds to wait before each autopilot move (both kinds of driver). |
 | `user_can_choose` | `null` | Whether non-admins may pick the driver. `null`: only in the playground. |
-| `end_in_practice` | `false` | Present in the file but not used. |
 
 See [Autopilot](autopilot.md).
 

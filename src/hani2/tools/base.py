@@ -54,7 +54,7 @@ class Tool:
                     ``"load"`` (scenario loaded), ``"start"`` (negotiation
                     started) or ``"end"`` (negotiation finished).
     ``permanent``   Always on: no enable switch, cannot be hidden.
-    ``admin_only``  Only admins (or ``?admin=1`` sessions) get the tool.
+    ``admin_only``  Only logged-in administrators get the tool.
     ``guest``       Whether guests / playground users get it (default True).
     ``enabled``     Default state of the user-facing enable switch. Disabled
                     tools still show their tab, but :meth:`view` is not called

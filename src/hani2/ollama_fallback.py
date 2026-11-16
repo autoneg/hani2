@@ -61,7 +61,7 @@ def install_ollama_local_fallback(local_base: str | None = None) -> None:
                 retry_kwargs = dict(kwargs)
                 retry_kwargs["api_base"] = base
                 print(
-                    f"[hani] ollama model {model!r} unavailable on the default "
+                    f"[hani2] ollama model {model!r} unavailable on the default "
                     f"endpoint ({exc}); retrying against local ollama {base}"
                 )
                 return original(*args, **retry_kwargs)

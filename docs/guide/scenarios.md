@@ -218,7 +218,7 @@ The opposition level measures how much the two sides' preferences conflict. Near
 
 Generation is idempotent: a slot that already has its scenario file (and its inverse, when caching) is skipped unless you pass `--force`. You can run the command again to fill gaps.
 
-`--base` does not follow `HANI2_SCENARIOS_BASE`. If you serve scenarios from that variable, pass the same directory with `--base`.
+Without `--base`, the pool is written where the server reads scenarios: the experiment's `scenarios/` folder, else `HANI2_SCENARIOS_BASE`, else `settings/scenarios`.
 
 ### Cached inverters
 

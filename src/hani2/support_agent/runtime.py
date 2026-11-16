@@ -188,7 +188,7 @@ class SupportAgent:
         pending["event"].set()
         return True
 
-    # -- interface control (new in this architecture) ---------------------
+    # -- interface control -------------------------------------------------
     def highlight(self, target: str, message: str | None = None, style: str = "pulse",
                   duration: float | None = None) -> dict:
         """Spotlight an element (``"accept"``, ``"issue:Price"``, ``"tool:Utility Plot"`` …)."""
@@ -313,17 +313,6 @@ class SupportAgent:
             self._below_reserved_warned = False
         if not self.user_enabled:
             return
-        if self.autopilot and event_name == "action_requested":
-            # The previous autopilot turn may still be wrapping up: wait for it
-            # rather than skipping this turn (a skipped turn stalls the round).
-            import time as _time
-
-            deadline = _time.time() + 60
-            while self._busy.locked() and _time.time() < deadline:
-                _time.sleep(0.02)
-            if self.autopilot and self.session.is_my_turn():
-                self._run_autopilot_turn()
-            return
         proactive = self.settings.get("proactive", {}) or {}
         if not proactive.get(f"on_{event_name}", False):
             return
@@ -366,6 +355,20 @@ class SupportAgent:
             self.capabilities.admin_autonomy, self.capabilities.user_autonomy = self._saved_autonomy
             self._saved_autonomy = None
         self.autopilot = bool(active)
+
+    def autopilot_step(self, delay: float = 0.0) -> None:
+        """Called by the session on every human turn while this agent drives the
+        autopilot. Waits for a previous turn to finish (skipping a turn would
+        stall the round), then decides."""
+        import time as _time
+
+        if delay > 0:
+            _time.sleep(delay)
+        deadline = _time.time() + 60
+        while self._busy.locked() and _time.time() < deadline:
+            _time.sleep(0.02)
+        if self.autopilot and self.session.is_my_turn():
+            self._run_autopilot_turn()
 
     def _run_autopilot_turn(self) -> None:
         note = ("(system) AUTOPILOT is engaged: it is your turn and NO human is watching. You MUST act now by "
@@ -539,7 +542,6 @@ def create_support_agent_for(session: "NegotiationSession") -> SupportAgent | No
     return agent
 
 
-# Backwards-compatible name
 def get_or_create_support_agent(session_state: dict[str, Any], settings: dict | None = None) -> SupportAgent | None:
     agent = session_state.get("support_agent")
     if agent is None:

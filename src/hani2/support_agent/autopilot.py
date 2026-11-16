@@ -37,7 +37,6 @@ DEFAULT_AUTOPILOT_SETTINGS: dict[str, Any] = {
     "driver": SUPPORT_AGENT_DRIVER,
     "allowed_drivers": None,
     "step_delay": 0.5,
-    "end_in_practice": False,
     "user_can_choose": None,
 }
 
@@ -84,9 +83,13 @@ def driver_options(settings: dict | None = None) -> list[str]:
 
 def resolve_driver(session: "NegotiationSession", settings: dict | None = None) -> str | None:
     s = settings or load_autopilot_settings()
-    if user_can_select_driver(session, s) and session.autopilot_driver_name:
+    opts = driver_options(s)
+    if user_can_select_driver(session, s) and session.autopilot_driver_name in opts:
         return session.autopilot_driver_name
-    return s.get("driver") or None
+    driver = s.get("driver") or None
+    if driver and opts and driver not in opts:
+        return opts[0]
+    return driver
 
 
 def is_negotiator_driver(driver: str | None) -> bool:
@@ -173,5 +176,5 @@ def set_autopilot(session: "NegotiationSession", active: bool, driver: str | Non
 
             session.act(SAOResponse(ResponseType.REJECT_OFFER, None))
         elif sa is not None:
-            session.submit(sa.on_event, "action_requested", None)
+            session.submit(sa.autopilot_step, 0.0)
     return {"ok": True, "active": session.autopilot_active}

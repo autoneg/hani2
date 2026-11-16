@@ -61,7 +61,7 @@ def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
-    agents: Annotated[Optional[str], typer.Option(help="Opponent pool: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :hani, :genius, :custom).")] = None,
+    agents: Annotated[Optional[str], typer.Option(help="Opponent pool: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :hani, :genius, :custom, :pan).")] = None,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Who gets the support agent: on, off or auto (admins only).")] = None,
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
@@ -74,14 +74,14 @@ def main(
     if version:
         typer.echo(__version__)
         raise typer.Exit()
+    if experiment:
+        os.environ["HANI2_EXPERIMENT"] = experiment
     if ctx.invoked_subcommand is not None:
         return
     if agents:
         os.environ["HANI2_AGENTS"] = agents
     if support_agent:
         os.environ["HANI2_SUPPORT_AGENT"] = support_agent
-    if experiment:
-        os.environ["HANI2_EXPERIMENT"] = experiment
     if verbose:
         os.environ["HANI2_VERBOSE"] = "1"
     _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev)

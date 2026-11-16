@@ -433,8 +433,8 @@ class ProlificStudy(Study):
                           "finish."), "success"
         elif uncounted:
             msg, level = (f"This negotiation {phrase} without any action on your side, so it does NOT count. "
-                          f"{counted} of {self.n_required} counted so far. Make at least one offer (or accept / "
-                          "end) in the next one so it counts."), "error"
+                          f"{counted} of {self.n_required} counted so far. Make at least one offer (or accept your "
+                          "partner's offer) in the next one so it counts."), "error"
         else:
             msg, level = f"{counted} of {self.n_required} counted negotiations complete — {self.n_required - counted} to go.", "info"
         s.notice = {"text": msg, "level": level}

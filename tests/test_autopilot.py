@@ -46,3 +46,22 @@ def test_stall_net_disengages(hani2_home, scripted):
     s.set_autopilot(True)
     assert s.wait(lambda: not s.autopilot_active or s.phase != "running", 30)
     assert any(m.get("type") == "toast" and "disengaged" in m["message"] for m in s.hub.messages) or s.phase != "running"
+
+
+def test_support_agent_driver_with_custom_agent_and_assistant_off(hani2_home, scripted):
+    write_settings(hani2_home, "autopilot_settings.json", {"allowed": True, "driver": "Support Agent", "step_delay": 0})
+    s = make_session(n_steps=4, agent_class="level6_guided:GuidedAgent")
+    scripted(*([("submit_counter_offer", {"message": "auto"})] * 10))
+    s.support_agent.set_user_enabled(False)
+    s.start()
+    s.wait_for_turn()
+    assert s.set_autopilot(True)["ok"]
+    assert s.wait_until_done(timeout=30)
+
+
+def test_driver_outside_allowed_list_falls_back(hani2_home):
+    from hani2.support_agent.autopilot import resolve_driver
+
+    write_settings(hani2_home, "autopilot_settings.json", {"allowed": True, "driver": "Support Agent", "allowed_drivers": ["ConcederTBNegotiator"]})
+    s = make_session()
+    assert resolve_driver(s) == "ConcederTBNegotiator"

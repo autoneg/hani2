@@ -25,7 +25,6 @@ Autopilot reads `autopilot_settings.json` from the settings folder, merged over 
   "driver": "Support Agent",
   "allowed_drivers": null,
   "step_delay": 0.5,
-  "end_in_practice": false,
   "user_can_choose": null
 }
 ```
@@ -35,8 +34,7 @@ Autopilot reads `autopilot_settings.json` from the settings folder, merged over 
 | `allowed` | `false` | The master switch. With `false`, the Autopilot button is not shown. |
 | `driver` | `"Support Agent"` | The default driver, used whenever the participant cannot or did not choose one. |
 | `allowed_drivers` | `null` | The drivers offered in the selector. `null` offers all of them. |
-| `step_delay` | `0.5` | Seconds to wait before each move of a negotiator driver, so people can follow the play. |
-| `end_in_practice` | `false` | Present in the settings file but not read by the current version. |
+| `step_delay` | `0.5` | Seconds to wait before each autopilot move, so people can follow the play. |
 | `user_can_choose` | `null` | Whether non-admin participants may pick the driver. `null` allows it only in the guest playground (not for Prolific participants). Admins can always choose. |
 
 ## When autopilot is available

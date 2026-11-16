@@ -103,12 +103,16 @@ def load_json_settings(filename: str, defaults: dict | None = None) -> dict:
             merged = _deep_merge(merged, json.loads(bundled.read_text()))
         except json.JSONDecodeError:
             pass
-    user = get_settings_file(filename)
-    if user.exists() and user != bundled:
-        try:
-            merged = _deep_merge(merged, json.loads(user.read_text()))
-        except json.JSONDecodeError:
-            pass
+    layers = [settings_dir() / filename]
+    exp = experiment_dir()
+    if exp is not None:
+        layers.append(exp / filename)
+    for layer in layers:
+        if layer.exists():
+            try:
+                merged = _deep_merge(merged, json.loads(layer.read_text()))
+            except json.JSONDecodeError:
+                print(f"[hani2] could not parse {layer}; ignoring it")
     merged.pop("_comment", None)
     return merged
 
@@ -128,7 +132,7 @@ DEFAULT_ENV: dict[str, Any] = {
     "subtitle": "Human-Agent Negotiation Interface",
     "admin": {"password": "adminpass", "emails": []},
     "auth": {
-        "mode": "password",  # password | oauth | dual | none
+        "mode": "password",  # password | oauth | dual | none | auto
         "cookie_secret": "",
         "enforce_consent": False,
         "allow_registration": True,
@@ -141,15 +145,8 @@ DEFAULT_ENV: dict[str, Any] = {
         },
     },
     "agents": [],
-    "negotiation": {
-        "n_steps": 20,
-        "time_limit": None,
-        "step_time_limit": None,
-        "human_starts": None,
-        "allow_text": True,
-        "show_agent_text": True,
-    },
-    "playground": {"enabled": True, "support_agent": None},
+    "negotiation": {"n_steps": 100, "time_limit": 300},
+    "playground": {"enabled": True},
     "tools": {},
 }
 

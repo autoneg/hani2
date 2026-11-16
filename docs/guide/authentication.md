@@ -132,7 +132,7 @@ Passwords are stored as PBKDF2-SHA256 hashes with a random salt and 200,000 iter
 
 `/play` works without an account while `playground.enabled` is `true` in `env.json` (the default). Set it to `false` to close the playground; Prolific links (`/play?PROLIFIC_PID=...`) keep working.
 
-- A guest session is keyed by a `hani2_guest` cookie, so reloading the page keeps the same session. Its results are stored under the user name `guest`.
+- A guest session is keyed by a `hani2_guest` cookie, so reloading the page keeps the same session. Its results are stored under the user name `guest_<id>`, one folder per browser.
 - A Prolific session is keyed by the PID, so a participant can return from another browser.
 - An admin who is logged in and opens `/play` is still recognized as an admin.
 
