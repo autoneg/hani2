@@ -1,1 +1,0 @@
-import{c as a}from"./index-C5GmQ-yP.js";const e={name:"square-check",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]],aliases:["check-square-2"]};e.node;const t=a(e);export{e as __iconData,t as default};

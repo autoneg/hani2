@@ -47,10 +47,10 @@ export function Anchor({
       {notePlacement === "above" && noteEl}
       {children}
       {active && hl!.message && (
-        <div role="status" className="enter absolute left-0 top-full z-50 mt-2 flex w-max max-w-[18rem] items-start gap-2 rounded-lg bg-you px-3 py-2 text-sm text-white shadow-pop">
+        <div role="status" className="enter pointer-events-none absolute left-0 top-full z-50 mt-2 flex w-max max-w-[18rem] items-start gap-2 rounded-lg bg-you px-3 py-2 text-sm text-white shadow-pop">
           <span className="absolute -top-1 left-4 h-2 w-2 rotate-45 bg-you" aria-hidden />
           <span className="flex-1">{hl!.message}</span>
-          <button className="opacity-80 hover:opacity-100" aria-label="Dismiss" onClick={() => send({ type: "clear_highlight", target: hl!.target })}>
+          <button className="pointer-events-auto opacity-80 hover:opacity-100" aria-label="Dismiss" onClick={() => send({ type: "clear_highlight", target: hl!.target })}>
             <X size={14} />
           </button>
         </div>

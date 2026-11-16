@@ -1,1 +1,0 @@
-import{c}from"./index-C5GmQ-yP.js";const e={name:"circle-letter-g",size:24,node:[["path",{d:"M12.5 12H15v2.268a.88.88 0 01-.263.65A4 4 0 1112 8h2.5",key:"qr2odw"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const r=c(e);export{e as __iconData,r as default};

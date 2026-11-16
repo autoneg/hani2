@@ -1,0 +1,1 @@
+import{c}from"./index-arDMLQUh.js";const e={name:"circle-letter-v",size:24,node:[["path",{d:"m9 8 2.525 7.66a.5.5 0 0 0 .95 0L15 8",key:"1arqi6"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const a=c(e);export{e as __iconData,a as default};

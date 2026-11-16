@@ -1,0 +1,1 @@
+import{c}from"./index-arDMLQUh.js";const e={name:"lens",size:24,node:[["path",{d:"M15.725 7.296h.01",key:"bv0cmm"}],["path",{d:"M6 12a6 6 0 016-6",key:"1k6wou"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const o=c(e);export{e as __iconData,o as default};

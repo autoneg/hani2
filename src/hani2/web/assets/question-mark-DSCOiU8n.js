@@ -1,0 +1,1 @@
+import{c as a}from"./index-arDMLQUh.js";const e={name:"question-mark",size:24,node:[["path",{d:"M12 15c0-2.48 5-2.99 5-6.5a5 4.5 0 00-10 0",key:"1r0o5y"}],["path",{d:"M12 20h.01",key:"zekei9"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

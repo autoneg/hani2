@@ -1,1 +1,0 @@
-import{c as o}from"./index-C5GmQ-yP.js";const e={name:"move-left",size:24,node:[["path",{d:"M6 8L2 12L6 16",key:"kyvwex"}],["path",{d:"M2 12H22",key:"1m8cig"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

@@ -1,1 +1,0 @@
-import{c as t}from"./index-C5GmQ-yP.js";const e={name:"square-letter-r",size:24,node:[["path",{d:"m11 12 4 4",key:"12i9ze"}],["path",{d:"M9 12h4a2 2 0 0 0 0-4H9.5a.5.5 0 0 0-.5.5V16",key:"15uh3t"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const r=t(e);export{e as __iconData,r as default};
