@@ -416,7 +416,7 @@ function ServerSection({ meta }: { meta: any }) {
         <Row label="Time limit (seconds)" hint="Empty for no limit">
           <Text type="number" v={d.negotiation?.time_limit} on={(v) => set("negotiation.time_limit", v)} />
         </Row>
-        <Row label="Partner pool" hint="Negotiators and groups such as :template, :notext, :llm, :negmas, :hani">
+        <Row label="Partner pool" hint="Negotiators and groups such as :template, :notext, :llm, :negmas, :classic">
           <List v={d.agents} on={(v) => set("agents", v)} ph=":template" />
         </Row>
         {meta && (

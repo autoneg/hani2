@@ -118,7 +118,8 @@ AGENT_GROUPS = {
     ":llm": LLM_NEGOTIATORS,
     ":template": TEMPLATE_BASED_NEGOTIATORS,
     ":negmas": NEGMAS_NEGOTIATORS,
-    ":hani": HANI_NEGOTIATORS,
+    ":classic": HANI_NEGOTIATORS,
+    ":hani": HANI_NEGOTIATORS,  # older name of :classic
     ":genius": GENIUS_NEGOTITORS,
 }
 
@@ -599,7 +600,7 @@ SELECTABLE_GROUPS = {
     "template": TEMPLATE_BASED_NEGOTIATORS,
     "notext": NOTEXT_NEGOTIATORS,
     "negmas": NEGMAS_NEGOTIATORS,
-    "hani": HANI_NEGOTIATORS,
+    "classic": HANI_NEGOTIATORS,
     "genius": GENIUS_NEGOTITORS,
 }
 

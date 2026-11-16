@@ -92,7 +92,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility` or `tool_order` is effective.
 
-Capabilities gate the functions offered to the model and `ToolDispatcher.execute`. The helper methods on `SupportAgent` (`highlight()`, `annotate()`, `set_layout()`, `show_panel()` and so on) call the session directly and are not gated. A custom agent that calls them should check `self.capabilities.has(...)` itself if it wants to respect the participant's choices.
+Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `SupportAgent`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
 ## Autonomy
 

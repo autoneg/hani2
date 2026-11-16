@@ -37,7 +37,7 @@ A spec that starts with `:` expands to a list of specs. Tokens are case-insensit
 | `:template` | The four `*WithTextNegotiator` negotiators. They send messages from templates, without a language model. |
 | `:notext` | `BoulwareTBNegotiator`, `ConcederTBNegotiator`, `LinearTBNegotiator`, `HybridNegotiator` (offers only, no messages). |
 | `:negmas` | Every SAO negotiator type that negmas registers. |
-| `:hani` | The classic negotiators in `hani2.helpers.negotiators`: `helpers.AverageTitForTat`, `helpers.HardHeaded`, `helpers.AgentK`, `helpers.Atlas3`, `helpers.CUHKAgent`, `helpers.AgentGG`. |
+| `:classic` | The classic negotiators in `hani2.helpers.negotiators`: `helpers.AverageTitForTat`, `helpers.HardHeaded`, `helpers.AgentK`, `helpers.Atlas3`, `helpers.CUHKAgent`, `helpers.AgentGG`. |
 | `:genius` | Every agent in `negmas.genius.gnegotiators`, as `genius.<Class>`. |
 | `:custom` | The comma-separated specs in the `HANI2_CUSTOM_AGENTS` environment variable (these may contain group tokens too). |
 | `:pan` | The classes in an external `pan.py` module (see below). Empty when no such module is found. |
@@ -118,7 +118,7 @@ The partner is then chosen at random from the pool, with two exceptions:
 
 ## The admin opponent picker
 
-When a session is in admin mode, the start screen shows a field labelled *Opponent for the next negotiation*. It suggests every agent in the groups offered to admins (`llm`, `template`, `notext`, `negmas`, `hani`, `genius`), but you can type any spec. Leave it empty to draw from the pool. The choice stays in place for later negotiations in the same session until you clear it.
+When a session is in admin mode, the start screen shows a field labelled *Opponent for the next negotiation*. It suggests every agent in the groups offered to admins (`llm`, `template`, `notext`, `negmas`, `classic`, `genius`), but you can type any spec. Leave it empty to draw from the pool. The choice stays in place for later negotiations in the same session until you clear it.
 
 Admin sessions also show the partner's name in the interface. For other participants, the partner's type stays hidden unless the admin turns on *Show the partner's type* in the settings drawer. See [Admin console](admin.md) and [Authentication](authentication.md) for how a session enters admin mode.
 

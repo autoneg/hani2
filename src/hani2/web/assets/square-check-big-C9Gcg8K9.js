@@ -1,1 +1,0 @@
-import{c as e}from"./index-B5-m45PC.js";const a={name:"square-check-big",size:24,node:[["path",{d:"M21 10.656V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.344",key:"2acyp4"}],["path",{d:"m9 11 3 3L22 4",key:"1pflzl"}]],aliases:["check-square"]};a.node;const o=e(a);export{a as __iconData,o as default};

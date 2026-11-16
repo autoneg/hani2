@@ -1,0 +1,1 @@
+import{c as t}from"./index-D_I-sys5.js";const e={name:"move-vertical",size:24,node:[["path",{d:"M12 2v20",key:"t6zp3m"}],["path",{d:"m8 18 4 4 4-4",key:"bh5tu3"}],["path",{d:"m8 6 4-4 4 4",key:"ybng9g"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

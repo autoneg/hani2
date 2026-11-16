@@ -170,7 +170,7 @@ class TradeOutcomeDisplay(DefaultOutcomeDisplay):
 
 `str()` receives the outcome as a tuple in issue order, the scenario, whether the negotiation is over (`is_done`) and whether the offer came from the participant (`from_human`). You can also override `table()`, which returns a list of row dictionaries.
 
-HANI2 uses the first subclass it finds in the file. Scenarios whose outcome space name starts with `Trade`, `Island` or `Grocery` always use the built-in display for that type, and ignore `display.py`.
+HANI2 uses the first subclass it finds in the file. A scenario's own `display.py` always wins. Scenarios without one whose outcome-space name starts with `Trade`, `Island` or `Grocery` use the built-in display for that type.
 
 ## Built-in generators
 

@@ -26,7 +26,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | --- | --- | --- |
 | `--port`, `-p` | `5006` | Port to listen on. |
 | `--host` | `127.0.0.1` | Interface to bind. Use `0.0.0.0` to accept remote connections. |
-| `--agents` | none | Opponent pool: comma-separated negotiators and/or group tokens (`:llm`, `:template`, `:notext`, `:negmas`, `:hani`, `:genius`, `:custom`). Sets `HANI2_AGENTS`. See [Opponents](../guide/opponents.md). |
+| `--agents` | none | Opponent pool: comma-separated negotiators and/or group tokens (`:llm`, `:template`, `:notext`, `:negmas`, `:classic`, `:genius`, `:custom`). Sets `HANI2_AGENTS`. See [Opponents](../guide/opponents.md). |
 | `--support-agent` | none | Who gets the support agent: `on`, `off` or `auto` (admins only). Sets `HANI2_SUPPORT_AGENT` and overrides `mode` in `support_agent_settings.json`. |
 | `--experiment` | none | Run this experiment (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
 | `--browser` / `--no-browser` | `--browser` | Open the browser once the server answers. |

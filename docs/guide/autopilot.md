@@ -33,7 +33,7 @@ Autopilot reads `autopilot_settings.json` from the settings folder, merged over 
 |-----|---------|---------|
 | `allowed` | `false` | The master switch. With `false`, the Autopilot button is not shown. |
 | `driver` | `"Support Agent"` | The default driver, used whenever the participant cannot or did not choose one. |
-| `allowed_drivers` | `null` | The drivers offered in the selector. `null` offers all of them. |
+| `allowed_drivers` | `null` | The drivers that may be used. `null` allows all of them. When `driver` is not in this list, the first allowed driver is used instead. |
 | `step_delay` | `0.5` | Seconds to wait before each autopilot move, so people can follow the play. |
 | `user_can_choose` | `null` | Whether non-admin participants may pick the driver. `null` allows it only in the guest playground (not for Prolific participants). Admins can always choose. |
 
@@ -65,8 +65,8 @@ Capabilities still apply. If `submit_counter`, `accept` or `end` is not effectiv
 
 If a turn ends without one of the three actions, the agent counts a stall, shows a warning toast and sends the current draft as a counter-offer to keep the negotiation moving. After three stalls in a row it shows an error toast ("Autopilot disengaged: the support agent kept failing to act. You're back in control.") and switches autopilot off. A successful turn resets the count.
 
-!!! warning
-    Autopilot turns run from the agent's `on_event` method and only while the agent is switched on. A custom agent that overrides `on_event` must call `super().on_event(event_name, nmi)` for `action_requested` events, or the support agent driver never moves. If the participant switches the assistant off, the support agent driver stops moving too.
+!!! note
+    The session drives autopilot turns itself: it calls the agent's `autopilot_step()` on every turn, independently of `on_event`. Custom agents that override `on_event` therefore work as drivers too, and the driver keeps moving even when the participant has switched the assistant's chat off. `step_delay` applies to support-agent drivers as well.
 
 ## Negotiator drivers
 

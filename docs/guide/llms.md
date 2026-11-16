@@ -11,7 +11,7 @@ There are two independent configurations, so the assistant can use a different m
 | File | Used by | Client |
 | --- | --- | --- |
 | `support_agent_settings.json` | The support agent and its autopilot driver. | [litellm](https://docs.litellm.ai/docs/providers), so any provider litellm supports. |
-| `llm_settings.json` | LLM opponents (`model` and `provider` are passed to them) and the message helpers. | LLM opponents use litellm through negmas-llm. The message helpers support `ollama`, `openai` and `anthropic`. |
+| `llm_settings.json` | LLM opponents (`model` and `provider` are passed to them) and the message helpers. | Any litellm provider, for both the opponents (through negmas-llm) and the message helpers. |
 
 Both files live in the settings folder and can be edited in the admin console, under **Language model** and **Support agent**. The [configuration reference](configuration.md) lists every key.
 
@@ -128,15 +128,12 @@ See [Opponents](opponents.md) for how to put LLM opponents in the pool.
 
 ### Message helpers
 
-The message helpers call the provider directly and accept three `provider` values:
+The message helpers accept any litellm provider:
 
 | `provider` | How it is called | Key |
 | --- | --- | --- |
 | `ollama` | OpenAI-compatible client at `ollama_base_url`. Any OpenAI-compatible server works here. | none |
-| `openai` | OpenAI client. | the variable named in `api_key_env` |
-| `anthropic` | Anthropic client. Install it first with `pip install anthropic`. | the variable named in `api_key_env` |
-
-Any other value makes the helpers fail with "Unknown LLM provider". Because `llm_settings.json` is shared with the opponents, choose a provider both sides understand (`ollama`, `openai` or `anthropic`) or leave the message helpers unused.
+| anything else (`openai`, `anthropic`, `gemini`, `groq`, `mistral`, `azure`, `openrouter`, …) | litellm, with the model string built from `provider` and `model`; set `api_base` for a custom endpoint | the variable named in `api_key_env` |
 
 The helpers are used by:
 

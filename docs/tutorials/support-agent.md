@@ -340,4 +340,4 @@ Check that you started `hani2` from the folder holding the module with `PYTHONPA
 
 **"I'm still working on the previous request".** Only one model turn runs at a time. Wait for the current one to finish, or lower `max_tool_iterations`.
 
-**Autopilot never moves with my agent.** Your agent overrides `on_event` without calling `super().on_event(...)`. See [Autopilot](../guide/autopilot.md).
+**Autopilot does not move.** Check that autopilot is allowed (`autopilot_settings.json`), that the driver is `Support Agent`, and that the agent has the `submit_counter`, `accept` and `end` capabilities. See [Autopilot](../guide/autopilot.md).

@@ -1,1 +1,0 @@
-import{c as e}from"./index-B5-m45PC.js";const c={name:"layout-grid-circles",size:24,node:[["circle",{cx:"17.5",cy:"17.5",r:"3.5",key:"w3z12y"}],["circle",{cx:"17.5",cy:"6.5",r:"3.5",key:"1dwebm"}],["circle",{cx:"6.5",cy:"17.5",r:"3.5",key:"1sut0i"}],["circle",{cx:"6.5",cy:"6.5",r:"3.5",key:"hiq0pm"}]]};c.node;const i=e(c);export{c as __iconData,i as default};

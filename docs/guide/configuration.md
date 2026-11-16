@@ -212,7 +212,7 @@ See [Support agent](support-agent.md).
 | --- | --- | --- |
 | `allowed` | `false` | Master switch for autopilot. |
 | `driver` | `"Support Agent"` | Default driver: `"Support Agent"` or a negotiator name. |
-| `allowed_drivers` | `null` | Drivers offered in the selector. `null`: all. |
+| `allowed_drivers` | `null` | Drivers that may be used. `null`: all. If `driver` is not listed, the first allowed driver is used. |
 | `step_delay` | `0.5` | Seconds to wait before each autopilot move (both kinds of driver). |
 | `user_can_choose` | `null` | Whether non-admins may pick the driver. `null`: only in the playground. |
 

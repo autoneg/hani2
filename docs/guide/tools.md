@@ -78,7 +78,7 @@ The `"tools"` section of `env.json` (see [Configuration reference](configuration
 :   Tool names to remove. Matching ignores case. Disabled tools are not created at all, for anyone.
 
 `overrides`
-:   A mapping from a tool's exact name to new defaults. The accepted keys are:
+:   A mapping from a tool's name (case-insensitive) to new defaults. The accepted keys are:
 
     | Key | Meaning |
     |-----|---------|

@@ -225,8 +225,8 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `view_mode` | The layout in use at the end (`full`, `simple` or `focus`). |
 | `view_source` | `query` when the layout came from the `?view=` URL parameter, else `default`. |
 | `user_agent` | The browser's user agent string. |
-| `support_agent` | Whether the support agent has acted (sent a message or changed something) in this browser session. Once true it stays true for the session's later negotiations. |
-| `autopilot` | Whether the autopilot has been switched on in this browser session. Once true it stays true for the session's later negotiations. |
+| `support_agent` | Whether the support agent acted (sent a message or changed something) during this negotiation. |
+| `autopilot` | Whether the autopilot was switched on during this negotiation. |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.
 
