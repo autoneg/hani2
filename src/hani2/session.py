@@ -972,9 +972,9 @@ class NegotiationSession:
         if m is None:
             return
         with self.lock:
-            if self.phase not in ("running", "starting"):
+            if self.phase not in ("running", "starting") or getattr(self, "_finishing", False):
                 return
-            self.phase = "ended"
+            self._finishing = True
             self.thinking = False
             self.ss["negotiation_running"] = False
             if self._timer is not None:
@@ -991,6 +991,8 @@ class NegotiationSession:
         st = m.state
         agreement = st.agreement
         with self.lock:
+            self.phase = "ended"
+            self._finishing = False
             self.result = dict(
                 summary,
                 agreement=self.outcome_to_dict(agreement),

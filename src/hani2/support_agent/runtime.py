@@ -314,9 +314,15 @@ class SupportAgent:
         if not self.user_enabled:
             return
         if self.autopilot and event_name == "action_requested":
-            if self._busy.locked():
-                return
-            self._run_autopilot_turn()
+            # The previous autopilot turn may still be wrapping up: wait for it
+            # rather than skipping this turn (a skipped turn stalls the round).
+            import time as _time
+
+            deadline = _time.time() + 60
+            while self._busy.locked() and _time.time() < deadline:
+                _time.sleep(0.02)
+            if self.autopilot and self.session.is_my_turn():
+                self._run_autopilot_turn()
             return
         proactive = self.settings.get("proactive", {}) or {}
         if not proactive.get(f"on_{event_name}", False):
