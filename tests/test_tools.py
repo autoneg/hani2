@@ -19,7 +19,7 @@ def test_tools_appear_by_timing_and_role():
     s.start()
     s.wait_for_turn()
     assert {"Utility Plot", "Outcome Plot", "Trace", "Value Histogram", "Utility-based Selector"} <= set(names(s))
-    assert "LLM" not in names(s) and "Agent Preferences" not in names(s)
+    assert "LLM" not in names(s) and "Opponent Preferences" not in names(s)
 
 
 def test_admin_query_flag_does_not_unlock_admin_tools():
@@ -27,18 +27,18 @@ def test_admin_query_flag_does_not_unlock_admin_tools():
     s.admin_mode = True
     s.start()
     s.wait_for_turn()
-    assert "Agent Preferences" not in names(s)
+    assert "Opponent Preferences" not in names(s)
     trace = s.tool_controller.find("Trace")
     trace.values["show_agent"] = True
     view = trace.render()
-    assert "Agent utility" not in view[-1]["columns"]
+    assert "Opponent utility" not in view[-1]["columns"]
 
 
 def test_admin_gets_admin_tools():
     s = make_session(is_admin=True)
     s.start()
     s.wait_for_turn()
-    assert {"LLM", "Random", "All Results", "Agent Preferences"} <= set(names(s))
+    assert {"LLM", "Random", "All Results", "Opponent Preferences"} <= set(names(s))
 
 
 @pytest.mark.parametrize("phase", ["ready", "running", "ended"])
@@ -160,3 +160,28 @@ def test_llm_tool_generates_and_applies(monkeypatch):
     tool.on_action("apply", {})
     assert s.draft == outcome and s.draft_text == "How about this?"
     assert "instruction_prompt" in __import__("hani2.config", fromlist=["x"]).load_llm_settings()
+
+
+def test_negotiation_plot_for_admins():
+    s = make_session(is_admin=True)
+    assert "Negotiation Plot" in names(s)
+    s.start()
+    s.wait_for_turn()
+    s.play_counters(2)
+    plot = next(c for c in s.tool_controller.find("Negotiation Plot").render() if c["type"] == "plot")
+    traces = {t.get("name") for t in plot["figure"]["data"]}
+    assert {"Outcomes", "Pareto frontier", "Nash", "Your offers", "Opponent offers"} <= traces
+    assert "Negotiation Plot" not in names(make_session())
+
+
+def test_admin_can_open_admin_only_tools_to_everyone(hani2_home):
+    write_settings(hani2_home, "env.json", {"tools": {"overrides": {"negotiation plot": {"admin_only": False},
+                                                                     "Opponent Preferences": {"admin_only": False}},
+                                                       "show_opponent_utility": True}})
+    s = make_session()
+    assert {"Negotiation Plot", "Opponent Preferences"} <= set(names(s))
+    s.start()
+    s.wait_for_turn()
+    trace = s.tool_controller.find("Trace")
+    trace.values["show_agent"] = True
+    assert "Opponent utility" in trace.render()[-1]["columns"]

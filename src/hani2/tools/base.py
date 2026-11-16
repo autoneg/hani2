@@ -124,6 +124,16 @@ class Tool:
     def is_admin(self) -> bool:
         return bool(self.session_state.get("is_admin", False))
 
+    @property
+    def may_see_opponent(self) -> bool:
+        """Whether this participant may see the opponent's utilities: admins
+        always; everyone when env.json → ``tools.show_opponent_utility`` is true."""
+        if self.is_admin:
+            return True
+        from hani2.config import get_env
+
+        return bool(get_env("tools.show_opponent_utility", False))
+
     def trace(self) -> list:
         """The mechanism's ``full_trace`` (empty before the negotiation starts)."""
         m = self.mechanism

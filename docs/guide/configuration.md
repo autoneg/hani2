@@ -152,6 +152,7 @@ The Prolific flow overrides some of these per round (for example the time limits
 | --- | --- |
 | `tools.extra` | Extra tool classes, as `"module:Class"` or `"module.Class"`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
+| `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`. |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |
 | `webmcp.actions` | Also register tools that act in the negotiation (default `true`). |

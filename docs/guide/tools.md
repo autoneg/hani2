@@ -37,18 +37,23 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Scenario Info | upper | load | yes (permanent) | everyone | The scenario title, a "You act as ..." badge, the short description, a table of issues with their options and per-role descriptions, the hints for your role, and the long description in a collapsible card. |
 | My Results | upper | always | yes (permanent) | logged-in users (not guests) | Your score (the average of your best result per scenario), the number of negotiations and agreements, a per-scenario score table and a searchable table of every negotiation you finished, with a column picker. |
 | Value Histogram | lower | start | yes | everyone | How often each value of the selected issues was offered by you and by the partner. Bar charts for discrete issues with at most 25 values, histograms otherwise. Options: which issues, include your offers, two columns. |
-| Utility Plot | lower | start | no | everyone | The utility (for you) of every offer over time, one line per party, with a dotted line labelled *No deal* at your value on disagreement. You can choose the X axis (relative time, step, time) and Y axis. Admins can also plot the agent's utility. |
+| Utility Plot | lower | start | no | everyone | The utility (for you) of every offer over time, one line per party, with a dotted line labelled *No deal* at your value on disagreement. You can choose the X axis (relative time, step, time) and Y axis. Admins (or everyone, see below) can also plot the opponent's utility. |
+| Negotiation Plot | lower | load | yes | admins only | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
 | Outcome Plot | lower | start | no | everyone | The offers placed in the outcome space: any two issues, relative time or step on the axes, with an option to hide your own offers. |
-| Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins can add an "Agent utility" column. |
+| Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins (or everyone, see below) can add an "Opponent utility" column. |
 | Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent). A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer. A **Set Offer** button picks one outcome from the range. |
 | LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
 | Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table. |
-| Agent Preferences | upper | load | yes | admins only | The partner's private preferences, in the same layout as Preferences. |
+| Opponent Preferences | upper | load | yes | admins only | The partner's private preferences, in the same layout as Preferences. |
 
 "Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the support agent) switches them on.
 
-"Admins only" means a logged-in admin account. Opening a page with `?admin=1` turns on the admin badge and the opponent picker in the UI but does not give a session the admin-only tools, and the admin-only options inside tools (such as the agent's utility in Utility Plot and Trace) stay hidden.
+"Admins only" means a logged-in admin account. Opening a page with `?admin=1` turns on the admin badge and the opponent picker in the UI but does not give a session the admin-only tools, and the admin-only options inside tools stay hidden.
+
+### Opening admin-only tools to participants
+
+Every admin-only tool can be given to all participants: in the admin console under **Server & studies → Tools**, untick **Admins only** next to the tool (this writes `tools.overrides.<name>.admin_only = false` in `env.json`). Tick **Participants see opponent utilities** (`tools.show_opponent_utility`) to let everyone show the opponent's utility in the Utility Plot and Trace. Both apply to sessions started after saving. Keep in mind that Opponent Preferences, Negotiation Plot and the opponent-utility options reveal the opponent's private preferences, and All Results shows other participants' results.
 
 The Utility-based Selector needs the inverse of your utility function. When the scenario folder contains a cached inverter (`inverter_h<index>.pkl`, created by `hani2 generate`; see [Scenarios](scenarios.md)) and it matches the utility function, the tool uses it; otherwise it computes one when the negotiation starts.
 

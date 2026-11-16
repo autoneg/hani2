@@ -48,7 +48,7 @@ This file is a development note; it is not part of the user documentation or the
 ## Tools
 - [x] Tool base API: same lifecycle hooks, `permanent`, enable switch, `OutcomeSelector`; new: declarative `view()`, `on_input`, `on_action`, `draft_changed`
 - [x] Registry: name / timing / pane / admin_only / guest / enabled / order; `tools.extra`, `tools.disabled`, `tools.overrides`, `hani2.tools` entry points
-- [x] Preferences, Scenario Info, Utility Plot, Outcome Plot, Trace, Value Histogram, My Results (was "User Results"), Utility-based Selector (cached inverter), LLM (Response Generator), Random, All Results, Agent Preferences
+- [x] Preferences, Scenario Info, Utility Plot, Outcome Plot, Trace, Value Histogram, My Results (was "User Results"), Utility-based Selector (cached inverter), LLM (Response Generator), Random, All Results, Opponent Preferences
 - [-] Session Results (was disabled)
 
 ## Support agent & autopilot

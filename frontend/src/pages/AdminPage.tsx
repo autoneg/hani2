@@ -433,18 +433,29 @@ function ServerSection({ meta }: { meta: any }) {
       </section>
       <h3 className="mb-1 mt-6 font-semibold">Tools</h3>
       <section className="panel px-4">
-        {meta?.tools.map((t: any) => (
-          <Row key={t.name} label={t.name} hint={t.description}>
-            <label className="flex items-center gap-2 text-sm">
-              <Check v={!disabled.includes(t.name)} on={(v) => set("tools.disabled", v ? disabled.filter((x) => x !== t.name) : [...disabled, t.name])} />
-              Offered
-              <span className="text-xs text-muted">
-                {t.pane} pane, appears at {t.timing}
-                {t.admin_only ? ", admins only" : ""}
-              </span>
-            </label>
-          </Row>
-        ))}
+        <Row label="Participants see opponent utilities" hint="Lets everyone switch on the opponent's utility in the Utility Plot and Trace">
+          <Check v={d.tools?.show_opponent_utility} on={(v) => set("tools.show_opponent_utility", v)} />
+        </Row>
+        {meta?.tools.map((t: any) => {
+          const adminOnly = d.tools?.overrides?.[t.name]?.admin_only ?? t.admin_only;
+          return (
+            <Row key={t.name} label={t.name} hint={t.description}>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                <label className="flex items-center gap-2">
+                  <Check v={!disabled.includes(t.name)} on={(v) => set("tools.disabled", v ? disabled.filter((x) => x !== t.name) : [...disabled, t.name])} />
+                  Offered
+                </label>
+                <label className="flex items-center gap-2" title="Off: every participant gets this tool">
+                  <Check v={adminOnly} on={(v) => set(`tools.overrides.${t.name}.admin_only`, v)} />
+                  Admins only
+                </label>
+                <span className="text-xs text-muted">
+                  {t.pane} pane, appears at {t.timing}
+                </span>
+              </div>
+            </Row>
+          );
+        })}
         <Row label="Extra tools" hint="Python classes, e.g. my_pkg.tools:MyTool">
           <List v={d.tools?.extra} on={(v) => set("tools.extra", v)} />
         </Row>

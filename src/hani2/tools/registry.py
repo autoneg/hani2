@@ -50,13 +50,14 @@ def builtin_tool_classes() -> list[type[Tool]]:
         b.UserResultsTool,
         b.ValueHistogramTool,
         b.UtilityPlotTool,
+        b.NegotiationPlotTool,
         b.OutcomePlotTool,
         b.TraceTool,
         b.UtilitySelectorTool,
         b.ResponseGeneratorTool,
         b.RandomOutcomeTool,
         b.AllResultsTool,
-        b.AgentPreferencesTool,
+        b.OpponentPreferencesTool,
     ]
 
 

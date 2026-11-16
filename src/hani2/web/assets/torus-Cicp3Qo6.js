@@ -1,0 +1,1 @@
+import{c}from"./index-CgZn0_DA.js";const e={name:"torus",size:24,node:[["ellipse",{cx:"12",cy:"11",rx:"3",ry:"2",key:"1b2qxu"}],["ellipse",{cx:"12",cy:"12.5",rx:"10",ry:"8.5",key:"h8emeu"}]]};e.node;const r=c(e);export{e as __iconData,r as default};

@@ -24,9 +24,11 @@ from hani2.tools.plotting import (
 
 __all__ = [
     "PreferencesTool",
+    "OpponentPreferencesTool",
     "AgentPreferencesTool",
     "ScenarioInfoTool",
     "UtilityPlotTool",
+    "NegotiationPlotTool",
     "OutcomePlotTool",
     "TraceTool",
     "ValueHistogramTool",
@@ -147,9 +149,9 @@ class PreferencesTool(Tool):
         return preference_view(self, self.human_ufun)
 
 
-class AgentPreferencesTool(Tool):
-    name = "Agent Preferences"
-    description = "The AI partner's private preferences (admins only)."
+class OpponentPreferencesTool(Tool):
+    name = "Opponent Preferences"
+    description = "The opponent's private preferences (admins only)."
     icon = "bot"
     pane = "upper"
     timing = "load"
@@ -158,7 +160,11 @@ class AgentPreferencesTool(Tool):
 
     def view(self):
         return [ui.alert("Only visible to administrators.", "warning"),
-                *preference_view(self, self.agent_ufun, title_prefix="Agent ", help_card=False)]
+                *preference_view(self, self.agent_ufun, title_prefix="Opponent ", help_card=False)]
+
+
+#: Former name, kept so existing imports keep working.
+AgentPreferencesTool = OpponentPreferencesTool
 
 
 # --------------------------------------------------------------------------- #
@@ -221,9 +227,9 @@ class UtilityPlotTool(Tool):
         if m is None:
             return [ui.text_block("Starts with the negotiation.", muted=True)]
         human_id = self.session_state.get("human_id")
-        show_agent = bool(self.values.get("show_agent", False)) and self.is_admin
+        show_agent = bool(self.values.get("show_agent", False)) and self.may_see_opponent
         time_cols = {"relative_time": "Relative time", "step": "Step", "time": "Time (s)"}
-        ycols = {"human": "Your utility"} | ({"agent": "Agent utility"} if show_agent else {})
+        ycols = {"human": "Your utility"} | ({"agent": "Opponent utility"} if show_agent else {})
         x = self.values.get("x", "step")
         if x not in list(time_cols) + list(ycols):
             x = "step"
@@ -253,12 +259,100 @@ class UtilityPlotTool(Tool):
             fig.update_xaxes(range=[0, 1])
         elif x == "step" and m.nmi.n_steps:
             fig.update_xaxes(range=[0, m.nmi.n_steps])
-        xopts = time_cols | ({"agent": "Agent utility"} if show_agent else {})
+        xopts = time_cols | ({"agent": "Opponent utility"} if show_agent else {})
         controls = [ui.select("x", {v: k for k, v in xopts.items()}, x, label="X axis"),
                     ui.select("y", {v: k for k, v in ycols.items()}, y, label="Y axis")]
-        if self.is_admin:
-            controls.append(ui.checkbox("show_agent", show_agent, label="Show agent utility"))
+        if self.may_see_opponent:
+            controls.append(ui.checkbox("show_agent", show_agent, label="Show opponent utility"))
         return [ui.row(*controls, align="end"), ui.plot(fig)]
+
+
+class NegotiationPlotTool(Tool):
+    """The negotiation in utility space: every outcome placed by its utility for
+    you (x) and for the opponent (y), with the Pareto frontier, Nash and Kalai
+    points, both no-deal values, the offer trajectories and the agreement."""
+
+    name = "Negotiation Plot"
+    description = "All outcomes in utility space with the Pareto frontier, Nash point and both sides' offers."
+    icon = "chart-scatter"
+    pane = "lower"
+    timing = "load"
+    admin_only = True
+    order = 9
+    max_points = 4000
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.values.update(show_outcomes=True, show_pareto=True, show_points=True)
+        self._cache_key = None
+        self._cache: dict = {}
+
+    def _space(self):
+        s = self.scenario
+        if s is None:
+            return None
+        key = id(s)
+        if self._cache_key != key:
+            from negmas.preferences.ops import kalai_points, nash_points, pareto_frontier
+
+            ufuns = (self.human_ufun, self.agent_ufun)
+            outcomes = list(s.outcome_space.enumerate_or_sample(max_cardinality=self.max_points))
+            pts = [(float(ufuns[0](o)), float(ufuns[1](o))) for o in outcomes]
+            try:
+                frontier, idx = pareto_frontier(ufuns, outcomes=outcomes, sort_by_welfare=True)
+                frontier = sorted((float(a), float(b)) for a, b in frontier)
+                nash = [(float(p[0][0]), float(p[0][1])) for p in nash_points(ufuns, frontier=frontier, outcome_space=s.outcome_space)]
+                kalai = [(float(p[0][0]), float(p[0][1])) for p in kalai_points(ufuns, frontier=frontier, outcome_space=s.outcome_space)]
+            except Exception:  # pragma: no cover - continuous / odd spaces
+                frontier, nash, kalai = [], [], []
+            self._cache = dict(points=pts, outcomes=outcomes, frontier=frontier, nash=nash, kalai=kalai)
+            self._cache_key = key
+        return self._cache
+
+    def view(self):
+        sp = self._space()
+        if sp is None:
+            return [ui.text_block("Load a scenario first.", muted=True)]
+        hu, au = self.human_ufun, self.agent_ufun
+        human_id = self.session_state.get("human_id")
+        fig = go.Figure()
+        if self.values.get("show_outcomes", True):
+            labels = [self.session.outcome_str(o) for o in sp["outcomes"]]
+            fig.add_trace(go.Scattergl(x=[p[0] for p in sp["points"]], y=[p[1] for p in sp["points"]], mode="markers",
+                                       name="Outcomes", marker=dict(size=5, color="rgba(100,116,139,0.35)"),
+                                       text=labels, hovertemplate="%{text}<br>you %{x:.0%} · opponent %{y:.0%}<extra></extra>"))
+        if self.values.get("show_pareto", True) and sp["frontier"]:
+            fig.add_trace(go.Scatter(x=[p[0] for p in sp["frontier"]], y=[p[1] for p in sp["frontier"]], mode="lines+markers",
+                                     name="Pareto frontier", line=dict(color="#10b981", width=2), marker=dict(size=6)))
+        if self.values.get("show_points", True):
+            for pts, label, symbol in ((sp["nash"], "Nash", "star"), (sp["kalai"], "Kalai", "diamond")):
+                if pts:
+                    fig.add_trace(go.Scatter(x=[p[0] for p in pts], y=[p[1] for p in pts], mode="markers", name=label,
+                                             marker=dict(size=14, symbol=symbol, color="#a855f7", line=dict(width=1, color="white"))))
+        for neg_is_human, color, label in ((True, HUMAN_COLOR, "Your offers"), (False, AGENT_COLOR, "Opponent offers")):
+            rows = [r for r in self.trace() if (str(r[3]) == str(human_id)) == neg_is_human and r[4] is not None]
+            if rows:
+                fig.add_trace(go.Scatter(
+                    x=[float(hu(r[4])) for r in rows], y=[float(au(r[4])) for r in rows], mode="lines+markers", name=label,
+                    line=dict(color=color, width=2), marker=dict(size=8, color=color),
+                    text=[f"round {r[2] + 1}: {self.session.outcome_str(r[4])}" for r in rows],
+                    hovertemplate="%{text}<br>you %{x:.0%} · opponent %{y:.0%}<extra></extra>"))
+        m = self.mechanism
+        agreement = getattr(getattr(m, "state", None), "agreement", None) if m is not None else None
+        if agreement is not None:
+            fig.add_trace(go.Scatter(x=[float(hu(agreement))], y=[float(au(agreement))], mode="markers", name="Agreement",
+                                     marker=dict(size=18, symbol="circle-open", color="#ef4444", line=dict(width=3))))
+        for v, axis in ((float(hu.reserved_value or 0), "x"), (float(au.reserved_value or 0), "y")):
+            (fig.add_vline if axis == "x" else fig.add_hline)(v, line_dash="dot", line_color="#ef4444", opacity=0.6)
+        fig.update_layout(**base_layout(380, xaxis=dict(title="Your utility", range=[0, 1.02], tickformat=".0%"),
+                                        yaxis=dict(title="Opponent utility", range=[0, 1.02], tickformat=".0%")))
+        return [
+            ui.row(ui.checkbox("show_outcomes", self.values.get("show_outcomes", True), label="All outcomes"),
+                   ui.checkbox("show_pareto", self.values.get("show_pareto", True), label="Pareto frontier"),
+                   ui.checkbox("show_points", self.values.get("show_points", True), label="Nash / Kalai")),
+            ui.plot(fig),
+            ui.text_block("Dotted lines: each side's value on disagreement.", muted=True),
+        ]
 
 
 class OutcomePlotTool(Tool):
@@ -314,7 +408,7 @@ class TraceTool(Tool):
 
     def view(self):
         human_id = self.session_state.get("human_id")
-        show_agent = bool(self.values.get("show_agent", False)) and self.is_admin
+        show_agent = bool(self.values.get("show_agent", False)) and self.may_see_opponent
         rows = []
         for r in self.trace():
             t, rel, step, neg, offer = (list(r) + [None] * 9)[:5]
@@ -324,12 +418,12 @@ class TraceTool(Tool):
                    "Message": text or "",
                    "Your utility": float(self.human_ufun(offer)) if offer is not None else None}
             if show_agent:
-                row["Agent utility"] = float(self.agent_ufun(offer)) if offer is not None else None
+                row["Opponent utility"] = float(self.agent_ufun(offer)) if offer is not None else None
             rows.append(row)
         comps: list[ui.Component] = []
-        if self.is_admin:
-            comps.append(ui.checkbox("show_agent", show_agent, label="Show agent utility"))
-        comps.append(ui.table(rows, formats={"Time": "percent", "Your utility": "percent", "Agent utility": "percent"},
+        if self.may_see_opponent:
+            comps.append(ui.checkbox("show_agent", show_agent, label="Show opponent utility"))
+        comps.append(ui.table(rows, formats={"Time": "percent", "Your utility": "percent", "Opponent utility": "percent"},
                               page_size=50))
         return comps
 
