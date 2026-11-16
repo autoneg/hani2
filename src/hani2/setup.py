@@ -45,7 +45,10 @@ def run_setup(force: bool = False, admin_password: str | None = None, quiet: boo
         qdir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(DEFAULT_SETTINGS_DIR / "questionnaires" / "per_negotiation.yaml",
                         qdir / "per_negotiation.example.yaml")
-    scen = sdir / "scenarios"
+    # The samples go to an "Examples" category: they can be picked explicitly
+    # (admin scenario picker / scenario_order.txt) but do not replace the
+    # freshly generated Trade / Island / Grocery scenarios.
+    scen = sdir / "scenarios" / "Examples"
     for d in sorted(p for p in DEFAULT_SCENARIOS.iterdir() if p.is_dir()):
         dst = scen / d.name
         if dst.exists() and not force:

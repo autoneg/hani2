@@ -243,8 +243,8 @@ class UtilityPlotTool(Tool):
                     marker=dict(size=7)))
         rv = 100 * float(getattr(self.human_ufun, "reserved_value", 0) or 0)
         if y == "human":
-            fig.add_hline(y=rv, line_dash="dot", line_color="#ef4444", annotation_text="Disagreement",
-                          annotation_position="bottom right")
+            fig.add_hline(y=rv, line_dash="dot", line_color="#ef4444", annotation_text="No deal",
+                          annotation_position="top left")
         fig.update_layout(**base_layout(280, xaxis_title=(time_cols | ycols)[x], yaxis_title=ycols[y],
                                         yaxis=dict(range=[0, 102], ticksuffix="%")))
         if x == "relative_time":

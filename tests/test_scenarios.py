@@ -19,10 +19,13 @@ def test_setup_copies_samples_and_they_load(hani2_home):
 
     run_setup(quiet=True)
     assert (hani2_home / "settings" / "env.json").exists()
-    assert set(store.list_scenarios("Trade")) == {"Trade"}
-    s, info, sdir = store.load_scenario("Trade", 7)
+    assert set(store.list_scenarios("Examples")) == {"Trade", "Island", "Grocery"}
+    assert "Examples" in store.available_types()
+    s, info, sdir = store.load_scenario("Examples", 0, name="Trade")
     assert not info["generated"] and sdir and sdir.endswith("Trade")
     assert s.info.get("title")
+    _, info, _ = store.load_scenario("Trade", 7)  # the Trade category is still generated
+    assert info["generated"]
 
 
 def test_pool_wraps_around(hani2_home):
