@@ -422,6 +422,7 @@ def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         tool = s.tool_controller.find(msg.get("name") or "")
         if tool is not None:
             tool.refresh()
+        s.push_state()
         ev.log_event(s.sid, ev.EventType.TAB_CHANGED, user=s.user, component=str(msg.get("name")))
         return None
     if t == "pref":

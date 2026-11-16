@@ -129,3 +129,13 @@ def test_admin_settings_roundtrip(client):
     assert client.post("/api/admin/users", json={"username": "dave", "password": "pw12"}).status_code == 200
     assert any(u["username"] == "dave" for u in client.get("/api/admin/users").json())
     assert client.delete("/api/admin/users/dave").json()["ok"]
+
+
+def test_active_tab_switch_pushes_state(client):
+    login(client)
+    sid = client.post("/api/session", json={"mode": "main", "query": {}}).json()["sid"]
+    with client.websocket_connect(f"/api/ws/{sid}") as ws:
+        recv_until(ws, lambda m: m["type"] == "state")
+        ws.send_text(json.dumps({"type": "active_tab", "pane": "upper", "name": "Preferences"}))
+        st = recv_until(ws, lambda m: m["type"] == "state" and m["state"]["active_tabs"]["upper"] == "Preferences")
+        assert st

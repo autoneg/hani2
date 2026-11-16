@@ -87,7 +87,11 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
   const allowMove = st.settings.allow_moving_tools !== false && panes.length === 1;
   const allowSwitch = st.settings.allow_tool_switch !== false;
   if (!tools.length && !hidden.length) return null;
-  const select = (t: ToolInfo) => send({ type: "active_tab", pane: panes.length > 1 ? key : t.pane, name: t.name });
+  const select = (t: ToolInfo) => {
+    const pane = panes.length > 1 ? key : t.pane;
+    useStore.setState((s) => (s.state ? { state: { ...s.state, active_tabs: { ...s.state.active_tabs, [pane]: t.name } } } : {}));
+    send({ type: "active_tab", pane, name: t.name });
+  };
   return (
     <Anchor id={`pane:${key}`} className={`flex min-h-0 flex-col ${className}`}>
       <div className="flex items-center gap-1 border-b border-line px-2" role="tablist" aria-label={label ?? "Tools"}>
