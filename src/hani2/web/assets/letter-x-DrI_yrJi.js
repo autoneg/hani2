@@ -1,1 +1,0 @@
-import{c as t}from"./index-BTRHTAEV.js";const e={name:"letter-x",size:24,node:[["path",{d:"M18 4 6 20",key:"1bmua5"}],["path",{d:"m6 4 12 16",key:"muct2p"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

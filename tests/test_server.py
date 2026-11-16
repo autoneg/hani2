@@ -139,3 +139,14 @@ def test_active_tab_switch_pushes_state(client):
         ws.send_text(json.dumps({"type": "active_tab", "pane": "upper", "name": "Preferences"}))
         st = recv_until(ws, lambda m: m["type"] == "state" and m["state"]["active_tabs"]["upper"] == "Preferences")
         assert st
+
+
+def test_guest_cookie_cannot_escape_the_results_folder(client, hani2_home):
+    client.cookies.set("hani2_guest", "x/../admin")
+    r = client.post("/api/session", json={"mode": "guest", "query": {}})
+    sid = r.json()["sid"]
+    gid = sid.split(":", 1)[1]
+    assert len(gid) == 12 and all(c in "0123456789abcdef" for c in gid)
+    from hani2.server import hub
+
+    assert hub.get(sid).ss["user_path"].parent == hani2_home / "db"

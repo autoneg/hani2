@@ -430,6 +430,28 @@ def _call_anthropic(prompt: str, settings: dict) -> str | None:
     return response.content[0].text
 
 
+def _call_litellm(prompt: str, settings: dict) -> str | None:
+    """Any litellm provider (openai, anthropic, gemini, azure, groq, mistral, …)."""
+    import litellm
+    from negmas_llm.common import apply_max_tokens, litellm_model_string
+
+    provider = str(settings.get("provider", "openai"))
+    model = str(settings.get("model", ""))
+    kwargs: dict = {
+        "model": litellm_model_string(provider, model),
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": settings.get("temperature", 0.3),
+    }
+    apply_max_tokens(kwargs, provider, model, settings.get("max_tokens", 2000))
+    api_key = _get_api_key(settings)
+    if api_key:
+        kwargs["api_key"] = api_key
+    if settings.get("api_base"):
+        kwargs["api_base"] = settings["api_base"]
+    response = litellm.completion(**kwargs)
+    return response.choices[0].message.content
+
+
 def _call_llm(prompt: str, settings: dict | None = None) -> str:
     """Call the configured LLM provider."""
     if settings is None:
@@ -437,14 +459,10 @@ def _call_llm(prompt: str, settings: dict | None = None) -> str:
 
     provider = settings.get("provider", "ollama").lower()
 
-    if provider == "openai":
-        result = _call_openai(prompt, settings)
-    elif provider == "anthropic":
-        result = _call_anthropic(prompt, settings)
-    elif provider == "ollama":
+    if provider == "ollama":
         result = _call_ollama(prompt, settings)
     else:
-        raise ValueError(f"Unknown LLM provider: {provider}")
+        result = _call_litellm(prompt, settings)
 
     if result is None:
         raise ValueError("LLM returned empty response")

@@ -305,7 +305,7 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
             name = info.get("name") or info.get("login")
         else:
             email = info.get("email")
-            username = f"g_{(email or info.get('sub', 'user')).split('@')[0]}"
+            username = f"g_{info.get('sub') or (email or 'user').replace('@', '_at_')}"
             name = info.get("name") or username
     except Exception:
         traceback.print_exc()
@@ -323,6 +323,19 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
 # --------------------------------------------------------------------------- #
 # Sessions                                                                     #
 # --------------------------------------------------------------------------- #
+_GID = __import__("re").compile(r"^[0-9a-f]{12}$")
+
+
+def _guest_id(request: Request, response: Response) -> str:
+    """The per-browser id from the guest cookie; anything that is not exactly 12
+    hex characters is replaced (it becomes part of a folder name)."""
+    gid = request.cookies.get(GUEST_COOKIE) or ""
+    if not _GID.match(gid):
+        gid = uuid.uuid4().hex[:12]
+    response.set_cookie(GUEST_COOKIE, gid, max_age=MAX_AGE, samesite="lax")
+    return gid
+
+
 def _truthy(v: Any) -> bool:
     return str(v).strip().lower() in ("1", "true", "yes", "on")
 
@@ -337,9 +350,7 @@ def api_session(request: Request, response: Response, body: dict = Body(default=
     is_admin = auth.is_admin_user(user)
     if mode == "main":
         if auth_mode() == "none":
-            gid = request.cookies.get(GUEST_COOKIE) or uuid.uuid4().hex[:12]
-            response.set_cookie(GUEST_COOKIE, gid, max_age=MAX_AGE, samesite="lax")
-            user = user or f"user_{gid}"
+            user = user or f"user_{_guest_id(request, response)}"
         if not user:
             raise HTTPException(401, "Not logged in")
         if get_env("auth.enforce_consent", False) and not auth.get_user_consent(user) and not is_admin:
@@ -354,8 +365,7 @@ def api_session(request: Request, response: Response, body: dict = Body(default=
             user, display = f"prolific_{pid}", "Participant"
             sid = f"prolific:{pid}"
         else:
-            gid = request.cookies.get(GUEST_COOKIE) or uuid.uuid4().hex[:12]
-            response.set_cookie(GUEST_COOKIE, gid, max_age=MAX_AGE, samesite="lax")
+            gid = _guest_id(request, response)
             # each browser gets its own results folder (no concurrent writes to one file)
             user, display = f"guest_{gid}", "Guest"
             sid = f"guest:{gid}"
@@ -406,6 +416,10 @@ def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
             return None
         c = s.tool_controller
         op, name = msg.get("op"), msg.get("name")
+        if op in ("show", "hide", "enable", "focus"):
+            opened = op in ("show", "focus") or (op == "enable" and bool(msg.get("enabled", True)))
+            ev.log_event(s.sid, ev.EventType.TOOL_OPENED if opened else ev.EventType.TOOL_CLOSED, user=s.user,
+                         component=str(name), action=op)
         if op == "move":
             return c.move_tool(name, position=msg.get("position"), pane=msg.get("pane"))
         if op == "hide":

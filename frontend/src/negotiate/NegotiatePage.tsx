@@ -156,6 +156,10 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   }, [mode, connect]);
 
   useEffect(() => {
+    if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: location.pathname, width: window.innerWidth } });
+  }, [connected, mode]);
+
+  useEffect(() => {
     if (st?.scenario?.title) document.title = `${st.scenario.title} · ${document.documentElement.dataset.brand || "HANI2"}`;
   }, [st?.scenario?.title]);
 

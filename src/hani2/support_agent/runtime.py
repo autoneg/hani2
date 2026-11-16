@@ -135,7 +135,11 @@ class SupportAgent:
         self.session.add_chat(user or self.name, str(text))
 
     def toast(self, message: str, level: str = "info") -> bool:
+        """A pop-up notification (needs the ``toast`` capability; falls back to chat)."""
         level = level if level in _VALID_TOAST_LEVELS else "info"
+        if not self.capabilities.has(Capability.TOAST):
+            self.post(message)
+            return False
         return self.session.toast(message, level)
 
     def show_on_board(self, text: str, append: bool = False) -> bool:
@@ -189,29 +193,43 @@ class SupportAgent:
         return True
 
     # -- interface control -------------------------------------------------
+    # These helpers respect the effective capabilities (admin grant ∩ the
+    # participant's switches): when a capability is off they do nothing and
+    # return ``{"ok": False, "error": ...}``.
+    def _denied(self, cap: Capability) -> dict | None:
+        if self.capabilities.has(cap):
+            return None
+        return {"ok": False, "error": f"capability '{cap.value}' is not enabled"}
+
     def highlight(self, target: str, message: str | None = None, style: str = "pulse",
                   duration: float | None = None) -> dict:
-        """Spotlight an element (``"accept"``, ``"issue:Price"``, ``"tool:Utility Plot"`` …)."""
-        return self.session.highlight(target, message=message, style=style, duration=duration)
+        """Spotlight an element (``"accept"``, ``"issue:Price"``, ``"tool:Utility Plot"`` …).
+        Needs the ``highlight`` capability."""
+        return self._denied(Capability.HIGHLIGHT) or self.session.highlight(
+            target, message=message, style=style, duration=duration)
 
     def clear_highlights(self, target: str | None = None) -> dict:
         return self.session.clear_highlights(target)
 
     def annotate(self, target: str, text: str | None, kind: str = "info") -> dict:
-        """Attach a note to an element; ``text=None`` removes it."""
-        return self.session.annotate(target, text, kind)
+        """Attach a note to an element; ``text=None`` removes it. Needs ``annotate``."""
+        if text is None:
+            return self.session.annotate(target, None)
+        return self._denied(Capability.ANNOTATE) or self.session.annotate(target, text, kind)
 
     def set_layout(self, **changes: Any) -> dict:
-        """``view`` (full | simple | focus), ``collapsed``, ``sizes``."""
-        return self.session.set_layout(**changes)
+        """``view`` (full | simple | focus), ``collapsed``, ``sizes``. Needs ``layout``."""
+        return self._denied(Capability.LAYOUT) or self.session.set_layout(**changes)
 
     def focus_tool(self, name: str) -> dict:
-        return self.session.tool_controller.focus_tool(name)
+        """Bring a tool to the front. Needs ``tool_visibility``."""
+        return self._denied(Capability.TOOL_VISIBILITY) or self.session.tool_controller.focus_tool(name)
 
     def show_panel(self, panel_id: str, title: str, components: list, placement: str = "assistant") -> dict:
         """Show a panel built from :mod:`hani2.tools.ui` components. Buttons and
-        table selections in it call :meth:`on_panel_action`."""
-        return self.session.show_panel(panel_id, title, components, placement=placement)
+        table selections in it call :meth:`on_panel_action`. Needs ``panels``."""
+        return self._denied(Capability.PANELS) or self.session.show_panel(
+            panel_id, title, components, placement=placement)
 
     def close_panel(self, panel_id: str | None = None) -> dict:
         return self.session.close_panel(panel_id)
@@ -290,13 +308,14 @@ class SupportAgent:
         if self._below_reserved_warned:
             return
         self._below_reserved_warned = True
-        self.session.toast(
+        if self.capabilities.has(Capability.TOAST):
+          self.session.toast(
             f"Your current offer is worth less than your reserved value ({util:.0%} < {reserved:.0%}). "
             "If it is accepted you would do worse than ending.",
             "warning",
             duration=12000,
             action={"label": "Discuss with the assistant", "kind": "open_assistant"},
-        )
+          )
         if self.capabilities.has(Capability.ANNOTATE):
             self.session.annotate("offer", f"Worth {util:.0%} — below your reserved value ({reserved:.0%})", "warning")
         self.show_on_board(

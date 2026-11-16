@@ -1,0 +1,1 @@
+import{c as t}from"./index-B5-m45PC.js";const e={name:"margin",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M21 6v12",key:"1ds1q4"}],["path",{d:"M3 6v12",key:"1g9i2g"}],["path",{d:"M6 21h12",key:"4dkmi1"}],["path",{d:"M6 3h12",key:"ggurg9"}]]};e.node;const d=t(e);export{e as __iconData,d as default};

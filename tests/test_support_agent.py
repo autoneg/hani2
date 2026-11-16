@@ -170,3 +170,18 @@ def test_turned_off_agent_does_not_answer():
     s.support_agent.set_user_enabled(False)
     s.user_chat("hello")
     assert "turned off" in s.chat[-1]["text"]
+
+
+def test_python_helpers_respect_capabilities():
+    s = make_session(agent_class="level8_spotlight:SpotlightAgent")
+    caps = s.support_agent.capabilities
+    for cap in ("highlight", "annotate", "layout", "panels", "tool_visibility"):
+        caps.set_user_capability(cap, False)
+    s.start()
+    s.wait_for_turn()
+    s.wait_agent_idle()
+    assert s.highlights == [] and s.annotations == {}
+    sa = s.support_agent
+    assert not sa.set_layout(view="focus")["ok"] and s.layout["view"] == "full"
+    assert not sa.show_panel("p", "t", [])["ok"] and s.agent_panels == []
+    assert not sa.focus_tool("Trace")["ok"]

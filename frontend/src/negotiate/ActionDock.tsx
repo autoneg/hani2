@@ -87,6 +87,9 @@ export function ConfirmDialog() {
   const confirm = useStore((s) => s.confirm);
   const setConfirm = useStore((s) => s.setConfirm);
   const st = useStore((s) => s.state);
+  useEffect(() => {
+    if (confirm) send({ type: "event", name: "modal_opened", component: "confirm", action: confirm.kind });
+  }, [confirm]);
   if (!st || !confirm) return null;
   const rv = st.reserved_value;
   const po = st.partner_offer;

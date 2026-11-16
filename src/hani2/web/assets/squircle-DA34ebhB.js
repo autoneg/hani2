@@ -1,0 +1,1 @@
+import{c}from"./index-B5-m45PC.js";const e={name:"squircle",size:24,node:[["path",{d:"M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9",key:"garfkc"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
