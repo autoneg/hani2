@@ -468,6 +468,12 @@ class NegotiationSession:
             self.questionnaire = None
             self.draft = {}
             self.draft_text = ""
+            self.human_last_offer = None
+            self.human_action = SAOResponse(ResponseType.REJECT_OFFER, None)
+            self.highlights = []
+            self.annotations = {}
+            self.agent_panels = []
+            self.board = ""
             self.phase = "ready"
         self._add_tools("load")
         self._tools_hook("scenario_loaded", scenario)
@@ -885,6 +891,12 @@ class NegotiationSession:
             outcome = self.draft_outcome()
             if outcome is None or any(v is None for v in outcome):
                 return {"ok": False, "error": "Fill every issue before sending."}
+            try:
+                valid = bool(self.scenario.outcome_space.is_valid(outcome))
+            except Exception:
+                valid = False
+            if not valid:
+                return {"ok": False, "error": "This offer is not valid in this scenario. Check every issue."}
             data = {"text": msg} if p.get("allow_text_human", True) else None
         with self.lock:
             self.human_last_offer = outcome if outcome is not None else self.human_last_offer

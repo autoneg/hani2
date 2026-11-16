@@ -119,3 +119,29 @@ def test_human_placeholder_runs_tool_hooks():
     s.send_counter()
     s.wait_for_turn()
     assert seen and seen[0] == ResponseType.REJECT_OFFER
+
+
+def test_new_scenario_resets_the_last_offer():
+    s = make_session(scenario_type="Island")
+    s.start()
+    s.wait_for_turn()
+    s.send_counter()
+    s.wait_for_turn()
+    s.end()
+    s.wait_until_done()
+    s.load("Grocery")
+    s.start()
+    s.wait_for_turn()
+    assert s.scenario.outcome_space.is_valid(s.draft_outcome())
+    assert s.send_counter()["ok"]
+    s.wait_for_turn()
+    assert s.phase == "running"
+
+
+def test_invalid_offer_is_refused():
+    s = make_session()
+    s.start()
+    s.wait_for_turn()
+    s.draft[s.issues[0].name] = "nonsense"
+    r = s.send_counter()
+    assert not r["ok"] and s.is_my_turn()
