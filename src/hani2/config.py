@@ -22,7 +22,7 @@ from typing import Any
 PACKAGE_DIR = Path(__file__).parent
 DEFAULT_SETTINGS_DIR = PACKAGE_DIR / "default_settings"
 DEFAULT_SCENARIOS = PACKAGE_DIR / "sample_scenarios" / "Default"
-# Backwards compatible aliases used by modules ported from HANI.
+# Aliases used by the scenario modules.
 DEFAULT_SCENRIOS = DEFAULT_SCENARIOS
 INFO_FILE_NAME = "_info.yaml"
 DEFAULT_PORT = 5006
@@ -124,7 +124,7 @@ def save_json_settings(filename: str, data: dict) -> Path:
 # env.json — the main deployment configuration                                 #
 # --------------------------------------------------------------------------- #
 DEFAULT_ENV: dict[str, Any] = {
-    "title": "HANI",
+    "title": "HANI2",
     "subtitle": "Human-Agent Negotiation Interface",
     "admin": {"password": "adminpass", "emails": []},
     "auth": {
@@ -183,7 +183,7 @@ def get_env(key_path: str, default: Any = None) -> Any:
 
 
 # --------------------------------------------------------------------------- #
-# LLM settings (offer generator / text extraction), ported from HANI           #
+# LLM settings (offer generator / text extraction)                            #
 # --------------------------------------------------------------------------- #
 try:
     from negmas_llm.common import DEFAULT_MODELS
@@ -192,7 +192,7 @@ try:
 except Exception:  # pragma: no cover - optional
     _default_ollama_model = "qwen3:4b-instruct"
 
-from hani2._llm_prompts import EXTRACTION_PROMPT, GENERATION_PROMPT  # noqa: E402
+from hani2._llm_prompts import EXTRACTION_PROMPT, GENERATION_PROMPT, INSTRUCTION_PROMPT  # noqa: E402
 
 DEFAULT_LLM_SETTINGS: dict[str, Any] = {
     "provider": "ollama",
@@ -203,6 +203,7 @@ DEFAULT_LLM_SETTINGS: dict[str, Any] = {
     "max_tokens": 2000,
     "extraction_prompt": EXTRACTION_PROMPT,
     "generation_prompt": GENERATION_PROMPT,
+    "instruction_prompt": INSTRUCTION_PROMPT,
 }
 
 

@@ -18,7 +18,7 @@ function Shell({ children, cfg }: { children: React.ReactNode; cfg: AppConfig | 
   return (
     <div className="grid min-h-[100dvh] lg:grid-cols-[1.05fr_1fr]">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-surface lg:flex">
-        <Brand title={cfg?.title ?? "HANI"} />
+        <Brand title={cfg?.title ?? "HANI2"} />
         <div className="max-w-md">
           <p className="text-3xl font-semibold leading-tight tracking-tight">
             Negotiate with an AI partner. See what every offer is worth before you decide.
@@ -44,7 +44,7 @@ function Shell({ children, cfg }: { children: React.ReactNode; cfg: AppConfig | 
       <main className="flex flex-col">
         <div className="flex items-center justify-between p-4 lg:justify-end">
           <div className="lg:hidden">
-            <Brand title={cfg?.title ?? "HANI"} />
+            <Brand title={cfg?.title ?? "HANI2"} />
           </div>
           <ThemeButton />
         </div>

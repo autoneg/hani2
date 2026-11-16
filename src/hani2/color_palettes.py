@@ -1,5 +1,5 @@
 """
-Color-blind friendly color palettes for HANI visualizations.
+Color-blind friendly color palettes for visualizations.
 
 Based on Paul Tol's color schemes which are designed to be distinguishable
 for people with different types of color vision deficiency.

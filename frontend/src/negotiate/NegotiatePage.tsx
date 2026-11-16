@@ -155,7 +155,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   }, [mode, connect]);
 
   useEffect(() => {
-    if (st?.scenario?.title) document.title = `${st.scenario.title} · HANI`;
+    if (st?.scenario?.title) document.title = `${st.scenario.title} · ${document.documentElement.dataset.brand || "HANI2"}`;
   }, [st?.scenario?.title]);
 
   if (error)

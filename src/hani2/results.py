@@ -1,4 +1,4 @@
-"""Saving and reading negotiation results (same files and fields as HANI).
+"""Saving and reading negotiation results.
 
 Per user directory ``<results root>/<user>/``:
 
@@ -243,7 +243,7 @@ def read_all_results() -> pd.DataFrame:
 
 
 def scenario_scores(df: pd.DataFrame, normalize_by_time: bool = False) -> tuple[float, dict[str, tuple[float, int]]]:
-    """HANI's score: per scenario the mean of the best (≤3) results excluding
+    """The participant score: per scenario the mean of the best (≤3) results excluding
     the worst one, averaged over scenarios (×100)."""
     scores: dict[str, tuple[float, int]] = {}
     if df is None or len(df) == 0 or "scenario" not in df:

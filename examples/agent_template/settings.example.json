@@ -1,0 +1,7 @@
+{
+  "agent_class": "my_agent:MyAgent",
+  "provider": "ollama",
+  "model": "qwen3:4b-instruct",
+  "autonomy": "suggest",
+  "proactive": {"on_action_requested": true}
+}

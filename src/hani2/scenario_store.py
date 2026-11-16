@@ -72,11 +72,20 @@ def available_types() -> list[str]:
     return types
 
 
+def _is_scenario_dir(d: Path) -> bool:
+    return any(f.suffix in (".yml", ".yaml") and not f.name.startswith("_") for f in d.iterdir() if f.is_file())
+
+
 def _pool(type_: str) -> list[Path]:
+    """Scenario folders of a category: numbered pool slots or named scenarios.
+    A category folder that is itself a scenario counts as a one-scenario pool."""
     d = base_dir() / type_
     if not d.is_dir():
         return []
-    return sorted(p for p in d.iterdir() if p.is_dir() and not p.name.startswith((".", "_")))
+    subs = sorted(p for p in d.iterdir() if p.is_dir() and not p.name.startswith((".", "_")) and _is_scenario_dir(p))
+    if subs:
+        return subs
+    return [d] if _is_scenario_dir(d) else []
 
 
 def list_scenarios(type_: str) -> list[str]:

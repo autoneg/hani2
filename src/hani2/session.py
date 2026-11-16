@@ -152,6 +152,8 @@ class NegotiationSession:
         self.query = dict(query or {})
         self.hub = hub
         self.lock = threading.RLock()
+        #: UI messages from the browser are applied in order on this executor.
+        self.ui_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"hani2-ui-{sid[:12]}")
         self.step_lock = threading.Lock()
         self.created = time.time()
         self.last_seen = time.time()
@@ -198,7 +200,7 @@ class NegotiationSession:
             "_session": self,
             "user": user,
             "user_path": user_path,
-            "is_admin": self.admin_mode,
+            "is_admin": self.is_admin,
             "mode": mode,
             "results": [],
             "user_agent": user_agent,
@@ -419,10 +421,11 @@ class NegotiationSession:
     def load(self, scenario_type: str | None = None, name: str | None = None) -> None:
         """Load the next scenario (no negotiation is started)."""
         with self.lock:
-            if self.phase == "running":
+            if self.phase in ("running", "starting", "questionnaire"):
                 return
             if self.study.finished():
                 self.phase = "finished"
+                self.finish_url = self.study.completion_url()
                 self.push_state()
                 return
             plan = self.study.plan_round(scenario_type if self.can_choose_scenario() else None, name)
@@ -803,7 +806,11 @@ class NegotiationSession:
                     missing.append(key)
                     continue
                 v = self._coerce(issue, value)
-                if not issue.is_valid(v):
+                try:
+                    valid = bool(issue.is_valid(v))
+                except Exception:
+                    valid = False
+                if not valid:
                     missing.append(f"{key} (invalid value {value!r})")
                     continue
                 self.draft[issue.name] = ui.jsonable(v)
@@ -862,6 +869,11 @@ class NegotiationSession:
         p = self.admin_prefs
         text_only = bool(p.get("text_only_mode")) if text_only is None else (bool(text_only) and self.is_admin)
         msg = (self.draft_text or "").strip() if p.get("allow_text_human", True) else ""
+        if p.get("auto_extract") and not text_only and msg:
+            try:
+                self.extract_offer_from_text()
+            except Exception:
+                traceback.print_exc()
         if p.get("auto_generate") and not text_only and not msg:
             msg = self._llm_generate_text() or ""
         if text_only and not msg:
@@ -1001,11 +1013,12 @@ class NegotiationSession:
                 msg = "The negotiation ended without agreement."
             self.history.append(dict(id=len(self.history), kind="system", text=msg, status=summary.get("status"), time=time.time()))
             self.emit({"type": "history", "items": self.history})
+        with self.lock:
+            self.study.after_round(summary)
         self._add_tools("end")
         self._tools_hook("negotiation_ended")
         ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, scenario_id=self._scenario_name(),
                      value={k: ui.jsonable(v) for k, v in summary.items()}, utility_value=summary.get("human_utility"))
-        self.study.after_round(summary)
         self._agent_event("negotiation_ended")
         self.push_state()
 
@@ -1022,6 +1035,23 @@ class NegotiationSession:
         except Exception:
             pass
         self.submit(sa.on_event, name, nmi)
+
+    def user_chat(self, text: str) -> None:
+        """The participant typed in the assistant chat (gated by the on/off switch)."""
+        sa = self.support_agent
+        text = (text or "").strip()
+        if sa is None or not text:
+            return
+        if sa._pending_question is not None:
+            sa._answer_question(text, echo=True)
+            return
+        self.add_chat("You", text)
+        if not sa.user_enabled:
+            sa.post("(The assistant is turned off. Switch it on to chat.)")
+            return
+        ev.log_event(self.sid, ev.EventType.SUPPORT_AGENT, user=self.user, component="SupportAgent",
+                     action="user_message", value={"actor": "human", "text": text[:500]})
+        sa.handle_user_message(text)
 
     def add_chat(self, user: str, text: str, *, kind: str = "text", extra: dict | None = None) -> dict:
         msg = dict(id=uuid.uuid4().hex[:8], user=user, text=text, kind=kind, time=time.time(), **(extra or {}))
@@ -1302,7 +1332,19 @@ class NegotiationSession:
             traceback.print_exc()
             return {"available": False}
 
+    def submit_ui(self, fn: Callable, *args, **kwargs):
+        """Run a UI message handler in order with the other UI messages."""
+
+        def _run():
+            try:
+                return fn(*args, **kwargs)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+
+        return self.ui_executor.submit(_run)
+
     def close(self) -> None:
+        self.ui_executor.shutdown(wait=False, cancel_futures=True)
         if self._timer is not None:
             self._timer.cancel()
         ev.end_session_record(self.sid)

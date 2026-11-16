@@ -130,7 +130,7 @@ class ToolController:
         self.session.push_state()
         return names
 
-    # HANI-compatible helpers used by tool buttons
+    # Helpers used by tool buttons
     def move_obj_to_pane(self, tool: "Tool", pane: str) -> dict:
         return self.move_tool(tool.name, pane=pane)
 

@@ -2,7 +2,7 @@
 
 Users live in ``settings/users.json`` (``{"username": "<hash or legacy plain>"}``)
 and metadata (consent, email, full name, created) in ``settings/users_meta.json``
-— the same layout HANI uses, so an existing ``users.json`` can be copied over.
+— two small JSON files that are easy to inspect and back up.
 Passwords are stored as PBKDF2-SHA256 hashes; legacy plain-text entries still
 verify and are upgraded to a hash on the next successful login.
 """
@@ -39,7 +39,7 @@ def _check(stored: str, password: str) -> bool:
             return hmac.compare_digest(dk.hex(), digest)
         except ValueError:
             return False
-    return hmac.compare_digest(stored, password)  # legacy plain text (HANI)
+    return hmac.compare_digest(stored, password)  # legacy plain-text entry
 
 
 def _users_file():
@@ -163,7 +163,7 @@ def is_admin_user(username: str | None) -> bool:
 
 
 def ensure_default_users(admin_password: str | None = None) -> list[str]:
-    """Create ``admin`` and ``user`` if missing (as HANI does)."""
+    """Create the default ``admin`` and ``user`` accounts if missing."""
     created = []
     if not user_exists("admin"):
         create_user(

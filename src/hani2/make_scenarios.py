@@ -46,7 +46,7 @@ MAKER_MAP = {
     "Grocery": make_grocery_scenario,
 }
 
-# The participant is negotiator 1 by default (mirrors hani.app.AppConfig.human_index).
+# The participant is negotiator 1 by default (the server default).
 DEFAULT_HUMAN_INDEX = 1
 DEFAULT_COUNT = 50
 # Opposition band: ~0 means a win-win exists (little to negotiate over), higher
@@ -116,13 +116,13 @@ def write_inverter(out_dir: Path, human_index: int) -> str:
     """Pickle the initialised inverse of the *served* human ufun next to a
     scenario dir, returning a short status note.
 
-    CRITICAL: invert the ufun exactly as HANI will serve it -- reloaded from
+    CRITICAL: invert the ufun exactly as the server will serve it -- reloaded from
     disk -- not an in-memory one. ``Scenario.load()`` can reorder ufuns by role
     name (e.g. Trade comes back ``[Buyer, Seller]`` although make_trade_scenario
     builds them ``[Seller, Buyer]``), so an in-memory ``ufuns[human_index]`` is a
     *different* negotiator than the reloaded ``ufuns[human_index]`` the
     participant gets. Inverting the in-memory ufun pickles the WRONG negotiator's
-    inverse, which makes HANI's Utility-based Selector return outcomes outside the
+    inverse, which makes the Utility-based Selector return outcomes outside the
     requested range. ``.init()`` forces the presort so the pickle is
     ready-to-query. The inverse is an optimisation, never a dependency, so we
     never raise."""

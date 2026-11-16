@@ -128,7 +128,7 @@ app = FastAPI(title="HANI2", version=__version__, lifespan=lifespan)
 def api_config(request: Request):
     env = load_env()
     return {
-        "title": env.get("title", "HANI"),
+        "title": env.get("title", "HANI2"),
         "subtitle": env.get("subtitle", ""),
         "version": __version__,
         "auth_mode": auth_mode(),
@@ -387,7 +387,7 @@ def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
     if t == "draft_text":
         return s.set_draft_text(str(msg.get("text", "")))
     if t == "send":
-        r = s.send_counter(text=msg.get("text"), text_only=msg.get("text_only"))
+        r = s.send_counter(text=msg.get("text"), offer=msg.get("values") or None, text_only=msg.get("text_only"))
         if not r.get("ok"):
             s.toast(r.get("error", "Could not send"), "warning")
         return r
@@ -429,13 +429,7 @@ def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
     if t == "layout":
         return s.set_layout(**{k: msg[k] for k in ("view", "sizes", "collapsed") if k in msg})
     if t == "chat":
-        text = str(msg.get("text", "")).strip()
-        sa = s.support_agent
-        if not text or sa is None:
-            return None
-        if sa._pending_question is None:
-            s.add_chat("You", text)
-        return sa.handle_user_message(text)
+        return s.user_chat(str(msg.get("text", "")))
     if t == "answer":
         sa = s.support_agent
         if sa is not None:
@@ -539,7 +533,10 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
             if msg.get("type") == "ping":
                 await websocket.send_text('{"type":"pong"}')
                 continue
-            s.submit(_dispatch, s, msg)
+            if msg.get("type") in ("chat", "answer", "panel_action", "extract", "generate"):
+                s.submit(_dispatch, s, msg)  # may block on an LLM / the human: keep the UI queue free
+            else:
+                s.submit_ui(_dispatch, s, msg)
     except WebSocketDisconnect:
         pass
     except Exception:

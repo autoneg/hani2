@@ -1,7 +1,7 @@
 """The :class:`Tool` base class.
 
 A tool is a small Python object that lives for one browser session. It receives
-the same negotiation lifecycle callbacks HANI tools receive and describes its UI
+the negotiation lifecycle callbacks and describes its UI
 declaratively with :mod:`hani2.tools.ui` components. HANI2 renders the view in
 one of three panes (``upper``, ``lower`` or ``side``), re-rendering it whenever
 the tool calls :meth:`Tool.refresh` (which every lifecycle hook does by default).
@@ -166,7 +166,7 @@ class Tool:
             pass
 
     # ------------------------------------------------------------------ #
-    # Lifecycle hooks (same signatures as HANI)                           #
+    # Lifecycle hooks                                                     #
     # ------------------------------------------------------------------ #
     def init(self, session_state: dict[str, Any]) -> None:
         """Called once when the tool is created."""

@@ -2,7 +2,7 @@
 
 On the deployment server the default ollama endpoint litellm talks to is the
 hosted cloud (``ollama.com``), which only serves a curated set of models. An
-agent (or HANI's own extraction) that asks for a model the cloud does not have
+agent (or the server's own extraction) that asks for a model the cloud does not have
 gets ``APIConnectionError: model '<name>' not found`` and the negotiation dies.
 The same model is usually present in the *local* ollama daemon.
 
@@ -14,7 +14,7 @@ always install.
 
 negmas-llm performs the call as ``litellm.completion(**kwargs)`` (a module
 attribute lookup at call time), so patching the module attribute is enough to
-cover both the agents' message layer and HANI's extraction.
+cover both the agents' message layer and the server's extraction.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Opponent negotiators: names, groups and class resolution (ported from HANI).
+"""Opponent negotiators: names, groups and class resolution .
 
 An *agent spec* is either a negotiator name / dotted path or a group token
 starting with ``:`` (``:llm``, ``:template``, ``:negmas``, ``:hani``,
@@ -133,11 +133,11 @@ NOTEXT_NEGOTIATORS = [
 
 
 # --- Selectable agent groups -------------------------------------------------
-# Used by the launch env var (_HANI_CMDLINE_AGENTS), and per browser session
+# Used by the launch option (--agents / HANI2_AGENTS), and per browser session
 # via the ?agents= / ?group= query args (so the HAN "playground" link and an
 # admin launcher can pick the opponent pool without restarting the server).
 #
-# HANI stays a STANDALONE tool: it resolves its own built-in group tokens
+# The server stays a STANDALONE tool: it resolves its own built-in group tokens
 # (:llm/:template/:negmas/:hani/:genius/:pan/:notext/:custom) itself, and for
 # "participant" groups it only ever READS a JSON list file that an external
 # tool may drop into DB_PATH/groups/<key>.json. It never calls another service
@@ -146,7 +146,7 @@ NOTEXT_NEGOTIATORS = [
 def _code_base(env_name: str, server_default: str) -> Path:
     """Resolve a per-machine code-base directory from an env var, falling
     back to the SERVER default (deliberately not the local dev layout, so an
-    unset var on the server just works). Set HANI_CODE_BASE / SCMLWEB_CODE_BASE
+    unset var on the server just works). Set HANI2_CODE_BASE / SCMLWEB_CODE_BASE
     per machine (e.g. ~/code/projects/hani, ~/code/sites/scmlweb locally)."""
     raw = os.environ.get(env_name, "").strip()
     return Path(raw).expanduser() if raw else Path(server_default).expanduser()
@@ -154,17 +154,17 @@ def _code_base(env_name: str, server_default: str) -> Path:
 
 def _pan_search_paths() -> list:
     """Directories where pan.py might live. pan.py is a scmlweb artifact whose
-    location differs per machine, so it's derived from HANI_CODE_BASE /
+    location differs per machine, so it's derived from HANI2_CODE_BASE /
     SCMLWEB_CODE_BASE (server defaults: ~/hani and ~/scmlweb). cwd is kept as a
     last-resort convenience."""
-    hani_base = _code_base("HANI_CODE_BASE", "~/hani")
+    hani_base = _code_base("HANI2_CODE_BASE", "~/hani2") if os.environ.get("HANI2_CODE_BASE") else _code_base("HANI_CODE_BASE", "~/hani")
     scml_base = _code_base("SCMLWEB_CODE_BASE", "~/scmlweb")
     return [hani_base, scml_base / "python", Path.cwd(), Path.cwd() / "python"]
 
 
 def _import_pan():
     """Import pan.py (the personality-adjusted PAN pool) from the per-machine
-    code bases, or return None when it isn't present — HANI stays usable
+    code bases, or return None when it isn't present — the server stays usable
     standalone without it."""
     import sys as _sys
 
@@ -201,14 +201,14 @@ def _pan_group_specs() -> list:
 
 def _read_group_file(key: str) -> "list[str] | None":
     """Read DB_PATH/groups/<key>.json (written by an external tool for
-    participant groups; HANI only ever reads it). Two accepted shapes:
+    participant groups; the server only ever reads it). Two accepted shapes:
 
       ["spec", ...]
       {"syspath": ["/abs/dir", ...], "agents": ["spec", ...]}
 
-    The object form lets the writer point HANI at the directory holding the
+    The object form lets the writer point the server at the directory holding the
     unzipped agent packages: those dirs are added to sys.path here so the
-    dotted specs (``<pkg>.<module>.<Class>``) import. HANI stays standalone —
+    dotted specs (``<pkg>.<module>.<Class>``) import. The server stays standalone —
     it just adds paths it was told about and imports."""
     try:
         f = results_root() / "groups" / f"{key}.json"
@@ -248,7 +248,7 @@ def _resolve_agent_token(item) -> list:
     if low == ":notext":
         return list(NOTEXT_NEGOTIATORS)
     if low == ":custom":
-        raw = os.environ.get("HANI_CUSTOM_AGENTS", "")
+        raw = os.environ.get("HANI2_CUSTOM_AGENTS") or os.environ.get("HANI_CUSTOM_AGENTS", "")
         return _expand_agent_items([s for s in raw.split(",") if s.strip()])
     if low.startswith(":"):
         grp = AGENT_GROUPS.get(low)
@@ -618,7 +618,7 @@ def short_name(spec: Any) -> str:
 
 def make_agent(spec: Any, params: dict[str, Any] | None = None, practice: bool = False,
                verbose: bool = False):
-    """Instantiate an opponent from a spec, applying HANI's safety wrappers
+    """Instantiate an opponent from a spec, applying the safety wrappers
     and LLM model injection."""
     params = dict(params or {})
     agent_class = get_agent_type(spec)

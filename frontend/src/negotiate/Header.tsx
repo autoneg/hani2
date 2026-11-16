@@ -6,7 +6,25 @@ import { clock } from "../ui/format";
 import { api } from "../api";
 import { navigate } from "../router";
 
-export function Brand({ title = "HANI" }: { title?: string }) {
+let brandCache: string | null = null;
+function useBrand(explicit?: string) {
+  const [t, setT] = useState<string>(explicit ?? brandCache ?? "HANI2");
+  useEffect(() => {
+    if (explicit) return;
+    if (brandCache) return setT(brandCache);
+    api("/api/config")
+      .then((c) => {
+        brandCache = c.title || "HANI2";
+        document.documentElement.dataset.brand = brandCache!;
+        setT(brandCache!);
+      })
+      .catch(() => {});
+  }, [explicit]);
+  return explicit ?? t;
+}
+
+export function Brand({ title: explicit }: { title?: string }) {
+  const title = useBrand(explicit);
   return (
     <div className="flex items-center gap-2">
       <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden>

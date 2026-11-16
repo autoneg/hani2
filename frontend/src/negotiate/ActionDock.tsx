@@ -162,7 +162,7 @@ function Running({ st }: { st: SessionState }) {
   };
   const doSend = () => {
     window.clearTimeout(timer.current);
-    send({ type: "send", text, text_only: textOnly });
+    send({ type: "send", text, text_only: textOnly, values: useStore.getState().state?.draft.values });
     setText("");
   };
 

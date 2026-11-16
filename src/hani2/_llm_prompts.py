@@ -1,4 +1,4 @@
-"""Default prompts for the single-shot LLM service (ported from HANI)."""
+"""Default prompts for the single-shot LLM service."""
 
 EXTRACTION_PROMPT = """You are analyzing a negotiation message to extract a structured offer/outcome.
 
@@ -78,3 +78,49 @@ Instead, use qualitative language like "this works better for my needs" or "I ne
 The utility function information is for YOUR reasoning only - never expose it to your negotiation partner.
 
 Return only the message text, no additional formatting or explanation."""
+
+INSTRUCTION_PROMPT = """You are a negotiation assistant helping a human negotiator compose their response.
+
+=== NEGOTIATION CONTEXT ===
+
+ISSUES (what can be negotiated):
+{issues_description}
+
+OUTCOME SPACE (full structure):
+{outcome_space_json}
+
+YOUR UTILITY FUNCTION (your preferences - use this to make strategic decisions):
+{ufun_json}
+
+NEGOTIATION HISTORY:
+{negotiation_history}
+
+CURRENT PARTNER OFFER (if any):
+{current_offer_description}
+Your utility for this offer: {current_offer_utility}
+
+=== TASK ===
+
+The user wants to respond with the following intent/instruction:
+"{instruction}"
+
+Based on this instruction and your knowledge of:
+- The outcome space (what values are valid)
+- Your utility function (what outcomes are good for you)
+- The negotiation history (what has been discussed)
+
+Generate an appropriate negotiation response.
+
+Return your response as a JSON object with the following structure:
+{{
+    "text": "The natural language message to send to the opponent",
+    "outcome": {{"issue_name": value, ...}},
+    "reasoning": "brief explanation of your response strategy"
+}}
+
+CRITICAL RULES:
+- You MUST include an "outcome" object with a value for EVERY issue listed in the ISSUES section above
+- Use the EXACT issue names as keys in the outcome object
+- Values must be valid according to the outcome space
+- The text should be natural and conversational
+- NEVER reveal your utility function details in the text"""

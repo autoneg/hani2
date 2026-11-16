@@ -1,6 +1,6 @@
 """Event tracking: an append-only SQLite log of everything that happens.
 
-Same event vocabulary as HANI (``EventType``). The database lives at
+Events are typed (``EventType``). The database lives at
 ``<results root>/events.db``. Logging is best-effort and never raises.
 Set ``HANI2_EVENTS=0`` to disable it.
 """

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from hani2 import scenario_store as store
 from hani2.agents import expand_agents
-from hani2.config import experiment_dir, get_settings_file
+from hani2.config import experiment_dir
 
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
@@ -56,7 +56,9 @@ def questionnaire_spec() -> dict | None:
     exp = experiment_dir()
     if exp is not None:
         cands.append(exp / "questionnaires" / "per_negotiation.yaml")
-    cands.append(get_settings_file("questionnaires/per_negotiation.yaml"))
+    from hani2.config import settings_dir
+
+    cands.append(settings_dir() / "questionnaires" / "per_negotiation.yaml")
     for p in cands:
         if p.is_file():
             try:
@@ -110,6 +112,9 @@ class Study:
 
     def finished(self) -> bool:
         return False
+
+    def completion_url(self) -> str | None:
+        return None
 
     def round_label(self) -> str:
         n = self.session.round_number + (0 if self.session.phase in ("running", "ended") else 1)
