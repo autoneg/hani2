@@ -1,0 +1,1 @@
+import{c as e}from"./index-C5GmQ-yP.js";const a={name:"playing-card",size:24,node:[["path",{d:"M12.832 8.445a1 1 0 00-1.589-.098l-2.075 3.098a1 1 0 000 1.11l2 3a1 1 0 001.664 0l2-3a1 1 0 000-1.11z",key:"r2cm5y"}],["rect",{x:"5",y:"2",width:"14",height:"20",rx:"2",key:"1k0ky4"}]]};a.node;const c=e(a);export{a as __iconData,c as default};

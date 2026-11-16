@@ -1,15 +1,11 @@
-import { icons, type LucideProps } from "lucide-react";
+import type { LucideProps } from "lucide-react";
+import { DynamicIcon, iconNames, type IconName } from "lucide-react/dynamic";
 
-function pascal(name: string) {
-  return name
-    .split(/[-_ ]/)
-    .filter(Boolean)
-    .map((p) => p[0].toUpperCase() + p.slice(1))
-    .join("");
-}
+const known = new Set<string>(iconNames as readonly string[]);
 
-export function Icon({ name, ...props }: { name?: string | null } & LucideProps) {
+/** Any lucide icon by kebab-case name (loaded on demand). Unknown names fall back to a wrench. */
+export function Icon({ name, size = 16, ...props }: { name?: string | null } & LucideProps) {
   if (!name) return null;
-  const Cmp = (icons as Record<string, any>)[pascal(name)] ?? (icons as Record<string, any>)["Wrench"];
-  return <Cmp size={16} strokeWidth={1.9} aria-hidden {...props} />;
+  const n = (known.has(name) ? name : "wrench") as IconName;
+  return <DynamicIcon name={n} size={size} strokeWidth={1.9} aria-hidden {...(props as any)} />;
 }
