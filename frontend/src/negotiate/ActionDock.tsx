@@ -544,5 +544,9 @@ export function ActionDock() {
   else if (st.phase === "questionnaire" && st.questionnaire) body = <QuestionnaireForm q={st.questionnaire} />;
   else if (st.phase === "finished") body = <Finished st={st} />;
   else body = <Intro st={st} />;
-  return <div className="border-t border-line bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4">{body}</div>;
+  return (
+    <div className="scroll-thin max-h-[64vh] overflow-y-auto border-t border-line bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4">
+      <div className="mx-auto w-full max-w-4xl">{body}</div>
+    </div>
+  );
 }

@@ -4,7 +4,7 @@ import { api, ApiError } from "../api";
 import { navigate, queryParams } from "../router";
 import { useStore } from "../store";
 import { ActionDock, ConfirmDialog } from "./ActionDock";
-import { Assistant, FloatingPanels, StatusBoard } from "./Assistant";
+import { Assistant, FloatingPanels, StatusBoard, useAutoOpenAssistant } from "./Assistant";
 import { Header } from "./Header";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
@@ -132,6 +132,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
   const desktop = useIsDesktop();
+  useAutoOpenAssistant();
 
   useEffect(() => {
     let alive = true;

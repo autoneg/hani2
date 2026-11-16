@@ -89,7 +89,8 @@ export function Thread() {
   );
   return (
     <Anchor id="history" className="flex min-h-0 flex-1 flex-col">
-      <div ref={ref} className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-4 sm:px-5">
+      <div ref={ref} className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 sm:px-5">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
         {newestFirst && typing}
         {list.length === 0 && !thinking && (
           <div className="m-auto max-w-sm text-center text-sm text-muted">
@@ -107,6 +108,7 @@ export function Thread() {
           ),
         )}
         {!newestFirst && typing}
+        </div>
       </div>
     </Anchor>
   );

@@ -101,12 +101,7 @@ export function Assistant() {
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
   }, [n, open, st?.support?.busy]);
-  // open automatically when the agent asks a question or shows a panel
   const asking = !!st?.pending_question;
-  const nPanels = st?.agent_panels.filter((p) => p.placement === "assistant").length ?? 0;
-  useEffect(() => {
-    if (asking || nPanels) setOpen(true);
-  }, [asking, nPanels, setOpen]);
   if (!st?.support || !open) return null;
   const sup = st.support;
   const submit = () => {
@@ -203,6 +198,16 @@ export function Assistant() {
   );
 }
 
+/** Open the assistant when the agent asks a question or shows a panel in it. */
+export function useAutoOpenAssistant() {
+  const asking = useStore((s) => s.state?.pending_question?.id);
+  const panels = useStore((s) => (s.state?.agent_panels ?? []).filter((p) => p.placement === "assistant").map((p) => p.id).join(","));
+  const setOpen = useStore((s) => s.setAssistantOpen);
+  useEffect(() => {
+    if (asking || panels) setOpen(true);
+  }, [asking, panels, setOpen]);
+}
+
 export function StatusBoard() {
   const board = useStore((s) => s.state?.board);
   const hasAgent = useStore((s) => !!s.state?.support);
@@ -228,7 +233,7 @@ export function FloatingPanels() {
   return (
     <>
       {side.length > 0 && (
-        <div className="flex flex-col gap-2 px-3 pt-3 sm:px-5">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-3 pt-3 sm:px-5">
           {side.map((p) => (
             <PanelView key={p.id} p={p} />
           ))}
