@@ -1,0 +1,1 @@
+import{c as a}from"./index-CP5QnFUz.js";const e={name:"smartphone-user-round",size:24,node:[["path",{d:"M10 22H6a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v4",key:"106ik5"}],["path",{d:"M11 18h.01",key:"qvdchl"}],["path",{d:"M22 22a4 4 0 00-8 0",key:"z7lshv"}],["circle",{cx:"18",cy:"15",r:"3",key:"gjjjvw"}]]};e.node;const c=a(e);export{e as __iconData,c as default};

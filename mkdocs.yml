@@ -81,6 +81,7 @@ nav:
       - Tools: guide/tools.md
       - Support agent: guide/support-agent.md
       - Autopilot: guide/autopilot.md
+      - WebMCP (browser agents): guide/webmcp.md
       - Language models: guide/llms.md
       - Opponents: guide/opponents.md
       - Scenarios: guide/scenarios.md

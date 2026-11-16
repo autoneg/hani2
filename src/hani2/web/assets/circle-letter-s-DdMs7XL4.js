@@ -1,0 +1,1 @@
+import{c}from"./index-CP5QnFUz.js";const e={name:"circle-letter-s",size:24,node:[["path",{d:"M14.5 8H11a2 2 0 100 4h2a2 2 0 110 4H9",key:"1ihxbb"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const a=c(e);export{e as __iconData,a as default};

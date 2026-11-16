@@ -12,6 +12,7 @@ HANI2 is a Python package with a FastAPI backend and a React frontend that ships
 - **Tools.** Preferences, scenario information, utility and outcome plots, value histograms, the offer trace, a utility-based offer picker and more, in tabbed panes that participants can rearrange. Write your own tools in Python with a small component API; no frontend code needed.
 - **Support agent.** An assistant docked next to the negotiation. It chats, keeps a status board, highlights and annotates parts of the interface, rearranges tools, shows its own interactive panels, fills in offers and, with permission, acts. Admins decide what it may do; participants can narrow that further. Subclass it to build your own agent.
 - **Autopilot.** Let the support agent or any negotiator play the human's seat, for demonstrations and testing.
+- **WebMCP.** Browser AI agents can read the negotiation and, if you allow it, negotiate through the page's tools. See [WebMCP](guide/webmcp.md).
 - **Any opponent.** Any negmas or Genius negotiator, LLM negotiators from negmas-llm, your own classes, and named groups of them, chosen per server, per session or per link.
 - **Studies.** Self-contained experiments, post-negotiation questionnaires, results CSV files with outcome and timing columns, and an event log with analytics.
 - **Prolific.** A no-login flow keyed by the Prolific ID, with practice rounds, counted rounds and the completion link.

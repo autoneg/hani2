@@ -156,6 +156,7 @@ export interface SessionState {
   finish_url: string | null;
   study: { kind: string; pid?: string; required?: number; counted?: number; practice_next?: boolean; auto_deadline?: number | null; auto_kind?: string | null; max_minutes?: number };
   can_choose_scenario: boolean;
+  webmcp?: { enabled: boolean; actions: boolean };
   next_opponent: string | null;
 }
 

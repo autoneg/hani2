@@ -46,7 +46,7 @@ USER_PREFS: dict[str, Any] = {
     "show_history": True,
     "show_human_offers": True,
     "offer_panel_always_visible": False,
-    "last_offer_on_top": True,
+    "last_offer_on_top": False,
     "offer_display": "text",  # text | table
     "font_scale": 1.0,
 }
@@ -1340,9 +1340,23 @@ class NegotiationSession:
                 "finish_url": self.finish_url,
                 "study": self.study.client_state(),
                 "can_choose_scenario": self.can_choose_scenario(),
+                "webmcp": self.webmcp_policy(),
                 "next_opponent": self.next_opponent if self.admin_mode else None,
             }
         return snap
+
+    def webmcp_policy(self) -> dict[str, bool]:
+        """Whether the page exposes WebMCP tools, and whether they may act.
+
+        Configured in env.json → ``webmcp``: ``enabled`` (default true),
+        ``actions`` (default true; false = read-only tools) and ``studies``
+        (default false: Prolific participants get no WebMCP tools, so a
+        browser agent cannot play their study for them)."""
+        cfg = get_env("webmcp", {}) or {}
+        enabled = bool(cfg.get("enabled", True))
+        if self.user.startswith("prolific_") and not cfg.get("studies", False):
+            enabled = False
+        return {"enabled": enabled, "actions": enabled and bool(cfg.get("actions", True))}
 
     def _autopilot_state(self) -> dict[str, Any]:
         try:

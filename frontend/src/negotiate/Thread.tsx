@@ -66,10 +66,16 @@ export function Thread() {
   const newestFirst = !!st?.prefs.last_offer_on_top;
   const showHistory = st?.prefs.show_history !== false;
   const thinking = st?.negotiation.thinking && (st.phase === "running" || st.phase === "starting");
+  // Keep the newest message in view: scroll to the end (or the top when the
+  // newest-first option is on) whenever something is added.
   useEffect(() => {
     const el = ref.current;
-    if (el && !newestFirst) el.scrollTop = el.scrollHeight;
-  }, [items.length, thinking, newestFirst]);
+    if (!el) return;
+    const id = requestAnimationFrame(() => {
+      el.scrollTo({ top: newestFirst ? 0 : el.scrollHeight, behavior: items.length > 1 ? "smooth" : "auto" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [items.length, thinking, newestFirst, st?.phase]);
   if (!st) return null;
   let list = showHistory ? items : items.filter((h) => h.kind === "system" || h === [...items].reverse().find((x) => x.kind === "offer" && x.by === "agent"));
   const lastId = [...items].reverse().find((x) => x.kind === "offer")?.id;

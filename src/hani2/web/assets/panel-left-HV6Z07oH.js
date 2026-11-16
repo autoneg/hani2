@@ -1,1 +1,0 @@
-import{c as a}from"./index-D_I-sys5.js";const e={name:"panel-left",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 3v18",key:"fh3hqa"}]],aliases:["sidebar"]};e.node;const i=a(e);export{e as __iconData,i as default};

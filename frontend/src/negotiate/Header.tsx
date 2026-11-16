@@ -5,6 +5,7 @@ import { Anchor } from "../ui/Anchor";
 import { clock } from "../ui/format";
 import { api } from "../api";
 import { navigate } from "../router";
+import { webmcpAvailable } from "../webmcp";
 import { Modal } from "../ui/Modal";
 
 let brandCache: string | null = null;
@@ -193,6 +194,11 @@ export function Header({ onSettings }: { onSettings: () => void }) {
           {st.opponent && (
             <span className="truncate rounded bg-partner/10 px-1.5 py-px text-partner" title={st.opponent.type}>
               Partner: {st.opponent.name}
+            </span>
+          )}
+          {st.webmcp?.enabled && webmcpAvailable() && (
+            <span className="rounded bg-good/10 px-1.5 py-px font-medium text-good" title={st.webmcp.actions ? "Browser AI agents can read and negotiate on this page (WebMCP)" : "Browser AI agents can read this page (WebMCP)"}>
+              WebMCP
             </span>
           )}
           {st.is_admin && (

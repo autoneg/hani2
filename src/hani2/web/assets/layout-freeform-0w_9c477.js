@@ -1,1 +1,0 @@
-import{c as t}from"./index-D_I-sys5.js";const e={name:"layout-freeform",size:24,node:[["rect",{width:"7",height:"7",x:"3",y:"3",rx:"1",key:"1g98yp"}],["rect",{width:"7",height:"7",x:"14",y:"4",rx:"1",key:"n7b4zl"}],["rect",{width:"7",height:"7",x:"4",y:"14",rx:"1",key:"1ngf42"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

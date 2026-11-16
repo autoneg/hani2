@@ -147,6 +147,8 @@ DEFAULT_ENV: dict[str, Any] = {
     "agents": [],
     "negotiation": {"n_steps": 100, "time_limit": 300},
     "playground": {"enabled": True},
+    # WebMCP: expose the negotiation to AI agents running in the browser.
+    "webmcp": {"enabled": True, "actions": True, "studies": False},
     "tools": {},
 }
 

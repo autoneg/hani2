@@ -9,6 +9,7 @@ import { Header } from "./Header";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
 import { ToolPane } from "./ToolPane";
+import { stopWebMCP, syncWebMCP } from "../webmcp";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -154,6 +155,12 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
       useStore.getState().disconnect();
     };
   }, [mode, connect]);
+
+  const webmcp = st?.webmcp;
+  useEffect(() => {
+    syncWebMCP(webmcp);
+  }, [webmcp?.enabled, webmcp?.actions]);
+  useEffect(() => () => stopWebMCP(), []);
 
   useEffect(() => {
     if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: location.pathname, width: window.innerWidth } });

@@ -145,3 +145,15 @@ def test_invalid_offer_is_refused():
     s.draft[s.issues[0].name] = "nonsense"
     r = s.send_counter()
     assert not r["ok"] and s.is_my_turn()
+
+
+def test_webmcp_policy(hani2_home):
+    from conftest import write_settings
+
+    assert make_session().snapshot()["webmcp"] == {"enabled": True, "actions": True}
+    p = make_session(user="prolific_W1", mode="guest", partner=None, query={"noautostart": "1"})
+    assert p.snapshot()["webmcp"]["enabled"] is False  # studies are protected by default
+    write_settings(hani2_home, "env.json", {"webmcp": {"actions": False, "studies": True}})
+    assert make_session().snapshot()["webmcp"] == {"enabled": True, "actions": False}
+    p2 = make_session(user="prolific_W2", mode="guest", partner=None, query={"noautostart": "1"})
+    assert p2.snapshot()["webmcp"]["enabled"] is True
