@@ -185,3 +185,11 @@ def test_python_helpers_respect_capabilities():
     assert not sa.set_layout(view="focus")["ok"] and s.layout["view"] == "full"
     assert not sa.show_panel("p", "t", [])["ok"] and s.agent_panels == []
     assert not sa.focus_tool("Trace")["ok"]
+
+
+def test_text_tool_calls_are_recovered():
+    from hani2.support_agent.runtime import parse_text_tool_calls
+
+    calls = parse_text_tool_calls('[tool call: set_message_text({"text": "hi (there)"})] and [tool call: list_tools({})]')
+    assert [c["function"]["name"] for c in calls] == ["set_message_text", "list_tools"]
+    assert parse_text_tool_calls("no calls here") == []

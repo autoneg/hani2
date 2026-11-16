@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 import threading
 import traceback
 import uuid
@@ -54,6 +55,26 @@ def flatten_tool_messages(messages: list[dict]) -> list[dict]:
         else:
             out.append(m)
     return out
+
+
+_TEXT_CALL = re.compile(r"\[tool call:\s*([A-Za-z_][\w]*)\((.*?)\)\]", re.DOTALL)
+
+
+def parse_text_tool_calls(content: str) -> list[dict]:
+    """Recover tool calls a model wrote as text (``[tool call: name({...})]``).
+
+    Small local models sometimes imitate the flattened history format instead
+    of emitting real tool calls; this turns them back into calls."""
+    calls = []
+    for i, m in enumerate(_TEXT_CALL.finditer(content or "")):
+        args = m.group(2).strip() or "{}"
+        try:
+            json.loads(args)
+        except json.JSONDecodeError:
+            continue
+        calls.append({"id": f"text-{uuid.uuid4().hex[:6]}-{i}", "type": "function",
+                      "function": {"name": m.group(1), "arguments": args}})
+    return calls
 
 
 class SupportAgent:
@@ -504,6 +525,12 @@ class SupportAgent:
         msg = response.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
         tool_calls = getattr(msg, "tool_calls", None)
+        if not tool_calls and str(s["provider"]).lower() == "ollama":
+            parsed = parse_text_tool_calls(out["content"])
+            if parsed:
+                out["content"] = ""
+                out["tool_calls"] = parsed
+                return out
         if tool_calls:
             out["tool_calls"] = [
                 {"id": tc.id, "type": "function",
