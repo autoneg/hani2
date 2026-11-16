@@ -37,7 +37,7 @@ def install_ollama_local_fallback(local_base: str | None = None) -> None:
 
     Args:
         local_base: Base URL of the local ollama daemon. Defaults to
-            ``$HANI_OLLAMA_LOCAL_BASE`` or ``http://localhost:11434``.
+            ``$HANI2_OLLAMA_LOCAL_BASE`` or ``http://localhost:11434``.
     """
     try:
         import litellm
@@ -46,7 +46,7 @@ def install_ollama_local_fallback(local_base: str | None = None) -> None:
     if getattr(litellm, "_hani_local_fallback_installed", False):
         return
 
-    base = local_base or os.getenv("HANI_OLLAMA_LOCAL_BASE", "http://localhost:11434")
+    base = local_base or os.getenv("HANI2_OLLAMA_LOCAL_BASE") or os.getenv("HANI_OLLAMA_LOCAL_BASE", "http://localhost:11434")
     original = litellm.completion
 
     def completion_with_local_fallback(*args, **kwargs):

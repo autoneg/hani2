@@ -1,0 +1,668 @@
+"""The functions the support agent's language model may call.
+
+Each function is gated by a :class:`~hani2.support_agent.capabilities.Capability`
+(or ``None`` for read-only helpers) and only advertised to the model while that
+capability is effective. Subclass :class:`ToolDispatcher` and override
+:meth:`ToolDispatcher.register_extra_tools` to add your own functions.
+"""
+
+from __future__ import annotations
+
+from typing import Callable
+
+from hani2.support_agent.capabilities import Capability
+
+__all__ = ["ToolDispatcher", "make_function_schema"]
+
+
+def _log_agent_action(session_state: dict, action: str, detail: str = "") -> None:
+    """Attribution: record that the *agent* (not the human) took an action."""
+    try:
+        from hani2.events import EventType, log_event
+
+        s = session_state.get("_session")
+        log_event(
+            getattr(s, "sid", None),
+            EventType.SUPPORT_AGENT,
+            user=session_state.get("user"),
+            component="SupportAgent",
+            action=action,
+            value={"actor": "agent", "detail": detail},
+        )
+        if s is not None:
+            s.ss["support_agent_used"] = True
+    except Exception:
+        pass
+
+
+class ToolDispatcher:
+    def __init__(self, runtime):
+        self.runtime = runtime
+        # name -> (required Capability or None, handler, schema dict)
+        self._registry: dict[str, tuple[Capability | None, Callable, Callable]] = {
+            "send_toast": (Capability.TOAST, self._send_toast, self._schema_send_toast),
+            "show_on_board": (None, self._show_on_board, self._schema_show_on_board),
+            "list_tools": (None, self._list_tools, self._schema_list_tools),
+            "set_tool_enabled": (
+                Capability.TOOL_ENABLE,
+                self._set_tool_enabled,
+                self._schema_set_tool_enabled,
+            ),
+            "set_tool_visible": (
+                Capability.TOOL_VISIBILITY,
+                self._set_tool_visible,
+                self._schema_set_tool_visible,
+            ),
+            "message_user": (Capability.CHAT, self._message_user, self._schema_message_user),
+            "ask_user": (Capability.CHAT, self._ask_user, self._schema_ask_user),
+            "move_tool": (Capability.TOOL_ORDER, self._move_tool, self._schema_move_tool),
+            "get_negotiation_state": (
+                None,
+                self._get_negotiation_state,
+                self._schema_get_negotiation_state,
+            ),
+            "set_offer": (Capability.FILL_OFFER, self._set_offer, self._schema_set_offer),
+            "set_message_text": (
+                Capability.FILL_TEXT,
+                self._set_message_text,
+                self._schema_set_message_text,
+            ),
+            "submit_counter_offer": (
+                Capability.SUBMIT_COUNTER,
+                self._submit_counter_offer,
+                self._schema_submit_counter_offer,
+            ),
+            "accept_offer": (Capability.ACCEPT, self._accept_offer, self._schema_accept_offer),
+            "end_negotiation": (Capability.END, self._end_negotiation, self._schema_end_negotiation),
+            "focus_tool": (Capability.TOOL_VISIBILITY, self._focus_tool, self._schema_focus_tool),
+            "highlight": (Capability.HIGHLIGHT, self._highlight, self._schema_highlight),
+            "clear_highlights": (Capability.HIGHLIGHT, self._clear_highlights, self._schema_clear_highlights),
+            "annotate": (Capability.ANNOTATE, self._annotate, self._schema_annotate),
+            "set_layout": (Capability.LAYOUT, self._set_layout, self._schema_set_layout),
+            "show_panel": (Capability.PANELS, self._show_panel, self._schema_show_panel),
+            "close_panel": (Capability.PANELS, self._close_panel, self._schema_close_panel),
+        }
+        self.register_extra_tools()
+
+    def register_extra_tools(self) -> None:
+        """Hook for ToolDispatcher subclasses to add custom functions.
+
+        Add entries to ``self._registry`` here::
+
+            self._registry["my_tool"] = (None, self._my_tool, self._schema_my_tool)
+
+        Use a ``Capability`` (or ``None`` for ungated read-only helpers) as the
+        first element. Build schemas with the module-level ``_fn`` helper.
+        """
+
+    def register(self, name, handler, schema, capability=None) -> None:
+        """Convenience for subclasses to register a custom tool."""
+        self._registry[name] = (capability, handler, schema)
+
+    # ------------------------------------------------------------------ #
+    @property
+    def caps(self):
+        return self.runtime.capabilities
+
+    @property
+    def ss(self) -> dict:
+        return self.runtime.session_state
+
+    def _actions(self) -> dict | None:
+        return self.ss.get("actions")
+
+    def _effective_names(self) -> list[str]:
+        names = []
+        for name, (cap, _, _) in self._registry.items():
+            if cap is None:
+                # Read-only helpers: offer them whenever the relevant family is granted.
+                if name == "list_tools" and not (
+                    self.caps.has(Capability.TOOL_ENABLE)
+                    or self.caps.has(Capability.TOOL_VISIBILITY)
+                    or self.caps.has(Capability.TOOL_ORDER)
+                ):
+                    continue
+                names.append(name)
+            elif self.caps.has(cap):
+                names.append(name)
+        return names
+
+    def schemas(self) -> list[dict]:
+        return [self._registry[n][2]() for n in self._effective_names()]
+
+    def execute(self, name: str, args: dict) -> dict:
+        entry = self._registry.get(name)
+        if entry is None:
+            return {"ok": False, "error": f"unknown function '{name}'"}
+        cap, handler, _ = entry
+        if cap is not None and not self.caps.has(cap):
+            return {"ok": False, "error": f"capability '{cap.value}' is not enabled"}
+        return handler(args or {})
+
+    # ------------------------------------------------------------------ #
+    # Toasts                                                              #
+    # ------------------------------------------------------------------ #
+    def _send_toast(self, args: dict) -> dict:
+        message = str(args.get("message", "")).strip()
+        if not message:
+            return {"ok": False, "error": "message is required"}
+        level = str(args.get("level", "info")).lower()
+        ok = self.runtime.toast(message, level)
+        _log_agent_action(self.ss, "send_toast", message[:80])
+        return {"ok": ok}
+
+    def _schema_send_toast(self) -> dict:
+        return _fn(
+            "send_toast",
+            "Show the human a toast notification.",
+            {
+                "message": {"type": "string", "description": "Text to display."},
+                "level": {
+                    "type": "string",
+                    "enum": ["info", "success", "warning", "error"],
+                    "description": "Severity / colour of the toast.",
+                },
+            },
+            ["message"],
+        )
+
+    def _show_on_board(self, args: dict) -> dict:
+        text = str(args.get("content", "")).strip()
+        if not text:
+            return {"ok": False, "error": "content is required"}
+        ok = self.runtime.show_on_board(text, append=bool(args.get("append", False)))
+        _log_agent_action(self.ss, "show_on_board", text[:80])
+        return {"ok": ok}
+
+    def _schema_show_on_board(self) -> dict:
+        return _fn(
+            "show_on_board",
+            "Write to the always-visible status board: a full-width strip below the "
+            "other panels that you write into directly. Use it for anything the human "
+            "should see persistently: your current recommendation, a summary, a table, "
+            "or a warning. Content may be markdown OR raw HTML.",
+            {
+                "content": {"type": "string", "description": "Markdown or HTML to display."},
+                "append": {
+                    "type": "boolean",
+                    "description": "Append below existing content instead of replacing.",
+                },
+            },
+            ["content"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # Talking to the human at any moment                                  #
+    # ------------------------------------------------------------------ #
+    def _message_user(self, args: dict) -> dict:
+        text = str(args.get("text", "")).strip()
+        if not text:
+            return {"ok": False, "error": "text is required"}
+        channel = str(args.get("channel", "chat")).lower()
+        if channel not in ("chat", "toast", "board"):
+            channel = "chat"
+        self.runtime.message_user(text, channel=channel)
+        _log_agent_action(self.ss, "message_user", f"{channel}: {text[:80]}")
+        return {"ok": True, "channel": channel}
+
+    def _schema_message_user(self) -> dict:
+        return _fn(
+            "message_user",
+            "Send the human a message right now, even in the middle of your work. "
+            "channel: 'chat' (default), 'toast' (a pop-up) or 'board' (the status strip).",
+            {
+                "text": {"type": "string", "description": "What to tell the human."},
+                "channel": {"type": "string", "enum": ["chat", "toast", "board"]},
+            },
+            ["text"],
+        )
+
+    def _ask_user(self, args: dict) -> dict:
+        question = str(args.get("question", "")).strip()
+        if not question:
+            return {"ok": False, "error": "question is required"}
+        options = [str(o) for o in (args.get("options") or []) if str(o).strip()]
+        answer = self.runtime.ask_user(question, options or None)
+        _log_agent_action(self.ss, "ask_user", question[:80])
+        if answer is None:
+            return {"ok": False, "error": "the human did not answer (or cannot be asked now)"}
+        return {"ok": True, "answer": answer}
+
+    def _schema_ask_user(self) -> dict:
+        return _fn(
+            "ask_user",
+            "Ask the human a question and wait for the answer (use sparingly, only when "
+            "you truly need their preference or a decision). Optionally offer short "
+            "answer buttons; the human can also type a free-text reply.",
+            {
+                "question": {"type": "string"},
+                "options": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional short choices shown as buttons.",
+                },
+            },
+            ["question"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # Tool control                                                        #
+    # ------------------------------------------------------------------ #
+    def _controller(self):
+        return self.ss.get("tool_controller")
+
+    def _list_tools(self, args: dict) -> dict:
+        ctrl = self._controller()
+        if ctrl is None:
+            return {"ok": False, "error": "tool controller unavailable"}
+        return {"ok": True, "tools": self.runtime.run_on_doc(ctrl.list_tools)}
+
+    def _schema_list_tools(self) -> dict:
+        return _fn("list_tools", "List the analysis tools and their state (name, pane, visible, enabled).", {}, [])
+
+    def _set_tool_enabled(self, args: dict) -> dict:
+        ctrl = self._controller()
+        if ctrl is None:
+            return {"ok": False, "error": "tool controller unavailable"}
+        name, enabled = args.get("name"), bool(args.get("enabled", True))
+        res = self.runtime.run_on_doc(
+            lambda: ctrl.set_tool_enabled(name, enabled, allow_permanent=True)
+        )
+        _log_agent_action(self.ss, "set_tool_enabled", f"{name}={enabled}")
+        return res
+
+    def _schema_set_tool_enabled(self) -> dict:
+        return _fn(
+            "set_tool_enabled",
+            "Enable or disable a tool (the tab stays, content is shown/hidden).",
+            {
+                "name": {"type": "string", "description": "Tool tab name."},
+                "enabled": {"type": "boolean"},
+            },
+            ["name", "enabled"],
+        )
+
+    def _set_tool_visible(self, args: dict) -> dict:
+        ctrl = self._controller()
+        if ctrl is None:
+            return {"ok": False, "error": "tool controller unavailable"}
+        name, visible = args.get("name"), bool(args.get("visible", True))
+        res = self.runtime.run_on_doc(
+            lambda: ctrl.set_tool_visible(name, visible, allow_permanent=True)
+        )
+        _log_agent_action(self.ss, "set_tool_visible", f"{name}={visible}")
+        return res
+
+    def _schema_set_tool_visible(self) -> dict:
+        return _fn(
+            "set_tool_visible",
+            "Show or hide a tool's tab entirely.",
+            {
+                "name": {"type": "string", "description": "Tool tab name."},
+                "visible": {"type": "boolean"},
+            },
+            ["name", "visible"],
+        )
+
+    def _move_tool(self, args: dict) -> dict:
+        ctrl = self._controller()
+        if ctrl is None:
+            return {"ok": False, "error": "tool controller unavailable"}
+        name = args.get("name")
+        position = args.get("position")
+        pane = args.get("pane")
+        res = self.runtime.run_on_doc(lambda: ctrl.move_tool(name, position=position, pane=pane))
+        _log_agent_action(self.ss, "move_tool", f"{name}->pane={pane},pos={position}")
+        return res
+
+    def _schema_move_tool(self) -> dict:
+        return _fn(
+            "move_tool",
+            "Reorder a tool within its pane and/or move it to another pane.",
+            {
+                "name": {"type": "string", "description": "Tool tab name."},
+                "position": {"type": "integer", "description": "0-based index within the target pane."},
+                "pane": {
+                    "type": "string",
+                    "enum": ["upper", "lower", "side"],
+                    "description": "Target pane (omit to keep current pane).",
+                },
+            },
+            ["name"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # Negotiation context (read-only)                                     #
+    # ------------------------------------------------------------------ #
+    def _get_negotiation_state(self, args: dict) -> dict:
+        actions = self._actions()
+        if actions is None:
+            return {"ok": False, "error": "no active negotiation"}
+        return {"ok": True, **self.runtime.run_on_doc(actions["context"])}
+
+    def _schema_get_negotiation_state(self) -> dict:
+        return _fn(
+            "get_negotiation_state",
+            "Get the current negotiation state: issues, the partner's offer on the table, "
+            "the human's current draft offer and message, utilities, and recent history.",
+            {},
+            [],
+        )
+
+    # ------------------------------------------------------------------ #
+    # Action panel                                                        #
+    # ------------------------------------------------------------------ #
+    def _require_turn(self, actions: dict) -> dict | None:
+        if not actions["can_act"]():
+            return {"ok": False, "error": "it is not the human's turn to act right now"}
+        return None
+
+    def _set_offer(self, args: dict) -> dict:
+        actions = self._actions()
+        if actions is None:
+            return {"ok": False, "error": "no active negotiation"}
+        outcome = args.get("outcome")
+        if not isinstance(outcome, dict):
+            return {"ok": False, "error": "outcome must be an object of issue_name -> value"}
+        res = self.runtime.run_on_doc(lambda: actions["set_offer"](outcome))
+        _log_agent_action(self.ss, "set_offer", str(outcome)[:120])
+        return res
+
+    def _schema_set_offer(self) -> dict:
+        return _fn(
+            "set_offer",
+            "Fill the human's offer fields with the given outcome (does not submit).",
+            {
+                "outcome": {
+                    "type": "object",
+                    "description": "Map of issue name to chosen value. Use exact issue names "
+                    "and valid values (call get_negotiation_state first).",
+                }
+            },
+            ["outcome"],
+        )
+
+    def _set_message_text(self, args: dict) -> dict:
+        actions = self._actions()
+        if actions is None:
+            return {"ok": False, "error": "no active negotiation"}
+        text = str(args.get("text", ""))
+        res = self.runtime.run_on_doc(lambda: actions["set_text"](text))
+        _log_agent_action(self.ss, "set_message_text", text[:80])
+        return res
+
+    def _schema_set_message_text(self) -> dict:
+        return _fn(
+            "set_message_text",
+            "Write the message that will be sent to the partner (does not submit). "
+            "NEVER reveal the human's utility values; keep it qualitative.",
+            {"text": {"type": "string"}},
+            ["text"],
+        )
+
+    def _submit_counter_offer(self, args: dict) -> dict:
+        actions = self._actions()
+        if actions is None:
+            return {"ok": False, "error": "no active negotiation"}
+        if (err := self._require_turn(actions)) is not None:
+            return err
+        outcome = args.get("outcome")
+        message = args.get("message")
+        execute = self.caps.autonomy_allows_execute(Capability.SUBMIT_COUNTER)
+
+        def _do():
+            if isinstance(outcome, dict):
+                actions["set_offer"](outcome)
+            if message is not None:
+                actions["set_text"](str(message))
+            if execute:
+                actions["reject_counter"]()
+            else:
+                actions["highlight"]("reject")
+            return execute
+
+        executed = self.runtime.run_on_doc(_do)
+        _log_agent_action(
+            self.ss, "submit_counter_offer" if executed else "recommend_counter_offer", str(outcome)[:120]
+        )
+        if executed:
+            return {"ok": True, "submitted": True}
+        return {
+            "ok": True,
+            "submitted": False,
+            "note": "Suggest mode: filled the offer/message and highlighted the Send button "
+            "for the human to confirm.",
+        }
+
+    def _schema_submit_counter_offer(self) -> dict:
+        execute = self.caps.autonomy_allows_execute(Capability.SUBMIT_COUNTER)
+        verb = (
+            "Submit a counter-offer (reject the partner's offer and send this outcome + message)."
+            if execute
+            else "Prepare a counter-offer: fills the offer fields and message and highlights the "
+            "Send button. In the current mode this does NOT auto-submit; the human must confirm."
+        )
+        return _fn(
+            "submit_counter_offer",
+            verb,
+            {
+                "outcome": {"type": "object", "description": "Issue name -> value."},
+                "message": {"type": "string", "description": "Message to the partner (no ufun leaks)."},
+            },
+            [],
+        )
+
+    def _accept_offer(self, args: dict) -> dict:
+        return self._irreversible(Capability.ACCEPT, "accept")
+
+    def _schema_accept_offer(self) -> dict:
+        return self._schema_irreversible("accept_offer", Capability.ACCEPT, "Accept the partner's current offer.")
+
+    def _end_negotiation(self, args: dict) -> dict:
+        return self._irreversible(Capability.END, "end")
+
+    def _schema_end_negotiation(self) -> dict:
+        return self._schema_irreversible(
+            "end_negotiation", Capability.END, "End the negotiation with no agreement."
+        )
+
+    def _irreversible(self, cap: Capability, action_key: str) -> dict:
+        actions = self._actions()
+        if actions is None:
+            return {"ok": False, "error": "no active negotiation"}
+        if (err := self._require_turn(actions)) is not None:
+            return err
+        execute = self.caps.autonomy_allows_execute(cap)  # FULL only
+        confirm = self.caps.autonomy_allows_confirm(cap)  # SEMI+
+
+        if execute:
+            self.runtime.run_on_doc(lambda: actions[action_key](confirm=False))
+            _log_agent_action(self.ss, f"{action_key}_executed")
+            return {"ok": True, "executed": True}
+        if confirm:
+            self.runtime.run_on_doc(lambda: actions[action_key](confirm=True))
+            _log_agent_action(self.ss, f"{action_key}_confirm_requested")
+            return {"ok": True, "executed": False, "note": "Asked the human to confirm via dialog."}
+        # SUGGEST: only highlight the button.
+        self.runtime.run_on_doc(lambda: actions["highlight"](action_key))
+        _log_agent_action(self.ss, f"recommend_{action_key}")
+        return {
+            "ok": True,
+            "executed": False,
+            "note": "Suggest mode: highlighted the button for the human to press.",
+        }
+
+    def _schema_irreversible(self, name: str, cap: Capability, base: str) -> dict:
+        if self.caps.autonomy_allows_execute(cap):
+            desc = base + " This executes immediately."
+        elif self.caps.autonomy_allows_confirm(cap):
+            desc = base + " This pops a confirmation dialog for the human to approve."
+        else:
+            desc = base + " In the current mode this only highlights the button for the human."
+        return _fn(name, desc, {}, [])
+
+
+    # ------------------------------------------------------------------ #
+    # Interface control: focus, highlight, annotate, layout, panels       #
+    # ------------------------------------------------------------------ #
+    def _session(self):
+        return self.ss.get("_session")
+
+    def _focus_tool(self, args: dict) -> dict:
+        ctrl = self._controller()
+        name = args.get("name")
+        res = self.runtime.run_on_doc(lambda: ctrl.focus_tool(name))
+        _log_agent_action(self.ss, "focus_tool", str(name))
+        return res
+
+    def _schema_focus_tool(self) -> dict:
+        return _fn("focus_tool", "Bring a tool's tab to the front (showing and enabling it).",
+                   {"name": {"type": "string", "description": "Tool tab name."}}, ["name"])
+
+    def _highlight(self, args: dict) -> dict:
+        target = str(args.get("target", "")).strip()
+        if not target:
+            return {"ok": False, "error": "target is required"}
+        res = self._session().highlight(target, message=args.get("message"), style=args.get("style") or "pulse",
+                                        duration=args.get("duration"))
+        _log_agent_action(self.ss, "highlight", target)
+        return res
+
+    def _schema_highlight(self) -> dict:
+        return _fn(
+            "highlight",
+            "Spotlight a part of the interface, optionally with a short callout note. Targets: "
+            "'accept', 'reject', 'end', 'send', 'offer' (the counter-offer editor), 'message', "
+            "'partner_offer', 'history', 'history:last', 'timer', 'issue:<issue name>', "
+            "'tool:<tool name>', 'pane:upper|lower|side'.",
+            {
+                "target": {"type": "string"},
+                "message": {"type": "string", "description": "Optional short callout text."},
+                "style": {"type": "string", "enum": ["pulse", "glow", "spotlight"],
+                          "description": "pulse (default), glow, or spotlight (dims everything else)."},
+                "duration": {"type": "number", "description": "Seconds before it fades (omit = until the next turn)."},
+            },
+            ["target"],
+        )
+
+    def _clear_highlights(self, args: dict) -> dict:
+        return self._session().clear_highlights(args.get("target"))
+
+    def _schema_clear_highlights(self) -> dict:
+        return _fn("clear_highlights", "Remove highlights (all, or only the given target).",
+                   {"target": {"type": "string"}}, [])
+
+    def _annotate(self, args: dict) -> dict:
+        target = str(args.get("target", "")).strip()
+        if not target:
+            return {"ok": False, "error": "target is required"}
+        text = args.get("text")
+        res = self._session().annotate(target, text, kind=str(args.get("kind") or "info"))
+        _log_agent_action(self.ss, "annotate", f"{target}: {str(text)[:60]}")
+        return res
+
+    def _schema_annotate(self) -> dict:
+        return _fn(
+            "annotate",
+            "Attach a short note to an interface element, e.g. 'issue:Price' -> 'Partner keeps "
+            "conceding here'. Same targets as highlight. Omit text to remove the note.",
+            {
+                "target": {"type": "string"},
+                "text": {"type": "string"},
+                "kind": {"type": "string", "enum": ["info", "success", "warning", "tip"]},
+            },
+            ["target"],
+        )
+
+    def _set_layout(self, args: dict) -> dict:
+        changes = {k: args[k] for k in ("view", "sizes", "collapsed") if k in args}
+        res = self._session().set_layout(**changes)
+        _log_agent_action(self.ss, "set_layout", str(changes)[:120])
+        return res
+
+    def _schema_set_layout(self) -> dict:
+        return _fn(
+            "set_layout",
+            "Rearrange the interface. view: 'full' (all panes), 'simple' (history, offer and one "
+            "tools area) or 'focus' (only the negotiation, tools hidden). collapsed: regions to "
+            "collapse, any of 'tools', 'history', 'side'. sizes: fractions such as "
+            "{'tools': 0.4} (width share of the tools column).",
+            {
+                "view": {"type": "string", "enum": ["full", "simple", "focus"]},
+                "collapsed": {"type": "array", "items": {"type": "string"}},
+                "sizes": {"type": "object"},
+            },
+            [],
+        )
+
+    def _show_panel(self, args: dict) -> dict:
+        from hani2.tools import ui
+
+        pid = str(args.get("panel_id") or "assistant")
+        comps = []
+        if args.get("markdown"):
+            comps.append(ui.markdown(str(args["markdown"])))
+        rows = args.get("table")
+        if isinstance(rows, list) and rows and all(isinstance(r, dict) for r in rows):
+            comps.append(ui.table(rows))
+        buttons = [b for b in (args.get("buttons") or []) if isinstance(b, (dict, str))]
+        if buttons:
+            comps.append(ui.row(*[
+                ui.button(b if isinstance(b, str) else str(b.get("label", "OK")),
+                          action=b if isinstance(b, str) else str(b.get("action") or b.get("label", "ok")),
+                          variant="primary" if i == 0 else "secondary")
+                for i, b in enumerate(buttons)
+            ]))
+        res = self._session().show_panel(pid, str(args.get("title") or "Assistant"), comps,
+                                         placement=str(args.get("placement") or "assistant"))
+        _log_agent_action(self.ss, "show_panel", pid)
+        return res
+
+    def _schema_show_panel(self) -> dict:
+        return _fn(
+            "show_panel",
+            "Show a small panel you design: markdown text, an optional table (list of row "
+            "objects) and optional buttons. When the human clicks a button you receive a message "
+            "'(panel <panel_id>) clicked <action>'. Re-use a panel_id to update it.",
+            {
+                "panel_id": {"type": "string"},
+                "title": {"type": "string"},
+                "markdown": {"type": "string"},
+                "table": {"type": "array", "items": {"type": "object"}},
+                "buttons": {"type": "array", "items": {"type": "object", "properties": {
+                    "label": {"type": "string"}, "action": {"type": "string"}}}},
+                "placement": {"type": "string", "enum": ["assistant", "side", "modal"],
+                              "description": "assistant (in the assistant dock, default), side (above the offer panel) or modal."},
+            },
+            ["panel_id", "title"],
+        )
+
+    def _close_panel(self, args: dict) -> dict:
+        return self._session().close_panel(args.get("panel_id"))
+
+    def _schema_close_panel(self) -> dict:
+        return _fn("close_panel", "Close a panel you showed (or all panels if panel_id is omitted).",
+                   {"panel_id": {"type": "string"}}, [])
+
+
+def make_function_schema(
+    name: str, description: str, properties: dict, required: list[str]
+) -> dict:
+    """Build an OpenAI/litellm function-tool schema. Public helper for custom
+    ToolDispatcher subclasses registering extra tools."""
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
+
+
+# Internal alias used throughout this module.
+_fn = make_function_schema

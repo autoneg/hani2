@@ -19,10 +19,15 @@
     "fill_text": true,
     "submit_counter": true,
     "accept": true,
-    "end": true
+    "end": true,
+    "highlight": true,
+    "annotate": true,
+    "layout": true,
+    "panels": true
   },
   "proactive": {
     "on_negotiation_started": false,
-    "on_action_requested": false
+    "on_action_requested": false,
+    "on_negotiation_ended": false
   }
 }

@@ -1,7 +1,8 @@
 {
-  "allowed": false,
+  "allowed": true,
   "driver": "Support Agent",
   "allowed_drivers": null,
-  "step_delay": 0.0,
-  "end_in_practice": false
+  "step_delay": 0.5,
+  "end_in_practice": false,
+  "user_can_choose": null
 }

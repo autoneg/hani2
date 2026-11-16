@@ -1,4 +1,4 @@
-"""Per-negotiation LLM call logging for the HANI guest.
+"""Per-negotiation LLM call logging for the negotiation server.
 
 When enabled (env ``HANI_LLM_LOG`` truthy), every ``litellm.completion`` call
 made by the opponent agent during a negotiation is appended — prompt, full
@@ -16,7 +16,7 @@ Design
   an entry whenever a log target is active.
 * The active target is held in a :class:`contextvars.ContextVar`, set only for
   the duration of a mechanism ``step()`` (see :func:`attach_mechanism`). Because
-  each Bokeh session steps its own mechanism, concurrent Prolific participants
+  each browser session steps its own mechanism, concurrent Prolific participants
   never cross-write: each ``step`` sets its own file in its own context and
   resets it immediately after.
 * Fully env-gated and best-effort: any logging error is swallowed so it can
@@ -34,7 +34,7 @@ from pathlib import Path
 
 # The log file the CURRENT step should write to (None = logging inactive).
 _current_log: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "hani_llm_log", default=None
+    "hani2_llm_log", default=None
 )
 _installed = False
 _install_lock = threading.Lock()
@@ -43,7 +43,7 @@ _write_lock = threading.Lock()
 
 def enabled() -> bool:
     """Whether per-negotiation LLM logging is switched on via the environment."""
-    return os.environ.get("HANI_LLM_LOG", "").strip().lower() in ("1", "true", "yes", "on")
+    return (os.environ.get("HANI2_LLM_LOG") or os.environ.get("HANI_LLM_LOG", "")).strip().lower() in ("1", "true", "yes", "on")
 
 
 def install() -> None:

@@ -1,0 +1,23 @@
+# Shown after every negotiation when copied to
+#   <settings>/questionnaires/per_negotiation.yaml   or
+#   <experiment>/questionnaires/per_negotiation.yaml
+version: "1"
+title: "After this negotiation"
+intro: "Two quick questions before we continue."
+questions:
+  - id: satisfaction_with_outcome
+    text: "How satisfied are you with the **outcome** of this negotiation?"
+    type: likert5          # likert5 | likert7 | yes_no | select | text
+    required: true
+    labels:
+      1: "Not at all"
+      5: "Extremely"
+  - id: partner_cooperativeness
+    text: "How cooperative did your partner feel?"
+    type: select
+    required: true
+    options: ["Very competitive", "Somewhat competitive", "Neutral", "Somewhat cooperative", "Very cooperative"]
+  - id: comments
+    text: "Anything else you want to tell us? (optional)"
+    type: text
+    required: false
