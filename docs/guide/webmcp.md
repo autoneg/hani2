@@ -16,7 +16,7 @@ All tool names start with `hani2_`.
 | Tool | Changes the negotiation | What it does |
 | --- | --- | --- |
 | `hani2_get_negotiation_state` | no | The scenario and its issues, whose turn it is, the partner's offer and its utility, the draft, the value on disagreement, recent history, time left, the result and any open questionnaire. |
-| `hani2_read_tool` | no | The current content of an analysis tool (text, tables, statistics, chart data). Switched-off tools are switched on first. |
+| `hani2_read_tool` | no | The help text of an analysis tool (what it does and how it works) and its current content (text, tables, statistics, chart data). Switched-off tools are switched on first. |
 | `hani2_evaluate_offer` | fills the editor only | Puts an outcome in the offer editor (without sending it) and returns its utility. |
 | `hani2_use_tool` | yes | Sets an input of an analysis tool and/or triggers one of its actions (for example picking a row in the Utility-based Selector). |
 | `hani2_start_negotiation` | yes | Starts the loaded negotiation and waits for the partner's first move. |

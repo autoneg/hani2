@@ -139,7 +139,8 @@ The helpers are used by:
 
 - the **Write message** and **Offer from message** buttons that admins see under the action panel,
 - the admin settings **Write a message when none is given** (`auto_generate`) and the automatic extraction of an offer from the human's message (`auto_extract`),
-- the admin-only `LLM` tool (see [Tools](tools.md)).
+- the admin-only `LLM` tool (see [Tools](tools.md)),
+- tools built on `LLMTool` or calling `Tool.ask_llm()`, such as the Summary and Ask the AI example tools (see [Build a tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model)). Your own code can call the same model with `hani2.llm_service.complete(prompt, system=None, **settings)`.
 
 The **Language model** section of the admin console shows whether the configuration is usable: the provider, the model and whether the API key variable is set.
 

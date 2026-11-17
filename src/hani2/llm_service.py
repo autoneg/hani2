@@ -934,3 +934,17 @@ def get_llm_status() -> dict[str, Any]:
         "api_key_set": bool(api_key),
         "ollama_base_url": settings.get("ollama_base_url", "http://localhost:11434/v1"),
     }
+
+
+def complete(prompt: str, *, system: str | None = None, **overrides: Any) -> str:
+    """Send one prompt to the configured LLM and return its reply as text.
+
+    This is the simplest way for a tool (or any other code) to use the language
+    model configured in ``llm_settings.json``. ``system`` is put before the
+    prompt as instructions; keyword arguments (``model``, ``temperature``,
+    ``max_tokens``, ``provider`` ...) override single settings for this call.
+    Raises an exception when the model cannot be reached or returns nothing.
+    """
+    settings = {**load_llm_settings(), **overrides}
+    text = f"{system.strip()}\n\n{prompt}" if system else prompt
+    return _call_llm(text, settings).strip()

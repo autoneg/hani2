@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Bot, CircleHelp, EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
 import { send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Icon } from "../ui/Icon";
+import { Markdown } from "../ui/Markdown";
+import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
 
 type Pane = "upper" | "lower" | "side";
@@ -44,6 +47,34 @@ function ToolMenu({ tool, allowMove }: { tool: ToolInfo; allowMove: boolean }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** The small "?" next to a pane's tabs: opens the active tool's help text.
+ * The dialog is portalled to <body> so the pane's overflow cannot clip it. */
+export function ToolHelp({ tool }: { tool: ToolInfo }) {
+  const [open, setOpen] = useState(false);
+  const text = tool.help || tool.description;
+  if (!text) return null;
+  const title = (
+    <span className="flex items-center gap-2">
+      <Icon name={tool.icon} size={16} /> {tool.name}
+    </span>
+  );
+  return (
+    <>
+      <button className="btn-ghost px-1.5 py-1" onClick={() => setOpen(true)} aria-label={`About ${tool.name}`} title={`About ${tool.name}`}>
+        <CircleHelp size={15} />
+      </button>
+      {open &&
+        createPortal(
+          <Modal open onClose={() => setOpen(false)} title={title}>
+            {tool.description && tool.help && <p className="mb-3 text-sm text-muted">{tool.description}</p>}
+            <Markdown text={text} size="sm" />
+          </Modal>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -151,6 +182,7 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
             <span className="relative h-4 w-7 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-surface after:transition-transform peer-checked:bg-you peer-checked:after:translate-x-3 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-you" />
           </label>
         )}
+        {active && <ToolHelp key={active.id} tool={active} />}
         {active && canMaximize && maximized !== active.id && (
           <button className="btn-ghost px-1.5 py-1" onClick={() => maximize(active!)} aria-label={`Enlarge ${active.name}`} title="Enlarge">
             <Maximize2 size={14} />
@@ -220,6 +252,7 @@ export function MaximizedTool() {
         <div className="flex items-center gap-2 border-b border-line px-4 py-2.5">
           <Icon name={tool.icon} size={16} />
           <div className="min-w-0 flex-1 truncate font-semibold">{tool.name}</div>
+          <ToolHelp tool={tool} />
           <button className="btn-secondary" onClick={() => putBack(tool)} title="Return the tool to its pane (Esc)">
             <Pin size={14} /> Put back
           </button>

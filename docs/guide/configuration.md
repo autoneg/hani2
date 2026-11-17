@@ -177,7 +177,8 @@ or the assistant write to the partner are sent as written.
 
 | Key | Meaning |
 | --- | --- |
-| `tools.extra` | Extra tool classes, as `"module:Class"` or `"module.Class"`. |
+| `tools.extra` | Extra tool classes, as `"module:Class"`, `"module.Class"` or `"path/to/file.py:Class"`. |
+| `tools.paths` | Extra folders (or `.py` files) to load tools from, besides `$HANI2_HOME/tools`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`. |
@@ -279,7 +280,7 @@ See [Autopilot](autopilot.md).
 | `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments. |
 | `HANI2_EXPERIMENT` | none | Name of the active experiment. Set by `--experiment`. |
 | `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
-| `HANI2_TOOLS` | none | Extra tool classes, comma separated. Set by `--tools`. |
+| `HANI2_TOOLS` | none | Extra tool classes, folders and `.py` files, comma separated. Set by `--tools`. |
 | `HANI2_SUPPORT_AGENT_CLASS` | none | Support-agent class for everyone. Set by `--support-agent <class>`. |
 | `HANI2_SUPPORT_AGENT` | none | `on`, `off` or `auto`; overrides `mode` in `support_agent_settings.json`. Set by `--support-agent`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |

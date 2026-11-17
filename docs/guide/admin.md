@@ -105,7 +105,7 @@ The OAuth rows edit the key and secret only. The `enabled` flag of a provider is
 
 ## Language model
 
-Edits `llm_settings.json`, used by the LLM offer tool, message writing, offer extraction and LLM partners. A banner at the top shows whether the model is configured ("Ready: provider / model") or which API key variable is missing.
+Edits `llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM partners. A banner at the top shows whether the model is configured ("Ready: provider / model") or which API key variable is missing.
 
 Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`, the name of the environment variable that holds the key), temperature and max tokens. When the settings contain `extraction_prompt`, `generation_prompt` or `instruction_prompt`, each is shown in a text area. See [Language models](llms.md).
 

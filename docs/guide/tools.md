@@ -2,7 +2,7 @@
 
 Tools are the tabbed views around the negotiation desk: your preferences, the scenario description, plots of the offers, a table of the trace, outcome pickers and your results. Each tool is a small Python object that lives for one browser session. It receives the negotiation lifecycle callbacks and describes its UI with the declarative components in `hani2.tools.ui`. The web app renders that description; tool authors never write JavaScript.
 
-This page lists the built-in tools and shows how to configure which tools a deployment offers. To write your own, follow the [tools tutorial](../tutorials/tools.md). How tools look and behave for participants (tabs, the enable switch, moving and hiding) is described in [The interface](interface.md).
+This page lists the built-in tools and shows how to configure which tools a deployment offers. To write your own, follow the [tools tutorial](../tutorials/tools.md); to add one, save its file in the tools folder (`$HANI2_HOME/tools`, see [Adding tools](#adding-tools)). How tools look and behave for participants (tabs, the enable switch, moving and hiding) is described in [The interface](interface.md).
 
 ## Panes
 
@@ -47,6 +47,8 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table. |
 | Opponent Preferences | upper | load | yes | admins only | The partner's private preferences, in the same layout as Preferences. |
 
+Every tool has a help text that says what it does and how it works. Participants read it from the **?** button next to the tool's tabs, and a support agent with **Use tools** gets it at the top of what `read_tool` returns.
+
 "Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the support agent) switches them on.
 
 "Admins only" means a logged-in admin account. Opening a page with `?admin=1` turns on the admin badge and the opponent picker in the UI but does not give a session the admin-only tools, and the admin-only options inside tools stay hidden.
@@ -59,13 +61,18 @@ The Utility-based Selector needs the inverse of your utility function. When the 
 
 The LLM tool uses the language model configured in `llm_settings.json` (see [Language models](llms.md)). When the model is not configured it shows a warning instead of failing.
 
+## Adding tools
+
+Save a tool's Python file in the **tools folder**, `$HANI2_HOME/tools` (by default `~/negmas/hani2/tools`), and every new session gets the tools it defines. No restart is needed: changed files are read again when the next session starts. `hani2 tools new "My Tool"` creates a file there to start from, `hani2 tools list` shows every tool and where it comes from, and `hani2 tools path` shows the folders searched. More folders can be added with `hani2 --tools DIR` or `tools.paths` in `env.json`. The [tools tutorial](../tutorials/tools.md) explains how to write the file, and the `examples/tools` folder of the repository holds five examples, including two that use a language model.
+
 ## Configuring tools in env.json
 
-The `"tools"` section of `env.json` (see [Configuration reference](configuration.md)) controls which tools exist and their defaults. It has three keys:
+The `"tools"` section of `env.json` (see [Configuration reference](configuration.md)) controls which tools exist and their defaults. It has these keys:
 
 ```json
 {
   "tools": {
+    "paths": ["/srv/study/tools"],
     "extra": ["my_package.tools:WhatIf", "my_package.tools.OfferCounter"],
     "disabled": ["Trace", "Outcome Plot"],
     "overrides": {
@@ -76,8 +83,11 @@ The `"tools"` section of `env.json` (see [Configuration reference](configuration
 }
 ```
 
+`paths`
+:   Folders (or single `.py` files) to load tools from, in addition to `$HANI2_HOME/tools`.
+
 `extra`
-:   A list of tool classes to add. Each entry is an import path, either `module:Class` or `module.Class`. The class must be a subclass of `hani2.tools.Tool`; otherwise the server prints `[hani2] could not load tool ...` and skips it. The module must be importable by the server process, so put it in an installed package or start the server with its folder on `PYTHONPATH`.
+:   A list of tool classes to add. Each entry is an import path, `module:Class` or `module.Class`, or a file and class, `path/to/file.py:Class`. A folder or a `.py` file without a class name loads every tool in it, like `paths`. The class must be a subclass of `hani2.tools.Tool`; otherwise the server prints `[hani2] could not load tool ...` and skips it. The module must be importable by the server process, so put it in an installed package or start the server with its folder on `PYTHONPATH`.
 
 `disabled`
 :   Tool names to remove. Matching ignores case. Disabled tools are not created at all, for anyone.
@@ -95,7 +105,7 @@ The `"tools"` section of `env.json` (see [Configuration reference](configuration
     | `order` | Sort key inside the pane (smaller first) |
     | `at_front` | Make this the selected tab of its pane when it appears. Defaults to true when `order` is 0 or 1. |
 
-Tools are collected in this order: the built-in tools, then tools published by installed packages through the `hani2.tools` entry-point group, then the `extra` list. A class that appears twice is added once. `disabled` and `overrides` then apply to all of them, so you can also disable or move a tool that a package provides.
+Tools are collected in this order: the built-in tools, then tools published by installed packages through the `hani2.tools` entry-point group, then classes registered with `hani2.tools.register_tool`, then the tool folders, then the `extra` list. A class that appears twice is added once, and when two tools share a name the first one wins (the server log names the one it ignored). `disabled` and `overrides` then apply to all of them, so you can also disable or move a tool that a package provides.
 
 The server reads this section each time a session reaches a timing, so a change reaches new sessions and any timing an existing session has not reached yet. Tools a session already created stay as they are.
 
@@ -126,11 +136,11 @@ Two admin settings in the per-session settings drawer also affect tools (see [Ad
 
 The support agent sees the list of tools in its context and, depending on its capabilities, can switch tools on or off (`tool_enable`), hide and show them (`tool_visibility`) and move them or bring one to the front (`tool_order`). Both the participant's buttons and the agent go through the same server-side controller, so permanent tools cannot be hidden or switched off by either.
 
-With **Use tools** (`tool_use`) the agent can also read what any tool shows, as text, and operate its inputs, buttons and selectable tables, exactly as the participant would; whatever the tool then does to the offer follows the agent's own permissions. With **Add tools** (`tool_add`) it can put new tools on the screen during the session: its own tools, tools from its `toolbox` setting, registered tools the participant does not have yet, and tools whose `timing` is `"agent"` (these appear only when an agent adds them). A tool added this way carries a small assistant mark on its tab. See [Tools the agent can find, use and add](support-agent.md#tools-the-agent-can-find-use-and-add).
+With **Use tools** (`tool_use`) the agent can also read any tool's help text and what it shows, as text, and operate its inputs, buttons and selectable tables, exactly as the participant would; whatever the tool then does to the offer follows the agent's own permissions. With **Add tools** (`tool_add`) it can put new tools on the screen during the session: its own tools, tools from its `toolbox` setting, registered tools the participant does not have yet, and tools whose `timing` is `"agent"` (these appear only when an agent adds them). A tool added this way carries a small assistant mark on its tab. See [Tools the agent can find, use and add](support-agent.md#tools-the-agent-can-find-use-and-add).
 
 ## Extra tools from the command line
 
-`hani2 --tools package.module:Class,path/to/file.py:Class` loads extra tools when the server starts (each class is imported first, so a typo stops the server with an error), and `hani2 experiment create NAME --tools ...` saves them in an experiment. Use it for tools submitted by competition teams.
+`hani2 --tools package.module:Class,path/to/file.py:Class` loads extra tools when the server starts (each class is imported first, so a typo stops the server with an error). An entry can also be a folder or a `.py` file, which loads every tool in it and, like the tools folder, re-reads changed files for new sessions, and `hani2 experiment create NAME --tools ...` saves them in an experiment. Use it for tools submitted by competition teams.
 
 ## How tools are rendered
 

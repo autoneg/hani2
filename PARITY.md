@@ -48,13 +48,14 @@ This file is a development note; it is not part of the user documentation or the
 ## Tools
 - [x] Tool base API: same lifecycle hooks, `permanent`, enable switch, `OutcomeSelector`; new: declarative `view()`, `on_input`, `on_action`, `draft_changed`
 - [x] Registry: name / timing / pane / admin_only / guest / enabled / order; `tools.extra`, `tools.disabled`, `tools.overrides`, `hani2.tools` entry points
+- [x] New: tool `help` texts behind a ? button (all built-ins), tools folder `$HANI2_HOME/tools` + `--tools`/`HANI2_TOOLS`/`tools.paths` (hot reload), `register_tool`, `hani2 tools list|path|new`, `LLMTool` + `Tool.ask_llm`/`transcript`, `llm_service.complete`
 - [x] Preferences, Scenario Info, Utility Plot, Outcome Plot, Trace, Value Histogram, My Results (was "User Results"), Utility-based Selector (cached inverter), LLM (Response Generator), Random, All Results, Opponent Preferences
 - [-] Session Results (was disabled)
 
 ## Support agent & autopilot
 - [x] `SupportAgent` API (post, toast, message_user, ask_user, show_on_board, run_on_doc, _post_async, handle_user_message, on_event, proactive_note, build_system_prompt, _complete, _context_snapshot, _run_turn, _execute_tool_call, dispatcher_class, make_dispatcher)
 - [x] New: highlight, clear_highlights, annotate, set_layout, focus_tool, show_panel / close_panel, on_panel_action, on_draft_changed, context()
-- [x] ToolDispatcher + make_function_schema; all built-in LLM functions + focus_tool, highlight, clear_highlights, annotate, set_layout, show_panel, close_panel
+- [x] ToolDispatcher + make_function_schema; all built-in LLM functions + focus_tool, highlight, clear_highlights, annotate, set_layout, show_panel, close_panel, describe_tools, read_tool, use_tool (`use_tools` capability)
 - [x] Capabilities (14) admin ∩ user; autonomy suggest / semi / full; highlight / confirm dialogs
 - [x] Assistant dock: on/off, abilities, autonomy, proactive delivery (toast / board / chat), clear conversation
 - [x] Draft-below-reserved warning (toast with "discuss" action, note on the editor, board)

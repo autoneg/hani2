@@ -10,6 +10,14 @@ from hani2.tools import Tool, ui
 class WhatIf(Tool):
     name = "What If"
     description = "Pick a value for every issue and see what the deal is worth to you."
+    help = """
+    **What it shows.** One drop-down per issue and what the deal you pick is worth to you,
+    with a note saying whether it beats ending without a deal.
+
+    **How to use it.** Choose an option for every issue. Press **Use as my offer** to copy
+    the deal into your counter-offer (once the negotiation has started); you still send it
+    yourself.
+    """
     icon = "flask-conical"
     pane = "side"
     timing = "load"

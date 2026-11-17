@@ -92,6 +92,10 @@ Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default 
 
 Each pane shows its tools as tabs with an icon and a name. Hover a tab to see the tool's description. Clicking a tab makes it the active tool of that pane and refreshes its content.
 
+### Help
+
+The **?** button next to the tabs opens the active tool's help: what the tool shows or does and how it works. It works while the tool is switched off too, so participants can read what a tool does before turning it on. The support agent reads the same help texts.
+
 Tools are added at different times: some exist from the start, others appear when a scenario loads, when the negotiation starts, or when it ends. Admin-only tools appear only for administrators, and tools not marked for guests do not appear in the playground.
 
 ### Enable switch

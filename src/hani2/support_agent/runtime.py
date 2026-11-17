@@ -328,7 +328,8 @@ class SupportAgent:
                           "tools": [x.name for x in self.session.tools]}
         st = self.session.tool_state(t)
         if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
-            return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)"}
+            return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)",
+                          "help": t.help_text()}
         return t, None
 
     def read_tool(self, name: str, max_chars: int = 4000) -> dict:
@@ -351,14 +352,27 @@ class SupportAgent:
             caps.add(c.value)
         return caps
 
+    #: How long :meth:`use_tool` waits for a tool working in the background
+    #: (one with a true ``busy`` attribute, such as an :class:`~hani2.tools.LLMTool`).
+    tool_wait: float = 60.0
+
+    def _wait_while_busy(self, tool) -> None:
+        import time
+
+        deadline = time.monotonic() + max(0.0, float(self.tool_wait or 0))
+        time.sleep(0.05)
+        while getattr(tool, "busy", False) and time.monotonic() < deadline:
+            time.sleep(0.2)
+
     def use_tool(self, name: str, *, inputs: dict[str, Any] | None = None, action: str | None = None,
                  payload: dict[str, Any] | None = None, row: int | None = None) -> dict:
         """Operate a tool like the participant would: set its ``inputs`` (by
         input name), then press the button ``action`` (or select table ``row``
         of the table whose selection action is ``action``). Anything the tool
         then does to the offer, message, accept or end obeys the agent's own
-        capabilities and autonomy. Returns what the tool shows afterwards.
-        Needs ``tool_use``."""
+        capabilities and autonomy. Returns what the tool shows afterwards,
+        once a tool working in the background (an LLM tool) is done or
+        :attr:`tool_wait` seconds have passed. Needs ``tool_use``."""
         denied = self._denied(Capability.TOOL_USE)
         if denied:
             return denied
@@ -407,6 +421,7 @@ class SupportAgent:
                     results.append(t.on_action(action, data))
                 except Exception as e:  # noqa: BLE001
                     return {"ok": False, "error": f"{action!r} failed: {e}"}
+        self._wait_while_busy(t)
         _log_agent_action(self.session_state, "use_tool", f"{t.name}:{action or ''}:{sorted(inputs or {})}")
         ev.log_event(sess.sid, ev.EventType.TOOL_INTERACTION, user=sess.user, component=t.name,
                      action=f"agent:{action or 'input'}", value={"inputs": inputs or {}, "row": row})

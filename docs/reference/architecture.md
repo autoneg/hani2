@@ -183,7 +183,7 @@ Tools and support agent panels never ship frontend code. They describe their vie
 
 | What | How |
 | --- | --- |
-| Tools | Subclass `hani2.tools.base.Tool`; register through `env.json` → `tools.extra` or a `hani2.tools` entry point. See [Tools](../guide/tools.md). |
+| Tools | Subclass `hani2.tools.base.Tool`; register by saving the file in `$HANI2_HOME/tools` (or a `--tools` folder), with `register_tool`, through `env.json` → `tools.extra` or a `hani2.tools` entry point. See [Tools](../guide/tools.md). |
 | Support agents | Subclass `hani2.support_agent.runtime.SupportAgent`; set `agent_class` in `support_agent_settings.json`. See [Support agent](../guide/support-agent.md). |
 | Opponents | Any negmas negotiator class, by dotted path or `file:` spec. See [Opponents](../guide/opponents.md). |
 | Scenarios | Folders on disk. See [Scenarios](../guide/scenarios.md). |

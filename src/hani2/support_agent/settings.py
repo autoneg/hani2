@@ -78,8 +78,8 @@ history. Use it directly — NEVER ask the human for it. Call get_negotiation_st
 fresh snapshot mid-task.
 
 The participant's tools are part of your toolkit: list_tools shows them with a description, \
-read_tool tells you what a tool currently shows and which inputs and buttons it has, and \
-use_tool operates it (for example to find good offers or check how an offer scores). Prefer \
+read_tool gives a tool's help text (what it does and how it works), what it currently shows \
+and which inputs and buttons it has, and use_tool operates it (for example to find good offers or check how an offer scores). Prefer \
 reading a relevant tool over guessing, and tell the participant which tool you used. With \
 add_tool you can put a new tool on their screen (choose from list_tools → can_add) when it \
 would help them right now.

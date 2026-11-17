@@ -18,11 +18,12 @@ Minimal tool::
             n = len(self.trace())
             return [ui.stat("Offers so far", n)]
 
-Register it in ``settings/env.json``::
+Register it by saving the file in the tools folder (``$HANI2_HOME/tools``,
+see ``hani2 tools path``), by listing it in ``settings/env.json``::
 
     {"tools": {"extra": ["my_package.tools:OfferCounter"]}}
 
-or ship it in a package with an entry point in the ``hani2.tools`` group.
+or by shipping it in a package with an entry point in the ``hani2.tools`` group.
 """
 
 from __future__ import annotations
@@ -48,7 +49,10 @@ class Tool:
 
     ============== ===========================================================
     ``name``        Tab title (defaults to the class name). Must be unique.
-    ``description`` One line shown in the tool picker / to the support agent.
+    ``description`` One line shown as the tab tooltip and to the support agent.
+    ``help``        Markdown explaining what the tool does and how it works.
+                    Shown behind the tool's ``?`` button and given to the
+                    support agent. Falls back to ``description``.
     ``icon``        A lucide icon name (kebab case), e.g. ``"chart-line"``.
     ``pane``        Default pane: ``"upper"``, ``"lower"`` or ``"side"``.
     ``timing``      When the tool appears: ``"always"`` (page open),
@@ -73,6 +77,7 @@ class Tool:
 
     name: str = ""
     description: str = ""
+    help: str = ""
     icon: str = "wrench"
     pane: str = "upper"
     timing: str = "start"
@@ -173,16 +178,59 @@ class Tool:
     def set_text(self, text: str) -> dict:
         return self.session_state["actions"]["set_text"](text)
 
+    @classmethod
+    def help_text(cls) -> str:
+        """The tool's help (``help``, or ``description`` when it has none), dedented."""
+        import inspect
+
+        return inspect.cleandoc(cls.help or cls.description or "")
+
+    def transcript(self, max_turns: int | None = None) -> str:
+        """The negotiation so far as plain text, one line per offer or event.
+
+        Each offer line says who made it, the offer, its utility for the
+        participant and the message sent with it. Handy as input for an LLM.
+        """
+        hist = list(getattr(self.session, "history", []) or [])
+        if max_turns:
+            hist = hist[-max_turns:]
+        lines = []
+        for h in hist:
+            if h.get("kind") == "system":
+                lines.append(f"[{h.get('text', '')}]")
+                continue
+            who = "Participant" if h.get("by") == "human" else "Partner"
+            # explicit issue=value pairs: the display text ("I get everything.") reads like a quote to a model
+            offer = ", ".join(f"{k}={v}" for k, v in (h.get("offer") or {}).items()) or h.get("offer_str") or "no offer"
+            u = h.get("utility")
+            line = f"{who}: {offer}" + (f" (worth {u:.0%} to the participant)" if isinstance(u, (int, float)) else "")
+            if h.get("text"):
+                line += f' - "{h["text"]}"'
+            lines.append(line)
+        return "\n".join(lines)
+
+    def ask_llm(self, prompt: str, *, system: str | None = None, **settings: Any) -> str:
+        """Send ``prompt`` to the configured language model and return its reply.
+
+        Uses the model configured for HANI2 (``llm_settings.json``); keyword
+        arguments (``model``, ``temperature``, ``max_tokens`` ...) override
+        single settings. Raises on failure. The call blocks, so make it from a
+        background job (``self.session.submit``) or subclass :class:`LLMTool`.
+        """
+        from hani2.llm_service import complete
+
+        return complete(prompt, system=system, **settings)
+
     def describe_for_agent(self, max_chars: int = 4000) -> str:
-        """What this tool shows, as text for a support agent: its description,
-        :attr:`agent_hint`, and its current view (numbers, table rows, chart
+        """What this tool shows, as text for a support agent: its help text
+        (:meth:`help_text`), :attr:`agent_hint`, and its current view (numbers, table rows, chart
         summaries, and the inputs and buttons it can use). Override to give
         the agent a better summary than the generic one."""
         from hani2.tools.describe import describe_components
 
         head = [f"Tool: {self.name}"]
-        if self.description:
-            head.append(self.description)
+        if self.help_text():
+            head.append(self.help_text())
         if self.agent_hint:
             head.append(f"How to use it: {self.agent_hint}")
         try:

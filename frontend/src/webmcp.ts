@@ -224,7 +224,7 @@ function toolDefs(): ToolDef[] {
       name: "read_tool",
       title: "Read an analysis tool",
       description:
-        "Read the current content of one of the page's analysis tools (for example Preferences, Scenario Info, Utility-based Selector, Value Histogram). Returns the tool's components: text, tables, statistics and chart data.",
+        "Read the current content of one of the page's analysis tools (for example Preferences, Scenario Info, Utility-based Selector, Value Histogram). Returns the tool's help text (what it does and how it works) and its components: text, tables, statistics and chart data.",
       inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
       annotations: { readOnlyHint: true },
       execute: async ({ name }) => {
@@ -236,7 +236,7 @@ function toolDefs(): ToolDef[] {
           await sleep(1200);
         }
         const view = S().toolViews[t.id];
-        return ok({ name: t.name, description: t.description, components: compact(view ?? []) });
+        return ok({ name: t.name, description: t.description, help: t.help, components: compact(view ?? []) });
       },
     },
     {

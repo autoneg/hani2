@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Tool help.** Every tool has a `help` text (Markdown) saying what it does and how it works. Participants open it with the new **?** button next to a pane's tabs (and in an enlarged tool), and the support agent reads it at the top of `read_tool`. All built-in tools have one.
+- **Easy tool registration.** Tool files in `$HANI2_HOME/tools` are loaded automatically and re-read when they change; more folders come from `env.json` → `tools.paths`, and `hani2 --tools` / `tools.extra` now also take folders and whole `.py` files. New `register_tool` decorator and the `hani2 tools list | path | new` commands.
+- **LLM tools.** `LLMTool` turns a prompt into a working tool (button, background call, errors, Markdown answer); `Tool.ask_llm()`, `Tool.transcript()` and `hani2.llm_service.complete()` help write your own. New example tools: Summary and Ask the AI. The support agent's `use_tool` waits for such a tool to finish, so it gets the answer.
+- **Tutorial.** The tools tutorial now covers the tools folder, LLM tools, help texts and the ways to register a tool.
 - **Scenario sets**: named, ordered lists of scenario types in `scenario_sets.yaml` (editable under
   *Texts*). The bundled sets are `HAN2026` (Trade, Island, Grocery; the default), `MIT2025`,
   `PieArena2026`, `ANL` (all years) with `ANL2010`, `ANL2011`, `ANL2012`, `ANL2013`, `ANL2025` and

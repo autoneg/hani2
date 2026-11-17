@@ -33,6 +33,8 @@ export interface ToolInfo {
   name: string;
   icon: string;
   description: string;
+  /** Markdown: what the tool does and how it works (the ? button). */
+  help?: string;
   pane: "upper" | "lower" | "side";
   order: number;
   visible: boolean;

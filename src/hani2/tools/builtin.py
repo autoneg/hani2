@@ -49,6 +49,18 @@ def preference_view(tool: Tool, ufun, *, title_prefix: str = "", help_card: bool
 class PreferencesTool(Tool):
     name = "Preferences"
     description = "Your issue weights, the value of every option and your value on disagreement."
+    help = """
+    **What it shows.** How much every possible deal is worth to *you*, from 0% (worst) to 100% (best).
+
+    - **Issue weights** (donut): how important each issue is; the weights add up to 100%.
+    - **Value of each option** (bars): pick an issue to see what each of its options is worth to you.
+    - **Value on disagreement**: what you get if the negotiation ends without a deal.
+
+    **How it works.** A deal's value is the weighted sum of its options' values:
+    weight₁ × value₁ + weight₂ × value₂ + … A deal worth less than your value on
+    disagreement is worse than no deal. Open *How your preferences work* at the bottom
+    for a worked example. This tool is always on.
+    """
     icon = "sliders-horizontal"
     pane = "upper"
     timing = "load"
@@ -62,6 +74,13 @@ class PreferencesTool(Tool):
 class OpponentPreferencesTool(Tool):
     name = "Opponent Preferences"
     description = "The opponent's private preferences (admins only)."
+    help = """
+    **What it shows.** The same charts as *Preferences*, for the opponent: its issue
+    weights, the value it gives each option and its value on disagreement.
+
+    **How it works.** Read straight from the opponent's utility function in the scenario.
+    Participants never get this tool unless an administrator opens it to them.
+    """
     icon = "bot"
     pane = "upper"
     timing = "load"
@@ -83,6 +102,14 @@ AgentPreferencesTool = OpponentPreferencesTool
 class ScenarioInfoTool(Tool):
     name = "Scenario Info"
     description = "The scenario description, the issues and hints for your role."
+    help = """
+    **What it shows.** The story of the scenario, the role you play, a table of the
+    issues with their possible options and what they mean, any hints for your role and
+    (collapsed at the bottom) the full description.
+
+    **How it works.** Everything comes from the scenario's description; nothing here
+    changes during the negotiation. This tool is always on.
+    """
     icon = "book-open"
     pane = "upper"
     timing = "load"
@@ -139,6 +166,15 @@ class ScenarioInfoTool(Tool):
 class UtilityPlotTool(Tool):
     name = "Utility Plot"
     description = "How the utility of the offers evolves over time."
+    help = """
+    **What it shows.** A line chart of every offer so far: by default the round on the
+    x axis and the offer's value *for you* on the y axis, one line for your offers and one
+    for your partner's. The dotted red line is your value on disagreement.
+
+    **How to use it.** Choose the axes with the two drop-downs (relative time, round or
+    seconds). A partner line that rises means the partner is conceding towards you; a flat
+    line means it is holding firm. It is off by default: switch it on to use it.
+    """
     icon = "chart-line"
     pane = "lower"
     timing = "start"
@@ -197,6 +233,16 @@ class NegotiationPlotTool(Tool):
 
     name = "Negotiation Plot"
     description = "All outcomes in utility space with the Pareto frontier, Nash point and both sides' offers."
+    help = """
+    **What it shows.** Every possible deal as a grey dot, placed by its value for you (x)
+    and for the opponent (y); the **Pareto frontier** (green: deals where neither side can
+    gain without the other losing); the **Nash** and **Kalai** points (two standard fair
+    compromises); both sides' offers so far; the agreement (red ring); and both sides'
+    values on disagreement (dotted lines).
+
+    **How to use it.** Tick the boxes to show or hide layers and hover a dot to see the
+    deal. Only administrators get this tool, because it reveals the opponent's preferences.
+    """
     icon = "chart-scatter"
     pane = "lower"
     timing = "load"
@@ -281,6 +327,14 @@ class NegotiationPlotTool(Tool):
 class OutcomePlotTool(Tool):
     name = "Outcome Plot"
     description = "Offers placed in the outcome space (any two issues or time)."
+    help = """
+    **What it shows.** Every offer as a point placed by two issues of your choice (or by
+    time), with your offers and your partner's in different colours.
+
+    **How to use it.** Pick the issues for the X and Y axes; untick *Show your offers* to see
+    only your partner's. It shows *what* was offered, not what it is worth. It is off by
+    default: switch it on to use it.
+    """
     icon = "scatter-chart"
     pane = "lower"
     timing = "start"
@@ -323,6 +377,13 @@ class OutcomePlotTool(Tool):
 class TraceTool(Tool):
     name = "Trace"
     description = "A table of every offer with its utility."
+    help = """
+    **What it shows.** One row per offer: the round, the share of the time used, who made
+    it, the offer, the message sent with it and what it is worth to you.
+
+    **How to use it.** Click a column header to sort. It is off by default: switch it on to
+    use it.
+    """
     icon = "list"
     pane = "lower"
     timing = "start"
@@ -354,6 +415,14 @@ class TraceTool(Tool):
 class ValueHistogramTool(Tool):
     name = "Value Histogram"
     description = "How often each value of each issue has been offered."
+    help = """
+    **What it shows.** For each chosen issue, a bar chart counting how often each option has
+    been offered, by you and by your partner.
+
+    **How to use it.** Pick issues with the chips; untick *Your offers* to count only your
+    partner's. Options your partner offers again and again probably matter to it; options it
+    never offers are probably bad for it.
+    """
     icon = "chart-column"
     pane = "lower"
     timing = "start"
@@ -437,6 +506,14 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
 class UserResultsTool(Tool):
     name = "My Results"
     description = "Your score and every negotiation you completed."
+    help = """
+    **What it shows.** Your score (the average of your best result in each scenario), how
+    many negotiations you finished and how many ended in agreement, a score per scenario and
+    a table of every negotiation.
+
+    **How to use it.** Choose the table's columns with *Columns*. It updates when a
+    negotiation ends. This tool is always on.
+    """
     icon = "trophy"
     pane = "upper"
     timing = "always"
@@ -456,6 +533,13 @@ class UserResultsTool(Tool):
 class AllResultsTool(Tool):
     name = "All Results"
     description = "Every participant's results and a leaderboard (admins only)."
+    help = """
+    **What it shows.** Every negotiation of every participant, the overall scores and a
+    leaderboard ranked by score.
+
+    **How to use it.** Search the table, choose its columns and sort by any column. Only
+    administrators get this tool.
+    """
     icon = "table"
     pane = "upper"
     timing = "always"
@@ -474,6 +558,15 @@ class AllResultsTool(Tool):
 class UtilitySelectorTool(OutcomeSelector):
     name = "Utility-based Selector"
     description = "Browse every outcome whose utility for you is in a chosen range and use one as your offer."
+    help = """
+    **What it shows.** A table of the deals whose value *for you* lies in a range you
+    choose, best first.
+
+    **How to use it.** Set *Minimum utility* and *Range width* with the sliders (70% and 10%
+    lists every deal worth 70–80% to you). Click a row to copy that deal into your
+    counter-offer, or press **Set Offer** to have one picked from the range. The offer is
+    only filled in: you still send it yourself.
+    """
     icon = "list-filter"
     pane = "side"
     timing = "start"
@@ -579,6 +672,11 @@ class UtilitySelectorTool(OutcomeSelector):
 class RandomOutcomeTool(OutcomeSelector):
     name = "Random"
     description = "Fill the offer with a random outcome (admins only)."
+    help = """
+    **What it does.** Puts a random deal into your counter-offer when you press
+    **Set Offer**. The offer is only filled in, not sent. Only administrators get this tool;
+    it is meant for testing.
+    """
     icon = "dices"
     admin_only = True
     order = 20
@@ -599,6 +697,16 @@ class RandomOutcomeTool(OutcomeSelector):
 class ResponseGeneratorTool(OutcomeSelector):
     name = "LLM"
     description = "Describe what you want in plain words and let an LLM write the offer and message."
+    help = """
+    **What it does.** Turns an instruction in plain words ("propose a fair middle ground",
+    "improve my last offer slightly") into a suggested offer and/or message.
+
+    **How it works.** Your instruction, the issues, your preferences and the recent offers
+    are sent to the configured language model. Choose whether it writes the message, the
+    offer or both, press **Generate**, check the suggestion, then press
+    **Apply to my offer** to copy it into your counter-offer. Nothing is sent until you send
+    it yourself. Only administrators get this tool.
+    """
     icon = "sparkles"
     admin_only = True
     order = 10

@@ -29,7 +29,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--opponents`, `--opponent`, `-o` | none | The opponent agent(s) participants negotiate against: comma-separated negotiators and/or group tokens (`:llm`, `:template`, `:notext`, `:negmas`, `:classic`, `:genius`, `:custom`). Sets `HANI2_OPPONENTS`. The old name `--agents` still works. See [Opponents](../guide/opponents.md). |
 | `--support-agent` | none | Who gets the support agent: `on`, `off`, `auto` (admins only), or a support-agent class for everyone (`package.module:Class` or `path/to/file.py:Class`). Sets `HANI2_SUPPORT_AGENT` (and `HANI2_SUPPORT_AGENT_CLASS` for a class), overriding `mode` and `agent_class` in `support_agent_settings.json`. |
 | `--no-support-agent` | off | Run without a support agent; the same as `--support-agent off`. |
-| `--tools` | none | Extra tools: comma-separated `package.module:Class` or `path/to/file.py:Class`. Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the support agent adds them. |
+| `--tools` | none | Extra tools: comma-separated `package.module:Class`, `path/to/file.py:Class`, or a folder or `.py` file (every tool in it, see [Build a tool](../tutorials/tools.md#set-up)). Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the support agent adds them. |
 | `--experiment` | none | Run this experiment (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
 | `--scenario-set`, `--set` | the default set | The [scenario set](../guide/scenario-sets.md) to use, e.g. `HAN2026` or `ANAC2027` (any case). Sets `HANI2_SCENARIO_SET`. Admins can still change it per session. |
 | `--scenario-types` | none | Python files or modules that register extra scenario types, comma separated. Sets `HANI2_SCENARIO_TYPES`. See [Writing your own scenario type](../guide/scenarios.md#writing-your-own-scenario-type). |
@@ -51,6 +51,7 @@ hani2 --support-agent off --experiment pilot-1
 hani2 --no-support-agent --opponents :template       # Human-Agent Negotiation competition
 hani2 --support-agent submissions/team_a.py:TeamAgent # Hybrid Intelligence: a submitted assistant
 PYTHONPATH=$PWD hani2 --page play      # make local modules (custom agents, tools) importable
+hani2 --tools ./my-tools --page play   # load every tool in ./my-tools
 ```
 
 ## `hani2 setup`
@@ -145,7 +146,7 @@ Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) wi
 - copies of `consent.md`, `scenario_order.txt` and `announcements.md` from the active settings,
 - `scenarios/`, a copy of the current scenarios folder (or of the bundled samples).
 
-`--force`, `-f` overwrites existing files. `--no-support-agent` writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and `{"allowed": false}` to its `autopilot_settings.json`, so participants negotiate without an assistant (as in a competition). `--support-agent` takes the same values as the server option (`on`, `off`, `auto` or a class) and writes `mode` (and `agent_class`) to the experiment's `support_agent_settings.json`; `off` also turns the autopilot off. `--opponents` writes the opponent agents to the experiment's `env.json` (`opponents`), and `--tools` adds tool classes to its `tools.extra`. `--no-webmcp` sets `webmcp.enabled` to `false` in the experiment's `env.json`. The command prints how to run the experiment:
+`--force`, `-f` overwrites existing files. `--no-support-agent` writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and `{"allowed": false}` to its `autopilot_settings.json`, so participants negotiate without an assistant (as in a competition). `--support-agent` takes the same values as the server option (`on`, `off`, `auto` or a class) and writes `mode` (and `agent_class`) to the experiment's `support_agent_settings.json`; `off` also turns the autopilot off. `--opponents` writes the opponent agents to the experiment's `env.json` (`opponents`), and `--tools` adds the tool classes, folders and files to its `tools.extra`. `--no-webmcp` sets `webmcp.enabled` to `false` in the experiment's `env.json`. The command prints how to run the experiment:
 
 ```bash
 hani2 --experiment NAME
@@ -178,6 +179,26 @@ folders (default: the results folder).
 hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metrics.csv
 hani2 replay compare --by support_agent --columns human_utility,suggestion_adoption,llm_tokens
 ```
+
+## `hani2 tools`
+
+Commands for tools. Tool files saved in the tools folder (`$HANI2_HOME/tools`) are loaded automatically; see [Build a tool](../tutorials/tools.md).
+
+### `hani2 tools list`
+
+Lists every tool the server would offer: its name, pane and timing, whether it is admin-only or off by default, and where it comes from (built-in, a package, a file). Tools without a help text are flagged.
+
+### `hani2 tools path`
+
+Prints the folders and files searched for tools: the tools folder, `env.json` → `tools.paths`, and the folders and files in `tools.extra` and `--tools` (`HANI2_TOOLS`).
+
+### `hani2 tools new`
+
+```bash
+hani2 tools new NAME [--llm] [--folder DIR] [--force]
+```
+
+Writes a new tool file, ready to edit, named after `NAME` (`"Deal Summary"` becomes `deal_summary.py` with the class `DealSummary`). With `--llm` the tool is an `LLMTool` that asks the language model. The file goes into the tools folder unless you pass `--folder`; `--force` overwrites an existing file.
 
 ## `hani2 users`
 

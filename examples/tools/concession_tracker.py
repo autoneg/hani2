@@ -14,6 +14,14 @@ from hani2.tools.plotting import AGENT_COLOR, base_layout
 class ConcessionTracker(Tool):
     name = "Concession Tracker"
     description = "The utility of the partner's offers for you, and a projection to the deadline."
+    help = """
+    **What it shows.** What each of your partner's offers is worth to you over time, and a
+    dotted line projecting that trend to the deadline.
+
+    **How it works.** The concession rate is the change in value between the partner's first
+    and latest offers, divided by the time between them. The projection assumes the partner
+    keeps conceding at that rate. It needs at least two partner offers.
+    """
     icon = "trending-up"
     pane = "lower"
 

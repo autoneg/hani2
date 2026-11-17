@@ -6,6 +6,10 @@ from hani2.tools import Tool, ui
 class OfferCounter(Tool):
     name = "Offer Counter"
     description = "How many offers each side made so far."
+    help = """
+    **What it shows.** Two numbers: how many offers you have made and how many your partner
+    has made. It updates after every offer.
+    """
     icon = "hash"
     pane = "side"
 

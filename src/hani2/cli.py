@@ -18,9 +18,11 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, help="HANI2 — H
 experiment_app = typer.Typer(help="Create and inspect experiments (self-contained studies).")
 users_app = typer.Typer(help="Manage user accounts.")
 replay_app = typer.Typer(help="Explore, replay and evaluate recorded negotiations (.hrec files).")
+tools_app = typer.Typer(help="List, locate and create tools.")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(users_app, name="users")
 app.add_typer(replay_app, name="replay")
+app.add_typer(tools_app, name="tools")
 
 
 def _open_when_ready(url: str) -> None:
@@ -82,8 +84,21 @@ def _check_tools(value: str) -> str:
     paths made absolute."""
     from hani2.tools.registry import import_tool
 
+    from hani2.tools.registry import is_tool_path, load_tool_file
+
     out = []
     for spec in [x.strip() for x in value.split(",") if x.strip()]:
+        if is_tool_path(spec):  # a tools folder or a .py file: load every tool in it
+            path = Path(spec).expanduser().resolve()
+            if not path.exists():
+                raise typer.BadParameter(f"{spec!r} does not exist", param_hint="--tools")
+            for f in [path] if path.is_file() else sorted(path.glob("*.py")):
+                try:
+                    load_tool_file(f)
+                except Exception as e:  # noqa: BLE001
+                    raise typer.BadParameter(f"cannot load tools from {f}: {e}", param_hint="--tools") from None
+            out.append(str(path))
+            continue
         if ".py:" in spec:
             path, _, attr = spec.rpartition(":")
             spec = f"{Path(path).expanduser().resolve()}:{attr}"
@@ -127,7 +142,7 @@ def main(
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
-    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
+    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files (every tool in them). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
     root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", "--set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
@@ -281,7 +296,7 @@ def experiment_create(
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent for this experiment: on, off, auto, or a class (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
     opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) for this experiment: comma-separated negotiators and/or groups.")] = None,
-    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools for this experiment: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class).")] = None,
+    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools for this experiment: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files.")] = None,
 ):
     """Scaffold a self-contained experiment folder."""
     from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, experiments_root, get_settings_file, scenarios_dir
@@ -614,3 +629,106 @@ def replay_open(
 
 if __name__ == "__main__":  # pragma: no cover
     app()
+
+
+# --------------------------------------------------------------------------- #
+# Tools                                                                        #
+# --------------------------------------------------------------------------- #
+_TOOL_TEMPLATE = '''"""{title}: {doc}"""
+
+from hani2.tools import Tool, ui
+
+
+class {cls}(Tool):
+    name = "{title}"
+    description = "One line saying what {title} does."
+    help = """
+    **What it shows.** Describe what the participant sees.
+
+    **How to use it.** Describe the controls and how the numbers are worked out.
+    """
+    icon = "wrench"
+    pane = "side"  # upper, lower or side
+    timing = "start"  # always, load, start or end
+
+    def view(self):
+        offers = len(self.trace())
+        return [ui.stat("Offers so far", offers)]
+'''
+
+_LLM_TOOL_TEMPLATE = '''"""{title}: {doc}"""
+
+from hani2.tools import LLMTool
+
+
+class {cls}(LLMTool):
+    name = "{title}"
+    description = "One line saying what {title} does."
+    help = """
+    **What it does.** Describe what the participant gets.
+
+    **How it works.** Pressing the button sends the issues and the offers so far to the
+    language model with the instructions below; the reply is shown here.
+    """
+    icon = "sparkles"
+    button_label = "Ask"
+    prompt = """You help a person who is negotiating. Answer in at most five short bullet points."""
+'''
+
+
+@tools_app.command("list")
+def tools_list():
+    """List every tool the server would offer, with where it comes from."""
+    from hani2.tools.registry import SOURCES, discover_tool_classes, tool_specs
+
+    specs = {s.cls: s for s in tool_specs()}
+    for cls in discover_tool_classes():
+        spec = specs.get(cls)
+        state = "disabled in env.json" if spec is None else (
+            f"{spec.pane}/{spec.timing}" + (" admin-only" if spec.admin_only else "") + ("" if spec.enabled else " off"))
+        typer.echo(f"{(cls.name or cls.__name__):28} {state:24} {SOURCES.get(cls, '?')}")
+        if not (cls.help or "").strip():
+            typer.secho(f"{'':28} (no help text: add a `help` attribute)", fg="yellow")
+
+
+@tools_app.command("path")
+def tools_path():
+    """Show the folders searched for tool files."""
+    from hani2.tools.registry import tool_paths
+
+    for p in tool_paths():
+        typer.echo(f"{p}{'' if p.exists() else '  (missing)'}")
+
+
+@tools_app.command("new")
+def tools_new(
+    name: Annotated[str, typer.Argument(help="The tool's title, e.g. \"Deal Summary\".")],
+    llm: Annotated[bool, typer.Option("--llm", help="Start from LLMTool (a tool that asks the language model).")] = False,
+    folder: Annotated[Optional[Path], typer.Option(help="Where to write the file (default: the tools folder).")] = None,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite an existing file.")] = False,
+):
+    """Create a new tool file, ready to edit, in the tools folder."""
+    import re
+
+    from hani2.tools.registry import tools_dir
+
+    words = re.findall(r"[A-Za-z0-9]+", name)
+    if not words:
+        raise typer.BadParameter("the name needs at least one letter or digit")
+    cls = "".join(w[:1].upper() + w[1:] for w in words)
+    if cls[0].isdigit():
+        cls = "Tool" + cls
+    target_dir = (folder or tools_dir()).expanduser()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / ("_".join(w.lower() for w in words) + ".py")
+    if path.exists() and not force:
+        typer.secho(f"{path} exists (use --force to overwrite)", fg="red")
+        raise typer.Exit(1)
+    template = _LLM_TOOL_TEMPLATE if llm else _TOOL_TEMPLATE
+    doc = "a tool that asks the language model." if llm else "a HANI2 tool."
+    path.write_text(template.format(title=name.strip(), cls=cls, doc=doc))
+    typer.echo(f"Created {path}")
+    if folder is not None and folder.expanduser().resolve() != tools_dir().resolve():
+        typer.echo(f"Start the server with `hani2 --tools {target_dir}` to load it.")
+    else:
+        typer.echo("New sessions pick it up; edit it and open a new session to see your changes.")

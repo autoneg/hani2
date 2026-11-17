@@ -1604,7 +1604,7 @@ class NegotiationSession:
             for t in self.tools:
                 s = self.tool_state(t)
                 tools.append(
-                    dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, pane=s["pane"],
+                    dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, help=t.help_text(), pane=s["pane"],
                          order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
                          added_by=s.get("added_by"))
                 )

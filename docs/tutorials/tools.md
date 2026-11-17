@@ -1,36 +1,34 @@
 # Build a tool
 
-This tutorial builds three tools step by step, from a few numbers to an interactive form and a live chart. All three are in `examples/tools` in the repository, so you can run them as you read. By the end you will know the `Tool` class, its lifecycle hooks, the UI components, how to react to the participant's input, how to register a tool and how to test it without a browser.
+This tutorial builds five tools step by step: a few numbers, an interactive form, a live chart and two tools that use a language model, one that summarises the negotiation and one that answers the participant's questions. All five are in `examples/tools` in the repository, so you can run them as you read. By the end you will know the `Tool` and `LLMTool` classes, their lifecycle hooks, the UI components, how to react to the participant's input, how to write the help text behind a tool's **?** button, how to register a tool, how the support agent uses it and how to test it without a browser.
 
 The [Tools](../guide/tools.md) guide lists the built-in tools and the `env.json` options. The generated [Python API](../reference/api.md) reference has every docstring.
 
 ## Set up
 
-You need a working installation (`pip install hani2`, then `hani2 setup`). Work in a folder of your own, or in `examples/tools` of a source checkout:
+You need a working installation (`pip install hani2`, then `hani2 setup`).
+
+**The tools folder.** The quickest way to add a tool is to save its file in the tools folder, `~/negmas/hani2/tools` (or `$HANI2_HOME/tools`). Every `.py` file there is loaded, and every `Tool` subclass the file defines becomes available to new sessions: no settings to edit and no `PYTHONPATH`. `hani2 tools path` prints the folders that are searched.
+
+`hani2 tools new` writes a ready-to-edit tool into that folder:
 
 ```bash
-mkdir my-tools && cd my-tools
+hani2 tools new "Deal Summary" --llm      # a tool that asks the language model
+hani2 tools new "Offer Counter"           # a plain tool
+hani2 tools list                          # every tool, and where it comes from
 ```
 
-Tools are registered by import path. Add them to the `"tools"` section of `~/negmas/hani2/settings/env.json` (or `$HANI2_HOME/settings/env.json`):
-
-```json
-{
-  "tools": {
-    "extra": ["offer_counter:OfferCounter", "what_if:WhatIf", "concession_tracker:ConcessionTracker"]
-  }
-}
-```
-
-Keep the other keys of `env.json` as they are. Then start the server with your folder on the Python path, so it can import the modules:
+To follow this tutorial with the example files instead, point the server at the examples folder of a source checkout (or at a folder of your own) with `--tools`:
 
 ```bash
-PYTHONPATH=$PWD hani2 --page play
+hani2 --tools examples/tools --page play
 ```
 
-The playground at `/play` needs no login. If an entry in `extra` cannot be imported, the server prints `[hani2] could not load tool '...'` in its log and starts without it.
+`--tools` takes a comma-separated list of folders, `.py` files (every tool in them) and single classes (`module:Class` or `path/to/file.py:Class`). Folders can also be listed in `env.json` as `"tools": {"paths": ["/path/to/my-tools"]}`. The playground at `/play` needs no login.
 
-Tools are created when a session first reaches their timing. After you change a tool's code, restart the server and reload the page with a fresh session (log out and in again, or open `/play` in a private window), because a running session keeps the tool objects it already created.
+A tool file can import other modules in its own folder. Files whose name starts with `_` or `test_` are skipped, and so are classes whose name starts with `_` or that set `abstract = True`, which leaves room for helper base classes. A file that sets `TOOLS = [...]` contributes exactly the classes in that list. If a file fails to import, the server prints `[hani2] could not load tools from ...` in its log and carries on without it.
+
+**Edit, then open a new session.** Tool files are read again when they change, so you do not need to restart the server: save the file, then start a fresh session (log out and in again, or open `/play` in a private window). A running session keeps the tool objects it already created.
 
 ## Step 1: a tool that shows numbers
 
@@ -66,6 +64,7 @@ You never call `view()` yourself. The server calls it whenever the tool needs to
 |-----------|---------|---------|
 | `name` | the class name | The tab title. It must be unique among the session's tools. |
 | `description` | `""` | One line shown as the tab tooltip, on the "switched off" placeholder, and to the support agent. |
+| `help` | `""` | Markdown explaining what the tool does and how it works. The participant reads it from the tool's **?** button and the support agent reads it with `read_tool`. Falls back to `description`. See [Help text](#help-text). |
 | `icon` | `"wrench"` | A [lucide](https://lucide.dev/icons/) icon name in kebab case, such as `"chart-line"`. |
 | `pane` | `"upper"` | The default pane: `"upper"`, `"lower"` or `"side"`. |
 | `timing` | `"start"` | When the tool appears: `"always"` (page open), `"load"` (scenario loaded), `"start"` (negotiation started), `"end"` (negotiation finished) or `"agent"` (only when a support agent adds it). |
@@ -146,6 +145,86 @@ The third tool plots the utility (for the participant) of the partner's offers o
 | `TRACE_COLUMNS` | The tuple of those column names. |
 
 The tracker needs no hook of its own: `action_requested` runs every time it becomes the participant's turn, and the base implementation redraws the tool.
+
+## Step 4: a tool that uses a language model
+
+The fourth tool asks the language model for a summary of the negotiation so far: where each side stands, who conceded what, which issues are open and what to try next.
+
+```python title="examples/tools/negotiation_summary.py"
+--8<-- "examples/tools/negotiation_summary.py"
+```
+
+![The Summary tool next to the action panel](../assets/screens/tools-summary.png)
+
+`hani2.tools.LLMTool` is a `Tool` that does the plumbing of an LLM call for you. It shows a button; pressing it sends the prompt to the configured model on a background thread, shows *Thinking...* on the button meanwhile, and then shows the reply as Markdown. Errors (no model configured, a network failure) appear as a red alert, and a note tells the participant how many offers came in since the answer. A new negotiation clears the old answer.
+
+The tool only says what to ask. By default the model receives `prompt`, then the issues with their options, then the negotiation so far as text, one line per offer:
+
+```text
+Partner: Price=10, Quantity=1 (worth 32% to the participant) - "Take it or leave it"
+Participant: Price=6, Quantity=3 (worth 81% to the participant)
+```
+
+The model is the one set in `llm_settings.json` (see [Language models](../guide/llms.md)), the same as for the rest of the app. Run Ollama locally or set an API key, start a negotiation, make a few offers and press **Summarise**.
+
+`LLMTool` attributes, on top of those of `Tool`:
+
+| Attribute | Default | Meaning |
+|-----------|---------|---------|
+| `prompt` | `""` | The instructions for the model. |
+| `system` | `None` | Extra instructions placed before the prompt. |
+| `include_transcript` | `True` | Add the offers so far to the prompt. |
+| `max_turns` | `40` | How many of the latest offers the transcript keeps. |
+| `button_label` | `"Ask the AI"` | The button's text. |
+| `busy_label` | `"Thinking..."` | The button's text while the model works. |
+| `empty_text` | `"Press the button ..."` | Shown before the first answer. |
+| `needs_offers` | `False` | Keep the button disabled until the first offer. |
+
+It defaults to `pane = "side"`, `timing = "start"` and the `sparkles` icon. After a run, `self.answer` holds the reply, `self.error` the error message and `self.busy` is true while the model works.
+
+## Step 5: an LLM tool with its own input
+
+The last tool lets the participant ask any question about the negotiation. It adds a text area, refuses to run without a question, and sends the participant's preferences along with the question.
+
+```python title="examples/tools/ask_ai.py"
+--8<-- "examples/tools/ask_ai.py"
+```
+
+Three methods of `LLMTool` are overridden:
+
+| Method | Default | Override it to |
+|--------|---------|----------------|
+| `controls_view()` | no components | Add inputs above the button. Their values are in `self.values`, and they travel with the button click, so they are up to date when the model is asked. |
+| `check()` | `None` | Return an error message to stop before calling the model, for example when an input is empty. |
+| `build_prompt()` | `prompt` + `context_text()` | Decide exactly what the model sees. `context_text()` returns the issues and the transcript. |
+
+Two more can be useful: `postprocess(reply)` turns the raw reply into the text to show (for example to strip a preamble), and `answer_view(answer)` returns the components that show it (by default a card with Markdown).
+
+`self.session.llm_context().get_ufun_description()` describes the participant's preferences in words. Keep in mind that whatever you put in the prompt is sent to the model provider.
+
+### Calling the model from any tool
+
+Any tool can call the model directly with `self.ask_llm(prompt, system=None, **settings)`. It returns the reply as a string and raises on failure. Keyword arguments override single settings of `llm_settings.json` for that call, for example `self.ask_llm(prompt, temperature=0)`. The call blocks, so make it from a background job, as described in [Long-running work](#long-running-work). Code outside tools can use `hani2.llm_service.complete(prompt, system=None, **settings)`, which does the same.
+
+`self.transcript(max_turns=None)` returns the negotiation so far in the text format shown above, ready to go into a prompt.
+
+## Help text
+
+Every tool should explain itself. The `help` attribute is Markdown that says **what the tool shows or does** and **how it works or how to use it**. Participants open it with the small **?** button at the right end of the tool's tab strip; it works even while the tool is switched off. The support agent reads the same text, so it can explain the tool or decide when it helps.
+
+```python
+class ConcessionTracker(Tool):
+    description = "The utility of the partner's offers for you, and a projection to the deadline."
+    help = """
+    **What it shows.** What each of your partner's offers is worth to you over time, and a
+    dotted line projecting that trend to the deadline.
+
+    **How it works.** The concession rate is the change in value between the partner's first
+    and latest offers, divided by the time between them. ...
+    """
+```
+
+Indentation is removed for you (`Tool.help_text()` returns the cleaned text). Keep `description` to one line: it is the tab tooltip and the summary in tool lists. Write `help` for the participant, not for developers: say what the numbers mean and which controls do what, mention anything the tool sends elsewhere (such as to a language model), and say when it is admin-only or off by default. All built-in tools have a help text, and `hani2 tools list` flags tools that do not.
 
 ## Lifecycle hooks
 
@@ -230,7 +309,7 @@ class BestForMe(OutcomeSelector):
 
 ## Long-running work
 
-`view()` and the hooks block the session while they run. For slow work, such as calling a language model, run it in the background with `self.session.submit(fn)`, show a busy state, and call `self.refresh()` when the result is ready. The built-in LLM tool follows this pattern:
+`view()` and the hooks block the session while they run. For slow work, such as calling a language model, run it in the background with `self.session.submit(fn)`, show a busy state, and call `self.refresh()` when the result is ready. `LLMTool` and the built-in LLM tool follow this pattern:
 
 ```python
 def on_action(self, action, payload):
@@ -253,9 +332,26 @@ If `view()` raises, the tool shows a red alert with the error message instead of
 
 ## Register the tool
 
-There are two ways to make a tool available.
+Every way of registering a tool makes it available to every new session, where both the participant and the support agent can use it. Choose the one that fits:
 
-**In env.json or on the command line.** List the class in `tools.extra` as `module:Class`, `module.Class` or `path/to/file.py:Class`, as in the set-up section, or pass it with `hani2 --tools`. This is the quickest way for a single study. The module must be importable by the server.
+**In a tools folder.** Save the file in `$HANI2_HOME/tools`, or in a folder given with `hani2 --tools`, `HANI2_TOOLS` or `env.json` → `tools.paths`, as in the [set-up section](#set-up). Best while you develop a tool and for a single deployment.
+
+**With the decorator.** In your own launcher script, decorate the class with `register_tool` (or call `register_tool(MyTool)`) before the server starts sessions:
+
+```python
+from hani2.tools import Tool, register_tool, ui
+
+
+@register_tool
+class Hello(Tool):
+    name = "Hello"
+    help = "Shows a greeting."
+
+    def view(self):
+        return [ui.markdown("Hello!")]
+```
+
+**In env.json or on the command line.** List the class in `tools.extra` as `module:Class`, `module.Class` or `path/to/file.py:Class`, or pass it with `hani2 --tools` (comma-separated; folders and whole `.py` files work too). A module path must be importable by the server (installed, or on `PYTHONPATH`).
 
 **In a package.** Publish the tool through the `hani2.tools` entry-point group in your package's `pyproject.toml`:
 
@@ -267,6 +363,8 @@ offer_counter = "my_tools.offer_counter:OfferCounter"
 
 Once the package is installed in the same environment as HANI2, every session gets the tools. Admins can still disable them or change their defaults in `env.json`.
 
+Tool names must be unique. When two sources offer a tool with the same name, the first one wins (built-in tools, then packages, then `register_tool`, then tool folders, then `extra`) and the server log says which one was ignored.
+
 ## Make your tool usable by a support agent
 
 You do not have to do anything: a support agent with the **Use tools** capability reads any tool
@@ -275,12 +373,19 @@ as text and operates its inputs, buttons and selectable tables (see
 that work better:
 
 - Write a clear `description`; the agent sees it in `list_tools`.
+- Write a `help` text (see [Help text](#help-text)). `read_tool` starts with it, so the agent can
+  explain the tool to the participant, and it gets the help even for a tool that is switched off.
 - Add an `agent_hint` saying when the tool helps and what to press, for example
   `"Set 'target' to the utility you want, then press Find."`
 - Give inputs and actions meaningful names (`min_util`, `find`), and labels on sliders and selects.
 - Put the key result in a `ui.stat` or a short table; charts are only summarised for the agent.
 - Change the negotiation only through the tool helpers (`set_offer`, `set_text`) or the session's
   methods. When the agent presses your button, those calls follow the agent's permissions.
+
+- A tool that works in the background should have a `busy` attribute that is true while it works,
+  as `LLMTool` does. `use_tool` waits for it to become false (up to 60 seconds, the agent's
+  `tool_wait`) before it reads the tool, so the agent gets the answer, not "Thinking...". For
+  example, `use_tool(name="Summary", action="ask")` returns the summary.
 
 To control exactly what the agent reads, override `describe_for_agent(max_chars)` and return text.
 
@@ -315,6 +420,27 @@ def test_what_if_fills_the_offer():
 ```
 
 `render()` is what the server calls: it returns the list of component dicts from `view()`, or a single error alert if `view()` raised. Check its output to test what the participant will see.
+
+To test a tool that calls the language model, replace `hani2.llm_service.complete` with a stub, so the test needs no model:
+
+```python
+import time
+
+from hani2.testing import make_session
+from negotiation_summary import NegotiationSummary
+
+
+def test_summary(monkeypatch):
+    monkeypatch.setattr("hani2.llm_service.complete", lambda prompt, **kw: "- Price is open")
+    s = make_session()
+    s.start()
+    s.wait_for_turn()
+    tool = NegotiationSummary(s.ss)
+    tool.on_action("ask", {})
+    while tool.busy:
+        time.sleep(0.05)
+    assert tool.answer == "- Price is open"
+```
 
 To test registration and pane placement as well, write an `env.json` into the test home before you create the session, then find the tool through the session's tool controller:
 

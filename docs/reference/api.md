@@ -6,6 +6,14 @@ This page is generated from the docstrings in the source. It covers the modules 
 
 ::: hani2.tools.base
 
+## LLM tools
+
+::: hani2.tools.llm_tool
+
+## Tool registration
+
+::: hani2.tools.registry
+
 ## UI components
 
 ::: hani2.tools.ui

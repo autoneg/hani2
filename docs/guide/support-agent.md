@@ -410,14 +410,19 @@ agent without extra code.
 
 - **Find.** `list_tools` lists every tool with its description, pane and state. With `tool_add` it
   also returns `can_add`: tools the agent may put on the screen now.
-- **Read.** `read_tool(name)` returns what the tool shows as text: its description and
+- **Read.** `read_tool(name)` returns what the tool shows as text: its
+  [help text](../tutorials/tools.md#help-text) (the same text the participant sees behind the tool's **?**
+  button, or the description when there is none) and
   [`agent_hint`](../tutorials/tools.md#make-your-tool-usable-by-a-support-agent), numbers, the first
   rows of tables, a summary of each chart, and its inputs (with their options and ranges) and
   buttons.
 - **Use.** `use_tool(name, inputs=..., action=..., row=...)` sets inputs, then presses a button or
   picks a table row, exactly as the participant would, and returns what the tool shows afterwards.
   Values from the model are converted to what each input expects (`"80"` becomes `80` for a
-  slider).
+  slider). A tool that works in the background, such as an
+  [LLM tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model), is given time to
+  finish (up to `tool_wait` seconds, 60 by default), so the agent gets its answer.
+  For a switched-off tool, `read_tool` and `use_tool` return an error that still includes the help text.
 - **Add.** `add_tool(name)` puts a tool on the participant's screen for the rest of the session.
   It catches up on the scenario and on a negotiation that is already running, becomes the front
   tab of its pane, and its tab carries a small assistant mark. `remove_tool(name)` removes a tool
@@ -453,7 +458,7 @@ Teams can contribute in three ways, and the organisers start HANI2 with the matc
 | A support agent | `hani2 --support-agent team.py:TeamAgent` | The team's agent runs for every participant and can use every tool the participant has. |
 | A support agent with its own tools | `hani2 --support-agent team.py:TeamAgent` (tools listed in `TeamAgent.tools`), or add `--tools team_tools.py:A,team_tools.py:B` | The agent adds its tools where and when it wants. |
 
-`--tools` takes `package.module:Class` or `path/to/file.py:Class`, separated by commas, and checks
+`--tools` takes `package.module:Class`, `path/to/file.py:Class` or a folder of tool files, separated by commas, and checks
 that every class loads before the server starts. `hani2 experiment create NAME --tools ...` saves
 them in the experiment (`tools.extra` in its `env.json`).
 
