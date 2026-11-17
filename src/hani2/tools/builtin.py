@@ -474,10 +474,13 @@ class UtilitySelectorTool(OutcomeSelector):
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
         self._inverter = None
-        self.values.update(min_util=70, width=10)
+        self._minmax = None
+        # width 100% by default: the range runs from the minimum slider up to the best outcome.
+        self.values.update(min_util=70, width=100)
 
     def negotiation_started(self, session_state, nmi):
         self._inverter = None
+        self._minmax = None
         super().negotiation_started(session_state, nmi)
 
     def _get_inverter(self):
@@ -505,8 +508,20 @@ class UtilitySelectorTool(OutcomeSelector):
             return None
 
     def _range(self):
+        """The chosen range on the normalized [0, 1] scale (0 = worst outcome, 1 = best)."""
         lo = float(self.values.get("min_util", 70)) / 100
-        return lo, min(1.0, lo + float(self.values.get("width", 10)) / 100)
+        return lo, min(1.0, lo + float(self.values.get("width", 100)) / 100)
+
+    def _normalized(self, u: float) -> float:
+        """A raw utility on the sliders' scale, so un-normalized ufuns show 0-100% too."""
+        if self._minmax is None:
+            try:
+                mn, mx = self.human_ufun.minmax()
+                self._minmax = (float(mn), float(mx))
+            except Exception:
+                self._minmax = (0.0, 1.0)
+        mn, mx = self._minmax
+        return (u - mn) / (mx - mn) if mx - mn > 1e-12 else 1.0
 
     def _outcomes(self) -> list:
         if self.human_ufun is None:
@@ -520,13 +535,13 @@ class UtilitySelectorTool(OutcomeSelector):
         rows = []
         for o in self._outcomes()[:500]:
             d = self.outcome_dict(o) or {}
-            d["Utility"] = float(self.human_ufun(o))
+            d["Utility"] = self._normalized(float(self.human_ufun(o)))
             rows.append(d)
         rows.sort(key=lambda r: -r["Utility"])
         sel = self.values.get("selected")
         return [
             ui.slider("min_util", 0, 100, self.values.get("min_util", 70), label="Minimum utility", suffix="%"),
-            ui.slider("width", 1, 100, self.values.get("width", 10), label="Range width", suffix="%"),
+            ui.slider("width", 1, 100, self.values.get("width", 100), label="Range width", suffix="%"),
             ui.table(rows, on_select="pick", formats={"Utility": "percent"}, page_size=15, selected=sel,
                      max_height=320)
             if rows

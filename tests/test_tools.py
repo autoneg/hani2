@@ -72,6 +72,30 @@ def test_utility_selector_row_sets_offer():
     assert all(s.draft[k] == v for k, v in row.items() if k != "Utility")
 
 
+def test_utility_selector_defaults_to_best_and_handles_unnormalized_ufuns():
+    from types import SimpleNamespace
+
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+    from negmas.preferences import LinearAdditiveUtilityFunction
+    from negmas.preferences.value_fun import AffineFun
+
+    from hani2.tools.builtin import UtilitySelectorTool
+
+    os = make_os([make_issue(10, "a"), make_issue(5, "b")])
+    ufun = LinearAdditiveUtilityFunction(
+        values=[AffineFun(3.0, 10), AffineFun(-2.0, 0)], weights=[2.0, 5.0], outcome_space=os
+    )  # utilities span [-20, 74]
+    sel = UtilitySelectorTool({"human_ufun": ufun, "scenario": SimpleNamespace(outcome_space=os)})
+    assert sel.values["width"] == 100 and sel._range() == (0.7, 1.0)
+    rows = next(c for c in sel.render() if c["type"] == "table")["rows"]
+    utils = [r["Utility"] for r in rows]
+    assert utils[0] == pytest.approx(1.0) and all(0.7 - 1e-9 <= u <= 1.0 + 1e-9 for u in utils)
+    assert ufun(sel.get_outcome()) >= -20 + 0.7 * 94 - 1e-9
+    sel.values["min_util"] = 100
+    assert ufun(sel.get_outcome()) == pytest.approx(74.0)
+
+
 def test_tool_controller_move_hide_focus():
     s = make_session()
     c = s.tool_controller
