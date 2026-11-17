@@ -37,7 +37,7 @@ Any provider supported by litellm works too; see [Language models](https://auton
 
 - **Negotiation desk**: the partner's offer on the table, a counter-offer editor, utility gauges with a no-deal marker, a conversation-style history, confirmation before accepting or ending, three layouts and a phone layout.
 - **Tools**: preferences, plots, histograms, the offer trace, an offer picker and more, in panes participants can rearrange. Write new ones in Python.
-- **Support agent**: an assistant that chats, highlights and annotates the interface, rearranges tools, shows interactive panels and, with permission, makes offers. Fourteen capabilities and three autonomy levels.
+- **Support agent**: an assistant that chats, highlights and annotates the interface, rearranges tools, shows interactive panels and, with permission, makes offers. It can also find, use and add tools. Sixteen capabilities and three autonomy levels.
 - **Autopilot**: the support agent or any negotiator plays the human's seat.
 - **WebMCP**: browser AI agents can read and (optionally) negotiate through the page's tools.
 - **Opponents**: any negmas, Genius or negmas-llm negotiator, your own classes, and named groups.

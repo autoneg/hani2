@@ -200,9 +200,10 @@ See [Language models](llms.md) for the prompt placeholders.
 | `api_base` | `null` | Custom endpoint URL. |
 | `temperature` | `0.3` | Sampling temperature. |
 | `max_tokens` | `2000` | Maximum answer length. |
-| `max_tool_iterations` | `6` | Maximum rounds of function calls per user message. |
+| `max_tool_iterations` | `10` | Maximum rounds of function calls per user message. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` | The fourteen capability switches: `chat`, `toast`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`. |
+| `capabilities` | all `true` | The sixteen capability switches: `chat`, `toast`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`. |
+| `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |
 | `proactive.on_negotiation_ended` | `false` | Speak up when a negotiation ends. |
@@ -242,6 +243,7 @@ See [Autopilot](autopilot.md).
 | `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments. |
 | `HANI2_EXPERIMENT` | none | Name of the active experiment. Set by `--experiment`. |
 | `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
+| `HANI2_TOOLS` | none | Extra tool classes, comma separated. Set by `--tools`. |
 | `HANI2_SUPPORT_AGENT_CLASS` | none | Support-agent class for everyone. Set by `--support-agent <class>`. |
 | `HANI2_SUPPORT_AGENT` | none | `on`, `off` or `auto`; overrides `mode` in `support_agent_settings.json`. Set by `--support-agent`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |

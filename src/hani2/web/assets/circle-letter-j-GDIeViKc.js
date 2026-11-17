@@ -1,0 +1,1 @@
+import{c}from"./index-cGDfCcgR.js";const e={name:"circle-letter-j",size:24,node:[["path",{d:"M14 8v5.5a1 1 0 01-5 0V13",key:"ypelvi"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const a=c(e);export{e as __iconData,a as default};

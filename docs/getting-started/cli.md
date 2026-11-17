@@ -29,6 +29,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--opponents`, `--opponent`, `-o` | none | The opponent agent(s) participants negotiate against: comma-separated negotiators and/or group tokens (`:llm`, `:template`, `:notext`, `:negmas`, `:classic`, `:genius`, `:custom`). Sets `HANI2_OPPONENTS`. The old name `--agents` still works. See [Opponents](../guide/opponents.md). |
 | `--support-agent` | none | Who gets the support agent: `on`, `off`, `auto` (admins only), or a support-agent class for everyone (`package.module:Class` or `path/to/file.py:Class`). Sets `HANI2_SUPPORT_AGENT` (and `HANI2_SUPPORT_AGENT_CLASS` for a class), overriding `mode` and `agent_class` in `support_agent_settings.json`. |
 | `--no-support-agent` | off | Run without a support agent; the same as `--support-agent off`. |
+| `--tools` | none | Extra tools: comma-separated `package.module:Class` or `path/to/file.py:Class`. Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the support agent adds them. |
 | `--experiment` | none | Run this experiment (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
 | `--browser` / `--no-browser` | `--browser` | Open the browser once the server answers. |
 | `--page` | `app` | Page to open in the browser: `app`, `play` or `admin`. |
@@ -121,7 +122,7 @@ Experiments are self-contained studies with their own settings, scenarios and re
 ### `hani2 experiment create`
 
 ```bash
-hani2 experiment create NAME [--force] [--opponents SPECS] [--no-support-agent | --support-agent VALUE] [--no-webmcp]
+hani2 experiment create NAME [--force] [--opponents SPECS] [--tools CLASSES] [--no-support-agent | --support-agent VALUE] [--no-webmcp]
 ```
 
 Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) with:
@@ -131,7 +132,7 @@ Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) wi
 - copies of `consent.md`, `scenario_order.txt` and `announcements.md` from the active settings,
 - `scenarios/`, a copy of the current scenarios folder (or of the bundled samples).
 
-`--force`, `-f` overwrites existing files. `--no-support-agent` writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and `{"allowed": false}` to its `autopilot_settings.json`, so participants negotiate without an assistant (as in a competition). `--support-agent` takes the same values as the server option (`on`, `off`, `auto` or a class) and writes `mode` (and `agent_class`) to the experiment's `support_agent_settings.json`; `off` also turns the autopilot off. `--opponents` writes the opponent agents to the experiment's `env.json` (`opponents`). `--no-webmcp` sets `webmcp.enabled` to `false` in the experiment's `env.json`. The command prints how to run the experiment:
+`--force`, `-f` overwrites existing files. `--no-support-agent` writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and `{"allowed": false}` to its `autopilot_settings.json`, so participants negotiate without an assistant (as in a competition). `--support-agent` takes the same values as the server option (`on`, `off`, `auto` or a class) and writes `mode` (and `agent_class`) to the experiment's `support_agent_settings.json`; `off` also turns the autopilot off. `--opponents` writes the opponent agents to the experiment's `env.json` (`opponents`), and `--tools` adds tool classes to its `tools.extra`. `--no-webmcp` sets `webmcp.enabled` to `false` in the experiment's `env.json`. The command prints how to run the experiment:
 
 ```bash
 hani2 --experiment NAME

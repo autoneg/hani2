@@ -28,7 +28,8 @@ from typing import TYPE_CHECKING, Any
 
 from hani2.support_agent.capabilities import CAPABILITY_INFO, Autonomy, Capability, CapabilityState
 from hani2.support_agent.settings import load_support_agent_settings, support_agent_enabled
-from hani2.support_agent.tools import ToolDispatcher
+from hani2 import events as ev
+from hani2.support_agent.tools import ToolDispatcher, _log_agent_action
 
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
@@ -97,6 +98,10 @@ class SupportAgent:
 
     #: Set to a ToolDispatcher subclass to add custom functions.
     dispatcher_class: type[ToolDispatcher] = ToolDispatcher
+    #: Tools this agent brings: ``Tool`` subclasses (or ``"module:Class"`` /
+    #: ``"path/to/file.py:Class"`` strings). They are not shown until the
+    #: agent calls :meth:`add_tool`; the language model can add them by name.
+    tools: list = []
     #: The name shown in the chat.
     name: str = AGENT_NAME
 
@@ -255,6 +260,149 @@ class SupportAgent:
 
     def close_panel(self, panel_id: str | None = None) -> dict:
         return self.session.close_panel(panel_id)
+
+    # -- tools: discover, read, use, add ---------------------------------
+    def toolbox(self) -> dict[str, type]:
+        """Tools the agent may add now, by name: its own :attr:`tools`, the
+        ``toolbox`` setting, and registered tools the participant does not
+        have yet. Admin-only, guest and ``tools.disabled`` rules apply."""
+        from hani2.config import get_env
+        from hani2.tools.registry import addable_tool_specs, import_tool
+
+        sess = self.session
+        present = {t.name.lower() for t in sess.tools}
+        disabled = {str(x).lower() for x in (get_env("tools.disabled", []) or [])}
+        out: dict[str, type] = {}
+        for item in list(self.tools or []) + list(self.settings.get("toolbox") or []):
+            try:
+                cls = import_tool(item) if isinstance(item, str) else item
+            except Exception as e:  # noqa: BLE001
+                print(f"[hani2] support agent tool {item!r} could not be loaded: {e}")
+                continue
+            name = getattr(cls, "name", "") or cls.__name__
+            if name.lower() in present or name.lower() in disabled:
+                continue
+            if getattr(cls, "admin_only", False) and not sess.is_admin:
+                continue
+            if not getattr(cls, "guest", True) and sess.mode == "guest":
+                continue
+            out.setdefault(name, cls)
+        for spec in addable_tool_specs(sess):
+            out.setdefault(spec.name, spec.cls)
+        return out
+
+    def available_tools(self) -> list[dict[str, Any]]:
+        """``[{name, description, pane}]`` of the tools :meth:`add_tool` accepts by name."""
+        return [dict(name=n, description=getattr(c, "description", ""), pane=getattr(c, "pane", "upper"),
+                     hint=getattr(c, "agent_hint", "")) for n, c in self.toolbox().items()]
+
+    def add_tool(self, tool: Any, *, pane: str | None = None, at_front: bool = True, focus: bool = True) -> dict:
+        """Add a tool to the participant's screen now. ``tool`` is a name from
+        :meth:`available_tools`, a ``Tool`` subclass or an instance. It stays
+        for the rest of the session. Needs ``tool_add``."""
+        denied = self._denied(Capability.TOOL_ADD)
+        if denied:
+            return denied
+        if isinstance(tool, str):
+            box = self.toolbox()
+            key = next((n for n in box if n.lower() == tool.strip().lower()), None)
+            if key is None:
+                existing = self.session.tool_controller.find(tool)
+                if existing is not None and existing.name.lower() == tool.strip().lower():
+                    return self.session.add_tool(existing, pane=pane, at_front=at_front, focus=focus)
+                return {"ok": False, "error": f"no tool called {tool!r} can be added",
+                        "available": sorted(box)}
+            tool = box[key]
+        res = self.session.add_tool(tool, pane=pane, at_front=at_front, focus=focus, by=self.name)
+        _log_agent_action(self.session_state, "add_tool", str(res.get("tool")))
+        return res
+
+    def remove_tool(self, name: str) -> dict:
+        """Remove a tool that was added during the session. Needs ``tool_add``."""
+        return self._denied(Capability.TOOL_ADD) or self.session.remove_tool(name, by=self.name)
+
+    def _find_tool(self, name: str):
+        t = self.session.tool_controller.find(name)
+        if t is None:
+            return None, {"ok": False, "error": f"no tool named {name!r}",
+                          "tools": [x.name for x in self.session.tools]}
+        st = self.session.tool_state(t)
+        if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
+            return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)"}
+        return t, None
+
+    def read_tool(self, name: str, max_chars: int = 4000) -> dict:
+        """What a tool currently shows, as text (``{"ok", "tool", "text"}``),
+        including its inputs and buttons. Needs ``tool_use``."""
+        denied = self._denied(Capability.TOOL_USE)
+        if denied:
+            return denied
+        t, err = self._find_tool(name)
+        if err:
+            return err
+        return {"ok": True, "tool": t.name, "text": t.describe_for_agent(max_chars=max_chars)}
+
+    def _executable_capabilities(self) -> set[str]:
+        caps = set()
+        for c in self.capabilities.effective():
+            if c in (Capability.SUBMIT_COUNTER, Capability.ACCEPT, Capability.END) and \
+                    not self.capabilities.autonomy_allows_execute(c):
+                continue
+            caps.add(c.value)
+        return caps
+
+    def use_tool(self, name: str, *, inputs: dict[str, Any] | None = None, action: str | None = None,
+                 payload: dict[str, Any] | None = None, row: int | None = None) -> dict:
+        """Operate a tool like the participant would: set its ``inputs`` (by
+        input name), then press the button ``action`` (or select table ``row``
+        of the table whose selection action is ``action``). Anything the tool
+        then does to the offer, message, accept or end obeys the agent's own
+        capabilities and autonomy. Returns what the tool shows afterwards.
+        Needs ``tool_use``."""
+        denied = self._denied(Capability.TOOL_USE)
+        if denied:
+            return denied
+        t, err = self._find_tool(name)
+        if err:
+            return err
+        from hani2.tools.describe import controls_of
+
+        with t.view_lock:
+            controls = controls_of(list(t.view() or []))
+        for key in inputs or {}:
+            if key not in controls["inputs"]:
+                return {"ok": False, "error": f"{t.name} has no input {key!r}", "inputs": sorted(controls["inputs"])}
+        if action is not None and action not in controls["actions"] and action not in controls["tables"]:
+            return {"ok": False, "error": f"{t.name} has no button or table action {action!r}",
+                    "actions": sorted(controls["actions"]) + sorted(controls["tables"])}
+        if action in controls["actions"] and controls["actions"][action].get("disabled"):
+            return {"ok": False, "error": f"the {controls['actions'][action].get('label') or action} button is disabled now"}
+        sess = self.session
+        results: list[Any] = []
+        inputs = {k: _coerce_input(controls["inputs"][k], v) for k, v in (inputs or {}).items()}
+        with sess.acting_for_agent(self._executable_capabilities()):
+            for key, value in inputs.items():
+                try:
+                    t.on_input(key, value)
+                except Exception as e:  # noqa: BLE001
+                    return {"ok": False, "error": f"setting {key!r} failed: {e}"}
+            if action is not None:
+                data = dict(controls["actions"].get(action, {}).get("payload") or {})
+                data.update(payload or {})
+                if action in controls["tables"]:
+                    rows = controls["tables"][action].get("rows") or []
+                    idx = int(row if row is not None else data.get("index", -1))
+                    if not 0 <= idx < len(rows):
+                        return {"ok": False, "error": f"row must be between 0 and {len(rows) - 1}"}
+                    data.update(row=rows[idx], index=idx)
+                try:
+                    results.append(t.on_action(action, data))
+                except Exception as e:  # noqa: BLE001
+                    return {"ok": False, "error": f"{action!r} failed: {e}"}
+        _log_agent_action(self.session_state, "use_tool", f"{t.name}:{action or ''}:{sorted(inputs or {})}")
+        ev.log_event(sess.sid, ev.EventType.TOOL_INTERACTION, user=sess.user, component=t.name,
+                     action=f"agent:{action or 'input'}", value={"inputs": inputs or {}, "row": row})
+        return {"ok": True, "tool": t.name, "text": t.describe_for_agent()}
 
     # ------------------------------------------------------------------ #
     # Participant controls                                                 #
@@ -474,7 +622,7 @@ class SupportAgent:
                     system_note = f"{context_note}\n\n---\n{system_note}"
                 self.messages.append({"role": "user", "content": system_note})
             tools = self.dispatcher.schemas()
-            max_iter = int(self.settings.get("max_tool_iterations", 6))
+            max_iter = int(self.settings.get("max_tool_iterations", 10))
             for _ in range(max_iter):
                 message = self._complete(tools, force_action=force_action and not executed)
                 self.messages.append(message)
@@ -553,6 +701,27 @@ class SupportAgent:
         self.messages.append({"role": "tool", "tool_call_id": tc.get("id", name), "name": name,
                               "content": json.dumps(result, default=str)})
         return name
+
+
+def _coerce_input(component: dict, value: Any) -> Any:
+    """Give a value from a language model the type the input expects
+    (``"80"`` → ``80.0`` for a slider, ``"true"`` → ``True`` for a checkbox,
+    an option's label → its value)."""
+    t = component.get("type")
+    try:
+        if t in ("slider", "number") and isinstance(value, str):
+            return float(value)
+        if t in ("checkbox", "switch") and isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on")
+        if t in ("select", "radio") and component.get("options"):
+            opts = component["options"]
+            if not any(o.get("value") == value for o in opts):
+                for o in opts:
+                    if str(o.get("value")) == str(value) or str(o.get("label")) == str(value):
+                        return o.get("value")
+    except (TypeError, ValueError):
+        pass
+    return value
 
 
 def load_class(path: str) -> type:

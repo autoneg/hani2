@@ -81,6 +81,10 @@ class ToolDispatcher:
             "set_layout": (Capability.LAYOUT, self._set_layout, self._schema_set_layout),
             "show_panel": (Capability.PANELS, self._show_panel, self._schema_show_panel),
             "close_panel": (Capability.PANELS, self._close_panel, self._schema_close_panel),
+            "read_tool": (Capability.TOOL_USE, self._read_tool, self._schema_read_tool),
+            "use_tool": (Capability.TOOL_USE, self._use_tool, self._schema_use_tool),
+            "add_tool": (Capability.TOOL_ADD, self._add_tool, self._schema_add_tool),
+            "remove_tool": (Capability.TOOL_ADD, self._remove_tool, self._schema_remove_tool),
         }
         self.register_extra_tools()
 
@@ -255,10 +259,90 @@ class ToolDispatcher:
         ctrl = self._controller()
         if ctrl is None:
             return {"ok": False, "error": "tool controller unavailable"}
-        return {"ok": True, "tools": self.runtime.run_on_doc(ctrl.list_tools)}
+        out = {"ok": True, "tools": self.runtime.run_on_doc(ctrl.list_tools)}
+        if self.runtime.capabilities.has(Capability.TOOL_ADD):
+            try:
+                out["can_add"] = self.runtime.available_tools()
+            except Exception as e:  # noqa: BLE001
+                out["can_add_error"] = str(e)
+        return out
 
     def _schema_list_tools(self) -> dict:
-        return _fn("list_tools", "List the analysis tools and their state (name, pane, visible, enabled).", {}, [])
+        return _fn(
+            "list_tools",
+            "List the participant's tools (name, description, pane, visible, enabled) and, under can_add, "
+            "tools you may add to their screen with add_tool.",
+            {},
+            [],
+        )
+
+    def _read_tool(self, args: dict) -> dict:
+        return self.runtime.read_tool(str(args.get("name", "")))
+
+    def _schema_read_tool(self) -> dict:
+        return _fn(
+            "read_tool",
+            "Read what a tool currently shows (numbers, tables, chart summaries) and which inputs and "
+            "buttons it has. Use it to learn what any tool can tell or do for the participant.",
+            {"name": {"type": "string", "description": "Tool tab name."}},
+            ["name"],
+        )
+
+    def _use_tool(self, args: dict) -> dict:
+        row = args.get("row")
+        return self.runtime.use_tool(
+            str(args.get("name", "")),
+            inputs=args.get("inputs") or None,
+            action=args.get("action") or None,
+            payload=args.get("payload") or None,
+            row=int(row) if row is not None else None,
+        )
+
+    def _schema_use_tool(self) -> dict:
+        return _fn(
+            "use_tool",
+            "Operate a tool like the participant would: set inputs (by the input names read_tool lists), "
+            "then optionally press a button (its action) or pick a table row (the table's action and row "
+            "index). Returns what the tool shows afterwards. Changes to the offer go through your own "
+            "permissions.",
+            {
+                "name": {"type": "string", "description": "Tool tab name."},
+                "inputs": {"type": "object", "description": "Input name → new value.", "additionalProperties": True},
+                "action": {"type": "string", "description": "Button action or table selection action."},
+                "row": {"type": "integer", "description": "Row index for a table selection action."},
+                "payload": {"type": "object", "description": "Extra data for the action (rarely needed).",
+                            "additionalProperties": True},
+            },
+            ["name"],
+        )
+
+    def _add_tool(self, args: dict) -> dict:
+        return self.runtime.add_tool(
+            str(args.get("name", "")),
+            pane=args.get("pane") or None,
+            focus=bool(args.get("focus", True)),
+        )
+
+    def _schema_add_tool(self) -> dict:
+        return _fn(
+            "add_tool",
+            "Add a tool to the participant's screen now, by name from list_tools → can_add. It stays for "
+            "the rest of the session. Add a tool when it helps with what the participant is doing.",
+            {
+                "name": {"type": "string", "description": "Name from can_add."},
+                "pane": {"type": "string", "enum": ["upper", "lower", "side"],
+                         "description": "Where to put it (default: the tool's own pane)."},
+                "focus": {"type": "boolean", "description": "Bring it to the front (default true)."},
+            },
+            ["name"],
+        )
+
+    def _remove_tool(self, args: dict) -> dict:
+        return self.runtime.remove_tool(str(args.get("name", "")))
+
+    def _schema_remove_tool(self) -> dict:
+        return _fn("remove_tool", "Remove a tool that was added during the session.",
+                   {"name": {"type": "string", "description": "Tool tab name."}}, ["name"])
 
     def _set_tool_enabled(self, args: dict) -> dict:
         ctrl = self._controller()

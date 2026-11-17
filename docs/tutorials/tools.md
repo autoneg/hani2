@@ -68,12 +68,13 @@ You never call `view()` yourself. The server calls it whenever the tool needs to
 | `description` | `""` | One line shown as the tab tooltip, on the "switched off" placeholder, and to the support agent. |
 | `icon` | `"wrench"` | A [lucide](https://lucide.dev/icons/) icon name in kebab case, such as `"chart-line"`. |
 | `pane` | `"upper"` | The default pane: `"upper"`, `"lower"` or `"side"`. |
-| `timing` | `"start"` | When the tool appears: `"always"` (page open), `"load"` (scenario loaded), `"start"` (negotiation started) or `"end"` (negotiation finished). |
+| `timing` | `"start"` | When the tool appears: `"always"` (page open), `"load"` (scenario loaded), `"start"` (negotiation started), `"end"` (negotiation finished) or `"agent"` (only when a support agent adds it). |
 | `permanent` | `False` | Always on: no enable switch, and it cannot be hidden. |
 | `admin_only` | `False` | Only sessions of admin accounts get the tool. |
 | `guest` | `True` | Whether playground and Prolific sessions get the tool. |
 | `enabled` | `True` | The default state of the enable switch. A switched-off tool shows its tab, but `view()` is not called until it is switched on. |
 | `order` | `100` | Sort key inside the pane (smaller first). Tools with `order` 0 or 1 become the selected tab of their pane when they appear. |
+| `agent_hint` | `""` | Advice for a support agent on when and how to use the tool. |
 
 An admin can override `pane`, `timing`, `enabled`, `admin_only`, `guest` and `order` per deployment in `env.json`, without changing your code (see [Tools](../guide/tools.md)).
 
@@ -254,7 +255,7 @@ If `view()` raises, the tool shows a red alert with the error message instead of
 
 There are two ways to make a tool available.
 
-**In env.json.** List the class in `tools.extra` as `module:Class` or `module.Class`, as in the set-up section. This is the quickest way for a single study. The module must be importable by the server.
+**In env.json or on the command line.** List the class in `tools.extra` as `module:Class`, `module.Class` or `path/to/file.py:Class`, as in the set-up section, or pass it with `hani2 --tools`. This is the quickest way for a single study. The module must be importable by the server.
 
 **In a package.** Publish the tool through the `hani2.tools` entry-point group in your package's `pyproject.toml`:
 
@@ -265,6 +266,30 @@ offer_counter = "my_tools.offer_counter:OfferCounter"
 ```
 
 Once the package is installed in the same environment as HANI2, every session gets the tools. Admins can still disable them or change their defaults in `env.json`.
+
+## Make your tool usable by a support agent
+
+You do not have to do anything: a support agent with the **Use tools** capability reads any tool
+as text and operates its inputs, buttons and selectable tables (see
+[Support agent](../guide/support-agent.md#tools-the-agent-can-find-use-and-add)). A few habits make
+that work better:
+
+- Write a clear `description`; the agent sees it in `list_tools`.
+- Add an `agent_hint` saying when the tool helps and what to press, for example
+  `"Set 'target' to the utility you want, then press Find."`
+- Give inputs and actions meaningful names (`min_util`, `find`), and labels on sliders and selects.
+- Put the key result in a `ui.stat` or a short table; charts are only summarised for the agent.
+- Change the negotiation only through the tool helpers (`set_offer`, `set_text`) or the session's
+  methods. When the agent presses your button, those calls follow the agent's permissions.
+
+To control exactly what the agent reads, override `describe_for_agent(max_chars)` and return text.
+
+Set `timing = "agent"` for a tool that should appear only when a support agent adds it, then
+register it as usual or pass it on the command line:
+
+```bash
+hani2 --tools my_tools/compass.py:DealCompass
+```
 
 ## Test the tool
 

@@ -11,7 +11,7 @@
   - `study.py` — normal and Prolific study logic, questionnaires.
   - `web/` — the **built** frontend (generated; do not edit by hand).
 - `frontend/` — React + TypeScript + Tailwind source. `npm run build` writes to `src/hani2/web`.
-- `examples/` — tutorial agents (levels 1–9), agent template, example tools. Tests import them.
+- `examples/` — tutorial agents (levels 1–10), agent template, example tools. Tests import them.
 - `docs/` — MkDocs site. Must be self-contained: never refer to the predecessor project.
 - `PARITY.md` — internal feature-parity checklist (not published).
 

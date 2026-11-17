@@ -52,7 +52,7 @@ Out of the box both configurations point to Ollama on the same machine, with the
       "api_base": null,
       "temperature": 0.3,
       "max_tokens": 2000,
-      "max_tool_iterations": 6
+      "max_tool_iterations": 10
     }
     ```
 

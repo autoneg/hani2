@@ -7,7 +7,7 @@
   "api_base": null,
   "temperature": 0.3,
   "max_tokens": 2000,
-  "max_tool_iterations": 6,
+  "max_tool_iterations": 10,
   "autonomy": "full",
   "capabilities": {
     "chat": true,
@@ -23,11 +23,14 @@
     "highlight": true,
     "annotate": true,
     "layout": true,
-    "panels": true
+    "panels": true,
+    "tool_add": true,
+    "tool_use": true
   },
   "proactive": {
     "on_negotiation_started": false,
     "on_action_requested": false,
     "on_negotiation_ended": false
-  }
+  },
+  "toolbox": []
 }

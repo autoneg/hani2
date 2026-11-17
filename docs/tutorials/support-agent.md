@@ -235,6 +235,40 @@ The button's `payload` travels back to `on_panel_action`, which is how the panel
 
 **Try this:** add a `ui.table(...)` of the partner's last five offers to the best-offers panel, or move the welcome panel to `placement="modal"`.
 
+## Level 10: bring and use tools
+
+An agent can bring tools of its own and operate the participant's tools. This agent ships a
+*Deal Compass*, a small tool with `timing = "agent"`, so nobody sees it until the agent adds it
+when the negotiation starts. On every turn it then uses the participant's **Utility-based
+Selector**: it sets the minimum-utility slider a little above the partner's offer and picks the
+best row, which fills the counter-offer.
+
+```python
+--8<-- "examples/support_agent_tutorial/level10_toolsmith.py"
+```
+
+Run it with `"agent_class": "level10_toolsmith:ToolsmithAgent"`, or
+`hani2 --support-agent examples/support_agent_tutorial/level10_toolsmith.py:ToolsmithAgent`.
+When you press Start:
+
+1. A **Deal Compass** tab appears beside your offer, marked as added by the assistant, with a
+   notification. It shows what the partner's offer is worth to you, issue by issue.
+2. On each of your turns, the Utility-based Selector's slider moves, its best row is selected and
+   your counter-offer fields fill in. The status board says what it did.
+
+The agent never looks inside the selector. `use_tool` works from what the tool shows: input names,
+button actions and selectable tables, the same things `read_tool` reports. That is why a tool
+written for people needs no extra code for an agent, and why the built-in LLM agent can use tools
+it has never seen (it has the `read_tool` and `use_tool` functions).
+
+The selector's **Set Offer** and row selection fill the offer, so the agent needs `fill_offer` as
+well as `tool_use`. Switch **Fill the offer** off in the assistant's settings and the selector still
+moves, but your offer stays as it is.
+
+**Try this:** read the compass with `self.read_tool("Deal Compass")["text"]` and post its first line
+to the status board, or remove the compass with `self.remove_tool("Deal Compass")` once the
+negotiation ends.
+
 ## Testing agents offline
 
 `hani2.testing.make_session` builds a complete headless session, with a scenario, an opponent and your agent, without a browser or a server. It writes everything to a temporary `HANI2_HOME` unless you pass `home=`.

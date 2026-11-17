@@ -1,0 +1,1 @@
+import{c as t}from"./index-cGDfCcgR.js";const e={name:"rectangle-horizontal",size:24,node:[["rect",{width:"20",height:"12",x:"2",y:"6",rx:"2",key:"9lu3g6"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

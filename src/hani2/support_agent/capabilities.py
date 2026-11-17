@@ -35,6 +35,8 @@ class Capability(str, Enum):
     ANNOTATE = "annotate"
     LAYOUT = "layout"
     PANELS = "panels"
+    TOOL_ADD = "tool_add"
+    TOOL_USE = "tool_use"
 
 
 #: Human-readable labels / descriptions (used by the settings screens).
@@ -53,6 +55,8 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "annotate": ("Annotate", "Attach notes to issues, offers and other elements"),
     "layout": ("Change the layout", "Switch views and resize or collapse regions"),
     "panels": ("Custom panels", "Show interactive panels it builds (cards, tables, buttons)"),
+    "tool_add": ("Add tools", "Add new tools to your screen while you negotiate, and remove the ones it added"),
+    "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),
 }
 
 

@@ -18,6 +18,7 @@ Threading model
 
 from __future__ import annotations
 
+import contextlib
 import math
 
 import os
@@ -81,6 +82,9 @@ ADMIN_PREFS: dict[str, Any] = {
     "show_opponent_type": False,
     "opponent_types": [],
 }
+
+#: Set while the support agent operates a tool (see ``acting_for_agent``).
+_AGENT_CONTEXT = threading.local()
 
 # old names of admin preferences, still accepted
 PREF_ALIASES = {"partner_types": "opponent_types", "show_partner_type": "show_opponent_type"}
@@ -881,6 +885,8 @@ class NegotiationSession:
         return value
 
     def set_draft(self, values: dict[str, Any], *, by_agent: bool = False) -> dict:
+        if (refused := self._agent_gate("fill_offer")) is not None:
+            return refused
         applied, missing = {}, []
         with self.lock:
             for key, value in (values or {}).items():
@@ -909,6 +915,8 @@ class NegotiationSession:
         return {"ok": not missing, "applied": applied, "unrecognised": missing}
 
     def set_draft_text(self, text: str, *, by_agent: bool = False) -> dict:
+        if (refused := self._agent_gate("fill_text")) is not None:
+            return refused
         if not self.admin_prefs.get("allow_text_human", True):
             return {"ok": False, "error": "no message field (text is disabled)"}
         with self.lock:
@@ -930,6 +938,8 @@ class NegotiationSession:
         return None
 
     def accept(self) -> bool:
+        if self._agent_gate("accept") is not None:
+            return False
         offer = self.partner_offer()
         if offer is None:
             return False
@@ -938,6 +948,8 @@ class NegotiationSession:
         return self.act(SAOResponse(ResponseType.ACCEPT_OFFER, offer))
 
     def end(self) -> bool:
+        if self._agent_gate("end") is not None:
+            return False
         with self.lock:
             self.ss["human_ended_negotiation"] = True
         ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, action="end_by_human")
@@ -945,6 +957,8 @@ class NegotiationSession:
 
     def send_counter(self, text: str | None = None, offer: dict | None = None, text_only: bool | None = None) -> dict:
         """Send the counter-offer (the draft offer plus the message)."""
+        if (refused := self._agent_gate("submit_counter")) is not None:
+            return refused
         if offer:
             self.set_draft(offer)
         if text is not None:
@@ -1212,18 +1226,118 @@ class NegotiationSession:
         def highlight(key: str, message: str | None = None, **kw):
             return self.highlight(key, message=message, **kw)
 
+        gate = self._agent_gate
         return {
-            "set_offer": lambda outcome: self.set_draft(outcome, by_agent=True),
-            "set_text": lambda text: self.set_draft_text(text, by_agent=True),
+            "set_offer": lambda outcome: gate("fill_offer") or self.set_draft(outcome, by_agent=True),
+            "set_text": lambda text: gate("fill_text") or self.set_draft_text(text, by_agent=True),
             "get_offer": lambda: dict(self.draft),
             "get_partner_offer": self.partner_offer,
             "can_act": self.is_my_turn,
             "context": self.context,
-            "highlight": highlight,
-            "accept": lambda confirm=True: self.request_confirm("accept") if confirm else self.accept(),
-            "end": lambda confirm=True: self.request_confirm("end") if confirm else self.end(),
-            "reject_counter": lambda: self.send_counter(),
+            "highlight": lambda *a, **kw: gate("highlight") or highlight(*a, **kw),
+            "accept": lambda confirm=True: gate("accept") or (self.request_confirm("accept") if confirm else self.accept()),
+            "end": lambda confirm=True: gate("end") or (self.request_confirm("end") if confirm else self.end()),
+            "reject_counter": lambda: gate("submit_counter") or self.send_counter(),
         }
+
+    def _agent_gate(self, capability: str) -> dict | None:
+        """While the support agent operates a tool (:meth:`acting_for_agent`),
+        refuse what the agent itself may not do; ``None`` means allowed."""
+        caps = getattr(_AGENT_CONTEXT, "caps", None)
+        if caps is None or capability in caps:
+            return None
+        return {"ok": False, "error": f"the support agent is not allowed to do this ({capability} is off)"}
+
+    @contextlib.contextmanager
+    def acting_for_agent(self, capabilities: set[str]):
+        """Run tool callbacks on behalf of the support agent: actions the tool
+        triggers through the session are limited to ``capabilities``."""
+        prev = getattr(_AGENT_CONTEXT, "caps", None)
+        _AGENT_CONTEXT.caps = set(capabilities)
+        try:
+            yield
+        finally:
+            _AGENT_CONTEXT.caps = prev
+
+    # -- tools added while the session runs -----------------------------------
+    def add_tool(self, tool: Any, *, pane: str | None = None, at_front: bool = True, focus: bool = True,
+                 by: str = "agent", enabled: bool = True) -> dict:
+        """Add a tool now (a :class:`~hani2.tools.base.Tool` subclass or
+        instance). It catches up on the scenario and a running negotiation,
+        and stays for the rest of the session. ``by`` records who added it."""
+        from hani2.tools.base import Tool
+
+        try:
+            inst = tool(self.ss, enabled=enabled) if isinstance(tool, type) else tool
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            return {"ok": False, "error": f"could not create the tool: {e}"}
+        if not isinstance(inst, Tool):
+            return {"ok": False, "error": "not a hani2 Tool"}
+        name = inst.name or type(inst).__name__
+        pane = pane or inst.pane
+        if pane not in PANES:
+            return {"ok": False, "error": f"pane must be one of {', '.join(PANES)}"}
+        with self.lock:
+            existing = next((t for t in self.tools if t.name.lower() == name.lower()), None)
+            if existing is not None:
+                if type(existing) is not type(inst):
+                    return {"ok": False, "error": f"another tool is already called {name!r}"}
+                st = self.tool_state(existing)
+                st["visible"] = True
+                if focus:
+                    self.active_tabs[st["pane"]] = existing.name
+                    self.active_tabs["all"] = existing.name
+                inst = None
+            else:
+                in_pane = [self.tool_state(t)["order"] for t in self.tools if self.tool_state(t)["pane"] == pane]
+                order = (min(in_pane, default=0) - 1) if at_front else (max(in_pane, default=0) + 1)
+                self.tools.append(inst)
+                self._tool_states[id(inst)] = dict(id=uuid.uuid4().hex[:10], pane=pane, order=order, visible=True,
+                                                   enabled=bool(inst.enabled), added_by=by)
+        if inst is None:
+            self.push_state()
+            existing.refresh()
+            return {"ok": True, "tool": existing.name, "pane": self.tool_state(existing)["pane"], "already_present": True}
+        try:
+            inst.init(self.ss)
+            if self.scenario is not None:
+                inst.scenario_loaded(self.ss, self.scenario)
+            if self.phase == "running" and self.mechanism is not None:
+                try:
+                    nmi = self.mechanism.negotiators[self.human_index].nmi
+                except Exception:
+                    nmi = self.mechanism.nmi
+                inst.negotiation_started(self.ss, nmi)
+        except Exception:
+            traceback.print_exc()
+        if focus:
+            with self.lock:
+                self.active_tabs[pane] = inst.name
+                self.active_tabs["all"] = inst.name
+        ev.log_event(self.sid, "tool_added", user=self.user, component=inst.name, value={"by": by, "pane": pane})
+        self.push_state()
+        inst.refresh()
+        return {"ok": True, "tool": inst.name, "pane": pane}
+
+    def remove_tool(self, name: str, *, by: str = "agent") -> dict:
+        """Remove a tool that was added while the session ran (built-in and
+        configured tools can only be hidden)."""
+        with self.lock:
+            t = next((x for x in self.tools if x.name.lower() == str(name).strip().lower()), None)
+            if t is None:
+                return {"ok": False, "error": f"no tool named {name!r}"}
+            st = self.tool_state(t)
+            if not st.get("added_by"):
+                return {"ok": False, "error": f"{t.name} was not added during the session; hide it instead"}
+            self.tools.remove(t)
+            self._tool_states.pop(id(t), None)
+            for k, v in list(self.active_tabs.items()):
+                if v == t.name:
+                    self.active_tabs[k] = None
+        ev.log_event(self.sid, "tool_removed", user=self.user, component=t.name, value={"by": by})
+        self.push_state()
+        return {"ok": True, "tool": t.name}
 
     def request_confirm(self, kind: str, message: str | None = None) -> dict:
         """Open the accept / end confirmation dialog for the human to approve."""
@@ -1360,7 +1474,8 @@ class NegotiationSession:
                 s = self.tool_state(t)
                 tools.append(
                     dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, pane=s["pane"],
-                         order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent)
+                         order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
+                         added_by=s.get("added_by"))
                 )
             sa = self.support_agent
             snap = {

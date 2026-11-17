@@ -1,1 +1,0 @@
-import{c as a}from"./index-BRB3XNCm.js";const e={name:"square-padding-horizontal",size:24,node:[["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}],["path",{d:"M17 16V8",key:"13fiq6"}],["path",{d:"M7 16V8",key:"meid6x"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

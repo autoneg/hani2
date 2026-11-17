@@ -17,8 +17,10 @@ Depending on the capabilities you grant and the autonomy level, the agent can:
 - send a counter-offer, accept the partner's offer or end the negotiation, either directly or through the participant's confirmation dialog;
 - spotlight parts of the interface (buttons, issues, tool tabs, panes) with a short callout;
 - attach notes to issues and other elements;
-- switch the layout between the full, simple and focus views, collapse regions and resize the tools column;
+- switch the layout between the full, simple and focus views, collapse regions and resize the panes;
 - show interactive panels built from the same components as tools, and react when the participant clicks their buttons.
+- find the participant's tools, read what they show and operate their inputs and buttons;
+- add tools to the participant's screen while they negotiate: its own tools or registered ones (see [Tools the agent can find, use and add](#tools-the-agent-can-find-use-and-add)).
 
 It also has a built-in safety net: when the participant edits a draft offer worth less than their reserved value, the agent warns them (see [Built-in reserved-value warning](#built-in-reserved-value-warning)).
 
@@ -110,7 +112,7 @@ The agent reads `support_agent_settings.json` from the settings folder (`~/negma
 | `api_base` | `null` | Optional base URL of the model endpoint. |
 | `temperature` | `0.3` | Sampling temperature. |
 | `max_tokens` | `2000` | Maximum tokens per completion. |
-| `max_tool_iterations` | `6` | Maximum model calls per turn. Each call may run several functions. |
+| `max_tool_iterations` | `10` | Maximum model calls per turn. Each call may run several functions. |
 | `autonomy` | `"full"` | The admin's autonomy ceiling: `suggest`, `semi` or `full`. |
 | `capabilities` | all `true` | The admin grant: one boolean per capability (see below). Missing keys default to `true`. |
 | `proactive` | all `false` | `on_negotiation_started`, `on_action_requested`, `on_negotiation_ended`: whether the agent speaks up unprompted on each event. |
@@ -138,8 +140,10 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `annotate` | Annotate | Attach notes to issues, offers and other elements | `annotate` |
 | `layout` | Change the layout | Switch views and resize or collapse regions | `set_layout` |
 | `panels` | Custom panels | Show interactive panels (cards, tables, buttons) | `show_panel`, `close_panel` |
+| `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
+| `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
 
-The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility` or `tool_order` is effective.
+The agent always has `get_negotiation_state`, `show_on_board` and `list_tools`.
 
 Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `SupportAgent`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
@@ -267,6 +271,9 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 
 ### Class attributes
 
+- `tools`: tool classes (or `"module:Class"` / `"path/to/file.py:Class"` strings) this agent
+  brings. They stay hidden until the agent adds them.
+
 | Attribute | Default | Meaning |
 |-----------|---------|---------|
 | `name` | `"Support Agent"` | The name shown in the dock header and on chat messages. |
@@ -293,6 +300,18 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `set_user_enabled(on)` | Switch the agent on or off, like the dock switch. |
 | `set_proactive_delivery(channel)` | Set the delivery of unprompted replies: `toast`, `board` or `chat`. |
 | `warn_if_draft_below_reserved()` | The reserved-value warning, callable from your own `on_draft_changed`. |
+
+Tool helpers (each checks the capability shown):
+
+| Helper | Capability | Does |
+| --- | --- | --- |
+| `available_tools()` | none | Tools `add_tool` accepts by name: `[{name, description, pane, hint}]`. |
+| `toolbox()` | none | The same, as a name-to-class mapping. |
+| `add_tool(tool, pane=None, at_front=True, focus=True)` | `tool_add` | Adds a tool by name, class or instance. |
+| `remove_tool(name)` | `tool_add` | Removes a tool added during the session. |
+| `read_tool(name)` | `tool_use` | `{"ok", "tool", "text"}`: what the tool shows, as text. |
+| `use_tool(name, inputs=None, action=None, payload=None, row=None)` | `tool_use` | Operates the tool; returns what it shows afterwards. |
+
 
 ### Attributes
 
@@ -358,7 +377,7 @@ class MyAgent(SupportAgent):
 |----------|-----------|------|
 | `get_negotiation_state` | none | always |
 | `show_on_board` | `content` (markdown or HTML), `append` | always |
-| `list_tools` | none | any of `tool_enable`, `tool_visibility`, `tool_order` |
+| `list_tools` | none (returns the tools and, with `tool_add`, `can_add`: tools it may add) | always |
 | `send_toast` | `message`, `level` (`info`, `success`, `warning`, `error`) | `toast` |
 | `message_user` | `text`, `channel` (`chat`, `toast`, `board`) | `chat` |
 | `ask_user` | `question`, `options` | `chat` |
@@ -377,8 +396,66 @@ class MyAgent(SupportAgent):
 | `set_layout` | `view` (`full`, `simple`, `focus`), `collapsed`, `sizes` | `layout` |
 | `show_panel` | `panel_id`, `title`, `markdown`, `table` (list of row objects), `buttons` (`label`, `action`), `placement` (`assistant`, `side`, `modal`) | `panels` |
 | `close_panel` | `panel_id` | `panels` |
+| `read_tool` | `name` | `tool_use` |
+| `use_tool` | `name`, `inputs` (input name to value), `action` (button or table action), `row` (table row index), `payload` | `tool_use` |
+| `add_tool` | `name` (from `can_add`), `pane`, `focus` | `tool_add` |
+| `remove_tool` | `name` | `tool_add` |
 
 Tool names are matched case-insensitively, and a partial name also matches (`"utility"` finds `Utility Plot`). Issue names in `set_offer` are matched the same way, and values are checked against the issue; unknown issues and invalid values are reported back in `unrecognised`.
+
+## Tools the agent can find, use and add
+
+The participant's tools are part of the agent's toolkit. A tool written for people works for the
+agent without extra code.
+
+- **Find.** `list_tools` lists every tool with its description, pane and state. With `tool_add` it
+  also returns `can_add`: tools the agent may put on the screen now.
+- **Read.** `read_tool(name)` returns what the tool shows as text: its description and
+  [`agent_hint`](../tutorials/tools.md#make-your-tool-usable-by-a-support-agent), numbers, the first
+  rows of tables, a summary of each chart, and its inputs (with their options and ranges) and
+  buttons.
+- **Use.** `use_tool(name, inputs=..., action=..., row=...)` sets inputs, then presses a button or
+  picks a table row, exactly as the participant would, and returns what the tool shows afterwards.
+  Values from the model are converted to what each input expects (`"80"` becomes `80` for a
+  slider).
+- **Add.** `add_tool(name)` puts a tool on the participant's screen for the rest of the session.
+  It catches up on the scenario and on a negotiation that is already running, becomes the front
+  tab of its pane, and its tab carries a small assistant mark. `remove_tool(name)` removes a tool
+  that was added this way; built-in and configured tools can only be hidden.
+
+**What the agent may add.** By name, the agent can add only tools from its *toolbox*: the classes
+in its `tools` class attribute, the `toolbox` setting in `support_agent_settings.json`, and
+registered tools the participant does not have yet. A tool that is admin-only, not offered to
+guests, or listed in `tools.disabled` stays out of reach. The model can never pass an import path,
+so a partner's message cannot make it load code.
+
+**Permissions carry through tools.** While the agent operates a tool, anything the tool then does
+to the negotiation obeys the agent's own capabilities and autonomy: a tool button that fills the
+offer needs `fill_offer`; one that sends, accepts or ends needs `submit_counter`, `accept` or
+`end` and an autonomy level that allows it. When the participant presses the same button, it works
+as usual.
+
+**Tools that wait for the agent.** A tool with `timing = "agent"` never appears on its own; it
+waits in the toolbox until an agent adds it. Use it for tools that only make sense at a particular
+moment.
+
+From Python, the same abilities are the helpers `available_tools()`, `add_tool()`,
+`remove_tool()`, `read_tool()` and `use_tool()` (see [Helpers you can call](#helpers-you-can-call)
+and [tutorial level 10](../tutorials/support-agent.md#level-10-bring-and-use-tools)).
+
+### Hybrid Intelligence: submitting tools and agents
+
+Teams can contribute in three ways, and the organisers start HANI2 with the matching options:
+
+| A team submits | Start with | What happens |
+| --- | --- | --- |
+| Only a tool | `hani2 --support-agent on --tools team.py:TeamTool` | The built-in agent finds the tool with `list_tools`, reads it and uses it. With `timing = "agent"`, it also decides when to add it. |
+| A support agent | `hani2 --support-agent team.py:TeamAgent` | The team's agent runs for every participant and can use every tool the participant has. |
+| A support agent with its own tools | `hani2 --support-agent team.py:TeamAgent` (tools listed in `TeamAgent.tools`), or add `--tools team_tools.py:A,team_tools.py:B` | The agent adds its tools where and when it wants. |
+
+`--tools` takes `package.module:Class` or `path/to/file.py:Class`, separated by commas, and checks
+that every class loads before the server starts. `hani2 experiment create NAME --tools ...` saves
+them in the experiment (`tools.extra` in its `env.json`).
 
 ## The action API
 

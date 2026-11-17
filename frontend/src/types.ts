@@ -36,6 +36,8 @@ export interface ToolInfo {
   visible: boolean;
   enabled: boolean;
   permanent: boolean;
+  /** who added the tool during the session (e.g. the support agent's name) */
+  added_by?: string | null;
 }
 
 export interface ChatMessage {

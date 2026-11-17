@@ -5,7 +5,11 @@ Tools come from three places, in this order:
 1. the built-in tools (:mod:`hani2.tools.builtin`);
 2. packages exposing an entry point in the ``hani2.tools`` group
    (``my_tool = "my_package.tools:MyTool"``);
-3. ``settings/env.json`` → ``"tools": {"extra": ["module:Class", ...]}``.
+3. ``settings/env.json`` → ``"tools": {"extra": ["module:Class", ...]}`` and
+   ``hani2 --tools`` (``HANI2_TOOLS``); ``path/to/file.py:Class`` works too.
+
+A tool whose ``timing`` is ``"agent"`` never appears on its own; a support
+agent adds it when it chooses (see :func:`addable_tool_specs`).
 
 ``"tools": {"disabled": ["Trace", ...]}`` removes tools by name and
 ``"tools": {"overrides": {"Trace": {"pane": "side", "enabled": true}}}``
@@ -16,6 +20,7 @@ changes the defaults (``pane``, ``timing``, ``enabled``, ``admin_only``,
 from __future__ import annotations
 
 import importlib
+import os
 import traceback
 from dataclasses import dataclass
 from importlib.metadata import entry_points
@@ -62,11 +67,11 @@ def builtin_tool_classes() -> list[type[Tool]]:
 
 
 def import_tool(spec: str) -> type[Tool]:
-    if ":" in spec:
-        mod, _, attr = spec.partition(":")
-    else:
-        mod, _, attr = spec.rpartition(".")
-    obj = getattr(importlib.import_module(mod), attr)
+    """Load a tool class from ``module:Class``, ``module.Class`` or
+    ``path/to/file.py:Class``."""
+    from hani2.support_agent.runtime import load_class
+
+    obj = load_class(str(spec).strip())
     if not (isinstance(obj, type) and issubclass(obj, Tool)):
         raise TypeError(f"{spec} is not a hani2 Tool subclass")
     return obj
@@ -85,7 +90,8 @@ def discover_tool_classes() -> list[type[Tool]]:
     except Exception:  # pragma: no cover
         pass
     cfg = get_env("tools", {}) or {}
-    for spec in cfg.get("extra", []) or []:
+    cmdline = [x.strip() for x in (os.environ.get("HANI2_TOOLS") or "").split(",") if x.strip()]
+    for spec in list(cfg.get("extra", []) or []) + cmdline:
         try:
             obj = import_tool(str(spec))
             if obj not in classes:
@@ -137,4 +143,21 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
             traceback.print_exc()
             continue
         out.append((spec, tool))
+    return out
+
+
+def addable_tool_specs(session: "NegotiationSession") -> list[ToolSpec]:
+    """Registered tools a support agent may add to ``session`` now: tools not
+    already present that this participant is allowed to have (admin-only and
+    guest rules and ``tools.disabled`` still apply)."""
+    present = {t.name.lower() for t in session.tools}
+    out = []
+    for spec in tool_specs():
+        if spec.name.lower() in present:
+            continue
+        if spec.admin_only and not session.is_admin:
+            continue
+        if not spec.guest and session.mode == "guest":
+            continue
+        out.append(spec)
     return out

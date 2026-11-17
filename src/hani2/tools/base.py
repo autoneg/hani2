@@ -27,6 +27,7 @@ or ship it in a package with an entry point in the ``hani2.tools`` group.
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING, Any
 
 from negmas import SAONMI, Outcome, Scenario
@@ -52,7 +53,8 @@ class Tool:
     ``pane``        Default pane: ``"upper"``, ``"lower"`` or ``"side"``.
     ``timing``      When the tool appears: ``"always"`` (page open),
                     ``"load"`` (scenario loaded), ``"start"`` (negotiation
-                    started) or ``"end"`` (negotiation finished).
+                    started), ``"end"`` (negotiation finished) or ``"agent"``
+                    (never on its own: only when a support agent adds it).
     ``permanent``   Always on: no enable switch, cannot be hidden.
     ``admin_only``  Only logged-in administrators get the tool.
     ``guest``       Whether guests / playground users get it (default True).
@@ -60,7 +62,13 @@ class Tool:
                     tools still show their tab, but :meth:`view` is not called
                     until the user switches them on.
     ``order``       Sort key inside its pane (smaller first).
+    ``agent_hint``  Extra advice for a support agent on when and how to use
+                    the tool (added to what it reads with ``read_tool``).
     ============== ===========================================================
+
+    A support agent can read any tool (:meth:`describe_for_agent`) and use its
+    inputs and buttons, so a tool written for people is usable by the agent
+    without extra code.
     """
 
     name: str = ""
@@ -73,6 +81,7 @@ class Tool:
     guest: bool = True
     enabled: bool = True
     order: int = 100
+    agent_hint: str = ""
 
     def __init__(self, session_state: dict[str, Any], enabled: bool | None = None, **params: Any):
         self.session_state = session_state
@@ -164,6 +173,26 @@ class Tool:
     def set_text(self, text: str) -> dict:
         return self.session_state["actions"]["set_text"](text)
 
+    def describe_for_agent(self, max_chars: int = 4000) -> str:
+        """What this tool shows, as text for a support agent: its description,
+        :attr:`agent_hint`, and its current view (numbers, table rows, chart
+        summaries, and the inputs and buttons it can use). Override to give
+        the agent a better summary than the generic one."""
+        from hani2.tools.describe import describe_components
+
+        head = [f"Tool: {self.name}"]
+        if self.description:
+            head.append(self.description)
+        if self.agent_hint:
+            head.append(f"How to use it: {self.agent_hint}")
+        try:
+            with self.view_lock:
+                comps = list(self.view() or [])
+            body = describe_components(comps, max_chars=max_chars)
+        except Exception as e:  # noqa: BLE001
+            body = f"(this tool could not be read: {e})"
+        return "\n".join(head) + "\n\n" + (body or "(nothing to show yet)")
+
     def toast(self, message: str, level: str = "info") -> None:
         self.session.toast(message, level)
 
@@ -219,11 +248,21 @@ class Tool:
     def on_action(self, action: str, payload: dict[str, Any]) -> None:
         """A button was clicked or a table row selected."""
 
+    @property
+    def view_lock(self) -> threading.RLock:
+        """Held while the tool is rendered or read by a support agent, so the
+        two never run :meth:`view` at the same time."""
+        lock = self.__dict__.get("_view_lock")
+        if lock is None:
+            lock = self.__dict__.setdefault("_view_lock", threading.RLock())
+        return lock
+
     def render(self) -> list[ui.Component]:
         """Called by HANI2; wraps :meth:`view` with error reporting."""
         self._dirty = False
         try:
-            return list(self.view() or [])
+            with self.view_lock:
+                return list(self.view() or [])
         except Exception as e:  # noqa: BLE001 - a broken tool must not break the page
             import traceback
 

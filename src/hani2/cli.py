@@ -75,6 +75,24 @@ def _apply_support_agent_choice(value: Optional[str]) -> None:
         os.environ["HANI2_SUPPORT_AGENT_CLASS"] = klass
 
 
+def _check_tools(value: str) -> str:
+    """Load every tool class now (fail early) and return the list with file
+    paths made absolute."""
+    from hani2.tools.registry import import_tool
+
+    out = []
+    for spec in [x.strip() for x in value.split(",") if x.strip()]:
+        if ".py:" in spec:
+            path, _, attr = spec.rpartition(":")
+            spec = f"{Path(path).expanduser().resolve()}:{attr}"
+        try:
+            import_tool(spec)
+        except Exception as e:  # noqa: BLE001
+            raise typer.BadParameter(f"cannot load tool {spec!r}: {e}", param_hint="--tools") from None
+        out.append(spec)
+    return ",".join(out)
+
+
 def _check_opponents(value: str) -> None:
     """Fail early when the opponent list resolves to no negotiator."""
     from hani2.agents import expand_agents
@@ -107,6 +125,7 @@ def main(
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
+    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
     page: Annotated[str, typer.Option(help="Page to open: app, play or admin.")] = "app",
@@ -127,6 +146,8 @@ def main(
         _check_opponents(opponents)
         os.environ["HANI2_OPPONENTS"] = opponents
     _apply_support_agent_choice("off" if no_support_agent else support_agent)
+    if tools:
+        os.environ["HANI2_TOOLS"] = _check_tools(tools)
     if ctx.invoked_subcommand is not None:
         return
     if verbose:
@@ -201,6 +222,7 @@ def experiment_create(
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent for this experiment: on, off, auto, or a class (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
     opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) for this experiment: comma-separated negotiators and/or groups.")] = None,
+    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools for this experiment: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class).")] = None,
 ):
     """Scaffold a self-contained experiment folder."""
     from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, experiments_root, get_settings_file, scenarios_dir
@@ -244,12 +266,18 @@ def experiment_create(
             typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
         else:
             typer.echo(f"  support agent: {mode}{' using ' + klass if klass else ''} (support_agent_settings.json)")
-    if no_webmcp or opponents:
+    if no_webmcp or opponents or tools:
         envf = exp / "env.json"
         env = _json.loads(envf.read_text()) if envf.exists() else {}
         if no_webmcp:
             env["webmcp"] = {"enabled": False}
             typer.echo("  WebMCP: off (env.json)")
+        if tools:
+            env.setdefault("tools", {})
+            extra = list(env["tools"].get("extra") or [])
+            extra += [t for t in _check_tools(tools).split(",") if t not in extra]
+            env["tools"]["extra"] = extra
+            typer.echo(f"  tools: {', '.join(extra)} (env.json)")
         if opponents:
             _check_opponents(opponents)
             env["opponents"] = [o.strip() for o in opponents.split(",") if o.strip()]

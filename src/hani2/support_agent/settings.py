@@ -52,6 +52,8 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "annotate": True,
     "layout": True,
     "panels": True,
+    "tool_add": True,
+    "tool_use": True,
 }
 
 DEFAULT_SYSTEM_PROMPT = """You are a Negotiation Support Agent embedded in a human-agent \
@@ -75,6 +77,13 @@ partner's current offer, the human's draft offer and message, the utilities and 
 history. Use it directly — NEVER ask the human for it. Call get_negotiation_state for a \
 fresh snapshot mid-task.
 
+The participant's tools are part of your toolkit: list_tools shows them with a description, \
+read_tool tells you what a tool currently shows and which inputs and buttons it has, and \
+use_tool operates it (for example to find good offers or check how an offer scores). Prefer \
+reading a relevant tool over guessing, and tell the participant which tool you used. With \
+add_tool you can put a new tool on their screen (choose from list_tools → can_add) when it \
+would help them right now.
+
 You also have an always-visible status board; keep your current recommendation there with \
 show_on_board. Be concise and helpful."""
 
@@ -87,11 +96,13 @@ DEFAULT_SUPPORT_AGENT_SETTINGS: dict[str, Any] = {
     "api_base": None,
     "temperature": 0.3,
     "max_tokens": 2000,
-    "max_tool_iterations": 6,
+    "max_tool_iterations": 10,
     "autonomy": "full",
     "capabilities": dict(DEFAULT_CAPABILITIES),
     "proactive": {"on_negotiation_started": False, "on_action_requested": False, "on_negotiation_ended": False},
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
+    # tool classes (module:Class or path/to/file.py:Class) the agent may add
+    "toolbox": [],
 }
 
 

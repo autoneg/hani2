@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
+import { Bot, EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
 import { send, useStore } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
@@ -113,6 +113,11 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
                 >
                   <Icon name={t.icon} size={14} />
                   {t.name}
+                  {t.added_by && (
+                    <span className="rounded bg-you/10 px-1 text-[10px] font-medium text-you" title={`Added by ${t.added_by}`}>
+                      <Bot size={11} className="inline" aria-label={`Added by ${t.added_by}`} />
+                    </span>
+                  )}
                   {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-you" />}
                 </button>
               </Anchor>
