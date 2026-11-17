@@ -55,7 +55,9 @@ A *scenario set* is a named, ordered list of scenario types. The active set deci
 | `ANL` | Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip, LaborContract, Grocery, Trade, JobOffer, Lease |
 | `ANL2010` … `ANL2026` | One set per ANL year whose domains are available: `ANL2010`, `ANL2011`, `ANL2012`, `ANL2013`, `ANL2025` and `ANL2026`. |
 | `IAGO` | Resources, Estate, Grocery |
-| `ANAC2027` | Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip |
+| `HAN2027` | Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip |
+| `HI2027` | `HAN2027` (a set made of a set) |
+| `ANAC2027` | `HAN2027` + `HI2027` (the same eight types; duplicates are dropped) |
 | `Custom` | The types listed in `scenario_order.txt`. |
 
 The active set is chosen by, first hit wins:
@@ -77,7 +79,10 @@ default: HAN2026
 sets:
   HAN2026: [Trade, Island, Grocery]
   Pilot: [Lease, Examples, Trade]   # a type can be a generator or any category folder
+  Everything: [HAN2026, Pilot, "@ANAC2027", Energy]   # sets made of sets
 ```
+
+A set can list other sets as well as scenario types. Write `@Name` to always mean the set `Name`, or just the name: an entry that names a set (in any case) is that set, otherwise it is a scenario type. A set's types are inserted where it is listed, and each type is kept only at its first occurrence, so `Everything` above is Trade, Island, Grocery, Lease, Examples, then the ANAC2027 types not seen yet, then Energy if it was not already there. A cycle (a set that includes itself) is reported and broken. `hani2 sets` shows what each composed set is made of.
 
 ### `scenario_order.txt`
 

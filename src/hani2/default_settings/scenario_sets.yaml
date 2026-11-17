@@ -7,8 +7,10 @@
 #   3. env.json -> "negotiation" -> "scenario_set",
 #   4. a changed scenario_order.txt (the "Custom" set),
 #   5. `default` below.
-# Set names are matched case-insensitively. A type is a built-in or registered
-# generator (see `hani2 sets`) or a category folder in the scenarios directory.
+# Set names are matched case-insensitively. An entry is a scenario type (a built-in or
+# registered generator, see `hani2 sets`, or a category folder in the scenarios
+# directory) or another set (`@Name`, or just the set's name), whose types are inserted
+# in place; composed sets keep the first occurrence of each type.
 # Copy this file to <settings>/scenario_sets.yaml (or an experiment folder) to
 # change or add sets; sets with the same name replace the bundled ones.
 
@@ -41,7 +43,12 @@ sets:
   # Item-split games of the IAGO human-agent negotiation platform.
   IAGO: [Resources, Estate, Grocery]
 
-  # A short list with the most varied structures: a housing contract with an issue both
-  # sides may agree on, a supply contract, a company acquisition, a contingent license,
-  # splitting chores, matching a power profile, splitting unequal piles and a joint plan.
-  ANAC2027: [Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip]
+  # The scenarios of the ANAC 2027 Human-Agent Negotiation league: a short list with the
+  # most varied structures (a housing contract with an issue both sides may agree on, a
+  # supply contract, a company acquisition, a contingent license, splitting chores,
+  # matching a power profile, splitting unequal piles and a joint plan).
+  HAN2027: [Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip]
+
+  # Sets can be made of other sets ("@Name" or just the name); duplicates are dropped.
+  HI2027: [HAN2027]
+  ANAC2027: [HAN2027, HI2027]

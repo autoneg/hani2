@@ -249,6 +249,8 @@ def sets(
 
     registry.load_plugins()
     all_sets, default = scenario_sets.load_sets()
+    raw, _ = scenario_sets.raw_sets()
+    set_lower = {k.lower() for k in raw}
     active = scenario_sets.active_set()
     folders = set(store.available_types())
     for set_name, types in all_sets.items():
@@ -256,6 +258,9 @@ def sets(
             continue
         mark = " (active)" if set_name == active else ""
         mark += " (default)" if set_name == default else ""
+        refs = [e for e in raw.get(set_name, []) if e.startswith("@") or e.lower() in set_lower]
+        if refs:
+            mark += "  = " + " + ".join(raw[set_name])
         typer.echo(f"{set_name}{mark}")
         for t in types:
             st = registry.get(t)

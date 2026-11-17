@@ -159,3 +159,23 @@ def test_catalog_page_lists_every_type_and_set():
         story = registry.get(t).story
         if story is not None:
             assert story.short_description in page, t
+
+
+def test_sets_made_of_sets(hani2_home):
+    sets, _ = scenario_sets.load_sets()
+    assert sets["HI2027"] == sets["HAN2027"] == sets["ANAC2027"]
+    assert len(sets["ANAC2027"]) == len(set(sets["ANAC2027"])) == 8
+    (hani2_home / "settings").mkdir(parents=True)
+    (hani2_home / "settings" / "scenario_sets.yaml").write_text(
+        "sets:\n"
+        "  A: [Lease, Trade]\n"
+        "  B: [Trade, Island, '@A']\n"
+        "  C: [a, b, Grocery, Lease]\n"  # bare set names (any case), duplicates dropped
+        "  Loop1: [Loop2, Energy]\n"
+        "  Loop2: [Loop1, Chores]\n"
+    )
+    sets, _ = scenario_sets.load_sets()
+    assert sets["B"] == ["Trade", "Island", "Lease"]
+    assert sets["C"] == ["Lease", "Trade", "Island", "Grocery"]
+    assert set(sets["Loop1"]) == {"Energy", "Chores"} and set(sets["Loop2"]) == {"Energy", "Chores"}
+    assert store.scenario_order("c") == ["Lease", "Trade", "Island", "Grocery"]

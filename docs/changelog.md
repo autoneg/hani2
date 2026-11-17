@@ -5,7 +5,8 @@
 - **Scenario sets**: named, ordered lists of scenario types in `scenario_sets.yaml` (editable under
   *Texts*). The bundled sets are `HAN2026` (Trade, Island, Grocery; the default), `MIT2025`,
   `PieArena2026`, `ANL` (all years) with `ANL2010`, `ANL2011`, `ANL2012`, `ANL2013`, `ANL2025` and
-  `ANL2026`, `IAGO` and the short list `ANAC2027`; `Custom` is `scenario_order.txt`.
+  `ANL2026`, `IAGO`, the short list `HAN2027`, and `HI2027` and `ANAC2027`, which are made of
+  other sets (a set can list sets as well as types; duplicates are dropped); `Custom` is `scenario_order.txt`.
   Choose the set with `hani2 --scenario-set NAME` (`HANI2_SCENARIO_SET`), `env.json` →
   `negotiation` → `scenario_set`, or, as an admin, in the settings drawer or on the start screen.
   `hani2 sets` lists them; `hani2 generate --set NAME` generates a set's pools.

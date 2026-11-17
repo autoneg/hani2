@@ -129,9 +129,39 @@ Item splits in the style of the IAGO human-agent negotiation platform.
 | [`Estate`](#estate) | Dividing an Estate | human, agent |
 | [`Grocery`](#grocery) | Groceries Distribution | human, agent |
 
-## ANAC2027
+## HAN2027
 
 A short list with the most varied structures: an apartment lease with an issue both sides may agree on, a supply contract, a startup acquisition, a license with a contingent payment, sharing chores, matching a power profile, splitting piles of different sizes, and planning a trip together.
+
+| Type | Title | Roles (participant first) |
+|------|-------|-------|
+| [`Lease`](#lease) | Apartment Lease | Tenant, Landlord |
+| [`Supply`](#supply) | Bicycle Parts Supply | Maker, Supplier |
+| [`Acquisition`](#acquisition) | Startup Acquisition | Founders, Acquirer |
+| [`License`](#license) | Medical Device License | Inventor, Firm |
+| [`Chores`](#chores) | Sharing the Housework | human, agent |
+| [`Energy`](#energy) | Day-Ahead Power Plan | Bakery, Supplier |
+| [`Estate`](#estate) | Dividing an Estate | human, agent |
+| [`CityTrip`](#citytrip) | Weekend City Trip | Visitor, Host |
+
+## HI2027
+
+Made of the set HAN2027.
+
+| Type | Title | Roles (participant first) |
+|------|-------|-------|
+| [`Lease`](#lease) | Apartment Lease | Tenant, Landlord |
+| [`Supply`](#supply) | Bicycle Parts Supply | Maker, Supplier |
+| [`Acquisition`](#acquisition) | Startup Acquisition | Founders, Acquirer |
+| [`License`](#license) | Medical Device License | Inventor, Firm |
+| [`Chores`](#chores) | Sharing the Housework | human, agent |
+| [`Energy`](#energy) | Day-Ahead Power Plan | Bakery, Supplier |
+| [`Estate`](#estate) | Dividing an Estate | human, agent |
+| [`CityTrip`](#citytrip) | Weekend City Trip | Visitor, Host |
+
+## ANAC2027
+
+Made of the sets HAN2027 and HI2027 (duplicates dropped).
 
 | Type | Title | Roles (participant first) |
 |------|-------|-------|

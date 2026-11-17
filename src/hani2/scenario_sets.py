@@ -2,8 +2,10 @@
 
 Sets are defined in ``scenario_sets.yaml`` (bundled default, then
 ``<settings>/scenario_sets.yaml``, then ``<experiment>/scenario_sets.yaml``;
-later files add sets or replace sets of the same name). ``Custom`` is always
-available: it is the list in ``scenario_order.txt``.
+later files add sets or replace sets of the same name). A set lists scenario
+types and other sets (``@Name`` or just the set's name); composed sets expand
+in order without duplicates. ``Custom`` is always available: it is the list in
+``scenario_order.txt``.
 
 The active set is, first hit wins: an explicit name (the admin's session
 setting), ``HANI2_SCENARIO_SET``, a changed ``scenario_order.txt`` (``Custom``)
@@ -19,7 +21,7 @@ import yaml
 
 from hani2.config import DEFAULT_SETTINGS_DIR, experiment_dir, get_settings_file, settings_dir
 
-__all__ = ["CUSTOM", "DEFAULT_SET", "load_sets", "set_names", "resolve", "set_types", "active_set", "custom_order"]
+__all__ = ["CUSTOM", "DEFAULT_SET", "load_sets", "raw_sets", "expand", "set_names", "resolve", "set_types", "active_set", "custom_order"]
 
 FILE = "scenario_sets.yaml"
 ORDER_FILE = "scenario_order.txt"
@@ -50,7 +52,14 @@ def _layers() -> list[Path]:
 
 
 def load_sets() -> tuple[dict[str, list[str]], str]:
-    """``({name: [types]}, default_name)`` merged over all layers."""
+    """``({name: [types]}, default_name)`` merged over all layers, with sets
+    made of other sets expanded (see :func:`expand`)."""
+    raw, default = raw_sets()
+    return expand(raw), default
+
+
+def raw_sets() -> tuple[dict[str, list[str]], str]:
+    """Like :func:`load_sets`, but with the entries as written (sets not expanded)."""
     sets: dict[str, list[str]] = {}
     default = DEFAULT_SET
     for path in _layers():
@@ -66,6 +75,42 @@ def load_sets() -> tuple[dict[str, list[str]], str]:
             default = str(data["default"])
     sets[CUSTOM] = custom_order() or list(sets.get(default) or sets.get(DEFAULT_SET) or [])
     return sets, default
+
+
+def expand(raw: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Resolve sets made of other sets.
+
+    An entry ``@Name`` is always the set ``Name``; a bare entry that names a set
+    (case-insensitively) is that set too, otherwise it is a scenario type. Sets
+    expand recursively in place, duplicates are dropped (the first occurrence
+    keeps its position), and a cycle is reported and broken."""
+    lower = {k.lower(): k for k in raw}
+    reported: set[frozenset] = set()
+
+    def resolve_set(name: str, stack: tuple[str, ...]) -> list[str]:
+        if name in stack:
+            cycle = frozenset(stack[stack.index(name):])
+            if cycle not in reported:
+                reported.add(cycle)
+                print(f"[hani2] scenario set cycle: {' -> '.join(stack + (name,))}; ignoring the last step")
+            return []
+        types: list[str] = []
+        for entry in raw.get(name, []):
+            ref = entry[1:] if entry.startswith("@") else entry
+            target = lower.get(ref.lower())
+            if target is not None and (entry.startswith("@") or target != name):
+                parts = resolve_set(target, stack + (name,))
+            elif entry.startswith("@"):
+                print(f"[hani2] scenario set {name!r}: unknown set {ref!r}")
+                parts = []
+            else:
+                parts = [entry]
+            types += [t for t in parts if t not in types]
+        return types
+
+    # Each set is expanded on its own (sets are small), so a cycle never leaves
+    # a half-expanded set behind.
+    return {k: resolve_set(k, ()) for k in raw}
 
 
 def _order_lines(text: str) -> list[str]:
