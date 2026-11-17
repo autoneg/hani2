@@ -1,0 +1,89 @@
+name: CI
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+jobs:
+  tests:
+    name: "Python ${{ matrix.python-version }}"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: "actions/checkout@v6"
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v8.1.0"
+        with:
+          version: "latest"
+      - name: "Set up Python ${{ matrix.python-version }}"
+        run: uv python install ${{ matrix.python-version }}
+      - name: "Install dependencies"
+        run: uv sync --python ${{ matrix.python-version }} --extra dev
+      - name: "Run the test suite"
+        run: uv run --no-sync pytest -q
+  frontend:
+    name: "Web app builds"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 30
+    steps:
+      - uses: "actions/checkout@v6"
+      - uses: "actions/setup-node@v6"
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: "Type-check and build"
+        working-directory: frontend
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npm run build
+      - name: "The committed build is present"
+        run: test -f src/hani2/web/index.html
+  package:
+    name: "Build & verify package"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 30
+    steps:
+      - uses: "actions/checkout@v6"
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v8.1.0"
+        with:
+          version: "latest"
+      - name: "Set up Python"
+        run: uv python install 3.13
+      - name: "Build package"
+        run: uv build
+      - name: "List result"
+        run: "ls -l dist"
+      - name: "Check long_description"
+        run: uv run --no-project --with twine twine check dist/*
+      - name: "Smoke-test the wheel in a clean environment"
+        run: |
+          uv venv --python 3.13 /tmp/w
+          VIRTUAL_ENV=/tmp/w uv pip install dist/*.whl
+          test -f /tmp/w/lib/python3.13/site-packages/hani2/web/index.html
+          export HANI2_HOME=/tmp/h2
+          /tmp/w/bin/hani2 --version
+          /tmp/w/bin/hani2 setup
+          /tmp/w/bin/hani2 --no-browser --port 5099 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:5099/api/config && break; sleep 1; done
+          curl -sf http://127.0.0.1:5099/ | grep -q '<div id="root"'
+          kill %1
+  docs:
+    name: "Docs build"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 20
+    steps:
+      - uses: "actions/checkout@v6"
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v8.1.0"
+        with:
+          version: "latest"
+      - run: uv python install 3.13
+      - run: uv sync --python 3.13 --extra docs
+      - run: uv run --no-sync mkdocs build --strict

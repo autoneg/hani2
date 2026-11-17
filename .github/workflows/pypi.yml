@@ -1,0 +1,41 @@
+name: PyPI
+on: push
+jobs:
+  build-n-publish:
+    name: Build and publish Python distributions to PyPI
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 60
+    environment:
+      name: pypi
+      url: https://pypi.org/project/hani2/
+    permissions:
+      id-token: write   # PyPI trusted publishing (no API token needed)
+      contents: write   # attach the files to the GitHub release
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Install uv"
+        uses: "astral-sh/setup-uv@v8.1.0"
+        with:
+          version: "latest"
+      - name: "Set up Python"
+        run: uv python install 3.13
+      - name: "Build package"
+        run: uv build
+      - name: "Check long_description"
+        run: uv run --no-project --with twine twine check dist/*
+      - name: "Tag matches the package version"
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+        run: |
+          version=$(uv run --no-project python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} does not match version $version"; exit 1; }
+      - name: Publish distribution to PyPI
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Create the GitHub release
+        if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 \
+            || gh release create "${GITHUB_REF_NAME}" --title "HANI2 ${GITHUB_REF_NAME#v}" --notes-file .github/release-notes.md
+          gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
