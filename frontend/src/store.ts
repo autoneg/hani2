@@ -31,6 +31,24 @@ let retry = 0;
 let wanted: string | null = null;
 let pingTimer: number | undefined;
 
+/* Tool views arrive in bursts; apply them together once per frame so a burst
+ * of updates causes one re-render instead of many. */
+let pendingViews: Record<string, any> = {};
+let viewFrame = 0;
+function queueToolView(id: string, view: any) {
+  pendingViews[id] = view;
+  if (viewFrame) return;
+  const flush = () => {
+    viewFrame = 0;
+    const batch = pendingViews;
+    pendingViews = {};
+    useStore.setState((s) => ({ toolViews: { ...s.toolViews, ...batch } }));
+  };
+  viewFrame = typeof requestAnimationFrame === "function" && document.visibilityState === "visible"
+    ? requestAnimationFrame(flush)
+    : (setTimeout(flush, 16) as unknown as number);
+}
+
 export const useStore = create<Store>((set, get) => ({
   state: null,
   toolViews: {},
@@ -105,7 +123,7 @@ export const useStore = create<Store>((set, get) => ({
           set({ state: msg.state });
           break;
         case "tool":
-          set((s) => ({ toolViews: { ...s.toolViews, [msg.id]: msg.view } }));
+          queueToolView(msg.id, msg.view);
           break;
         case "history":
           set((s) => (s.state ? { state: { ...s.state, history: msg.items as HistoryItem[] } } : {}));

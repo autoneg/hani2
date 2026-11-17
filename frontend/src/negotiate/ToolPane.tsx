@@ -174,11 +174,13 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
 
 function maximize(t: ToolInfo) {
   useStore.getState().setMaximized(t.id);
+  send({ type: "active_tab", pane: "max", name: t.name });
   send({ type: "event", name: "tool_maximized", component: t.name });
 }
 
 function putBack(t: ToolInfo) {
   useStore.getState().setMaximized(null);
+  send({ type: "active_tab", pane: "max", name: null });
   send({ type: "event", name: "tool_restored", component: t.name });
 }
 

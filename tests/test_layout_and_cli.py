@@ -135,3 +135,32 @@ def test_cli_opponents_option(hani2_home, tmp_path, monkeypatch):
     env = json.loads((tmp_path / "exps" / "han" / "env.json").read_text())
     assert env["opponents"] == ["BoulwareTBNegotiator"]
     os.environ.pop("HANI2_OPPONENTS", None)
+
+
+def test_only_shown_tools_are_rendered(hani2_home):
+    from hani2.hub import Hub
+
+    s = make_session()
+    shown = s.shown_tool_names()
+    assert shown
+    front = next(t for t in s.tools if t.name in shown)
+    hidden = [t for t in s.tools if t.name not in shown]
+    assert hidden, "expected some tools behind inactive tabs"
+    hub = Hub()  # no event loop: tool_changed only records what it would render
+    hub.sessions[s.sid] = s
+    hid = s.tool_state(hidden[0])["id"]
+    hub.tool_changed(s.sid, hid)
+    assert hid not in hub._tools_pending.get(s.sid, set())
+    pid = s.tool_state(front)["id"]
+    hub.tool_changed(s.sid, pid)
+    assert pid in hub._tools_pending[s.sid]
+    # opening the hidden tool's tab makes it renderable
+    s.active_tabs[s.tool_state(hidden[0])["pane"]] = hidden[0].name
+    hub.tool_changed(s.sid, hid)
+    assert hid in hub._tools_pending[s.sid]
+    # a tool being rendered is queued for one more render, not rendered twice at once
+    s.active_tabs["max"] = front.name  # keep the first tool on screen (enlarged)
+    hub._tools_pending[s.sid].discard(pid)
+    hub._tools_rendering.add((s.sid, pid))
+    hub.tool_changed(s.sid, pid)
+    assert (s.sid, pid) in hub._tools_again and pid not in hub._tools_pending[s.sid]

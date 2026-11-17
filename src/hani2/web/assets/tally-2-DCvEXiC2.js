@@ -1,1 +1,0 @@
-import{c as e}from"./index-EZEAS-i3.js";const a={name:"tally-2",size:24,node:[["path",{d:"M4 4v16",key:"6qkkli"}],["path",{d:"M9 4v16",key:"81ygyz"}]]};a.node;const o=e(a);export{a as __iconData,o as default};

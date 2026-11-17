@@ -4,6 +4,12 @@ Thread-safe: sessions call :meth:`Hub.push`, :meth:`Hub.push_state` and
 :meth:`Hub.tool_changed` from any thread; delivery happens on the server's
 event loop. State pushes and tool re-renders are coalesced, so a burst of
 changes produces one message.
+
+Tool views are rendered off the event loop in their own thread pool, so a slow
+tool never delays state pushes or other sessions. Only tools the participant
+can currently see are rendered; a hidden tool is rendered when its tab is
+opened. A tool that changes while it is being rendered is rendered once more
+afterwards (never twice at the same time).
 """
 
 from __future__ import annotations
@@ -13,6 +19,7 @@ import json
 import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from hani2.tools.ui import jsonable
@@ -23,6 +30,9 @@ def _dumps(msg: dict[str, Any]) -> str:
     return json.dumps(jsonable(msg), allow_nan=False)
 
 
+TOOL_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hani2-tool")
+
+
 class Hub:
     def __init__(self) -> None:
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -31,6 +41,9 @@ class Hub:
         self._lock = threading.RLock()
         self._state_pending: set[str] = set()
         self._tools_pending: dict[str, set[str]] = {}
+        self._tools_rendering: set[tuple[str, str]] = set()
+        self._tools_again: set[tuple[str, str]] = set()
+        self._tools_sent: set[tuple[str, str]] = set()
 
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self.loop = loop
@@ -46,6 +59,8 @@ class Hub:
     def remove(self, sid: str) -> None:
         with self._lock:
             s = self.sessions.pop(sid, None)
+            self._tools_sent = {k for k in self._tools_sent if k[0] != sid}
+            self._tools_pending.pop(sid, None)
         if s is not None:
             try:
                 s.close()
@@ -64,6 +79,8 @@ class Hub:
     def connect(self, sid: str, ws) -> None:
         with self._lock:
             self._sockets.setdefault(sid, set()).add(ws)
+            # a new tab has no tool views yet: send each again when it is shown
+            self._tools_sent = {k for k in self._tools_sent if k[0] != sid}
 
     def disconnect(self, sid: str, ws) -> None:
         with self._lock:
@@ -120,9 +137,39 @@ class Hub:
             await self._send(sid, _dumps({"type": "state", "state": snap}))
         except Exception:
             traceback.print_exc()
+        self._render_newly_shown(s)
+
+    def _render_newly_shown(self, s) -> None:
+        """Render tools that became visible and changed (or were never sent)
+        while hidden: a tab opened by the support agent, a revealed tool, …"""
+        names_fn = getattr(s, "shown_tool_names", None)
+        if names_fn is None:
+            return
+        try:
+            names = names_fn()
+            for t in list(s.tools):
+                if t.name not in names:
+                    continue
+                tid = s.tool_state(t)["id"]
+                if getattr(t, "_dirty", False) or (s.sid, tid) not in self._tools_sent:
+                    self.tool_changed(s.sid, tid)
+        except Exception:
+            traceback.print_exc()
 
     def tool_changed(self, sid: str, tid: str) -> None:
+        s = self.sessions.get(sid)
+        shown = getattr(s, "tool_is_shown", None)
+        if shown is not None:
+            try:
+                if not shown(tid):
+                    return  # rendered when its tab is opened
+            except Exception:
+                traceback.print_exc()
+        key = (sid, tid)
         with self._lock:
+            if key in self._tools_rendering:
+                self._tools_again.add(key)
+                return
             pending = self._tools_pending.setdefault(sid, set())
             if tid in pending:
                 return
@@ -131,14 +178,28 @@ class Hub:
 
     async def _flush_tool(self, sid: str, tid: str) -> None:
         await asyncio.sleep(0.05)
+        key = (sid, tid)
         with self._lock:
             self._tools_pending.get(sid, set()).discard(tid)
+            if key in self._tools_rendering:
+                self._tools_again.add(key)
+                return
+            self._tools_rendering.add(key)
         s = self.sessions.get(sid)
-        if s is None or not self._sockets.get(sid):
-            return
         try:
-            view = await asyncio.get_running_loop().run_in_executor(None, s.render_tool, tid)
+            if s is None or not self._sockets.get(sid):
+                return
+            view = await asyncio.get_running_loop().run_in_executor(TOOL_EXECUTOR, s.render_tool, tid)
             if view is not None:
+                with self._lock:
+                    self._tools_sent.add(key)
                 await self._send(sid, _dumps({"type": "tool", **view}))
         except Exception:
             traceback.print_exc()
+        finally:
+            with self._lock:
+                self._tools_rendering.discard(key)
+                again = key in self._tools_again
+                self._tools_again.discard(key)
+            if again:
+                self.tool_changed(sid, tid)

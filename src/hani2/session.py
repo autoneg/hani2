@@ -377,6 +377,29 @@ class NegotiationSession:
             return
         self.hub.tool_changed(self.sid, self._tool_states[id(tool)]["id"])
 
+    def shown_tool_names(self) -> set[str]:
+        """Tools the browser can be showing: the active (or first) tab of each
+        pane, the active tab of combined tab strips (``all``) and an enlarged
+        tool (``max``). Other tools are rendered when their tab is opened."""
+        with self.lock:
+            names: set[str] = set()
+            visible = [t for t in self.tools if self._tool_states[id(t)]["visible"]]
+            for pane in PANES:
+                in_pane = sorted((t for t in visible if self._tool_states[id(t)]["pane"] == pane),
+                                 key=lambda t: self._tool_states[id(t)]["order"])
+                if not in_pane:
+                    continue
+                active = self.active_tabs.get(pane)
+                names.add(active if any(t.name == active for t in in_pane) else in_pane[0].name)
+            for key in ("all", "max"):
+                if self.active_tabs.get(key):
+                    names.add(str(self.active_tabs[key]))
+            return names
+
+    def tool_is_shown(self, tid: str) -> bool:
+        t = self.tool_by_id(tid)
+        return t is not None and t.name in self.shown_tool_names()
+
     def render_tool(self, tid: str) -> dict[str, Any] | None:
         t = self.tool_by_id(tid)
         if t is None:
