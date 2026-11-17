@@ -46,6 +46,44 @@ Any provider supported by litellm works too; see [Language models](https://auton
 - **Admin console**: live sessions, results, analytics, users and all settings in the browser.
 - **Accounts**: password, GitHub and Google OAuth, or no login; optional consent form.
 
+## A custom opponent agent
+
+The opponent (the participant's *partner*) is any negmas `SAONegotiator`. This one concedes over time and says why; text in the `data` of an offer shows in the participant's history.
+
+```python
+# my_opponent.py
+from negmas.outcomes import ExtendedOutcome
+from negmas.sao import ResponseType, SAONegotiator
+
+
+class Haggler(SAONegotiator):
+    """Asks for a lot at first, concedes linearly over time, and explains itself."""
+
+    def target(self, state) -> float:
+        lo, hi = self.ufun.minmax()
+        floor = max(lo, float(self.ufun.reserved_value or lo))
+        return hi - state.relative_time * (hi - floor) * 0.8  # never concede the last 20%
+
+    def propose(self, state, dest=None):
+        outcome = self.ufun.invert().one_in((self.target(state), self.ufun.max()), normalized=False)
+        text = "This is my best offer." if state.relative_time < 0.5 else "I am meeting you halfway now."
+        return ExtendedOutcome(outcome, data={"text": text})
+
+    def respond(self, state, source=None):
+        offer = state.current_offer
+        if offer is not None and self.ufun(offer) >= self.target(state):
+            return ResponseType.ACCEPT_OFFER
+        return ResponseType.REJECT_OFFER
+```
+
+Start the server from the folder that holds `my_opponent.py`:
+
+```bash
+hani2 --opponents file:my_opponent.Haggler
+```
+
+Or list it in `opponents` in `env.json`, next to built-in agents and groups such as `:template` or `helpers.AgentK`. See [Opponents](https://autoneg.github.io/hani2/guide/opponents/).
+
 ## A custom support agent
 
 ```python
