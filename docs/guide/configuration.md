@@ -119,7 +119,10 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `pend_per_second` | `0.0` | Probability that the negotiation ends per second. |
 | `step_time_limit` | `null` | Time limit of a single step in seconds. |
 | `negotiator_time_limit` | `null` | Total time each negotiator may use, in seconds. |
-| `human_index` | `1` | Which side of the scenario the human plays (0 or 1). |
+| `human_index` | `1` | Which side of the scenario the human plays (0 or 1) under the `index` rule, and under `auto` when the scenario suggests no role. |
+| `role_rule` | `"auto"` | How the human's role is chosen: `auto`, `index`, `roles`, `alternate` or `random`. See [Which side the participant plays](scenarios.md#which-side-the-participant-plays). |
+| `human_roles` | `[]` | Preferred roles for the `roles` rule, e.g. `["Tenant", "Buyer"]`. |
+| `scenario_set` | `null` | The [scenario set](scenario-sets.md) to use. `null`: `HANI2_SCENARIO_SET`, a changed `scenario_order.txt`, then the default set. |
 | `end_on_no_response` | `false` | End the negotiation when a negotiator gives no response. |
 | `allow_text_only_offers` | `true` | Let negotiators send a message without an offer. |
 | `allow_text_agent` | `true` | Show the opponent's messages. |
@@ -133,7 +136,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `allow_moving_tools` | `true` | Let the human move tools between panes. |
 | `load_existing` | `true` | Load saved scenarios instead of generating new ones. Off in the playground unless the URL has `?load_existing=1`. |
 | `generate_on_failure` | `true` | Generate a scenario when none can be loaded. |
-| `predefined_order` | `true` | Present scenario categories in the order of `scenario_order.txt`. Always off in the playground. |
+| `predefined_order` | `true` | Present scenario types in the order of the active scenario set. Always off in the playground. |
 | `allow_scenario_selection` | `false` | Let non-admins pick the scenario. |
 | `show_opponent_type` | `false` | Show the opponent agent's type. Always on for admins. (Old name: `show_partner_type`.) |
 | `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
@@ -281,7 +284,9 @@ See [Autopilot](autopilot.md).
 | `HANI2_SUPPORT_AGENT` | none | `on`, `off` or `auto`; overrides `mode` in `support_agent_settings.json`. Set by `--support-agent`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
-| `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when no experiment provides one, instead of `settings/scenarios`. |
+| `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when no experiment provides one, instead of `settings/scenarios`. Set by `--scenarios`. |
+| `HANI2_SCENARIO_SET` | none | The scenario set to use. Set by `--scenario-set`. |
+| `HANI2_SCENARIO_TYPES` | none | Python files or modules that register extra scenario types, comma separated. Set by `--scenario-types`. |
 | `HANI2_PER_NEG_YAML` | none | Path or name (`evaluation`) of the questionnaire file; takes precedence over the experiment and settings folders. |
 | `HANI2_EVENTS` | `1` | `0`, `false`, `no` or `off` disables the event log. |
 | `HANI2_RECORD` | `1` | `0`, `false`, `no` or `off` disables [recordings](recordings.md). |

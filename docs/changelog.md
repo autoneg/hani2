@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **Scenario sets**: named, ordered lists of scenario types in `scenario_sets.yaml` (editable under
+  *Texts*). The bundled sets are `HAN2026` (Trade, Island, Grocery; the default), `MIT2025`,
+  `PieArena2026`, `ANL` (all years) with `ANL2010`, `ANL2011`, `ANL2012`, `ANL2013`, `ANL2025` and
+  `ANL2026`, `IAGO` and the short list `ANAC2027`; `Custom` is `scenario_order.txt`.
+  Choose the set with `hani2 --scenario-set NAME` (`HANI2_SCENARIO_SET`), `env.json` →
+  `negotiation` → `scenario_set`, or, as an admin, in the settings drawer or on the start screen.
+  `hani2 sets` lists them; `hani2 generate --set NAME` generates a set's pools.
+- **16 new scenario types** adapted from the MIT AI Negotiation Competition, PieArena MBA cases, ANAC
+  Automated Negotiation League domains and IAGO item splits: Furniture, Lease, Consulting, JobOffer,
+  License, HomeRepair, Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip,
+  LaborContract, Resources and Estate. Each has a fixed story and draws new utility functions (and
+  hints) every time, within an opposition band.
+- **Your own scenario types**: write a `Story` (issues, roles, texts and one function per role that
+  draws its preferences) or any `maker(index)`, and register it from `<settings>/scenario_types/*.py`
+  or `hani2 --scenario-types file.py`. `hani2 --scenarios FOLDER` serves saved scenarios from a folder.
+- **Role assignment rules** (`role_rule`): `auto` (the scenario's suggested role), `index`, `roles`
+  (preferred role names), `alternate` and `random`. A role named `human` always goes to the
+  participant. Pools now cache the utility inverse of every role.
+
 - **Recording and replay**: every negotiation is recorded completely (screens, pointer, clicks,
   keys, local UI state, every message and action with who took it, assistant chat, suggestions and
   function calls, language-model calls with tokens and cost) in a compact `.hrec` file, and can be

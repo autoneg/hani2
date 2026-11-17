@@ -1,9 +1,13 @@
 """Finding, loading and generating negotiation scenarios.
 
-Scenario types are the built-in generators (``Trade``, ``Island``, ``Grocery``)
-plus any category folder found in the scenarios directory. A category folder
-holds either a *pool* of numbered scenarios (``0000Trade/``, ``0001Trade/``,
-…, as written by ``hani2 generate``) or plain named negmas scenario folders.
+Scenario types are the registered generators (see
+:mod:`hani2.scenarios.registry`) plus any category folder found in the
+scenarios directory. A category folder holds either a *pool* of numbered
+scenarios (``0000Trade/``, ``0001Trade/``, …, as written by ``hani2
+generate``) or plain named negmas scenario folders. Which types are used, and
+in which order, comes from the active scenario set
+(:mod:`hani2.scenario_sets`). Which side the participant plays is decided by
+a role-assignment rule (:func:`assign_human`).
 """
 
 from __future__ import annotations
@@ -19,21 +23,22 @@ from typing import Any, Callable
 from negmas import Scenario
 from negmas.helpers.inout import load
 
-from hani2.config import DEFAULT_SCENARIOS, read_settings_text, scenarios_dir
+from hani2 import scenario_sets
+from hani2.config import DEFAULT_SCENARIOS, scenarios_dir
 from hani2.display import DefaultOutcomeDisplay
-from hani2.scenarios.grocery import GroceryOutcomeDisplay, make_grocery_scenario
-from hani2.scenarios.island import IslandOutcomeDisplay, make_island_scenario
-from hani2.scenarios.trade import TradeOutcomeDisplay, make_trade_scenario
+from hani2.scenarios import registry
 
-MAKER_MAP: dict[str, Callable[[int], Scenario]] = {
-    "Trade": make_trade_scenario,
-    "Island": make_island_scenario,
-    "Grocery": make_grocery_scenario,
-}
-DISPLAY_MAP: dict[str, Any] = {
-    "Trade": TradeOutcomeDisplay(),
-    "Island": IslandOutcomeDisplay(),
-    "Grocery": GroceryOutcomeDisplay(),
+#: ``{type: maker}`` / ``{type: display}`` of the registered generators (live views of the registry).
+MAKER_MAP: dict[str, Callable[[int], Scenario]] = registry.MAKERS
+DISPLAY_MAP: dict[str, Any] = registry.DISPLAYS
+
+#: Role-assignment rules (admin setting ``role_rule``).
+ROLE_RULES = {
+    "auto": "A role named human, else the scenario's suggested role, else the participant's index",
+    "index": "The participant's index (admin setting)",
+    "roles": "The first role listed in the preferred roles, else auto",
+    "alternate": "Alternate between the roles from one negotiation to the next",
+    "random": "A random role",
 }
 INFO_FILES = ("_info.yml", "_info.yaml", "_info.yaml.yml")
 LAST_SCENARIO_FILE = "last_scenario.txt"
@@ -52,15 +57,17 @@ def base_dir() -> Path:
     return scenarios_dir()
 
 
-def scenario_order() -> list[str]:
-    """Scenario types in the configured order (``scenario_order.txt``)."""
-    txt = read_settings_text("scenario_order.txt", "Trade\nIsland\nGrocery\n")
-    types = [t.strip() for t in txt.splitlines() if t.strip() and not t.strip().startswith("#")]
-    return types or list(MAKER_MAP)
+def scenario_order(scenario_set: str | None = None) -> list[str]:
+    """Scenario types of the active set (or of ``scenario_set``), in order."""
+    registry.load_plugins()
+    types = scenario_sets.set_types(scenario_set)
+    return types or ["Trade", "Island", "Grocery"]
 
 
-def available_types() -> list[str]:
-    types = list(scenario_order())
+def available_types(scenario_set: str | None = None) -> list[str]:
+    """Every type HANI2 can serve: the active set's first, then the other
+    registered generators, then any other category folder."""
+    types = list(scenario_order(scenario_set))
     for t in MAKER_MAP:
         if t not in types:
             types.append(t)
@@ -139,6 +146,7 @@ def load_scenario(
                            scenario_name=path.name, generated=False, scenario_type=type_), str(path)
         if not generate_on_failure or type_ not in MAKER_MAP:
             raise ValueError(f"Cannot load scenario from {path}")
+    registry.load_plugins()
     if type_ not in MAKER_MAP:
         # Try the bundled sample scenario of that name.
         sample = DEFAULT_SCENARIOS / type_
@@ -170,9 +178,17 @@ def display_for(scenario: Scenario, scenario_dir: str | None = None):
             except Exception as e:  # pragma: no cover
                 print(f"[hani2] could not load {f}: {e}")
     name = str(getattr(scenario.outcome_space, "name", "") or "")
-    for key, disp in DISPLAY_MAP.items():
-        if name == key or name.startswith(key) or name.split("/")[-1].startswith(key):
-            return disp
+    base = name.split("/")[-1]
+    if name in DISPLAY_MAP or base in DISPLAY_MAP:
+        return DISPLAY_MAP.get(name) or DISPLAY_MAP[base]
+    # the longest registered name the outcome-space name starts with
+    for key in sorted(DISPLAY_MAP, key=len, reverse=True):
+        if name.startswith(key) or base.startswith(key):
+            return DISPLAY_MAP[key]
+    if (scenario.info or {}).get("story") or (scenario.info or {}).get("issue_format"):
+        from hani2.scenarios.story import StoryOutcomeDisplay
+
+        return StoryOutcomeDisplay()
     return DefaultOutcomeDisplay()
 
 
@@ -194,11 +210,54 @@ def pid_type(pid: str, types: list[str] | None = None) -> str:
     return types[h % len(types)]
 
 
-def pick_type(index: int, predefined_order: bool) -> str:
-    order = scenario_order()
+def pick_type(index: int, predefined_order: bool, scenario_set: str | None = None) -> str:
+    order = scenario_order(scenario_set)
     if predefined_order:
         return order[index % len(order)]
     return random.choice(order)
+
+
+def role_names(scenario: Scenario) -> list[str]:
+    return [str(getattr(u, "name", "") or "") for u in scenario.ufuns]
+
+
+def assign_human(
+    scenario: Scenario,
+    rule: str = "auto",
+    human_index: int = 1,
+    preferred_roles: list[str] | tuple[str, ...] = (),
+    counter: int = 0,
+) -> int:
+    """The index of the negotiator the participant plays in ``scenario``.
+
+    A role named ``human`` always goes to the participant: such scenarios are
+    written from the participant's point of view (issue values like
+    ``human``/``agent`` and "you get" texts refer to it). For the other
+    scenarios ``rule`` decides (see :data:`ROLE_RULES`): ``auto`` (the
+    scenario's suggested role, ``info["human_role"]``, else ``human_index``),
+    ``index``, ``roles``
+    (the first of ``preferred_roles`` the scenario has), ``alternate``
+    (``counter`` modulo the number of roles) and ``random``."""
+    names = role_names(scenario)
+    n = len(names) or 1
+    lowered = [x.lower() for x in names]
+    rule = (rule or "auto").lower()
+    if "human" in lowered:
+        return lowered.index("human")
+    suggested = str((scenario.info or {}).get("human_role") or "").lower()
+    if rule == "index":
+        return int(human_index) % n
+    if rule == "random":
+        return random.randrange(n)
+    if rule == "alternate":
+        return int(counter) % n
+    if rule == "roles":
+        for r in preferred_roles or ():
+            if str(r).strip().lower() in lowered:
+                return lowered.index(str(r).strip().lower())
+    if suggested in lowered:
+        return lowered.index(suggested)
+    return int(human_index) % n
 
 
 def copy_info(s: Scenario) -> dict:

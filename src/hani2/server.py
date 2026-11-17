@@ -598,7 +598,8 @@ SETTINGS_KINDS = {
     "autopilot": ("autopilot_settings.json",
                   lambda: __import__("hani2.support_agent.autopilot", fromlist=["x"]).load_autopilot_settings()),
 }
-TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt"}
+TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt",
+              "scenario_sets": "scenario_sets.yaml"}
 
 
 @app.get("/api/admin/settings/{kind}")
@@ -635,6 +636,9 @@ def admin_meta(_: str = Depends(require_admin)):
         "opponent_groups": {k: list(v) for k, v in SELECTABLE_GROUPS.items()},
         "agent_groups": {k: list(v) for k, v in SELECTABLE_GROUPS.items()},  # old name
         "scenario_types": store.available_types(),
+        "scenario_sets": __import__("hani2.scenario_sets", fromlist=["x"]).load_sets()[0],
+        "scenario_set": __import__("hani2.scenario_sets", fromlist=["x"]).active_set(),
+        "role_rules": store.ROLE_RULES,
         "scenarios": {t: store.list_scenarios(t) for t in store.available_types()},
         "tools": [dict(name=s.name, pane=s.pane, timing=s.timing, enabled=s.enabled, admin_only=s.admin_only,
                        guest=s.guest, description=s.cls.description) for s in tool_specs()],

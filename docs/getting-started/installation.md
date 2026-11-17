@@ -60,7 +60,8 @@ hani2 setup
 | `autopilot_settings.json` | Whether autopilot is allowed and which drivers are offered. |
 | `consent.md` | The consent form shown at registration. |
 | `announcements.md` | The welcome text shown before a negotiation. |
-| `scenario_order.txt` | The order in which scenario categories are presented. |
+| `scenario_order.txt` | The scenario types of the `Custom` set, in order. |
+| `scenario_sets.yaml` | The [scenario sets](../guide/scenario-sets.md) and the default set. |
 | `questionnaires/per_negotiation.example.yaml` | An example post-negotiation questionnaire. It is inactive until you rename it to `per_negotiation.yaml`. |
 | `scenarios/Examples/` | The three sample scenarios `Trade`, `Island` and `Grocery`, as one `Examples` category. The `Trade`, `Island` and `Grocery` scenario types themselves are generated fresh for each round until you build pools with `hani2 generate`. |
 | `users.json`, `users_meta.json` | The user store, with two default accounts: `admin` (password `adminpass`) and `user` (password `userpass`). |

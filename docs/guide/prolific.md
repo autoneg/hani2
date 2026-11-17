@@ -41,7 +41,7 @@ The questionnaire configured for the study (see [Studies and results](studies.md
 
 ### Scenarios and opponents
 
-- **Scenario type.** Each participant is assigned one scenario type from `scenario_order.txt`, based on a hash of their Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
+- **Scenario type.** Each participant is assigned one scenario type from the active [scenario set](scenario-sets.md), based on a hash of their Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
 - **Scenario slot.** Each round uses the next slot of that type's pool (the participant's counter in `last_scenario.txt`). Prolific rounds always use the saved pools.
 - **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_OPPONENTS` (default `:pan`; the old name `PROLIFIC_PRACTICE_AGENTS` also works). If that list resolves to no agents, HANI2 uses the normal opponent pool.
 - **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset, and rotates through them: round *k* uses agent `(offset + k) mod n`. Each new participant gets the next offset, so participants start at different opponents and the agents are spread evenly across participants.

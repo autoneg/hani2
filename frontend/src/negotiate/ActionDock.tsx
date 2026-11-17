@@ -315,6 +315,7 @@ function AdminPickers({ st }: { st: SessionState }) {
   useEffect(() => {
     if (st.is_admin) api("/api/admin/meta").then(setMeta).catch(() => {});
   }, [st.is_admin]);
+  const setTypes: string[] | undefined = meta?.scenario_sets?.[st.settings?.scenario_set || meta?.scenario_set];
   const agents: string[] = useMemo(() => {
     if (!meta) return [];
     const all = new Set<string>();
@@ -327,9 +328,22 @@ function AdminPickers({ st }: { st: SessionState }) {
         <div>
           <span className="label">Scenario</span>
           <div className="flex gap-1.5">
+            {meta?.scenario_sets && (
+              <select
+                className="field"
+                aria-label="Scenario set"
+                value={st.settings?.scenario_set ?? ""}
+                onChange={(e) => { send({ type: "pref", key: "scenario_set", value: e.target.value || null }); setType(""); setName(""); }}
+              >
+                <option value="">Default set ({meta.scenario_set})</option>
+                {Object.keys(meta.scenario_sets).map((k: string) => (
+                  <option key={k} value={k}>{k}</option>
+                ))}
+              </select>
+            )}
             <select className="field" value={type} onChange={(e) => { setType(e.target.value); setName(""); }}>
               <option value="">Next in order</option>
-              {(meta?.scenario_types ?? ["Trade", "Island", "Grocery"]).map((t: string) => (
+              {(setTypes ?? meta?.scenario_types ?? ["Trade", "Island", "Grocery"]).map((t: string) => (
                 <option key={t}>{t}</option>
               ))}
             </select>

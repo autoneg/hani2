@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { api } from "../api";
 import { send, useStore } from "../store";
 import { getDeviceChoice, setDeviceChoice, type DeviceChoice } from "../device";
 
@@ -52,6 +53,10 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
   useEffect(() => {
     if (st) document.documentElement.style.setProperty("--font-scale", String(st.prefs.font_scale ?? 1));
   }, [st?.prefs.font_scale]);
+  const [meta, setMeta] = useState<any>(null);
+  useEffect(() => {
+    if (open && st?.is_admin && !meta) api("/api/admin/meta").then(setMeta).catch(() => {});
+  }, [open, st?.is_admin, meta]);
   if (!open || !st) return null;
   const p = st.prefs;
   const a = st.settings;
@@ -116,6 +121,44 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
             </Section>
             <Section title="Scenarios and opponents">
               <Toggle label="Use saved scenario pools" hint="Off: generate a fresh scenario each time" value={a.load_existing} onChange={(v) => setP("load_existing", v)} />
+              <label className="flex items-center gap-3 py-2">
+                <div className="flex-1">
+                  <div className="text-sm">Scenario set</div>
+                  <div className="text-xs text-muted">Which scenario types are used, in order</div>
+                </div>
+                <select className="field w-40" value={a.scenario_set ?? ""} onChange={(e) => setP("scenario_set", e.target.value || null)}>
+                  <option value="">Default{meta?.scenario_set ? ` (${meta.scenario_set})` : ""}</option>
+                  {Object.keys(meta?.scenario_sets ?? {}).map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-3 py-2">
+                <div className="flex-1">
+                  <div className="text-sm">Participant's role</div>
+                  <div className="text-xs text-muted">{(meta?.role_rules ?? {})[a.role_rule ?? "auto"] ?? ""}</div>
+                </div>
+                <select className="field w-40" value={a.role_rule ?? "auto"} onChange={(e) => setP("role_rule", e.target.value)}>
+                  {Object.keys(meta?.role_rules ?? { auto: "" }).map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {a.role_rule === "roles" && (
+                <label className="block py-2">
+                  <div className="mb-1 text-sm">Preferred roles</div>
+                  <input
+                    className="field"
+                    defaultValue={(a.human_roles || []).join(", ")}
+                    placeholder="Tenant, Buyer, …"
+                    onBlur={(e) => setP("human_roles", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))}
+                  />
+                </label>
+              )}
               <Toggle label="Follow the scenario order" value={a.predefined_order} onChange={(v) => setP("predefined_order", v)} />
               <Toggle label="Participants may choose the scenario" value={a.allow_scenario_selection} onChange={(v) => setP("allow_scenario_selection", v)} />
               <Toggle label="Show the opponent agent's type" value={a.show_opponent_type} onChange={(v) => setP("show_opponent_type", v)} />

@@ -100,8 +100,16 @@ class ScenarioInfoTool(Tool):
         rows = []
         for issue in s.outcome_space.issues:
             d = descs.get(role, {}).get(issue.name, "") if isinstance(descs.get(role), dict) else descs.get(issue.name, "")
-            vals = (f"{issue.min_value} – {issue.max_value}" if issue.is_continuous() or issue.cardinality > 12
-                    else ", ".join(str(v) for v in issue.all))
+            fmt = (info.get("issue_format") or {}).get(issue.name, "{}")
+
+            def _f(v, fmt=fmt):
+                try:
+                    return fmt.format(v)
+                except (ValueError, TypeError, IndexError):
+                    return str(v)
+
+            vals = (f"{_f(issue.min_value)} – {_f(issue.max_value)}" if issue.is_continuous() or issue.cardinality > 12
+                    else ", ".join(_f(v) for v in issue.all))
             rows.append({"Issue": issue.name, "Options": vals, "Description": d or ""})
         comps: list[ui.Component] = [
             ui.heading(info.get("title") or str(s.outcome_space.name), 3),

@@ -147,7 +147,7 @@ All endpoints are under `/api`. Admin endpoints require an admin login cookie. T
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET`, `PUT /api/admin/settings/{kind}` | Read or save a settings file. `kind` is `env`, `llm`, `support_agent`, `autopilot` (JSON) or `consent`, `announcements`, `scenario_order` (text, as `{"text": ...}`). Saving always writes to the settings folder. |
+| `GET`, `PUT /api/admin/settings/{kind}` | Read or save a settings file. `kind` is `env`, `llm`, `support_agent`, `autopilot` (JSON) or `consent`, `announcements`, `scenario_order`, `scenario_sets` (text, as `{"text": ...}`). Saving always writes to the settings folder. |
 | `GET /api/admin/meta` | Opponent groups, scenario types and names, tools, capability labels and autopilot drivers, for the console's forms. |
 | `GET /api/admin/results` | All results rows, the column lists and the leaderboard. |
 | `GET /api/admin/results.csv` | All results as one CSV file. |

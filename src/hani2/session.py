@@ -80,6 +80,12 @@ ADMIN_PREFS: dict[str, Any] = {
     "generate_on_failure": True,
     "predefined_order": True,
     "allow_scenario_selection": False,
+    # The scenario set to use (None: HANI2_SCENARIO_SET, then the default set).
+    "scenario_set": None,
+    # How the participant's role is chosen: auto | index | roles | alternate | random.
+    "role_rule": "auto",
+    # Preferred roles for the "roles" rule, e.g. ["Tenant", "Buyer"].
+    "human_roles": [],
     "show_opponent_type": False,
     "opponent_types": [],
 }
@@ -175,6 +181,8 @@ class NegotiationSession:
         self.admin_prefs.update(
             {PREF_ALIASES.get(k, k): v for k, v in (get_env("negotiation", {}) or {}).items()}
         )
+        if os.environ.get("HANI2_SCENARIO_SET"):
+            self.admin_prefs["scenario_set"] = os.environ["HANI2_SCENARIO_SET"]
         if self.is_admin:
             self.admin_prefs["time_limit"] = None
             self.admin_prefs["show_opponent_type"] = True
@@ -512,7 +520,8 @@ class NegotiationSession:
             idx = plan.get("index")
             if idx is None:
                 idx = store.next_index(self.ss["user_path"])
-            stype = plan.get("type") or store.pick_type(idx, bool(self.admin_prefs.get("predefined_order", True)))
+            stype = plan.get("type") or store.pick_type(idx, bool(self.admin_prefs.get("predefined_order", True)),
+                                                        self.admin_prefs.get("scenario_set"))
             try:
                 scenario, info, sdir = store.load_scenario(
                     stype,
@@ -531,7 +540,13 @@ class NegotiationSession:
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir
             self.ss["outcome_display"] = store.display_for(scenario, sdir)
-            hi = int(self.admin_prefs.get("human_index", 1)) % len(scenario.ufuns)
+            hi = store.assign_human(
+                scenario,
+                rule=str(self.admin_prefs.get("role_rule") or "auto"),
+                human_index=int(self.admin_prefs.get("human_index", 1)),
+                preferred_roles=list(self.admin_prefs.get("human_roles") or []),
+                counter=self.round_number,
+            )
             self.ss["human_index"] = hi
             self.ss["human_ufun"] = scenario.ufuns[hi]
             self.ss["human_id"] = f"{scenario.ufuns[hi].name} (You)"

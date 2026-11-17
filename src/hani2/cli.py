@@ -130,6 +130,9 @@ def main(
     tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
     root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
+    scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", "--set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
+    scenario_types: Annotated[Optional[str], typer.Option("--scenario-types", help="Extra scenario types: comma-separated Python files or modules that register them (see the Scenarios guide).")] = None,
+    scenarios: Annotated[Optional[Path], typer.Option("--scenarios", help="Folder to load saved scenarios from (instead of the settings' scenarios folder).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
     page: Annotated[str, typer.Option(help="Page to open: app, play or admin.")] = "app",
     verbose: Annotated[bool, typer.Option(help="Ask negotiators to print what they do.")] = False,
@@ -144,6 +147,20 @@ def main(
         os.environ["HANI2_ROOT_PATH"] = root_path
     if experiment:
         os.environ["HANI2_EXPERIMENT"] = experiment
+    if scenario_types:
+        os.environ["HANI2_SCENARIO_TYPES"] = scenario_types
+    if scenarios:
+        if not scenarios.expanduser().is_dir():
+            raise typer.BadParameter(f"{scenarios} is not a folder", param_hint="--scenarios")
+        os.environ["HANI2_SCENARIOS_BASE"] = str(scenarios.expanduser().resolve())
+    if scenario_set:
+        from hani2 import scenario_sets
+
+        found = scenario_sets.resolve(scenario_set)
+        if not found:
+            raise typer.BadParameter(f"unknown scenario set {scenario_set!r}; available: "
+                                     f"{', '.join(scenario_sets.set_names())}", param_hint="--scenario-set")
+        os.environ["HANI2_SCENARIO_SET"] = found
     if agents and not opponents:
         typer.echo("note: --agents is now --opponents", err=True)
         opponents = agents
@@ -209,6 +226,7 @@ def generate(
     max_tries: Annotated[int, typer.Option()] = 60,
     seed: Annotated[int, typer.Option()] = 0,
     force: Annotated[bool, typer.Option("--force")] = False,
+    scenario_set: Annotated[Optional[str], typer.Option("--set", help="Generate the types of this scenario set (default: the active set).")] = None,
 ):
     """Generate a pool of scenarios (filtered by opposition level)."""
     from hani2.make_scenarios import generate as _gen
@@ -216,7 +234,38 @@ def generate(
     _gen(types=types, count=count, base=base, human_index=human_index, cache_inverter=cache_inverter,
          rebuild_inverses_only=rebuild_inverses, min_opposition=min_opposition, max_opposition=max_opposition,
          set_reservations=set_reservations, user_reserved_max=user_reserved_max,
-         agent_reserved_max=agent_reserved_max, max_tries=max_tries, seed=seed, force=force)
+         agent_reserved_max=agent_reserved_max, max_tries=max_tries, seed=seed, force=force,
+         scenario_set=scenario_set)
+
+
+@app.command()
+def sets(
+    name: Annotated[Optional[str], typer.Argument(help="Show only this set.")] = None,
+):
+    """List the scenario sets, their scenario types and which set is active."""
+    from hani2 import scenario_sets
+    from hani2 import scenario_store as store
+    from hani2.scenarios import registry
+
+    registry.load_plugins()
+    all_sets, default = scenario_sets.load_sets()
+    active = scenario_sets.active_set()
+    folders = set(store.available_types())
+    for set_name, types in all_sets.items():
+        if name and set_name.lower() != name.lower():
+            continue
+        mark = " (active)" if set_name == active else ""
+        mark += " (default)" if set_name == default else ""
+        typer.echo(f"{set_name}{mark}")
+        for t in types:
+            st = registry.get(t)
+            if st is not None:
+                title = st.story.title if st.story else "built-in generator" if st.builtin else "registered generator"
+            elif t in folders:
+                title = "saved scenarios"
+            else:
+                title = "MISSING: no generator or folder with this name"
+            typer.echo(f"  {t:16s} {title}")
 
 
 @experiment_app.command("create")

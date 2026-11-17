@@ -33,18 +33,13 @@ import typer
 from negmas import opposition_level
 from negmas.inout import Scenario
 
-from hani2.config import scenarios_dir
-from hani2.scenarios.grocery import make_grocery_scenario
-from hani2.scenarios.island import make_island_scenario
-from hani2.scenarios.trade import make_trade_scenario
+from hani2.config import scenarios_dir  # noqa: F401 - kept for callers importing it from here
+from hani2.scenarios import registry
 
 app = typer.Typer(add_completion=False)
 
-MAKER_MAP = {
-    "Trade": make_trade_scenario,
-    "Island": make_island_scenario,
-    "Grocery": make_grocery_scenario,
-}
+#: ``{type: maker}`` of every registered generator (a live view of the registry).
+MAKER_MAP = registry.MAKERS
 
 # The participant is negotiator 1 by default (the server default).
 DEFAULT_HUMAN_INDEX = 1
@@ -163,8 +158,12 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
     )
     res_note = ""
     if set_reservations:
+        # the participant's side under the default role rule (a role named
+        # human, the story's suggested role, else --human-index)
+        from hani2.scenario_store import assign_human
+
         human_r, agent_r = set_reservation_values(
-            scenario, human_index, rng, user_max, agent_max
+            scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max
         )
         res_note = f" res h={human_r}/a={agent_r}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -172,7 +171,10 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
     # reservation values we just set.
     scenario.dumpas(out_dir)
 
-    inv_note = write_inverter(out_dir, human_index) if cache_inverter else ""
+    # Cache the inverse for every role: the role-assignment rule decides at
+    # serve time which one the participant plays.
+    inv_note = (" ".join(write_inverter(out_dir, i) for i in range(len(scenario.ufuns)))
+                if cache_inverter else "")
 
     card = scenario.outcome_space.cardinality
     return True, (f"wrote {out_dir.name} (card={card} opp={opp:.3f}{res_note} "
@@ -205,8 +207,8 @@ def rebuild_inverses(base: Path, types: list[str], count: int,
 def generate(
     types: Annotated[Optional[list[str]], typer.Option(
         "--type", "-t",
-        help="Scenario type(s) to generate (repeatable). Default: all of "
-        f"{list(MAKER_MAP)}.")] = None,
+        help="Scenario type(s) to generate (repeatable). Default: the types of the "
+        "active scenario set (see --set).")] = None,
     count: Annotated[int, typer.Option(
         "-n", "--count", help="Scenarios per type")] = DEFAULT_COUNT,
     base: Annotated[Optional[Path], typer.Option(
@@ -238,9 +240,20 @@ def generate(
         help="RNG seed for reservation sampling / reproducibility")] = 0,
     force: Annotated[bool, typer.Option(
         "--force", help="Regenerate even if the scenario dir already exists")] = False,
+    scenario_set: Annotated[Optional[str], typer.Option(
+        "--set", help="Generate the types of this scenario set (default: the active set).")] = None,
 ):
     """Generate a pool of scenarios, optionally with cached utility inverses."""
-    chosen = list(types) if types else sorted(MAKER_MAP)
+    from hani2 import scenario_sets
+
+    registry.load_plugins()
+    if types:
+        chosen = list(types)
+    else:
+        if scenario_set and not scenario_sets.resolve(scenario_set):
+            typer.echo(f"Unknown scenario set {scenario_set!r}. Available: {scenario_sets.set_names()}")
+            raise typer.Exit(code=2)
+        chosen = [t for t in scenario_sets.set_types(scenario_set) if t in MAKER_MAP]
     unknown = [t for t in chosen if t not in MAKER_MAP]
     if unknown:
         typer.echo(f"Unknown type(s): {unknown}. Available: {list(MAKER_MAP)}")

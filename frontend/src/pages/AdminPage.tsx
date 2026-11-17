@@ -630,19 +630,20 @@ function AutopilotSection({ meta }: { meta: any }) {
 }
 
 function TextsSection() {
-  const [which, setWhich] = useState<"consent" | "announcements" | "scenario_order">("announcements");
+  const [which, setWhich] = useState<"consent" | "announcements" | "scenario_order" | "scenario_sets">("announcements");
   const [text, setText] = useState("");
   useEffect(() => {
     api(`/api/admin/settings/${which}`).then((r) => setText(r.text));
   }, [which]);
   return (
     <>
-      <H sub="Markdown shown to participants, and the order of scenario types (one per line).">Texts</H>
+      <H sub="Markdown shown to participants, the scenario sets (YAML) and the Custom set's order of scenario types (one per line).">Texts</H>
       <div className="mb-3 inline-flex rounded-lg bg-sunken p-0.5">
         {[
           ["announcements", "Welcome text"],
           ["consent", "Consent form"],
-          ["scenario_order", "Scenario order"],
+          ["scenario_sets", "Scenario sets"],
+          ["scenario_order", "Custom order"],
         ].map(([k, l]) => (
           <button key={k} className={`rounded-md px-3 py-1.5 text-sm ${which === k ? "bg-surface shadow-lift" : "text-muted"}`} onClick={() => setWhich(k as any)}>
             {l}

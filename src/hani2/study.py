@@ -221,7 +221,7 @@ class ProlificStudy(Study):
                 return json.loads(path.read_text())
             except Exception:
                 pass
-        types = store.scenario_order()
+        types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
         h = int(hashlib.sha1(self.pid.encode()).hexdigest(), 16)
         meta = {
             "started_at": datetime.now().isoformat(),
@@ -327,7 +327,7 @@ class ProlificStudy(Study):
         slot = self.counted()
         sched = self.schedule()
         entry = sched[slot] if 0 <= slot < len(sched) and not practice else {}
-        stype = entry.get("scenario_type") or self.meta.get("scenario_type") or random.choice(store.scenario_order())
+        stype = entry.get("scenario_type") or self.meta.get("scenario_type") or random.choice(store.scenario_order(self.session.admin_prefs.get("scenario_set")))
         idx = entry.get("scenario_index") if isinstance(entry.get("scenario_index"), int) else None
         if idx is None:
             idx = store.next_index(self.user_path)

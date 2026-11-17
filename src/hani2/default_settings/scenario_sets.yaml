@@ -1,0 +1,47 @@
+# Scenario sets: named, ordered lists of scenario types.
+#
+# The active set decides which scenario types participants get and in which order
+# (it replaces scenario_order.txt). It is chosen by, first hit wins:
+#   1. the admin's session setting (settings drawer, or the start screen),
+#   2. the HANI2_SCENARIO_SET environment variable (`hani2 run --scenario-set NAME`),
+#   3. env.json -> "negotiation" -> "scenario_set",
+#   4. a changed scenario_order.txt (the "Custom" set),
+#   5. `default` below.
+# Set names are matched case-insensitively. A type is a built-in or registered
+# generator (see `hani2 sets`) or a category folder in the scenarios directory.
+# Copy this file to <settings>/scenario_sets.yaml (or an experiment folder) to
+# change or add sets; sets with the same name replace the bundled ones.
+
+default: HAN2026
+
+sets:
+  # The scenarios of the ANAC 2026 Human-Agent Negotiation league.
+  HAN2026: [Trade, Island, Grocery]
+
+  # MIT AI Negotiation Competition 2025: a used-furniture sale, a rental contract and
+  # a consulting contract.
+  MIT2025: [Furniture, Lease, Consulting]
+
+  # MBA negotiation cases of the PieArena benchmark (2026): a job offer, an IP license
+  # with a payment on regulatory approval, and a service quote.
+  PieArena2026: [JobOffer, License, HomeRepair]
+
+  # Domains of the ANAC Automated Negotiation League (2010-2026), all years together.
+  ANL: [Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip, LaborContract, Grocery, Trade, JobOffer, Lease]
+
+  # One set per ANL year whose domains are available here (2014-2024 used abstract or
+  # generated domains).
+  ANL2010: [Supply, HealthFund]                                   # Itex-Cypress, England-Zimbabwe
+  ANL2011: [Acquisition, Energy, UsedCar, CityTrip, Grocery]      # IS-BT, Energy, Car, Amsterdam, Grocery
+  ANL2012: [Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip, Lease, Grocery]
+  ANL2013: [Acquisition, Chores]                                  # Acquisition, HouseKeeping
+  ANL2025: [Trade, JobOffer]                                      # target quantity, job hunt
+  ANL2026: [Acquisition, UsedCar, CityTrip, Grocery]              # the 2011 domains reused
+
+  # Item-split games of the IAGO human-agent negotiation platform.
+  IAGO: [Resources, Estate, Grocery]
+
+  # A short list with the most varied structures: a housing contract with an issue both
+  # sides may agree on, a supply contract, a company acquisition, a contingent license,
+  # splitting chores, matching a power profile, splitting unequal piles and a joint plan.
+  ANAC2027: [Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip]

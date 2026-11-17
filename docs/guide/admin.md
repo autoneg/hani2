@@ -149,7 +149,8 @@ Plain-text editors for three files, each with its own **Save** button:
 
 - **Welcome text**: `announcements.md`, shown before the first negotiation.
 - **Consent form**: `consent.md`, shown on registration and on the consent page.
-- **Scenario order**: `scenario_order.txt`, one scenario type per line.
+- **Scenario sets**: `scenario_sets.yaml`, the named lists of scenario types (see [Scenario sets](scenario-sets.md)).
+- **Custom order**: `scenario_order.txt`, one scenario type per line (the `Custom` set).
 
 See [Scenarios](scenarios.md) for the scenario order.
 

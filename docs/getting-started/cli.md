@@ -31,6 +31,9 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--no-support-agent` | off | Run without a support agent; the same as `--support-agent off`. |
 | `--tools` | none | Extra tools: comma-separated `package.module:Class` or `path/to/file.py:Class`. Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the support agent adds them. |
 | `--experiment` | none | Run this experiment (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
+| `--scenario-set`, `--set` | the default set | The [scenario set](../guide/scenario-sets.md) to use, e.g. `HAN2026` or `ANAC2027` (any case). Sets `HANI2_SCENARIO_SET`. Admins can still change it per session. |
+| `--scenario-types` | none | Python files or modules that register extra scenario types, comma separated. Sets `HANI2_SCENARIO_TYPES`. See [Writing your own scenario type](../guide/scenarios.md#writing-your-own-scenario-type). |
+| `--scenarios` | the settings' scenarios folder | A folder of saved scenarios to serve. Sets `HANI2_SCENARIOS_BASE`. |
 | `--browser` / `--no-browser` | `--browser` | Open the browser once the server answers. |
 | `--page` | `app` | Page to open in the browser: `app`, `play` or `admin`. |
 | `--verbose` / `--no-verbose` | off | Ask negotiators to print what they do (sets `HANI2_VERBOSE=1`). Opponents whose constructor accepts `verbose` get `verbose=True`. |
@@ -92,15 +95,16 @@ support agent   on
 hani2 generate [OPTIONS]
 ```
 
-Generates a pool of scenarios with the built-in generators, keeping only scenarios whose opposition lies in a given range. See [Scenarios](../guide/scenarios.md) for the folder layout it produces.
+Generates a pool of scenarios with the registered generators, keeping only scenarios whose opposition lies in a given range. See [Scenarios](../guide/scenarios.md) for the folder layout it produces.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--type`, `-t` | all | Scenario type to generate (`Trade`, `Island`, `Grocery`). Repeat the option for several types. |
+| `--type`, `-t` | the active set | Scenario type to generate. Repeat the option for several types. |
+| `--set` | the active set | Generate every type of this scenario set. |
 | `--count`, `-n` | `50` | Scenarios per type. |
 | `--base` | the scenarios folder | Pool directory to write into. |
 | `--human-index` | `1` | The human's negotiator index. |
-| `--cache-inverter` / `--no-cache-inverter` | on | Cache the utility inverse with each scenario, so loading is fast. |
+| `--cache-inverter` / `--no-cache-inverter` | on | Cache the utility inverse of every role with each scenario, so loading is fast. |
 | `--rebuild-inverses` | off | Only rebuild the cached inverses of existing scenarios. |
 | `--min-opposition` | `0.35` | Minimum opposition of an accepted scenario. |
 | `--max-opposition` | `0.90` | Maximum opposition of an accepted scenario. |
@@ -113,7 +117,16 @@ Generates a pool of scenarios with the built-in generators, keeping only scenari
 
 ```bash
 hani2 generate -t Trade -t Grocery -n 20 --seed 7
+hani2 generate --set ANAC2027 -n 20
 ```
+
+## `hani2 sets`
+
+```bash
+hani2 sets [NAME]
+```
+
+Lists the scenario sets with their scenario types, marks the active and the default set, and flags types that have neither a generator nor a folder. See [Scenario sets](../guide/scenario-sets.md).
 
 ## `hani2 experiment`
 

@@ -1,6 +1,6 @@
 # Scenarios
 
-A scenario defines what is negotiated (the issues and their values) and what each side wants (one utility function per side). HANI2 uses the negmas scenario format, adds a small info file for the participant-facing texts, and ships three scenario generators.
+A scenario defines what is negotiated (the issues and their values) and what each side wants (one utility function per side). HANI2 uses the negmas scenario format, adds a small info file for the participant-facing texts, and ships generators for 19 scenario types, grouped into [scenario sets](scenario-sets.md).
 
 ## Where scenarios live
 
@@ -10,7 +10,7 @@ HANI2 looks for scenarios in the *scenarios directory*, chosen in this order:
 2. The directory in the `HANI2_SCENARIOS_BASE` environment variable.
 3. `~/negmas/hani2/settings/scenarios` (`$HANI2_HOME/settings/scenarios`).
 
-`hani2 setup` copies the three bundled sample scenarios into an `Examples` category: `settings/scenarios/Examples/Trade`, `.../Island` and `.../Grocery`. They do not shadow the `Trade`, `Island` and `Grocery` types, which are generated fresh for every round until you create a pool for them with `hani2 generate`. To present the samples, pick the `Examples` category in the scenario picker or add `Examples` to `scenario_order.txt`. `hani2 info` prints the scenarios directory in use.
+`hani2 setup` copies the three bundled sample scenarios into an `Examples` category: `settings/scenarios/Examples/Trade`, `.../Island` and `.../Grocery`. They do not shadow the `Trade`, `Island` and `Grocery` types, which are generated fresh for every round until you create a pool for them with `hani2 generate`. To present the samples, pick the `Examples` category in the scenario picker or add `Examples` to a scenario set. `hani2 info` prints the scenarios directory in use.
 
 ## Scenario types and categories
 
@@ -24,7 +24,7 @@ Sub-folders are sorted by name and used in that order. When a category has scena
 
 A folder counts as a scenario folder when it contains at least one `.yml` or `.yaml` file whose name does not start with `_`. Folders whose names start with `.` or `_` are skipped.
 
-The list of types HANI2 offers is the order in `scenario_order.txt`, then the built-in generators `Trade`, `Island` and `Grocery`, then any other category folder in the scenarios directory.
+The list of types HANI2 offers is the active [scenario set](#scenario-sets) in order, then the other registered generators, then any other category folder in the scenarios directory.
 
 ### Which scenario a participant gets
 
@@ -32,28 +32,56 @@ Each participant has a counter in `<results>/<user>/last_scenario.txt` that goes
 
 The type is chosen by the counter too:
 
-- With *Follow the scenario order* on (the default), the counter walks through `scenario_order.txt`: the first load uses the first line, the second load the second line, and so on, wrapping around.
-- With it off, every load picks a random type from `scenario_order.txt`.
+- With *Follow the scenario order* on (the default), the counter walks through the active scenario set: the first load uses its first type, the second load the second type, and so on, wrapping around.
+- With it off, every load picks a random type from the active scenario set.
 
 Admins, and participants when an admin turns on *Participants may choose the scenario*, can pick a type and a named scenario on the start screen instead.
 
-With *Use saved scenario pools* off, HANI2 ignores the pool and generates a fresh scenario on every load (only for `Trade`, `Island` and `Grocery`). The guest playground (`/play` without a Prolific ID) works this way by default: it generates a fresh scenario of a random type each time. Add `?load_existing=1` to the playground URL to use the pools instead.
+With *Use saved scenario pools* off, HANI2 ignores the pool and generates a fresh scenario on every load (for types that have a generator). The guest playground (`/play` without a Prolific ID) works this way by default: it generates a fresh scenario of a random type each time. Add `?load_existing=1` to the playground URL to use the pools instead.
 
 If a pool scenario fails to load, HANI2 generates one instead when the type has a generator (the admin setting `generate_on_failure`, on by default). A type with no pool and no generator falls back to the bundled sample of the same name, if there is one.
 
 The [Prolific](prolific.md) study has its own rules for the type and slot.
 
-### `scenario_order.txt`
+## Scenario sets
 
-A plain text file with one scenario type per line. Blank lines and lines starting with `#` are ignored. The bundled default is:
+A *scenario set* is a named, ordered list of scenario types. The active set decides which types participants get and in which order. HANI2 ships these sets (see [Scenario sets](scenario-sets.md) for every scenario in them):
 
-```text
-Trade
-Island
-Grocery
+| Set | Scenario types |
+|-----|----------------|
+| `HAN2026` (default) | Trade, Island, Grocery |
+| `MIT2025` | Furniture, Lease, Consulting |
+| `PieArena2026` | JobOffer, License, HomeRepair |
+| `ANL` | Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip, LaborContract, Grocery, Trade, JobOffer, Lease |
+| `ANL2010` … `ANL2026` | One set per ANL year whose domains are available: `ANL2010`, `ANL2011`, `ANL2012`, `ANL2013`, `ANL2025` and `ANL2026`. |
+| `IAGO` | Resources, Estate, Grocery |
+| `ANAC2027` | Lease, Supply, Acquisition, License, Chores, Energy, Estate, CityTrip |
+| `Custom` | The types listed in `scenario_order.txt`. |
+
+The active set is chosen by, first hit wins:
+
+1. The admin's session setting: *Scenario set* in the settings drawer, or the set picker on the start screen (admins only).
+2. The `HANI2_SCENARIO_SET` environment variable, which `hani2 --scenario-set NAME` sets.
+3. `env.json` → `negotiation` → `scenario_set`.
+4. `Custom`, when `scenario_order.txt` was changed from the bundled default.
+5. The `default` of `scenario_sets.yaml` (`HAN2026`).
+
+Set names are matched without regard to case (`anac2027` works). `hani2 sets` lists the sets, marks the active one and flags any type that has neither a generator nor a folder.
+
+### `scenario_sets.yaml`
+
+Sets are defined in `scenario_sets.yaml`. It is looked up like every other settings file: the bundled default, then the settings folder, then the active experiment. Sets in a later file are added, and a set with the same name as an earlier one replaces it. Admins can edit the file under *Texts* → *Scenario sets* in the admin console. A file that does not parse is ignored with a warning.
+
+```yaml title="scenario_sets.yaml"
+default: HAN2026
+sets:
+  HAN2026: [Trade, Island, Grocery]
+  Pilot: [Lease, Examples, Trade]   # a type can be a generator or any category folder
 ```
 
-It is looked up like every other settings file: the active experiment first, then the settings folder, then the bundled default (see [Configuration reference](configuration.md)). Admins can edit it under *Texts* in the admin console.
+### `scenario_order.txt`
+
+A plain text file with one scenario type per line; blank lines and lines starting with `#` are ignored. It defines the `Custom` set. A changed `scenario_order.txt` becomes the active set when no set is chosen explicitly, so setups made before scenario sets existed keep working. Admins can edit it under *Texts* → *Custom order*.
 
 ## The on-disk format
 
@@ -115,13 +143,25 @@ Any outcome space and utility function type that negmas can load works. HANI2 re
 
 ### Which side the participant plays
 
-The utility functions are numbered in the order negmas loads them. The participant takes index `human_index` (an admin setting, default `1`) and the opponent takes the other one. The utility function's `name` is the participant's *role*: the interface shows "You act as <role>", and the role selects role-specific texts in `_info.yaml`.
+The utility function's `name` is a *role*: the participant plays one role and the opponent the other. The interface shows "You act as <role>", and the role selects role-specific texts in `_info.yaml`. Which role the participant gets is decided by the admin setting *Participant's role* (`role_rule`, also settable in `env.json` → `negotiation`):
+
+| Rule | The participant plays |
+|------|-----------------------|
+| `auto` (default) | The scenario's suggested role (`human_role` in `_info.yaml`), else the utility function at index `human_index` (default `1`). |
+| `index` | The utility function at index `human_index`. |
+| `roles` | The first role in the admin setting *Preferred roles* (`human_roles`, e.g. `["Tenant", "Buyer"]`) that the scenario has, else as `auto`. |
+| `alternate` | The roles in turn, one negotiation after the other. |
+| `random` | A random role for each negotiation. |
+
+A role named `human` always goes to the participant, whatever the rule: such scenarios are written from the participant's point of view (issue values like `human`/`agent` and "you get …" texts refer to that role). To let participants play either side of your own scenario, name the roles after the story (`Buyer`/`Seller`) instead.
+
+negmas loads the utility functions sorted by name, so index `0` is the role that comes first alphabetically.
 
 The `reserved_value` is the participant's *value on disagreement*: the utility they get when the negotiation ends without a deal. The utility gauge marks it with a tick, and offers below it are flagged in the history.
 
 ### `_info.yaml`
 
-All fields are optional.
+All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and `_info.yaml.yml` are read too.
 
 | Field | Used for |
 |-------|----------|
@@ -131,6 +171,10 @@ All fields are optional.
 | `issue_description` | A description per issue, shown under the issue in the counter-offer editor and in the *Scenario Info* table. Either a mapping `issue: text`, or a mapping `role: {issue: text}` for role-specific descriptions. |
 | `hints` | A mapping `role: {label: value}`, shown as a *Hints* list in the *Scenario Info* tool for the participant's role only. |
 | `n_issue_columns` | The number of columns in the counter-offer editor (default `2`). |
+| `human_role` | The role a participant plays by default (see [Which side the participant plays](#which-side-the-participant-plays)). |
+| `issue_format` | A Python format string per issue for writing values in offers, e.g. `Rent: "${:,}/month"` turns `3400` into `$3,400/month`. Used by the built-in story display. |
+| `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets, and offers read "You get 2 clocks; your partner gets 1 clock". |
+| `story` | The scenario type that generated the scenario (set by the generators). |
 
 The keys of `hints` and of role-specific `issue_description` must match the utility function `name` exactly, including case.
 
@@ -170,26 +214,119 @@ class TradeOutcomeDisplay(DefaultOutcomeDisplay):
 
 `str()` receives the outcome as a tuple in issue order, the scenario, whether the negotiation is over (`is_done`) and whether the offer came from the participant (`from_human`). You can also override `table()`, which returns a list of row dictionaries.
 
-HANI2 uses the first subclass it finds in the file. A scenario's own `display.py` always wins. Scenarios without one whose outcome-space name starts with `Trade`, `Island` or `Grocery` use the built-in display for that type.
+HANI2 uses the first subclass it finds in the file. A scenario's own `display.py` always wins. Scenarios without one whose outcome-space name is (or starts with) a registered scenario type use that type's display; scenarios with an `issue_format` or `story` entry in their info use the story display, which formats values with `issue_format`.
 
 ## Built-in generators
 
-HANI2 can generate random scenarios of three types:
+HANI2 can generate random scenarios of 19 types. Each type has a fixed story: the same title, descriptions, issues and roles every time. Every call draws new utility functions (issue weights and value curves) and the hints that come from them (the most and least important issues, the ideal deal, and drawn facts such as an estimate or a power need), and redraws until the opposition level lies in the type's band, so even scenarios generated on the fly have real but not hopeless conflict.
 
-| Type | What is negotiated |
-|------|--------------------|
-| `Trade` | A buyer and a seller agree on a quantity and a unit price. Each side has a target quantity, penalties for buying or selling too little or too much, and a non-linear value for money. |
-| `Island` | Two people stranded on an island divide a set of survival items. |
-| `Grocery` | Two people who bought fruit together divide it between them. |
+| Type | What is negotiated | Sets |
+|------|--------------------|------|
+| `Trade` | A quantity and a unit price between a buyer and a seller with target quantities. | HAN2026, ANL |
+| `Island` | Who gets each of eight survival items. | HAN2026 |
+| `Grocery` | How four kinds of fruit bought together are split. | HAN2026, ANL, IAGO |
+| `Furniture` | The price, pickup and payment of a used armchair. | MIT2025 |
+| `Lease` | Rent, deposit, move-in date and lease length of an apartment. | MIT2025, ANL, ANAC2027 |
+| `Consulting` | Fee, expense budget, travel and invoicing of a summer consulting contract. | MIT2025 |
+| `JobOffer` | Salary, signing bonus, start date, location and vacation days. | PieArena2026, ANL |
+| `License` | Upfront payment, approval payment, royalty and exclusivity of a device license. | PieArena2026, ANAC2027 |
+| `HomeRepair` | Price, start, warranty and cleanup of a roof repair. | PieArena2026 |
+| `Supply` | Unit price, delivery, payment terms and returns of a parts supply contract. | ANL, ANAC2027 |
+| `Acquisition` | Price, IP, founders' equity and roles, staff terms and liability of a startup sale. | ANL, ANAC2027 |
+| `Chores` | Who does each of five chores (one flatmate, shared, or paid help). | ANL, ANAC2027 |
+| `Energy` | Power reserved in four blocks of a day and the price per kWh. | ANL, ANAC2027 |
+| `HealthFund` | A tobacco-control fund and the aid and trade terms between two countries. | ANL |
+| `UsedCar` | The price and four extras of a used car. | ANL |
+| `CityTrip` | Activity, start day, length, transport and food of a weekend visit. | ANL, ANAC2027 |
+| `LaborContract` | Pay, vacation, patrols, sergeants and the review board of a police contract. | ANL |
+| `Resources` | How five items each of four goods are split. | IAGO |
+| `Estate` | How four piles of different sizes are split between two heirs. | IAGO, ANAC2027 |
 
-Generated scenarios come with their own `_info` texts and hints, and every call draws new random preferences.
+## Writing your own scenario type
+
+A scenario type is a *generator*: a function `maker(index) -> negmas.Scenario` that HANI2 calls for every fresh scenario, registered under a type name. The easiest way to write one is a `Story` (from `hani2.scenarios.story`): you describe the issues, the roles and the texts once, and write one small function per role that draws that role's preferences.
+
+```python title="shirt.py"
+from hani2.scenarios.story import Issue, Side, Story, down, peak, up, weights
+
+PRICES = [20, 25, 30, 35, 40]
+SIZES = ["S", "M", "L", "XL"]
+
+
+def buyer(rng, ctx):
+    # The buyer wants a low price and has a size that fits best.
+    return Side(
+        values={"Price": down(PRICES, rng), "Size": peak(SIZES, rng.randrange(len(SIZES)), rng)},
+        weights=weights(rng, Price=(2, 4), Size=(1, 3)),
+    )
+
+
+def seller(rng, ctx):
+    # The seller wants a high price and has too many of the large sizes in stock.
+    return Side(
+        values={"Price": up(PRICES, rng), "Size": up(SIZES, rng)},
+        weights=weights(rng, Price=(3, 5), Size=(0.5, 1.5)),
+    )
+
+
+SHIRT = Story(
+    type="Shirt",
+    title="Shirt Sale",
+    short_description="In this scenario, a buyer and a seller negotiate the price and the size of a shirt.",
+    long_description="**The Domain** There are two issues: the price of the shirt and its size.",
+    roles={"Buyer": buyer, "Seller": seller},
+    role_descriptions={"Buyer": "the person buying the shirt", "Seller": "the shop selling it"},
+    issues=[
+        Issue("Price", PRICES, "The price of the shirt", fmt="${}"),
+        Issue("Size", SIZES, "The size of the shirt"),
+    ],
+    disagreement="Without a deal the buyer shops elsewhere.",
+    human_role="Buyer",
+)
+
+STORIES = [SHIRT]
+```
+
+- `values` gives a score to every option of every issue on any scale (each issue is rescaled to 0–1), and `weights` gives every issue an importance (normalized to sum to 1). The helpers `up`, `down`, `peak`, `scores`, `taste` and `weights` draw typical curves with random shapes.
+- `setup(rng)` may draw hidden facts both roles see through `ctx` (for example two different estimates of the same chance). `Side.hints` adds facts to that role's hints.
+- `band` (default `(0.35, 0.90)`) is the opposition range draws must hit, and `reserved` the range of reservation values.
+- The roles are stored in alphabetical order, the same order negmas loads them in, so a saved scenario reloads unchanged.
+- The long description gets the standard *Roles*, *Utility Function*, *Partner Utility Function* and *Value on Disagreement* paragraphs.
+
+### Registering it
+
+HANI2 imports scenario-type files from:
+
+- every `*.py` file in `<settings>/scenario_types/` (and `<experiment>/scenario_types/` when an experiment is active), and
+- the files or modules listed in `HANI2_SCENARIO_TYPES` (comma-separated), which `hani2 --scenario-types path/to/shirt.py` sets.
+
+A file registers its types with a module-level `STORIES` list, a `SCENARIO_TYPES` dict `{name: maker}` for plain maker functions, or calls to `hani2.scenarios.registry.register(name, maker, display)` / `register_story(story)`. Name the outcome space of your scenarios after the type, so saved scenarios find their display again. A file that fails to import is reported and skipped.
+
+Then add the type to a set in `scenario_sets.yaml`, and generate a pool if you want one:
+
+```bash
+hani2 --scenario-types shirt.py --scenario-set Pilot   # run with it
+hani2 sets                                            # check that every type is found
+HANI2_SCENARIO_TYPES=shirt.py hani2 generate -t Shirt -n 20
+```
+
+### Loading saved scenarios for a run
+
+Any folder in the format above can be served without a generator. Put it in the scenarios directory as a category (`<scenarios>/MyCase/` holding one scenario, named scenarios or a numbered pool) and list `MyCase` in a set, or point a run at a whole folder of categories:
+
+```bash
+hani2 --scenarios ./my-scenarios --scenario-set Pilot
+```
+
+with `Pilot: [MyCase, OtherCase]` in `scenario_sets.yaml` (or list the categories in `scenario_order.txt` and use the `Custom` set). `--scenarios` sets `HANI2_SCENARIOS_BASE` for this run; admins also see every category of the folder in the scenario picker on the start screen.
 
 ## Generating a pool with `hani2 generate`
 
 Pools make a study reproducible: every participant who reaches slot 7 of `Trade` gets the same scenario. `hani2 generate` writes them into the scenarios directory of the settings folder, or of the active experiment:
 
 ```bash
-hani2 generate                           # 50 scenarios of every type
+hani2 generate                           # 50 scenarios of every type in the active set
+hani2 generate --set ANAC2027 -n 20      # 20 of every type in a set
 hani2 generate --type Trade -n 20        # 20 Trade scenarios
 HANI2_EXPERIMENT=pilot hani2 generate    # into experiments/pilot/scenarios
 hani2 generate --base ./my-pool          # anywhere else
@@ -199,10 +336,11 @@ Each slot is written to `<base>/<Type>/<NNNN><Type>/` (for example `Trade/0007Tr
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `--type`, `-t` | all types | A type to generate (`Trade`, `Island` or `Grocery`). Repeat the option for several types. |
+| `--type`, `-t` | the active set | A type to generate (any registered generator). Repeat the option for several types. |
+| `--set` | the active set | Generate every type of this scenario set. |
 | `--count`, `-n` | `50` | Scenarios per type. |
 | `--base` | the scenarios directory | Where to write the pool. |
-| `--human-index` | `1` | The participant's utility function index (used for the reservation values and the cached inverse). |
+| `--human-index` | `1` | The participant's utility function index under the `auto` role rule when the scenario suggests no role (used for the reservation values). |
 | `--cache-inverter / --no-cache-inverter` | on | Save a utility inverse next to each scenario. |
 | `--rebuild-inverses` | off | Do not generate anything; only rewrite the cached inverse of every existing slot. |
 | `--min-opposition` | `0.35` | Reject scenarios whose opposition level is below this value. |
@@ -224,6 +362,6 @@ Without `--base`, the pool is written where the server reads scenarios: the expe
 
 The *Utility-based Selector* tool lists every outcome whose utility lies in a range the participant chooses. To do that it needs the inverse of the participant's utility function, which can take a moment to compute for large outcome spaces.
 
-With `--cache-inverter`, `hani2 generate` computes that inverse once and saves it as `inverter_h<human_index>.pkl` in the slot folder. The tool loads the file when it exists, checks it against the live utility function on a sample of outcomes, and recomputes when they differ or the file cannot be read. A missing or stale file is therefore always safe; it only costs time. Use `hani2 generate --rebuild-inverses` to refresh all cached inverses after you change `--human-index` or edit the utility files.
+With `--cache-inverter`, `hani2 generate` computes that inverse once for every role and saves it as `inverter_h<index>.pkl` in the slot folder. The tool loads the file when it exists, checks it against the live utility function on a sample of outcomes, and recomputes when they differ or the file cannot be read. A missing or stale file is therefore always safe; it only costs time. Use `hani2 generate --rebuild-inverses` to refresh all cached inverses after you change `--human-index` or edit the utility files.
 
-The inverse is cached for one human index only. If you change the `human_index` admin setting, regenerate the inverses with the matching `--human-index`.
+Pools generated before scenario sets existed cache the inverse for one index only; `hani2 generate --rebuild-inverses` writes the one for `--human-index`, and the tool computes any other on first use.

@@ -1,1 +1,0 @@
-import{c as e}from"./index-Ccz5NAVX.js";const r={name:"circle-arrow-up-right-exit",size:24,node:[["path",{d:"M22 12A10 10 0 1 1 12 2",key:"1fm58d"}],["path",{d:"M22 2 12 12",key:"yg2myt"}],["path",{d:"M16 2h6v6",key:"zan5cs"}]],aliases:["arrow-up-right-from-circle","circle-arrow-out-up-right"]};r.node;const a=e(r);export{r as __iconData,a as default};

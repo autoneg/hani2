@@ -1,1 +1,0 @@
-import{c as t}from"./index-Ccz5NAVX.js";const e={name:"gallery-vertical-end",size:24,node:[["path",{d:"M7 2h10",key:"nczekb"}],["path",{d:"M5 6h14",key:"u2x4p"}],["rect",{width:"18",height:"12",x:"3",y:"10",rx:"2",key:"l0tzu3"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
