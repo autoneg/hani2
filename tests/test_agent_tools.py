@@ -56,10 +56,11 @@ def test_level10_adds_its_tool_and_uses_the_selector():
     s.start()
     s.wait_for_turn()
     s.wait_agent_idle()
+    assert s.wait(lambda: any(t.name == "Deal Compass" for t in s.tools), 15)
     compass = next(t for t in s.tools if t.name == "Deal Compass")
     assert s.tool_state(compass)["added_by"] and s.snapshot()["tools"][-1]["added_by"]
     selector = next(t for t in s.tools if t.name == "Utility-based Selector")
-    assert selector.values.get("selected") == 0
+    assert s.wait(lambda: selector.values.get("selected") == 0, 15)  # the agent reacts in the background
     assert s.draft and s.utility(s.draft_outcome()) is not None
 
 
@@ -186,3 +187,46 @@ def test_new_capabilities_are_described(cap):
     from hani2.support_agent.settings import DEFAULT_CAPABILITIES
 
     assert Capability(cap) and cap in CAPABILITY_INFO and DEFAULT_CAPABILITIES[cap] is True
+
+
+def test_tools_are_not_added_twice(hani2_home):
+    s = make_session()
+    sa = s.support_agent
+    assert "Trace" not in [t.name for t in s.tools]  # appears at start
+    assert sa.add_tool("Trace")["ok"]
+    s.start()
+    s.wait_for_turn()
+    assert [t.name for t in s.tools].count("Trace") == 1
+    s.end()
+
+
+def test_list_tools_with_only_tool_use(hani2_home):
+    caps = {k: False for k in ("tool_enable", "tool_visibility", "tool_order", "tool_add")}
+    from hani2.support_agent.settings import DEFAULT_CAPABILITIES
+
+    s = make_session(support_settings={"capabilities": {**DEFAULT_CAPABILITIES, **caps}})
+    names = [f["function"]["name"] for f in s.support_agent.dispatcher.schemas()]
+    assert "list_tools" in names and "read_tool" in names and "add_tool" not in names
+
+
+class Revealer(Tool):
+    name = "Revealer"
+    timing = "agent"
+
+    def view(self):
+        if not self.values.get("show"):
+            return [ui.checkbox("show", False, label="Show options")]
+        return [ui.checkbox("show", True), ui.table([{"x": 1}, {"x": 2}], on_select="pick")]
+
+    def on_action(self, action, payload):
+        self.values["picked"] = payload["index"]
+
+
+def test_use_tool_checks_actions_after_applying_inputs(hani2_home):
+    s = make_session()
+    sa = s.support_agent
+    sa.tools = [Revealer]
+    assert sa.add_tool("Revealer")["ok"]
+    res = sa.use_tool("Revealer", inputs={"show": "true"}, action="pick", row=1)
+    assert res["ok"], res
+    assert next(t for t in s.tools if t.name == "Revealer").values["picked"] == 1

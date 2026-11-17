@@ -143,7 +143,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
 
-The agent always has `get_negotiation_state`, `show_on_board` and `list_tools`.
+The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
 Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `SupportAgent`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
@@ -377,7 +377,7 @@ class MyAgent(SupportAgent):
 |----------|-----------|------|
 | `get_negotiation_state` | none | always |
 | `show_on_board` | `content` (markdown or HTML), `append` | always |
-| `list_tools` | none (returns the tools and, with `tool_add`, `can_add`: tools it may add) | always |
+| `list_tools` | none (returns the tools and, with `tool_add`, `can_add`: tools it may add) | any of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add`, `tool_use` |
 | `send_toast` | `message`, `level` (`info`, `success`, `warning`, `error`) | `toast` |
 | `message_user` | `text`, `channel` (`chat`, `toast`, `board`) | `chat` |
 | `ask_user` | `question`, `options` | `chat` |

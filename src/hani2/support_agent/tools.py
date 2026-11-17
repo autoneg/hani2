@@ -124,6 +124,8 @@ class ToolDispatcher:
                     self.caps.has(Capability.TOOL_ENABLE)
                     or self.caps.has(Capability.TOOL_VISIBILITY)
                     or self.caps.has(Capability.TOOL_ORDER)
+                    or self.caps.has(Capability.TOOL_ADD)
+                    or self.caps.has(Capability.TOOL_USE)
                 ):
                     continue
                 names.append(name)

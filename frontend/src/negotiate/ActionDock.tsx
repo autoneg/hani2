@@ -383,7 +383,13 @@ function Intro({ st }: { st: SessionState }) {
           <div className="text-lg font-semibold">{st.round.label}</div>
           {st.scenario && (
             <p className="text-sm text-muted">
-              {st.scenario.title}. You negotiate as the <b className="text-ink">{st.scenario.role}</b>. Check your Preferences, then start.
+              {st.scenario.title}.{" "}
+              {st.scenario.role ? (
+                <>
+                  You negotiate as the <b className="text-ink">{st.scenario.role}</b>.{" "}
+                </>
+              ) : null}
+              Check your Preferences, then start.
             </p>
           )}
           {prolific && (

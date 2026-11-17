@@ -1,1 +1,0 @@
-import{c}from"./index-33iMq4rW.js";const e={name:"circle-ellipsis",size:24,node:[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M17 12h.01",key:"1m0b6t"}],["path",{d:"M12 12h.01",key:"1mp3jc"}],["path",{d:"M7 12h.01",key:"eqddd0"}]]};e.node;const i=c(e);export{e as __iconData,i as default};

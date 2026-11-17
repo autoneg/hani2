@@ -14,7 +14,8 @@ keep the original values.
     "names": {"apply": "auto", "self": "You", "opponent": "Partner"}
 
 ``apply`` is ``auto`` (relabel when the session has a support agent),
-``always`` or ``never``.
+``always`` or ``never``. Only scenarios that use these words (as issue values
+or role names) are relabelled.
 """
 
 from __future__ import annotations
@@ -45,9 +46,32 @@ def role_labels(session: "NegotiationSession") -> dict[str, str]:
         return {}
     if apply != "always" and getattr(session, "support_agent", None) is None:
         return {}
+    if not uses_side_words(session):
+        return {}
     self_label = str(cfg.get("self") or "You")
     opp_label = str(cfg.get("opponent") or "Partner")
     return {"human": self_label, "agent": opp_label}
+
+
+def uses_side_words(session: "NegotiationSession") -> bool:
+    """Whether the loaded scenario names the sides ``human`` / ``agent`` (as
+    issue values or role names). Other scenarios are left alone."""
+    scenario = getattr(session, "scenario", None)
+    if scenario is None:
+        return False
+    words = set(SIDE_WORDS)
+    try:
+        for u in scenario.ufuns:
+            if str(getattr(u, "name", "")).strip().lower() in words:
+                return True
+        for issue in scenario.outcome_space.issues:
+            if issue.is_continuous():
+                continue
+            if any(isinstance(v, str) and v.strip().lower() in words for v in issue.all):
+                return True
+    except Exception:
+        return False
+    return False
 
 
 def relabel_value(v: Any, m: dict[str, str]) -> Any:

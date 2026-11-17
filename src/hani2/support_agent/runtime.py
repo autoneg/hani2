@@ -372,11 +372,6 @@ class SupportAgent:
         for key in inputs or {}:
             if key not in controls["inputs"]:
                 return {"ok": False, "error": f"{t.name} has no input {key!r}", "inputs": sorted(controls["inputs"])}
-        if action is not None and action not in controls["actions"] and action not in controls["tables"]:
-            return {"ok": False, "error": f"{t.name} has no button or table action {action!r}",
-                    "actions": sorted(controls["actions"]) + sorted(controls["tables"])}
-        if action in controls["actions"] and controls["actions"][action].get("disabled"):
-            return {"ok": False, "error": f"the {controls['actions'][action].get('label') or action} button is disabled now"}
         sess = self.session
         results: list[Any] = []
         from hani2.naming import unlabel_value
@@ -390,6 +385,16 @@ class SupportAgent:
                 except Exception as e:  # noqa: BLE001
                     return {"ok": False, "error": f"setting {key!r} failed: {e}"}
             if action is not None:
+                if inputs:  # the new inputs may change the buttons and tables on offer
+                    with t.view_lock:
+                        controls = controls_of(list(t.view() or []))
+                if action not in controls["actions"] and action not in controls["tables"]:
+                    return {"ok": False, "error": f"{t.name} has no button or table action {action!r} now",
+                            "actions": sorted(controls["actions"]) + sorted(controls["tables"]),
+                            "text": t.describe_for_agent()}
+                if action in controls["actions"] and controls["actions"][action].get("disabled"):
+                    label = controls["actions"][action].get("label") or action
+                    return {"ok": False, "error": f"the {label} button is disabled now"}
                 data = dict(controls["actions"].get(action, {}).get("payload") or {})
                 data.update(payload or {})
                 if action in controls["tables"]:

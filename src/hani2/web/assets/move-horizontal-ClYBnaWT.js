@@ -1,1 +1,0 @@
-import{c as e}from"./index-33iMq4rW.js";const o={name:"move-horizontal",size:24,node:[["path",{d:"m18 8 4 4-4 4",key:"1ak13k"}],["path",{d:"M2 12h20",key:"9i4pu4"}],["path",{d:"m6 8-4 4 4 4",key:"15zrgr"}]]};o.node;const t=e(o);export{o as __iconData,t as default};

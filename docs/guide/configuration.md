@@ -165,7 +165,10 @@ own values, and results from sessions with and without an assistant stay compara
 | `self` | `You` | Shown instead of `human`. |
 | `opponent` | `Partner` | Shown instead of `agent`. |
 
-When relabelling applies, the header no longer says "You are the human".
+Only scenarios that use these words (as issue values or role names) are relabelled; a Buyer/Seller
+scenario is left alone. When relabelling applies, the scenario description, hints and result text
+use the new names too, and the header no longer says "You are the human". Messages the participant
+or the assistant write to the partner are sent as written.
 
 ### `tools`
 

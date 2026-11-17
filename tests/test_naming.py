@@ -63,3 +63,32 @@ def test_names_can_be_configured(hani2_home):
     env.write_text(json.dumps(data))
     s = make_session(scenario_type="Island", support_settings={"mode": "off"})
     assert s.labels == {"human": "Me", "agent": "Them"}
+
+
+def test_results_keep_the_scenarios_own_values(hani2_home):
+    import csv
+
+    s = make_session(scenario_type="Island")
+    s.start()
+    s.wait_for_turn()
+    assert s.accept()
+    assert s.wait_until_done() and s.result["status"] == "success"
+    assert "You" in (s.snapshot()["result"]["agreement_str"] or "") or "Partner" in (s.snapshot()["result"]["agreement_str"] or "") \
+        or s.snapshot()["result"]["agreement_str"]
+    rows = list(csv.DictReader(open(hani2_home / "db" / "tester" / "results.csv")))
+    agreement = rows[-1]["agreement"]
+    assert ("agent" in agreement or "human" in agreement) and "Partner" not in agreement and "You" not in agreement
+
+
+def test_only_scenarios_with_side_words_are_relabelled(hani2_home):
+    s = make_session(scenario_type="Trade")
+    assert s.support_agent is not None and s.labels == {}
+
+
+def test_scenario_info_uses_the_names(hani2_home):
+    s = make_session(scenario_type="Island")
+    info = next(t for t in s.tools if t.name == "Scenario Info")
+    text = json.dumps(s.render_tool(s.tool_state(info)["id"]))
+    import re
+
+    assert not re.search(r"\b(human|agent)\b", text.replace('"value": "agent"', "")), re.findall(r".{30}\b(?:human|agent)\b.{10}", text)[:3]

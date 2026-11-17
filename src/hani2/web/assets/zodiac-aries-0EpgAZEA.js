@@ -1,0 +1,1 @@
+import{c as e}from"./index-BN8PzCAj.js";const a={name:"zodiac-aries",size:24,node:[["path",{d:"M12 7.5a4.5 4.5 0 1 1 5 4.5",key:"k987hv"}],["path",{d:"M7 12a4.5 4.5 0 1 1 5-4.5V21",key:"mjup0w"}]]};a.node;const c=e(a);export{a as __iconData,c as default};

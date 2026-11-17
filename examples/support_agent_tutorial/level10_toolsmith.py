@@ -66,8 +66,14 @@ class ToolsmithAgent(SupportAgent):
         ufun = self.session_state.get("human_ufun")
         if offer is None or ufun is None:
             return
-        # aim a little above what the partner offers now
-        target = min(95, int(float(ufun(offer)) * 100) + 10)
-        res = self.use_tool("Utility-based Selector", inputs={"min_util": target, "width": 15}, action="pick", row=0)
-        if res.get("ok"):
-            self.show_on_board(f"I filled your offer with the best option at {target}% or more. Check it, then send.")
+        # aim a little above what the partner offers now; if no option is in that band,
+        # look in the bands above it, then below it
+        start = min(95, int(float(ufun(offer)) * 100) + 10)
+        bands = [b for b in range(start, 100, 15)] + [b for b in range(start - 15, -1, -15)]
+        for low in bands:
+            res = self.use_tool("Utility-based Selector", inputs={"min_util": low, "width": 15},
+                                action="pick", row=0)
+            if res.get("ok"):
+                self.show_on_board(f"I filled your offer with the best option between {low}% and "
+                                   f"{min(100, low + 15)}%. Check it, then send.")
+                return

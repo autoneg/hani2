@@ -105,17 +105,22 @@ class ScenarioInfoTool(Tool):
             rows.append({"Issue": issue.name, "Options": vals, "Description": d or ""})
         comps: list[ui.Component] = [
             ui.heading(info.get("title") or str(s.outcome_space.name), 3),
-            ui.row(ui.badge(f"You act as {role}", "primary")),
+            *([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
+              else [ui.row(ui.badge(f"You act as {role}", "primary"))]),
         ]
+        shown = getattr(self.session, "relabel_text", lambda t: t)
         if info.get("short_description"):
-            comps.append(ui.markdown(info["short_description"]))
+            comps.append(ui.markdown(shown(info["short_description"])))
+        for r in rows:
+            r["Options"] = shown(r["Options"])
+            r["Description"] = shown(r["Description"])
         comps.append(ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50))
         hints_all = info.get("hints") or {}
         hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
         if hints:
-            comps.append(ui.kv(hints, title="Hints"))
+            comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
         if info.get("long_description"):
-            comps.append(ui.card(ui.markdown(info["long_description"], size="sm"), title="Full description",
+            comps.append(ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
                                  collapsible=True, collapsed=True))
         return comps
 

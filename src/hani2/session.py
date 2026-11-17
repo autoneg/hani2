@@ -301,14 +301,15 @@ class NegotiationSession:
     def labels(self) -> dict[str, str]:
         """Display names for side words (``{"human": "You", "agent": "Partner"}``)
         when relabelling applies (see :mod:`hani2.naming`), else ``{}``."""
+        key = id(self.scenario)
         cached = self.__dict__.get("_labels")
-        if cached is not None:
-            return cached
+        if cached is not None and cached[0] == key:
+            return cached[1]
         from hani2.naming import role_labels
 
         m = role_labels(self)
-        if "support_agent" in self.__dict__:  # decided once the agent exists
-            self._labels = m
+        if "support_agent" in self.__dict__:  # decided once the agent exists, per scenario
+            self._labels = (key, m)
         return m
 
     def relabel(self, components: Any) -> Any:
@@ -362,6 +363,8 @@ class NegotiationSession:
         self._added_timings.add(timing)
         new = self._build_tools(self, timing)
         with self.lock:
+            present = {t.name.lower() for t in self.tools}
+            new = [(spec, tool) for spec, tool in new if tool.name.lower() not in present]
             for spec, tool in new:
                 pane = spec.pane
                 order = spec.order + (0 if spec.at_front else 1000)
@@ -1260,7 +1263,10 @@ class NegotiationSession:
             "tools": [t.name for t in self.tools],
             **({"names": "Values are shown with these names: "
                          + ", ".join(f"{v} = {'the participant' if k == 'human' else 'the opponent (partner)'}"
-                                     for k, v in self.labels.items())} if self.labels else {}),
+                                     for k, v in self.labels.items())
+                         + ". Use these names with the participant and in offers. The message to the partner is "
+                           "read by the partner, so there say who gets what in plain words (for example "
+                           "'I get the compass, you get the rope')."} if self.labels else {}),
         }
 
     def _make_actions(self) -> dict[str, Callable]:
@@ -1545,7 +1551,7 @@ class NegotiationSession:
                     name=self._scenario_name(),
                     type=(self.ss.get("scenario_info") or {}).get("scenario_type"),
                     title=info.get("title") or self._scenario_name(),
-                    short_description=info.get("short_description", ""),
+                    short_description=self.relabel_text(info.get("short_description", "")),
                     issues=self.issues_spec(),
                     n_issue_columns=int(info.get("n_issue_columns") or (3 if len(self.issues_spec()) >= 7 else 2)),
                     role="" if str(self.ss.get("human_id", "")).replace(" (You)", "").strip().lower() in self.labels
@@ -1576,7 +1582,8 @@ class NegotiationSession:
                 "reserved_value": self.reserved_value(),
                 "draft": dict(values=dict(self.draft), text=self.draft_text,
                               utility=self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None),
-                "result": self.result,
+                "result": None if self.result is None else {
+                    **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str"))},
                 "history": self.history,
                 "tools": tools,
                 "active_tabs": dict(self.active_tabs),
