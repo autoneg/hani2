@@ -1,0 +1,1 @@
+import{c as t}from"./index-EZEAS-i3.js";const e={name:"letter-t",size:24,node:[["path",{d:"M12 20V4",key:"1c7xpo"}],["path",{d:"M5 4h14",key:"12vcz2"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

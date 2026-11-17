@@ -93,3 +93,45 @@ def test_no_support_agent_driver_without_an_agent(hani2_home):
     assert resolve_driver(s, settings) != SUPPORT_AGENT_DRIVER
     only_sa = {"allowed": True, "driver": SUPPORT_AGENT_DRIVER, "allowed_drivers": [SUPPORT_AGENT_DRIVER]}
     assert resolve_driver(s, only_sa) is None
+
+
+def test_opponents_from_the_command_line_and_old_names(hani2_home, monkeypatch):
+    from hani2.session import NegotiationSession
+
+    monkeypatch.setenv("HANI2_OPPONENTS", "ConcederTBNegotiator")
+    s = NegotiationSession("o1", "alice")
+    assert [str(x).split(".")[-1] for x in s.opponent_pool()] == ["ConcederTBNegotiator"]
+    monkeypatch.delenv("HANI2_OPPONENTS")
+    monkeypatch.setenv("HANI2_AGENTS", "BoulwareTBNegotiator")  # old name still works
+    assert [str(x).split(".")[-1] for x in NegotiationSession("o2", "alice").opponent_pool()] == ["BoulwareTBNegotiator"]
+    s = NegotiationSession("o3", "alice", query={"opponents": "AspirationNegotiator"})
+    assert [str(x).split(".")[-1] for x in s.opponent_pool()] == ["AspirationNegotiator"]
+
+
+def test_old_admin_pref_names_map_to_opponent_names(hani2_home):
+    s = make_session(is_admin=True)
+    assert s.set_pref("partner_types", ["BoulwareTBNegotiator"])
+    assert s.admin_prefs["opponent_types"] == ["BoulwareTBNegotiator"]
+    assert s.set_pref("show_opponent_type", True)
+
+
+def test_cli_opponents_option(hani2_home, tmp_path, monkeypatch):
+    import json
+
+    from hani2 import cli
+
+    served = {}
+    monkeypatch.setattr(cli, "_serve", lambda *a, **k: served.setdefault("ok", True))
+    r = CliRunner().invoke(cli.app, ["--opponents", "BoulwareTBNegotiator,:template", "--no-browser"])
+    assert r.exit_code == 0, r.output
+    import os
+
+    assert os.environ["HANI2_OPPONENTS"] == "BoulwareTBNegotiator,:template" and served
+    r = CliRunner().invoke(cli.app, ["--agents", "ConcederTBNegotiator", "--no-browser"])
+    assert r.exit_code == 0 and os.environ["HANI2_OPPONENTS"] == "ConcederTBNegotiator"
+    monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
+    r = CliRunner().invoke(cli.app, ["experiment", "create", "han", "--no-support-agent", "--opponents", "BoulwareTBNegotiator"])
+    assert r.exit_code == 0, r.output
+    env = json.loads((tmp_path / "exps" / "han" / "env.json").read_text())
+    assert env["opponents"] == ["BoulwareTBNegotiator"]
+    os.environ.pop("HANI2_OPPONENTS", None)

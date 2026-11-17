@@ -143,7 +143,7 @@ function Overview() {
         {rows === null ? (
           <Loader2 className="animate-spin text-muted" />
         ) : (
-          <Renderer components={[{ type: "table", rows, columns: ["user", "mode", "phase", "round", "scenario", "partner", "connections", "idle"], searchable: true }]} ctx={{ onInput: () => {}, onAction: () => {} }} />
+          <Renderer components={[{ type: "table", rows, columns: ["user", "mode", "phase", "round", "scenario", "opponent", "support_agent", "connections", "idle"], searchable: true }]} ctx={{ onInput: () => {}, onAction: () => {} }} />
         )}
       </div>
     </>
@@ -416,13 +416,20 @@ function ServerSection({ meta }: { meta: any }) {
         <Row label="Time limit (seconds)" hint="Empty for no limit">
           <Text type="number" v={d.negotiation?.time_limit} on={(v) => set("negotiation.time_limit", v)} />
         </Row>
-        <Row label="Partner pool" hint="Negotiators and groups such as :template, :notext, :llm, :negmas, :classic">
-          <List v={d.agents} on={(v) => set("agents", v)} ph=":template" />
+        <Row label="Opponent agents" hint="The negotiators participants face: names and groups such as :template, :notext, :llm, :negmas, :classic">
+          <List
+            v={d.opponents?.length ? d.opponents : d.agents}
+            on={(v) => {
+              set("opponents", v);
+              if (d.agents?.length) set("agents", []);
+            }}
+            ph=":template"
+          />
         </Row>
         {meta && (
-          <Row label="Available groups">
+          <Row label="Available opponent groups">
             <div className="flex flex-col gap-1 text-xs text-muted">
-              {Object.entries(meta.agent_groups).map(([g, l]: any) => (
+              {Object.entries(meta.opponent_groups ?? meta.agent_groups).map(([g, l]: any) => (
                 <div key={g}>
                   <b className="text-ink">:{g}</b> {l.length} negotiators
                 </div>
@@ -477,7 +484,7 @@ function LLMSection() {
   if (!d) return <Loader2 className="animate-spin text-muted" />;
   return (
     <>
-      <H sub="Used by the LLM offer tool, message writing, offer extraction and LLM partners.">Language model</H>
+      <H sub="Used by the LLM offer tool, message writing, offer extraction and LLM opponent agents.">Language model</H>
       {status && (
         <div className={`mb-4 rounded-lg px-3 py-2 text-sm ${status.configured ? "bg-good/10 text-good" : "bg-warn/10 text-warn"}`}>
           {status.configured ? `Ready: ${status.provider} / ${status.model}` : `Not configured: set ${status.api_key_env} or use Ollama.`}
@@ -520,9 +527,9 @@ function AgentSection({ meta }: { meta: any }) {
   if (!d) return <Loader2 className="animate-spin text-muted" />;
   return (
     <>
-      <H sub="The assistant beside each participant. Participants can narrow these permissions, never widen them.">Support agent</H>
+      <H sub="The support agent (the assistant beside each participant). Participants can narrow these permissions, never widen them.">Support agent</H>
       <section className="panel px-4">
-        <Row label="Who gets the assistant">
+        <Row label="Who gets the support agent">
           <Sel v={d.mode} on={(v) => set("mode", v)} opts={[["on", "Everyone"], ["auto", "Admins only"], ["off", "Nobody"]]} />
         </Row>
         <Row label="Agent class" hint="module:Class of your own agent; empty for the built-in one">

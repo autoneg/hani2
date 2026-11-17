@@ -15,7 +15,7 @@ def hani2_home(tmp_path, monkeypatch):
     """Every test gets its own empty HANI2 home (settings, results, events)."""
     monkeypatch.setenv("HANI2_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("HANI2_EVENTS", "1")
-    for var in ("HANI2_SUPPORT_AGENT", "HANI2_AGENTS", "HANI2_EXPERIMENT", "PROLIFIC_N_REQUIRED", "HANI2_PER_NEG_YAML"):
+    for var in ("HANI2_SUPPORT_AGENT", "HANI2_SUPPORT_AGENT_CLASS", "HANI2_OPPONENTS", "HANI2_AGENTS", "HANI2_EXPERIMENT", "PROLIFIC_N_REQUIRED", "HANI2_PER_NEG_YAML"):
         monkeypatch.delenv(var, raising=False)
     return tmp_path / "home"
 

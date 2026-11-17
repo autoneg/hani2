@@ -611,7 +611,8 @@ def admin_meta(_: str = Depends(require_admin)):
     from hani2.tools.registry import tool_specs
 
     return {
-        "agent_groups": {k: list(v) for k, v in SELECTABLE_GROUPS.items()},
+        "opponent_groups": {k: list(v) for k, v in SELECTABLE_GROUPS.items()},
+        "agent_groups": {k: list(v) for k, v in SELECTABLE_GROUPS.items()},  # old name
         "scenario_types": store.available_types(),
         "scenarios": {t: store.list_scenarios(t) for t in store.available_types()},
         "tools": [dict(name=s.name, pane=s.pane, timing=s.timing, enabled=s.enabled, admin_only=s.admin_only,
@@ -717,7 +718,7 @@ def admin_sessions(_: str = Depends(require_admin)):
     for sid, s in list(hub.sessions.items()):
         out.append(dict(sid=sid, user=s.user, mode=s.mode, phase=s.phase, round=s.round_number,
                         connections=hub.n_connections(sid), idle=round(time.time() - s.last_seen),
-                        partner=s.ss.get("last_partner_type"), scenario=s._scenario_name()))
+                        opponent=s.ss.get("last_partner_type"), support_agent=type(s.support_agent).__name__ if s.support_agent is not None else "none", scenario=s._scenario_name()))
     return out
 
 

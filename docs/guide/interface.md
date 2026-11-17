@@ -25,7 +25,7 @@ From left to right the header shows:
 - the **Assistant** button, when a support agent is attached to the session. Its dot is green when the assistant is on, amber while it works and grey when it is off;
 - the layout menu, the settings button, the theme button (system, light, dark), and the account menu with your name, a link to **Administration** for admins, and **Log out** on `/app`.
 
-The partner's name appears when the session is in admin mode or when the admin setting `show_partner_type` is on.
+The partner's (opponent agent's) name appears when the session is in admin mode or when the admin setting `show_opponent_type` is on.
 
 ## Layout views
 

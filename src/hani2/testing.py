@@ -110,7 +110,7 @@ def make_session(
     os.environ.setdefault("HANI2_EVENTS", "0")
     q = dict(query or {})
     if partner:
-        q.setdefault("agents", partner)
+        q.setdefault("opponents", partner)
 
     from hani2.support_agent import runtime
     from hani2.support_agent.settings import load_support_agent_settings

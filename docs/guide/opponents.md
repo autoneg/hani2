@@ -1,5 +1,12 @@
 # Opponents
 
+!!! note "Two kinds of agents"
+    HANI2 has two kinds of agents. The **opponent agent** negotiates *against* the participant; it is
+    chosen with `--opponents`, `HANI2_OPPONENTS`, `?opponents=` and `opponents` in `env.json`. The
+    **support agent** helps the participant; it is chosen with `--support-agent` (see
+    [Support agent](support-agent.md)). Participants see the opponent agent as their *partner*.
+    The older names `--agents`, `HANI2_AGENTS`, `?agents=` and `agents` still work.
+
 Every negotiation pairs the participant with one automated opponent (the *partner*). HANI2 picks it from a *pool* of agent specs when the negotiation starts. This page explains how specs are written, how the pool is chosen and what HANI2 does to the opponent before it plays.
 
 ## Agent specs
@@ -84,30 +91,30 @@ A group file takes priority over a negmas class with the same bare name.
 
 When a negotiation starts, HANI2 builds the pool from the first source in this list that yields at least one agent:
 
-1. The query string of the page: `?agents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
-2. The `--agents` option of `hani2` (stored in the `HANI2_AGENTS` environment variable).
+1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
+2. The `--opponents` option of `hani2` (stored in the `HANI2_OPPONENTS` environment variable).
 3. The per-session *Partner types* setting in the admin settings drawer.
-4. The `agents` list in `env.json`, also editable as *Partner pool* in the admin console.
+4. The `opponents` list in `env.json`, also editable as *Opponent agents* in the admin console.
 5. The default pool: the four template-based talking negotiators (`:template`).
 
 The default needs no language model, so a casual visitor never causes LLM costs.
 
 ```bash
 # Everyone negotiates against conceder and boulware agents
-hani2 --agents BoulwareTBNegotiator,ConcederTBNegotiator
+hani2 --opponents BoulwareTBNegotiator,ConcederTBNegotiator
 
 # Mix groups and single agents
-hani2 --agents ":notext,helpers.AgentK"
+hani2 --opponents ":notext,helpers.AgentK"
 ```
 
 ```text
-http://localhost:5006/play?agents=LLMHybridNegotiator
+http://localhost:5006/play?opponents=LLMHybridNegotiator
 http://localhost:5006/play?group=finalists
 ```
 
 ```json
 {
-  "agents": [":template", "helpers.HardHeaded"]
+  "opponents": [":template", "helpers.HardHeaded"]
 }
 ```
 
@@ -166,7 +173,7 @@ class Stubborn(AspirationNegotiator):
 ```
 
 ```bash
-hani2 --agents file:agents/stubborn.Stubborn
+hani2 --opponents file:agents/stubborn.Stubborn
 ```
 
 Opponents that send messages put the text in the `data` of their response under the `text` key, as the negmas-llm negotiators do. HANI2 shows that text in the negotiation history.

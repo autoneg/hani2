@@ -67,7 +67,7 @@ The main deployment configuration.
       "google": {"enabled": false, "key": "", "secret": ""}
     }
   },
-  "agents": [],
+  "opponents": [],
   "negotiation": {"n_steps": 100, "time_limit": 300},
   "playground": {"enabled": true},
   "tools": {"extra": [], "disabled": [], "overrides": {}}
@@ -103,9 +103,9 @@ The main deployment configuration.
 
 See [Authentication](authentication.md).
 
-### `agents`
+### `opponents`
 
-A list of opponent specs and group tokens that form the default opponent pool, for example `["AspirationNegotiator", ":template"]`. Empty means the built-in default pool. It has lower precedence than the `?agents=`/`?group=` URL parameters, `--agents`/`HANI2_AGENTS` and the admin session setting `partner_types`. See [Opponents](opponents.md).
+A list of opponent specs and group tokens that form the default opponent pool, for example `["AspirationNegotiator", ":template"]`. Empty means the built-in default pool. It has lower precedence than the `?opponents=`/`?group=` URL parameters, `--opponents`/`HANI2_OPPONENTS` and the admin session setting `opponent_types`. The older key `agents` is still read when `opponents` is empty. See [Opponents](opponents.md).
 
 ### `negotiation`
 
@@ -135,8 +135,8 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `generate_on_failure` | `true` | Generate a scenario when none can be loaded. |
 | `predefined_order` | `true` | Present scenario categories in the order of `scenario_order.txt`. Always off in the playground. |
 | `allow_scenario_selection` | `false` | Let non-admins pick the scenario. |
-| `show_partner_type` | `false` | Show the opponent's type. Always on for admins. |
-| `partner_types` | `[]` | Opponent pool for this session. |
+| `show_opponent_type` | `false` | Show the opponent agent's type. Always on for admins. (Old name: `show_partner_type`.) |
+| `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
 
 The Prolific flow overrides some of these per round (for example the time limits). See [Prolific](prolific.md).
 
@@ -241,7 +241,8 @@ See [Autopilot](autopilot.md).
 | `HANI2_HOME` | `~/negmas/hani2` | Root folder for settings, results and experiments. |
 | `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments. |
 | `HANI2_EXPERIMENT` | none | Name of the active experiment. Set by `--experiment`. |
-| `HANI2_AGENTS` | none | Opponent pool (comma-separated specs and group tokens). Set by `--agents`. |
+| `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
+| `HANI2_SUPPORT_AGENT_CLASS` | none | Support-agent class for everyone. Set by `--support-agent <class>`. |
 | `HANI2_SUPPORT_AGENT` | none | `on`, `off` or `auto`; overrides `mode` in `support_agent_settings.json`. Set by `--support-agent`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
@@ -262,7 +263,7 @@ See [Autopilot](autopilot.md).
 | `PROLIFIC_AUTO_LOAD_WARN_SECONDS` | `15` | When to warn before an automatic load. |
 | `PROLIFIC_MAX_MINUTES` | `45` | Expected maximum study duration in minutes, recorded with the participant's study metadata. |
 | `PROLIFIC_FINALISTS` | none | Opponent pool for counted rounds. Empty: the normal opponent pool. |
-| `PROLIFIC_PRACTICE_AGENTS` | `:pan` | Opponent pool for the practice round. |
+| `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Opponent agents for the practice round (old name `PROLIFIC_PRACTICE_AGENTS`). |
 | `PROLIFIC_PER_NEG_YAML` | none | Same as `HANI2_PER_NEG_YAML`, checked second. |
 | `PROLIFIC_COMPLETION_URL` | none | Completion link; `{pid}` is replaced by the participant's ID. |
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the default completion link. |

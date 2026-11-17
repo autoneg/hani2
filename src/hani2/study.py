@@ -282,7 +282,7 @@ class ProlificStudy(Study):
     def finalists(self) -> list[str]:
         raw = os.environ.get("PROLIFIC_FINALISTS", "")
         pool = expand_agents(raw) if raw.strip() else []
-        return pool or list(self.session.partner_pool())
+        return pool or list(self.session.opponent_pool())
 
     def _rotation_offset(self) -> int:
         try:
@@ -312,7 +312,7 @@ class ProlificStudy(Study):
             idx = store.next_index(self.user_path)
         partner = None
         if practice:
-            practice_pool = expand_agents(os.environ.get("PROLIFIC_PRACTICE_AGENTS", ":pan")) or self.session.partner_pool()
+            practice_pool = expand_agents(os.environ.get("PROLIFIC_PRACTICE_OPPONENTS") or os.environ.get("PROLIFIC_PRACTICE_AGENTS", ":pan")) or self.session.opponent_pool()
             partner = random.choice(practice_pool)
         else:
             want = entry.get("agent_class_name")

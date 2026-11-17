@@ -78,9 +78,12 @@ ADMIN_PREFS: dict[str, Any] = {
     "generate_on_failure": True,
     "predefined_order": True,
     "allow_scenario_selection": False,
-    "show_partner_type": False,
-    "partner_types": [],
+    "show_opponent_type": False,
+    "opponent_types": [],
 }
+
+# old names of admin preferences, still accepted
+PREF_ALIASES = {"partner_types": "opponent_types", "show_partner_type": "show_opponent_type"}
 
 
 class HumanPlaceholder(SAONegotiator):
@@ -161,10 +164,12 @@ class NegotiationSession:
 
         self.prefs: dict[str, Any] = dict(USER_PREFS)
         self.admin_prefs: dict[str, Any] = dict(ADMIN_PREFS)
-        self.admin_prefs.update(get_env("negotiation", {}) or {})
+        self.admin_prefs.update(
+            {PREF_ALIASES.get(k, k): v for k, v in (get_env("negotiation", {}) or {}).items()}
+        )
         if self.is_admin:
             self.admin_prefs["time_limit"] = None
-            self.admin_prefs["show_partner_type"] = True
+            self.admin_prefs["show_opponent_type"] = True
         if mode == "guest":
             self.admin_prefs["load_existing"] = str(self.query.get("load_existing", "")).strip().lower() in ("1", "true", "yes", "on")
             self.admin_prefs["predefined_order"] = False
@@ -406,6 +411,7 @@ class NegotiationSession:
     # Preferences                                                         #
     # ------------------------------------------------------------------ #
     def set_pref(self, key: str, value: Any) -> bool:
+        key = PREF_ALIASES.get(key, key)
         with self.lock:
             if key in USER_PREFS:
                 self.prefs[key] = value
@@ -490,20 +496,27 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # Opponents                                                           #
     # ------------------------------------------------------------------ #
-    def partner_pool(self) -> list:
+    def opponent_pool(self) -> list:
+        """The opponents this session may face, first match wins: the page's
+        ``?opponents=`` / ``?group=``, ``hani2 --opponents`` (``HANI2_OPPONENTS``),
+        the admin session setting ``opponent_types``, ``opponents`` in env.json,
+        else the built-in default pool. Old names (``?agents=``,
+        ``HANI2_AGENTS``, ``agents``) are still read."""
         override = session_agent_override(self.query)
         if override:
             return override
-        cmdline = (os.environ.get("HANI2_AGENTS") or "").strip()
+        cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
         if cmdline:
             pool = expand_agents(cmdline)
             if pool:
                 return pool
-        pool = expand_agents(self.admin_prefs.get("partner_types") or [])
+        pool = expand_agents(self.admin_prefs.get("opponent_types") or [])
         if pool:
             return pool
-        pool = expand_agents(get_env("agents", []) or [])
+        pool = expand_agents(get_env("opponents", []) or get_env("agents", []) or [])
         return pool or list(DEFAULT_POOL)
+
+    partner_pool = opponent_pool  # old name
 
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}
@@ -511,7 +524,7 @@ class NegotiationSession:
             return plan["partner"]
         if self.admin_mode and self.next_opponent:
             return self.next_opponent
-        return random.choice(self.partner_pool())
+        return random.choice(self.opponent_pool())
 
     # ------------------------------------------------------------------ #
     # Starting a negotiation                                              #
@@ -1318,7 +1331,7 @@ class NegotiationSession:
             partner = self.partner_offer()
             pdata = self.partner_data()
             draft_t = self.draft_outcome()
-            show_partner = self.admin_mode or bool(self.admin_prefs.get("show_partner_type"))
+            show_partner = self.admin_mode or bool(self.admin_prefs.get("show_opponent_type"))
             tools = []
             for t in self.tools:
                 s = self.tool_state(t)

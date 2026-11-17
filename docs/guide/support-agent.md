@@ -61,9 +61,12 @@ into the `HANI2_SUPPORT_AGENT_CLASS` environment variable, which overrides `agen
 
 To keep a competition's choice with its data, make it part of an experiment:
 
+Combine it with `--opponents` to choose the opponent agents the participants face (see
+[Opponents](opponents.md)), for example `hani2 --no-support-agent --opponents :template`.
+
 ```bash
-hani2 experiment create han-2027 --no-support-agent --no-webmcp
-hani2 experiment create hi-2027 --support-agent submissions/team_a.py:TeamAgent
+hani2 experiment create han-2027 --no-support-agent --no-webmcp --opponents :template
+hani2 experiment create hi-2027 --support-agent submissions/team_a.py:TeamAgent --opponents BoulwareTBNegotiator
 hani2 --experiment han-2027     # or: hani2 --experiment hi-2027
 ```
 

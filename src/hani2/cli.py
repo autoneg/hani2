@@ -75,6 +75,18 @@ def _apply_support_agent_choice(value: Optional[str]) -> None:
         os.environ["HANI2_SUPPORT_AGENT_CLASS"] = klass
 
 
+def _check_opponents(value: str) -> None:
+    """Fail early when the opponent list resolves to no negotiator."""
+    from hani2.agents import expand_agents
+
+    try:
+        pool = expand_agents(value)
+    except Exception as e:  # noqa: BLE001
+        raise typer.BadParameter(f"cannot read {value!r}: {e}", param_hint="--opponents") from None
+    if not pool:
+        raise typer.BadParameter(f"{value!r} names no opponent agent", param_hint="--opponents")
+
+
 def _check_support_agent_class(klass: str) -> None:
     from hani2.support_agent.runtime import SupportAgent, load_class
 
@@ -91,7 +103,8 @@ def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
-    agents: Annotated[Optional[str], typer.Option(help="Opponent pool: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan).")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
+    agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
@@ -107,11 +120,15 @@ def main(
         raise typer.Exit()
     if experiment:
         os.environ["HANI2_EXPERIMENT"] = experiment
+    if agents and not opponents:
+        typer.echo("note: --agents is now --opponents", err=True)
+        opponents = agents
+    if opponents:
+        _check_opponents(opponents)
+        os.environ["HANI2_OPPONENTS"] = opponents
+    _apply_support_agent_choice("off" if no_support_agent else support_agent)
     if ctx.invoked_subcommand is not None:
         return
-    if agents:
-        os.environ["HANI2_AGENTS"] = agents
-    _apply_support_agent_choice("off" if no_support_agent else support_agent)
     if verbose:
         os.environ["HANI2_VERBOSE"] = "1"
     _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev)
@@ -143,6 +160,11 @@ def info():
     typer.echo(f"experiment      {experiment_dir() or '-'}")
     typer.echo(f"auth mode       {auth_mode()}  (oauth: {', '.join(oauth_providers()) or 'none'})")
     typer.echo(f"support agent   {support_agent_mode()}")
+    opp = os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS")
+    from hani2.config import get_env
+
+    opp = opp or ", ".join(get_env("opponents", []) or get_env("agents", []) or []) or "built-in default pool"
+    typer.echo(f"opponents       {opp}")
 
 
 @app.command()
@@ -178,6 +200,7 @@ def experiment_create(
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run this experiment without a support agent (e.g. a competition).")] = False,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent for this experiment: on, off, auto, or a class (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) for this experiment: comma-separated negotiators and/or groups.")] = None,
 ):
     """Scaffold a self-contained experiment folder."""
     from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, experiments_root, get_settings_file, scenarios_dir
@@ -221,12 +244,17 @@ def experiment_create(
             typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
         else:
             typer.echo(f"  support agent: {mode}{' using ' + klass if klass else ''} (support_agent_settings.json)")
-    if no_webmcp:
+    if no_webmcp or opponents:
         envf = exp / "env.json"
         env = _json.loads(envf.read_text()) if envf.exists() else {}
-        env["webmcp"] = {"enabled": False}
+        if no_webmcp:
+            env["webmcp"] = {"enabled": False}
+            typer.echo("  WebMCP: off (env.json)")
+        if opponents:
+            _check_opponents(opponents)
+            env["opponents"] = [o.strip() for o in opponents.split(",") if o.strip()]
+            typer.echo(f"  opponents: {', '.join(env['opponents'])} (env.json)")
         envf.write_text(_json.dumps(env, indent=2))
-        typer.echo("  WebMCP: off (env.json)")
     typer.echo(f"Created experiment at {exp}")
     typer.echo(f"Run it with:  hani2 --experiment {name}")
 

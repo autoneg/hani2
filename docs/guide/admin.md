@@ -95,7 +95,7 @@ Edits `env.json`.
 | --- | --- |
 | Rounds | `negotiation.n_steps` |
 | Time limit (seconds), empty for none | `negotiation.time_limit` |
-| Partner pool, comma separated | `agents` |
+| Opponent agents, comma separated | `opponents` |
 
 Under the partner pool, **Available groups** lists the opponent groups and how many negotiators each contains. See [Opponents](opponents.md).
 
@@ -189,8 +189,8 @@ The gear button opens the settings drawer. Below the display settings, administr
 | Scenarios and partners | Use saved scenario pools (off: generate a fresh scenario each time) | `load_existing` | on (off in the playground) |
 | | Follow the scenario order | `predefined_order` | on (off in the playground) |
 | | Participants may choose the scenario | `allow_scenario_selection` | off |
-| | Show the partner's type | `show_partner_type` | off (on for admins) |
-| | Partner pool (comma separated) | `partner_types` | empty |
+| | Show the opponent agent's type | `show_opponent_type` | off (on for admins) |
+| | Opponent agents (comma separated) | `opponent_types` | empty |
 | Tools | Tools can be switched on and off | `allow_tool_switch` | on |
 | | Tools can be moved between panes | `allow_moving_tools` | on |
 

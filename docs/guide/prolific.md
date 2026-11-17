@@ -22,7 +22,7 @@ What changes for a URL with a Prolific ID:
 
 ## The study flow
 
-1. **Practice round.** The first negotiation is a practice round. It does not count. The opponent comes from `PROLIFIC_PRACTICE_AGENTS` and cannot end the negotiation itself (see [Opponents](opponents.md)). The time limit is `PROLIFIC_PRACTICE_TIME_LIMIT`.
+1. **Practice round.** The first negotiation is a practice round. It does not count. The opponent comes from `PROLIFIC_PRACTICE_OPPONENTS` and cannot end the negotiation itself (see [Opponents](opponents.md)). The time limit is `PROLIFIC_PRACTICE_TIME_LIMIT`.
 2. **Counted rounds.** Then come `PROLIFIC_N_REQUIRED` counted negotiations, each with the time limit `PROLIFIC_COUNTED_TIME_LIMIT`.
 3. **Questionnaire.** If a per-negotiation questionnaire is configured, it follows each round (see below).
 4. **Completion.** When the last counted round is done, the participant sees *You're all done* and a *Finish and submit* button that opens the completion URL in the top window.
@@ -43,8 +43,8 @@ The questionnaire configured for the study (see [Studies and results](studies.md
 
 - **Scenario type.** Each participant is assigned one scenario type from `scenario_order.txt`, based on a hash of their Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
 - **Scenario slot.** Each round uses the next slot of that type's pool (the participant's counter in `last_scenario.txt`). Prolific rounds always use the saved pools.
-- **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_AGENTS` (default `:pan`). If that list resolves to no agents, HANI2 uses the normal partner pool.
-- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal partner pool when it is unset, and rotates through them: round *k* uses agent `(offset + k) mod n`. Each new participant gets the next offset, so participants start at different opponents and the agents are spread evenly across participants.
+- **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_OPPONENTS` (default `:pan`; the old name `PROLIFIC_PRACTICE_AGENTS` also works). If that list resolves to no agents, HANI2 uses the normal opponent pool.
+- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset, and rotates through them: round *k* uses agent `(offset + k) mod n`. Each new participant gets the next offset, so participants start at different opponents and the agents are spread evenly across participants.
 
 ### Schedules
 
@@ -98,7 +98,7 @@ All Prolific settings are environment variables, read when a Prolific session is
 | `PROLIFIC_AUTO_LOAD_PRACTICE_SECONDS` | `60` | The same, when the practice round must be repeated. |
 | `PROLIFIC_AUTO_LOAD_WARN_SECONDS` | `15` | How long before an auto-load the warning appears. |
 | `PROLIFIC_MAX_MINUTES` | `45` | Recorded in `prolific_session.json` and sent to the browser. HANI2 does not enforce it. |
-| `PROLIFIC_PRACTICE_AGENTS` | `:pan` | Comma-separated specs for the practice opponent. |
+| `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Comma-separated specs for the practice opponent. |
 | `PROLIFIC_FINALISTS` | the partner pool | Comma-separated specs for the counted opponents. |
 | `PROLIFIC_PER_NEG_YAML` | none | A questionnaire file (used when `HANI2_PER_NEG_YAML` is not set). |
 | `PROLIFIC_COMPLETION_URL` | none | The completion URL. `{pid}` is replaced by the Prolific ID. |
@@ -134,7 +134,7 @@ Run a short study on your own machine:
 ```bash
 hani2 experiment create pilot
 export PROLIFIC_N_REQUIRED=2
-export PROLIFIC_PRACTICE_AGENTS=LinearTBNegotiator
+export PROLIFIC_PRACTICE_OPPONENTS=LinearTBNegotiator
 export PROLIFIC_FINALISTS=BoulwareTBNegotiator,ConcederTBNegotiator
 export PROLIFIC_COMPLETION_URL="https://example.org/done?pid={pid}"
 hani2 --experiment pilot --page play --no-browser

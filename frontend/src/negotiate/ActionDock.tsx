@@ -316,7 +316,7 @@ function AdminPickers({ st }: { st: SessionState }) {
   const agents: string[] = useMemo(() => {
     if (!meta) return [];
     const all = new Set<string>();
-    Object.values(meta.agent_groups as Record<string, string[]>).forEach((g) => g.forEach((a) => all.add(a)));
+    Object.values((meta.opponent_groups ?? meta.agent_groups) as Record<string, string[]>).forEach((g) => g.forEach((a) => all.add(a)));
     return Array.from(all);
   }, [meta]);
   return (

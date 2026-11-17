@@ -114,18 +114,18 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
               <Toggle label="Start the editor from my last offer" value={a.init_with_last} onChange={(v) => setP("init_with_last", v)} />
               <Toggle label="Otherwise start from my best outcome" value={a.init_with_best} onChange={(v) => setP("init_with_best", v)} />
             </Section>
-            <Section title="Scenarios and partners">
+            <Section title="Scenarios and opponents">
               <Toggle label="Use saved scenario pools" hint="Off: generate a fresh scenario each time" value={a.load_existing} onChange={(v) => setP("load_existing", v)} />
               <Toggle label="Follow the scenario order" value={a.predefined_order} onChange={(v) => setP("predefined_order", v)} />
               <Toggle label="Participants may choose the scenario" value={a.allow_scenario_selection} onChange={(v) => setP("allow_scenario_selection", v)} />
-              <Toggle label="Show the partner's type" value={a.show_partner_type} onChange={(v) => setP("show_partner_type", v)} />
+              <Toggle label="Show the opponent agent's type" value={a.show_opponent_type} onChange={(v) => setP("show_opponent_type", v)} />
               <label className="block py-2">
-                <div className="mb-1 text-sm">Partner pool</div>
+                <div className="mb-1 text-sm">Opponent agents</div>
                 <input
                   className="field"
-                  defaultValue={(a.partner_types || []).join(", ")}
+                  defaultValue={(a.opponent_types || []).join(", ")}
                   placeholder=":template, BoulwareTBNegotiator, …"
-                  onBlur={(e) => setP("partner_types", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))}
+                  onBlur={(e) => setP("opponent_types", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))}
                 />
               </label>
             </Section>

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(hani2_home, monkeypatch):
-    monkeypatch.setenv("HANI2_AGENTS", "BoulwareTBNegotiator")
+    monkeypatch.setenv("HANI2_OPPONENTS", "BoulwareTBNegotiator")
     from hani2.server import app, hub
 
     hub.sessions.clear()

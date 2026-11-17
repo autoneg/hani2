@@ -134,8 +134,8 @@ NOTEXT_NEGOTIATORS = [
 
 
 # --- Selectable agent groups -------------------------------------------------
-# Used by the launch option (--agents / HANI2_AGENTS), and per browser session
-# via the ?agents= / ?group= query args (so the HAN "playground" link and an
+# Used by the launch option (--opponents / HANI2_OPPONENTS), and per browser session
+# via the ?opponents= (old: ?agents=) / ?group= query args (so the HAN "playground" link and an
 # admin launcher can pick the opponent pool without restarting the server).
 #
 # The server stays a STANDALONE tool: it resolves its own built-in group tokens
@@ -330,8 +330,9 @@ def _prime_group_syspaths() -> None:
 
 
 def session_agent_override(args: dict[str, Any] | None) -> "list | None":
-    """Per-session opponent-pool override from the query string: ``?agents=``
-    (csv of specs/tokens) takes precedence over ``?group=<key>``."""
+    """Per-session opponent-pool override from the query string: ``?opponents=``
+    (csv of specs/tokens; ``?agents=`` is the old name) takes precedence over
+    ``?group=<key>``."""
     args = args or {}
 
     def _val(name):
@@ -343,7 +344,7 @@ def session_agent_override(args: dict[str, Any] | None) -> "list | None":
             v = v.decode()
         return str(v).strip()
 
-    agents = _val("agents")
+    agents = _val("opponents") or _val("agents")
     if agents:
         specs = _expand_agent_items([s for s in agents.split(",") if s.strip()])
         if specs:
