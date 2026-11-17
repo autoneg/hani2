@@ -2,20 +2,40 @@
 
 ## 0.1.0 (2026-11-17)
 
-First release.
+First release. See [Features](features.md) for the full list with links.
 
-- **Server and web app.** A FastAPI server and a React single-page app shipped pre-built in the wheel. One port serves the logged-in app (`/app`), the no-login playground (`/play`), the admin console (`/admin`) and the API. Negotiations update live over a WebSocket.
-- **Negotiation desk.** The partner's offer on the table, a counter-offer editor with per-issue fields, utility gauges with a no-deal marker, a history thread with messages, confirmation dialogs for accepting and ending, three layouts (full, simple, focus) and a mobile layout.
-- **Tools.** Twelve built-in tools (preferences, scenario info, utility and outcome plots, value histograms, trace, utility-based offer selector, random offers, results, the opponent's preferences for admins, and an LLM offer writer for admins), arranged in upper, lower and side panes. Tools are Python classes with a declarative component API (`hani2.tools.ui`) and can be added through `env.json` or a `hani2.tools` entry point.
-- **Support agent.** An LLM assistant that chats, keeps a status board, fills and sends offers, accepts or ends with confirmation, controls tools, highlights and annotates the interface, changes the layout and shows its own interactive panels. Sixteen capabilities and three autonomy levels, granted by the admin and narrowed by each participant. Subclass `SupportAgent` to write your own.
-- **Autopilot.** The support agent or any negotiator can play the human's seat.
-- **Opponents.** Any negmas, Genius or negmas-llm negotiator, group tokens, group files and per-link pools.
-- **Scenarios.** On-disk scenario categories and pools, the built-in Trade, Island and Grocery generators and `hani2 generate`.
-- **Studies.** Experiments with their own settings and results, per-negotiation questionnaires, results CSV files, an SQLite event log with analytics, and a Prolific flow with practice rounds and completion links.
-- **Authentication.** Password, GitHub and Google OAuth, both, or none; consent enforcement; PBKDF2 password hashes; `hani2 users`.
-- **Language models.** Any litellm provider for the assistant and LLM opponents, local models through Ollama, editable prompt templates and per-negotiation LLM call logs.
-- **Layout control.** Drag the dividers between panes to resize them (kept in the session and settable by the support agent); enlarge any tool into a large window or the full screen and put it back where it came from; your own preferences come into view when a negotiation starts.
-- **Competitions.** `hani2 --no-support-agent` for the Human-Agent Negotiation competition, `hani2 --support-agent <class or file.py:Class>` to give every participant a submitted assistant for the Hybrid Intelligence competition, and the same choices for `hani2 experiment create`. Opponent agents are chosen with `--opponents` (`HANI2_OPPONENTS`, `?opponents=`, `opponents` in `env.json`), clearly separate from the support agent; the old `agents` names still work.
-- **Agents and tools.** The support agent finds the participant's tools, reads them as text and operates their inputs and buttons (within its own permissions), and adds tools while the session runs: its own (`SupportAgent.tools`), a `toolbox` setting, or tools with `timing = "agent"`. `hani2 --tools` loads submitted tool files. Tutorial level 10 shows an agent that brings and uses tools.
-- **Clear names.** With a support agent present, scenario values `human` and `agent` are shown as *You* and *Partner* everywhere the participant and the assistant look (configurable with `names` in `env.json`); stored results keep the original values.
-- **Testing.** `hani2.testing.make_session` runs a full session without a browser for testing tools and agents.
+**Platform**
+
+- A FastAPI server and a React web app shipped pre-built in the wheel; one port serves the logged-in app (`/app`), the playground (`/play`), the admin console (`/admin`) and the API, with live updates over a WebSocket.
+- `pip install hani2` on Python 3.11 to 3.15 (Linux, macOS, Windows).
+- Tools are computed only when visible, in their own worker threads; charts draw when the browser is idle.
+
+**Participants**
+
+- Negotiation desk: offer on the table, counter-offer editor (three columns for large scenarios), gauges with a no-deal marker, a conversation-style history, confirmation dialogs.
+- Full, simple and focus views; drag-to-resize panes; enlarge any tool into a window or the full screen and put it back; tablet (landscape and portrait) and phone layouts.
+- Your Preferences tool comes into view when a negotiation starts.
+- With an assistant present, `human` / `agent` scenario values are shown as *You* / *Partner* (`names` in `env.json`); stored results keep the original values.
+
+**Tools**
+
+- Thirteen built-in tools, including the Negotiation Plot (Pareto frontier, Nash and Kalai points) and Opponent Preferences; admins can open admin-only tools to everyone.
+- Preferences views for most negmas utility-function types, extensible by registration.
+- Tools are Python classes with a declarative component API (`hani2.tools.ui`), registered in `env.json`, with `hani2 --tools`, or through the `hani2.tools` entry point; `timing = "agent"` for tools only a support agent adds.
+
+**Support agent**
+
+- Chat, status board, notifications, highlights and notes, layout control, custom panels, filling and sending offers, accepting and ending; sixteen capabilities and three autonomy levels.
+- Finds, reads and uses the participant's tools, and adds tools during the session (`SupportAgent.tools`, the `toolbox` setting, registered tools); tool actions follow the agent's own permissions.
+- Ten tutorial levels, from an echo bot to an agent that brings and uses tools.
+- Autopilot: the support agent or any negotiator plays the human's seat.
+
+**Competitions and studies**
+
+- `--no-support-agent` (Human-Agent Negotiation), `--support-agent on|off|auto|<class or file.py:Class>` (Hybrid Intelligence), `--opponents`, `--tools`, and the same choices for `hani2 experiment create`.
+- Experiments, per-negotiation questionnaires, results CSV files (with the layout used), an SQLite event log with analytics, and a Prolific flow with practice rounds and completion links.
+- Opponents from negmas, Genius and negmas-llm, group tokens, group files and per-link pools.
+- Password, GitHub and Google login, or none; consent forms; `hani2 users`.
+- Any litellm provider or Ollama for the assistant and LLM opponents.
+- WebMCP tools for browser AI agents.
+- `hani2.testing.make_session` for headless tests of tools and agents.

@@ -8,17 +8,19 @@ HANI2 is a Python package with a FastAPI backend and a React frontend that ships
 
 ## Features
 
-- **Negotiation desk.** The partner's offer is on the table with its value to you. You accept it, send a counter-offer with an optional message, or end the negotiation; accepting and ending ask for confirmation. Utility gauges show what each offer is worth, with a tick at your no-deal value, and the history reads like a conversation. Three layouts (full, simple, focus) and a phone layout.
-- **Tools.** Preferences, scenario information, utility and outcome plots, value histograms, the offer trace, a utility-based offer picker and more, in tabbed panes that participants can rearrange. Write your own tools in Python with a small component API; no frontend code needed.
-- **Support agent.** An assistant docked next to the negotiation. It chats, keeps a status board, highlights and annotates parts of the interface, rearranges tools, shows its own interactive panels, fills in offers and, with permission, acts. Admins decide what it may do; participants can narrow that further. Subclass it to build your own agent.
-- **Autopilot.** Let the support agent or any negotiator play the human's seat, for demonstrations and testing.
-- **WebMCP.** Browser AI agents can read the negotiation and, if you allow it, negotiate through the page's tools. See [WebMCP](guide/webmcp.md).
-- **Any opponent.** Any negmas or Genius negotiator, LLM negotiators from negmas-llm, your own classes, and named groups of them, chosen per server, per session or per link.
-- **Studies.** Self-contained experiments, post-negotiation questionnaires, results CSV files with outcome and timing columns, and an event log with analytics.
-- **Prolific.** A no-login flow keyed by the Prolific ID, with practice rounds, counted rounds and the completion link.
-- **Admin console.** Live sessions, results and leaderboard, event analytics, users, and every setting, editable in the browser.
-- **Any language model.** Local models through Ollama or any provider supported by litellm, separately for the assistant and for LLM opponents.
-- **Accounts.** Password login, GitHub and Google OAuth, or no login at all, with an optional consent form.
+The full list, with how to turn each one on, is on the [Features](features.md) page.
+
+- **Negotiation desk.** The partner's offer on the table with its value to you. Accept it, send a counter-offer with an optional message, or end the negotiation; accepting and ending ask for confirmation. Gauges show what each offer is worth, with a tick at your no-deal value, and the history reads like a conversation.
+- **A layout you control.** Full, simple and focus views; drag the dividers to resize panes; enlarge any tool into a window or the full screen and put it back; layouts for tablets and phones.
+- **Tools.** Thirteen built-in tools, from your preferences (for any kind of utility function) to a negotiation plot with the Pareto frontier. Write your own in Python with a small component API; no frontend code needed.
+- **Support agent.** An assistant beside the negotiation. It chats, keeps a status board, highlights and annotates the interface, rearranges and resizes the layout, shows its own panels, fills in offers and, with permission, acts. It finds the participant's tools, reads and uses them, and adds new tools while they negotiate. Sixteen capabilities that admins grant and participants can narrow.
+- **Competitions.** Run the Human-Agent Negotiation competition without an assistant (`--no-support-agent`) and the Hybrid Intelligence competition with the built-in assistant or a team's (`--support-agent team.py:TeamAgent`), with the team's tools (`--tools`), against the opponent agents you choose (`--opponents`).
+- **Any opponent.** Any negmas or Genius negotiator, LLM negotiators from negmas-llm, your own classes, and named groups of them, chosen per server, per experiment or per link.
+- **Studies and Prolific.** Self-contained experiments, questionnaires, results CSV files, an event log with analytics, and a Prolific flow with practice rounds and completion links.
+- **Admin console.** Live sessions, results, analytics, users and every setting in the browser.
+- **Autopilot and WebMCP.** Let the support agent or any negotiator play the human's seat, and let browser AI agents use the page.
+- **Any language model.** Local models through Ollama or any provider supported by litellm.
+- **Easy to install.** `pip install hani2` on Python 3.11 to 3.15, on Linux, macOS and Windows.
 
 ## Quick start
 
@@ -46,6 +48,7 @@ ollama pull qwen3:4b-instruct
 
 ## Where to go next
 
+- [Features](features.md) lists everything HANI2 does.
 - [Installation](getting-started/installation.md) and the [quick start](getting-started/quickstart.md) walk through a first negotiation.
 - [The interface](guide/interface.md) describes what participants see.
 - [Studies and results](guide/studies.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
