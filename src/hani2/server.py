@@ -736,6 +736,23 @@ if (WEB_DIR / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
 
 
+class _StripPrefix:
+    """Accept requests with or without the mount prefix (HTTP and WebSocket)."""
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            base = root_path()
+            path = scope.get("path", "")
+            if base and (path == base or path.startswith(base + "/")):
+                scope = dict(scope, path=path[len(base):] or "/")
+                if "raw_path" in scope and scope["raw_path"]:
+                    scope["raw_path"] = scope["raw_path"][len(base):] or b"/"
+        await self.inner(scope, receive, send)
+
+
 def root_path() -> str:
     """Sub-path this server is mounted under behind a reverse proxy ('' at a root)."""
     v = os.environ.get("HANI2_ROOT_PATH", "").strip().strip("/")
@@ -765,3 +782,6 @@ def spa(path: str):
         "<code>frontend/</code>.</p>",
         status_code=503,
     )
+
+
+app.add_middleware(_StripPrefix)

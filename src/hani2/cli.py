@@ -36,7 +36,7 @@ def _open_when_ready(url: str) -> None:
     threading.Thread(target=_run, daemon=True).start()
 
 
-def _serve(host: str, port: int, open_path: str | None, reload: bool = False, log_level: str = "info", root_path: str = "") -> None:
+def _serve(host: str, port: int, open_path: str | None, reload: bool = False, log_level: str = "info") -> None:
     import uvicorn
 
     from hani2.config import settings_dir
@@ -53,7 +53,7 @@ def _serve(host: str, port: int, open_path: str | None, reload: bool = False, lo
     typer.echo(f"  Settings    {settings_dir()}\n")
     if open_path is not None:
         _open_when_ready(f"http://{url_host}:{port}{open_path}")
-    uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1, root_path=root_path)
+    uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1)
 
 
 def _apply_support_agent_choice(value: Optional[str]) -> None:
@@ -155,7 +155,7 @@ def main(
         return
     if verbose:
         os.environ["HANI2_VERBOSE"] = "1"
-    _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev, root_path=os.environ.get("HANI2_ROOT_PATH", ""))
+    _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev)
 
 
 @app.command()
