@@ -46,7 +46,15 @@ class Hub:
         self._tools_sent: set[tuple[str, str]] = set()
 
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
-        self.loop = loop
+        """Deliver on ``loop`` from now on. Pushes queued on a previous loop
+        will never run, so forget them (otherwise they would block new ones)."""
+        with self._lock:
+            self.loop = loop
+            self._state_pending.clear()
+            self._tools_pending.clear()
+            self._tools_rendering.clear()
+            self._tools_again.clear()
+            self._tools_sent.clear()
 
     # -- sessions -----------------------------------------------------------
     def get(self, sid: str):

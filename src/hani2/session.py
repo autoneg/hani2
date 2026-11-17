@@ -624,7 +624,7 @@ class NegotiationSession:
         self._schedule_timeout()
         self._agent_event("negotiation_started")
         self.push_state()
-        self._step_to_human()
+        self._step_to_human(wait=30.0)  # a step of the previous round may still be finishing
 
     def _reveal_own_preferences(self) -> None:
         """When a negotiation starts the participant must see their own
@@ -815,15 +815,18 @@ class NegotiationSession:
             with self.lock:
                 self._record_new_trace()
             self._tools_hook("action_executed", response)
-            if m.state.done:
-                self._finish()
-                return
         finally:
             self.step_lock.release()
+        # finish (or continue) outside the step lock, so a new round can start right away
+        if m.state.done:
+            self._finish()
+            return
         self._step_to_human()
 
-    def _step_to_human(self) -> None:
-        if not self.step_lock.acquire(blocking=False):
+    def _step_to_human(self, wait: float | None = None) -> None:
+        """Step the partner until it is the human's turn. ``wait`` seconds to
+        wait for a step in progress (``None``: skip if one is running)."""
+        if not (self.step_lock.acquire(timeout=wait) if wait else self.step_lock.acquire(blocking=False)):
             return
         try:
             m = self.mechanism
