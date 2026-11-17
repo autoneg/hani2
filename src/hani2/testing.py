@@ -67,14 +67,15 @@ class TestSession(NegotiationSession):
         return self.wait(lambda: (self.is_my_turn() and not self.thinking) or self.phase not in ("running", "starting"), timeout)
 
     def wait_until_done(self, timeout: float = 60.0) -> bool:
-        return self.wait(lambda: self.phase in ("ended", "questionnaire", "finished"), timeout)
+        return self.wait(lambda: self.phase in ("ended", "questionnaire", "finished")
+                         and not getattr(self, "_finishing", False), timeout)
 
     def wait_agent_idle(self, timeout: float = 30.0) -> bool:
         sa = self.support_agent
         if sa is None:
             return True
         time.sleep(0.05)
-        return self.wait(lambda: not sa.busy, timeout)
+        return self.wait(lambda: not sa.busy and not self.agent_work_pending(), timeout)
 
     def play_counters(self, n: int, text: str | None = None) -> None:
         """Send ``n`` counter-offers (the current draft) as the human."""

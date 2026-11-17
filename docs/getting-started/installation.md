@@ -4,7 +4,7 @@ HANI2 is a regular Python package. The web interface ships pre-built inside the 
 
 ## Requirements
 
-- Python 3.11 or newer (3.11, 3.12 and 3.13 are tested).
+- Python 3.11 or newer (3.11 to 3.15 are tested).
 - A modern browser.
 - Optional: a language model. The built-in support agent, the LLM opponents and the message-writing tools need one. A local model served by [Ollama](https://ollama.com) works; so does any hosted provider. See [Language models](../guide/llms.md).
 

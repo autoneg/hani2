@@ -1135,7 +1135,6 @@ class NegotiationSession:
         agreement = st.agreement
         with self.lock:
             self.phase = "ended"
-            self._finishing = False
             self.result = dict(
                 summary,
                 agreement=self.outcome_to_dict(agreement),
@@ -1157,9 +1156,13 @@ class NegotiationSession:
             else:
                 msg = "The negotiation ended without agreement."
             self.history.append(dict(id=len(self.history), kind="system", text=msg, status=summary.get("status"), time=time.time()))
+            # the study's end-of-round step (notice, questionnaire, finish link) happens
+            # before anyone can see or act on the ended round
+            try:
+                self.study.after_round(summary)
+            finally:
+                self._finishing = False
             self.emit({"type": "history", "items": self.history})
-        with self.lock:
-            self.study.after_round(summary)
         self._add_tools("end")
         self._tools_hook("negotiation_ended")
         ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, scenario_id=self._scenario_name(),
@@ -1185,7 +1188,17 @@ class NegotiationSession:
             nmi = self.mechanism.negotiators[self.human_index].nmi if self.mechanism else None
         except Exception:
             pass
-        self.submit(sa.on_event, name, nmi)
+        self._track_agent(self.submit(sa.on_event, name, nmi))
+
+    def _track_agent(self, future) -> None:
+        """Remember queued support-agent work so tests can wait for it."""
+        with self.lock:
+            pending = self.__dict__.setdefault("_agent_futures", set())
+            pending.add(future)
+        future.add_done_callback(lambda f: self.__dict__.get("_agent_futures", set()).discard(f))
+
+    def agent_work_pending(self) -> bool:
+        return any(not f.done() for f in list(self.__dict__.get("_agent_futures", ())))
 
     def user_chat(self, text: str) -> None:
         """The participant typed in the assistant chat (gated by the on/off switch)."""

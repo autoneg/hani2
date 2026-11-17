@@ -8,7 +8,7 @@ HANI2 is a Python package: a FastAPI backend plus a React frontend that ships pr
 
 ## Install and run
 
-Requires Python 3.11 or newer.
+Requires Python 3.11 or newer (tested up to 3.15).
 
 ```bash
 pip install hani2
