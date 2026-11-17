@@ -17,8 +17,10 @@ from hani2 import __version__
 app = typer.Typer(add_completion=False, no_args_is_help=False, help="HANI2 — Human-Agent Negotiation Interface.")
 experiment_app = typer.Typer(help="Create and inspect experiments (self-contained studies).")
 users_app = typer.Typer(help="Manage user accounts.")
+replay_app = typer.Typer(help="Explore, replay and evaluate recorded negotiations (.hrec files).")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(users_app, name="users")
+app.add_typer(replay_app, name="replay")
 
 
 def _open_when_ready(url: str) -> None:
@@ -349,6 +351,211 @@ def users_remove(username: str):
     from hani2 import auth
 
     typer.echo("Removed" if auth.delete_user(username) else "No such user")
+
+
+# --------------------------------------------------------------------------- #
+# hani2 replay                                                                 #
+# --------------------------------------------------------------------------- #
+PathsArg = Annotated[Optional[list[Path]], typer.Argument(help="Recording files or folders (default: every recording in the results folder).")]
+
+
+def _paths(paths: Optional[list[Path]]) -> list[Path]:
+    if paths:
+        return [p.expanduser() for p in paths]
+    from hani2.config import results_root
+
+    return [results_root()]
+
+
+def _parse_options(option: Optional[list[str]]) -> dict:
+    import json
+
+    out: dict = {}
+    for o in option or []:
+        k, _, v = o.partition("=")
+        try:
+            out[k.strip()] = json.loads(v)
+        except Exception:
+            out[k.strip()] = v
+    return out
+
+
+def _fmt(v) -> str:
+    if v is None:
+        return "-"
+    if isinstance(v, float):
+        return f"{v:.3f}"
+    return str(v)
+
+
+def _write_table(rows: list[dict], columns: list[str], out: Optional[Path]) -> None:
+    import csv
+    import json
+    import sys
+
+    if out is None:
+        widths = {c: max([len(c)] + [min(40, len(_fmt(r.get(c)))) for r in rows]) for c in columns}
+        typer.echo("  ".join(c.ljust(widths.get(c, len(c))) for c in columns))
+        for r in rows:
+            typer.echo("  ".join(_fmt(r.get(c))[:40].ljust(widths.get(c, 0)) for c in columns))
+        return
+    if out.suffix == ".json":
+        out.write_text(json.dumps(rows, indent=1, default=str))
+    else:
+        with (out.open("w", newline="") if str(out) != "-" else sys.stdout) as fh:
+            w = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+    typer.echo(f"wrote {out}", err=True)
+
+
+@replay_app.command("list")
+def replay_list(paths: PathsArg = None,
+                all: Annotated[bool, typer.Option("--all", help="Include recordings where no negotiation started.")] = False):
+    """List recordings."""
+    from hani2.recording import Recording, iter_recordings
+
+    rows = []
+    for root in _paths(paths):
+        for f in iter_recordings(root):
+            try:
+                r = Recording.load(f)
+            except Exception as e:  # noqa: BLE001
+                typer.secho(f"{f}: {e}", fg="red", err=True)
+                continue
+            if r.start is None and not all:
+                continue
+            st, sm = r.start or {}, r.summary or {}
+            rows.append(dict(id=r.id, user=(r.header.get("session") or {}).get("user"), scenario=(r.scenario or {}).get("name"),
+                             opponent=st.get("opponent"), status=sm.get("status") or ("incomplete" if not r.complete else "-"),
+                             utility=sm.get("human_utility"), seconds=round(r.duration, 1), events=len(r.events)))
+    _write_table(rows, ["id", "user", "scenario", "opponent", "status", "utility", "seconds", "events"], None)
+    typer.echo(f"{len(rows)} recording(s)", err=True)
+
+
+@replay_app.command("show")
+def replay_show(path: Path, events: Annotated[bool, typer.Option("--events", help="Print every event.")] = False):
+    """Summarise one recording (what was recorded, the result)."""
+    import collections
+    import json
+
+    from hani2.recording import Recording
+
+    r = Recording.load(path)
+    sess = r.header.get("session") or {}
+    typer.secho(f"{r.id}", bold=True)
+    typer.echo(f"  user {sess.get('user')}  mode {sess.get('mode')}  created {r.header.get('created')}  "
+               f"duration {r.duration:.1f}s  complete {r.complete}")
+    sc = r.scenario or {}
+    typer.echo(f"  scenario {sc.get('name')}  outcomes {sc.get('n_outcomes')}  human seat {sc.get('human_id')}")
+    st = r.start or {}
+    typer.echo(f"  opponent {st.get('opponent')}  assistant {(st.get('support_agent') or {}).get('name')}")
+    typer.echo(f"  result {json.dumps(r.summary, default=str)}")
+    c = collections.Counter(e.get("k") for e in r.events)
+    typer.echo("  records " + ", ".join(f"{k}={v}" for k, v in c.most_common()))
+    tel = collections.Counter(t for _, t, _ in r.telemetry())
+    if tel:
+        typer.echo("  telemetry " + ", ".join(f"{k}={v}" for k, v in tel.most_common()))
+    if events:
+        for e in r.events:
+            e2 = {k: v for k, v in e.items() if k not in ("full", "delta")}
+            typer.echo(f"  {e.get('t', 0):8.3f} {e.get('k'):<10} {json.dumps(e2, default=str)[:200]}")
+
+
+@replay_app.command("metrics")
+def replay_metrics():
+    """List the evaluation metrics."""
+    from hani2.evaluation import available_metrics
+
+    for m in available_metrics():
+        flag = " (LLM)" if m["needs_llm"] else ""
+        dflt = "" if m["default"] else " [not default]"
+        typer.secho(f"{m['name']}  — {m['kind']}{flag}{dflt}", bold=True)
+        typer.echo(f"    {m['description'].splitlines()[0] if m['description'] else ''}")
+        for c in m["columns"]:
+            typer.echo(f"      {c['name']:<34} {c['description']}")
+
+
+MetricsOpt = Annotated[Optional[str], typer.Option("--metrics", "-m", help="Comma-separated metric names (default: every default metric; see `hani2 replay metrics`).")]
+LlmOpt = Annotated[bool, typer.Option("--llm", help="Also run the LLM-judged (soft) metrics.")]
+OptionOpt = Annotated[Optional[list[str]], typer.Option("--option", help="Metric option key=value (value as JSON), e.g. click_through_seconds=2.")]
+
+
+@replay_app.command("evaluate")
+def replay_evaluate(
+    paths: PathsArg = None,
+    metrics: MetricsOpt = None,
+    llm: LlmOpt = False,
+    refresh: Annotated[bool, typer.Option(help="Ask the LLM judge again instead of using cached judgements.")] = False,
+    out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the table to a .csv or .json file.")] = None,
+    columns: Annotated[Optional[str], typer.Option(help="Comma-separated columns to show.")] = None,
+    option: OptionOpt = None,
+):
+    """Compute evaluation metrics for recordings."""
+    from hani2.evaluation import evaluate_paths
+
+    res = evaluate_paths(_paths(paths), metrics.split(",") if metrics else None, use_llm=llm, refresh=refresh,
+                         options=_parse_options(option))
+    for k, errs in res["errors"].items():
+        typer.secho(f"{k}: {errs}", fg="yellow", err=True)
+    cols = ["id", "user", "scenario", "opponent"] + [c["name"] for c in res["columns"]]
+    if columns:
+        cols = ["id"] + [c for c in columns.split(",") if c]
+    elif out is None:
+        cols = cols[:12]
+        typer.echo("(showing the first columns; use --out or --columns for more)", err=True)
+    _write_table(res["rows"], cols, out)
+
+
+@replay_app.command("compare")
+def replay_compare(
+    paths: PathsArg = None,
+    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent, user, scenario, experiment, …")] = "opponent",
+    metrics: MetricsOpt = None,
+    llm: LlmOpt = False,
+    out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the group table to a .csv or .json file.")] = None,
+    columns: Annotated[Optional[str], typer.Option(help="Comma-separated columns to show.")] = None,
+    option: OptionOpt = None,
+):
+    """Compare groups of recordings (mean per group, scenario-balanced means and pass^k)."""
+    from hani2.evaluation import compare_rows, evaluate_paths
+
+    opts = _parse_options(option)
+    res = evaluate_paths(_paths(paths), metrics.split(",") if metrics else None, use_llm=llm, options=opts)
+    numeric = [c for c in res["columns"] if any(isinstance(r.get(c["name"]), (int, float)) and not isinstance(r.get(c["name"]), bool) for r in res["rows"])]
+    cmp = compare_rows(res["rows"], by=by, columns=numeric, success=str(opts.get("success", "agreement")),
+                       success_threshold=opts.get("success_threshold"))
+    names = [c for c in (columns.split(",") if columns else [c["name"] for c in numeric])]
+    rows = [dict(group=g["group"], n=g["n"], **{c: g["mean"].get(c) for c in names}) for g in cmp["groups"]]
+    shown = ["group", "n"] + (names if out is not None or columns else names[:10])
+    _write_table(rows, shown, out)
+    if cmp["reliability"]:
+        typer.echo("\npass^k (success = %s):" % cmp["success"])
+        _write_table(cmp["reliability"], ["group", "k", "pass_hat_k", "scenarios"], None)
+
+
+@replay_app.command("export")
+def replay_export(path: Path, out: Annotated[Path, typer.Option("--out", "-o", help="JSON file to write.")]):
+    """Write a recording as plain JSON (header + events)."""
+    import json
+
+    from hani2.recording import Recording
+
+    out.write_text(json.dumps(Recording.load(path).to_json(), default=str))
+    typer.echo(f"wrote {out}")
+
+
+@replay_app.command("open")
+def replay_open(
+    paths: PathsArg = None,
+    port: Annotated[int, typer.Option("--port", "-p")] = 5006,
+    host: Annotated[str, typer.Option()] = "127.0.0.1",
+    open_browser: Annotated[bool, typer.Option("--browser/--no-browser")] = True,
+):
+    """Start the server and open the replay tool (also showing recordings in PATHS)."""
+    if paths:
+        os.environ["HANI2_REPLAY_DIRS"] = os.pathsep.join(str(p.expanduser().resolve()) for p in paths)
+    _serve(host, port, "/replay" if open_browser else None)
 
 
 if __name__ == "__main__":  # pragma: no cover

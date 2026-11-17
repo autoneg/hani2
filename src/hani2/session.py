@@ -37,6 +37,7 @@ from negmas.sao import SAOMechanism, SAONegotiator, SAOState
 
 from hani2 import events as ev
 from hani2 import scenario_store as store
+from hani2.recording import recorder as rec
 from hani2.agents import DEFAULT_POOL, expand_agents, make_agent, session_agent_override, short_name
 from hani2.config import get_env, results_root
 from hani2.tool_controller import PANES, ToolController
@@ -123,6 +124,9 @@ class HumanPlaceholder(SAONegotiator):
             response = s.human_action if s is not None else SAOResponse(ResponseType.REJECT_OFFER, None)
         if s is not None:
             s._tools_hook("action_to_execute", response)
+            if s.recorder is not None:
+                driven = s.autopilot_active and self._driver is not None
+                s.recorder.action(response, "autopilot" if driven else getattr(s, "_pending_actor", "human"))
         return response
 
 
@@ -219,6 +223,9 @@ class NegotiationSession:
             "negotiation_running": False,
         }
         self.ss["actions"] = self._make_actions()
+        #: records everything that happens (see :mod:`hani2.recording`)
+        self.recorder: rec.SessionRecorder | None = rec.SessionRecorder(self) if rec.enabled() else None
+        self._pending_actor = "human"
         self.tool_controller = ToolController(self)
         self.ss["tool_controller"] = self.tool_controller
         self.tools: list = []
@@ -264,9 +271,12 @@ class NegotiationSession:
         return list(s.outcome_space.issues) if s is not None else []
 
     def submit(self, fn: Callable, *args, **kwargs):
+        actor = rec.current_actor()
+
         def _run():
             try:
-                return fn(*args, **kwargs)
+                with rec.bind(self.sid), rec.acting(actor) if actor else contextlib.nullcontext():
+                    return fn(*args, **kwargs)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
 
@@ -547,6 +557,9 @@ class NegotiationSession:
             self.agent_panels = []
             self.board = ""
             self.phase = "ready"
+        if self.recorder is not None:
+            self.recorder.begin()
+            self.recorder.scenario()
         self._add_tools("load")
         self._tools_hook("scenario_loaded", scenario)
         ev.log_event(self.sid, ev.EventType.SCENARIO_LOADED, user=self.user, scenario_id=str(info.get("scenario_name")))
@@ -616,6 +629,8 @@ class NegotiationSession:
             self.ss["start_at_dt"] = datetime.now()
             tl = self.mechanism.nmi.time_limit if self.mechanism else None
             self.deadline = (time.time() + float(tl)) if tl and tl != float("inf") else None
+        if self.recorder is not None:
+            self.recorder.start()
         self._add_tools("start")
         self._reveal_own_preferences()
         self._tools_hook("negotiation_started")
@@ -799,6 +814,7 @@ class NegotiationSession:
                 return False
             self.thinking = True
             self.highlights = []
+            self._pending_actor = self._actor()
         self.push_state()
         self.submit(self._advance, response)
         return True
@@ -811,7 +827,8 @@ class NegotiationSession:
             if m is None or m.state.done:
                 return
             self.human_action = response
-            m.step()
+            with rec.llm_role("opponent"):
+                m.step()
             with self.lock:
                 self._record_new_trace()
             self._tools_hook("action_executed", response)
@@ -837,7 +854,8 @@ class NegotiationSession:
             self.push_state()
             human_id = self.ss.get("human_id")
             while not m.state.done and m.next_negotitor_ids()[0] != human_id:
-                m.step()
+                with rec.llm_role("opponent"):
+                    m.step()
                 with self.lock:
                     self._record_new_trace()
             with self.lock:
@@ -947,7 +965,12 @@ class NegotiationSession:
                     continue
                 self.draft[issue.name] = ui.jsonable(v)
                 applied[issue.name] = ui.jsonable(v)
-        self.emit({"type": "draft", "draft": self.draft, "utility": self.utility(self.draft_outcome()), "by_agent": by_agent})
+        util = self.utility(self.draft_outcome())
+        self.emit({"type": "draft", "draft": self.draft, "utility": util, "by_agent": by_agent})
+        if self.recorder is not None and applied:
+            # by_agent means "filled in from outside the editor" (a tool or the assistant);
+            # who actually did it is the acting thread's actor
+            self.recorder.draft(self.draft, self._actor(), util, via="tool" if by_agent else "editor")
         self._tools_hook("draft_changed", dict(self.draft))
         sa = self.support_agent
         if sa is not None and not by_agent:
@@ -963,9 +986,13 @@ class NegotiationSession:
         if not self.admin_prefs.get("allow_text_human", True):
             return {"ok": False, "error": "no message field (text is disabled)"}
         with self.lock:
+            changed = self.draft_text != (text or "")
             self.draft_text = text or ""
         if by_agent:
             self.emit({"type": "draft_text", "text": self.draft_text})
+        if self.recorder is not None and changed and (by_agent or self._actor() != "human"):
+            self.recorder.draft(self.draft, self._actor(), None, text=self.draft_text,
+                                via="tool" if by_agent else "editor")
         return {"ok": True}
 
     def _resolve_issue(self, key: str):
@@ -1132,8 +1159,11 @@ class NegotiationSession:
             self.ss["results"].append(row)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
+            row = None
             summary = {"status": "erred", "agent_error": str(e), "n_human_actions": 0, "ended_by": "",
                        "agent_failed": False, "human_utility": None, "agent_utility": None, "human_advantage": None}
+        if self.recorder is not None:
+            self.recorder.finish(row, summary)
         st = m.state
         agreement = st.agreement
         with self.lock:
@@ -1184,14 +1214,16 @@ class NegotiationSession:
             from hani2.support_agent import autopilot as ap
 
             delay = float(ap.load_autopilot_settings().get("step_delay", 0.0) or 0.0)
-            self.submit(sa.autopilot_step, delay)
+            with rec.acting("autopilot"):
+                self.submit(sa.autopilot_step, delay)
             return
         nmi = None
         try:
             nmi = self.mechanism.negotiators[self.human_index].nmi if self.mechanism else None
         except Exception:
             pass
-        self._track_agent(self.submit(sa.on_event, name, nmi))
+        with rec.acting("agent"):
+            self._track_agent(self.submit(sa.on_event, name, nmi))
 
     def _track_agent(self, future) -> None:
         """Remember queued support-agent work so tests can wait for it."""
@@ -1218,7 +1250,8 @@ class NegotiationSession:
             return
         ev.log_event(self.sid, ev.EventType.SUPPORT_AGENT, user=self.user, component="SupportAgent",
                      action="user_message", value={"actor": "human", "text": text[:500]})
-        sa.handle_user_message(text)
+        with rec.acting("agent"):
+            sa.handle_user_message(text)
 
     def add_chat(self, user: str, text: str, *, kind: str = "text", extra: dict | None = None) -> dict:
         msg = dict(id=uuid.uuid4().hex[:8], user=user, text=text, kind=kind, time=time.time(), **(extra or {}))
@@ -1226,6 +1259,8 @@ class NegotiationSession:
             self.chat.append(msg)
             self.chat = self.chat[-300:]
         self.emit({"type": "chat", "message": msg})
+        if self.recorder is not None:
+            self.recorder.chat(msg)
         return msg
 
     # ------------------------------------------------------------------ #
@@ -1302,6 +1337,14 @@ class NegotiationSession:
             "end": lambda confirm=True: gate("end") or (self.request_confirm("end") if confirm else self.end()),
             "reject_counter": lambda: gate("submit_counter") or self.send_counter(),
         }
+
+    def _actor(self) -> str:
+        """Who is acting on the participant's seat in this thread: ``human``
+        (a browser message), ``agent`` (the support agent or a tool working for
+        it) or ``autopilot``."""
+        if getattr(_AGENT_CONTEXT, "caps", None) is not None:
+            return "agent"
+        return rec.current_actor() or "human"
 
     def _agent_gate(self, capability: str) -> dict | None:
         """While the support agent operates a tool (:meth:`acting_for_agent`),
@@ -1663,13 +1706,16 @@ class NegotiationSession:
 
         def _run():
             try:
-                return fn(*args, **kwargs)
+                with rec.bind(self.sid):
+                    return fn(*args, **kwargs)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
 
         return self.ui_executor.submit(_run)
 
     def close(self) -> None:
+        if self.recorder is not None:
+            self.recorder.close()
         self.ui_executor.shutdown(wait=False, cancel_futures=True)
         if self._timer is not None:
             self._timer.cancel()

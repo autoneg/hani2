@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { NegotiatePage } from "./negotiate/NegotiatePage";
+import { ReplayPage } from "./replay/ReplayPage";
+import { ReplayFrame } from "./replay/Frame";
 import { AdminPage } from "./pages/AdminPage";
 import { ConsentPage, LoginPage, RegisterPage } from "./pages/AuthPages";
 import { navigate, usePath, withBase } from "./router";
@@ -13,6 +15,8 @@ function Route({ path }: { path: string }) {
   if (p === "/register") return <RegisterPage />;
   if (p === "/consent") return <ConsentPage />;
   if (p === "/admin") return <AdminPage />;
+  if (p === "/replay") return <ReplayPage />;
+  if (p === "/replay/frame") return <ReplayFrame />;
   if (p === "/play" || p === "/hanplay" || p === "/guest") return <NegotiatePage key="guest" mode="guest" />;
   if (p === "/app") return <NegotiatePage key="main" mode="main" />;
   return (

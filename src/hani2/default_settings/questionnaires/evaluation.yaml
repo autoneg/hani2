@@ -1,0 +1,160 @@
+# The evaluation questionnaire: usability (UEQ items), perceived usefulness (TAM),
+# intention to use, the participant's view of the assistant and of the opponent.
+#
+# Use it after every negotiation with  HANI2_PER_NEG_YAML=evaluation  (or copy it to
+# <settings>/questionnaires/per_negotiation.yaml and edit it).
+#
+# `scale` groups items into a score computed by the subjective metrics
+# (`hani2 replay evaluate --metrics questionnaire`); `reverse: true` items are
+# scored backwards; `min`/`max` give the answer range (the type sets a default).
+# Items about the assistant are skipped automatically when no assistant was used
+# (`requires: support_agent`).
+version: "1"
+title: "After this negotiation"
+intro: "A few quick questions about this negotiation. There are no right or wrong answers."
+questions:
+  # --- outcome --------------------------------------------------------------
+  - id: satisfaction_outcome
+    text: "How satisfied are you with the **outcome** of this negotiation?"
+    type: likert7
+    required: true
+    scale: satisfaction
+    labels: {1: "Not at all", 7: "Extremely"}
+  - id: fun
+    text: "How much did you **enjoy** this negotiation?"
+    type: likert7
+    required: true
+    scale: appreciation
+    labels: {1: "Not at all", 7: "Very much"}
+
+  # --- the assistant: usability (UEQ items, 7-point semantic differentials) --
+  - id: ueq_understandable
+    text: "The assistant was …  (1 = not understandable, 7 = understandable)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    labels: {1: "not understandable", 7: "understandable"}
+  - id: ueq_valuable
+    text: "The assistant was …  (1 = valuable, 7 = inferior)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_hedonic
+    reverse: true
+    labels: {1: "valuable", 7: "inferior"}
+  - id: ueq_supportive
+    text: "The assistant was …  (1 = obstructive, 7 = supportive)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    labels: {1: "obstructive", 7: "supportive"}
+  - id: ueq_good
+    text: "The assistant was …  (1 = good, 7 = bad)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_hedonic
+    reverse: true
+    labels: {1: "good", 7: "bad"}
+  - id: ueq_easy
+    text: "The assistant was …  (1 = complicated, 7 = easy)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    labels: {1: "complicated", 7: "easy"}
+  - id: ueq_efficient
+    text: "The assistant was …  (1 = inefficient, 7 = efficient)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    labels: {1: "inefficient", 7: "efficient"}
+  - id: ueq_clear
+    text: "The assistant was …  (1 = clear, 7 = confusing)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    reverse: true
+    labels: {1: "clear", 7: "confusing"}
+  - id: ueq_practical
+    text: "The assistant was …  (1 = impractical, 7 = practical)"
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: ueq_pragmatic
+    labels: {1: "impractical", 7: "practical"}
+
+  # --- the assistant: usefulness (TAM) and intention to use ---------------------
+  - id: tam_effectiveness
+    text: "Using this assistant would enhance my effectiveness in negotiation."
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: tam_usefulness
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: tam_useful
+    text: "I would find this assistant useful in negotiations."
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: tam_usefulness
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: use_again
+    text: "I would use this assistant again."
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: intention_to_use
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: felt_heard
+    text: "I felt **heard** by the assistant (it took my wishes into account)."
+    type: likert7
+    required: true
+    requires: support_agent
+    scale: felt_heard
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: agent_insights
+    text: "What insights, if any, did the assistant give you?"
+    type: text
+    required: false
+    requires: support_agent
+
+  # --- the opponent -----------------------------------------------------------
+  - id: opponent_kind
+    text: "How **kind** was your opponent?"
+    type: likert7
+    required: true
+    scale: opponent_kindness
+    labels: {1: "Not at all", 7: "Very"}
+  - id: opponent_intelligent
+    text: "How **intelligent** was your opponent?"
+    type: likert7
+    required: true
+    scale: opponent_intelligence
+    labels: {1: "Not at all", 7: "Very"}
+  - id: opponent_human
+    text: "Do you think your opponent was a human or an AI?"
+    type: likert7
+    required: true
+    scale: opponent_humanlike
+    labels: {1: "Surely an AI", 7: "Surely a human"}
+  - id: negotiate_again
+    text: "I would like to negotiate with this opponent again."
+    type: likert7
+    required: true
+    scale: relationship
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: connected
+    text: "I felt humanly connected to the other party."
+    type: likert7
+    required: true
+    scale: relationship
+    labels: {1: "Strongly disagree", 7: "Strongly agree"}
+  - id: comments
+    text: "Anything else you want to tell us? (optional)"
+    type: text
+    required: false

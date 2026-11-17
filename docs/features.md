@@ -68,6 +68,9 @@ participant. Options, settings and admin screens use these two names throughout.
 | Feature | What it does | Details |
 | --- | --- | --- |
 | Experiments | Self-contained folders with their own settings, scenarios, questionnaires and results. | [Studies and results](guide/studies.md) |
+| Recording and replay | Every negotiation is recorded completely — screens, clicks, pointer, keys, offers, assistant messages and function calls, language-model calls with tokens and cost — and can be replayed exactly as the participant saw it, with a check that the replay matches their screen. On by default. | [Recording and replay](guide/recordings.md) |
+| Evaluation metrics | Hard metrics (outcome, Pareto / Nash / Kalai distances, welfare, length, tokens and cost, move types, theory of mind, decision times, activity, use of the assistant, engagement flags), questionnaire scales (UEQ, TAM, opponent perception) and language-model judgements (assistant, opponent, human, assertions, error review), for any set of recordings; compare groups with scenario-balanced means and pass^k. `hani2 replay evaluate`, `hani2 replay compare` or the replay tool. | [Evaluation metrics](guide/evaluation.md) |
+| Evaluation questionnaire | UEQ, TAM, intention to use, feeling heard, and how the opponent came across, after every negotiation: `HANI2_PER_NEG_YAML=evaluation`. | [Subjective metrics](guide/evaluation.md#subjective-metrics) |
 | Results and events | A results CSV per participant (including the layout used: `device` and `orientation`) and an SQLite event log of every action, with analytics in the admin console. | [Results](guide/studies.md#results) |
 | Prolific | A no-login flow keyed by the Prolific ID, with practice and counted rounds and the completion link. | [Prolific](guide/prolific.md) |
 | Admin console | Live sessions (with each one's opponent and support agent), results, events, users and every setting, in the browser. | [Admin console](guide/admin.md) |

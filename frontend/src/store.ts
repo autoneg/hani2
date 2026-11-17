@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { BASE } from "./router";
 import type { Component, HistoryItem, SessionState, Toast } from "./types";
@@ -16,16 +17,29 @@ interface Store {
   setMaximized: (id: string | null) => void;
   draftVersion: number;
   ws: WebSocket | null;
-  send: (msg: Record<string, any>) => void;
+  /** sends a message; false when the socket is not open */
+  send: (msg: Record<string, any>) => boolean;
+  /** Local UI state that changes what is on screen (see `useUiState`); recorded and replayed. */
+  ui: Record<string, any>;
+  setUi: (key: string, value: any) => void;
+  clearUi: (key: string) => void;
+  /** true inside the replay frame: components must not change recorded state by themselves */
+  replay: boolean;
   setConfirm: (c: ConfirmReq) => void;
   setAssistantOpen: (v: boolean) => void;
-  pushToast: (t: Omit<Toast, "id">) => void;
+  pushToast: (t: Omit<Toast, "id">, fromServer?: boolean) => void;
   dropToast: (id: number) => void;
   connect: (sid: string) => void;
   disconnect: () => void;
   patchDraft: (values: Record<string, any>, utility?: number | null) => void;
   patchDraftText: (text: string) => void;
 }
+
+/** Observers the live telemetry attaches (the store does not import it). */
+export const hooks: {
+  recv?: (seq: number, type: string) => void;
+  toast?: (t: { message: string; level: string }) => void;
+} = {};
 
 let toastId = 1;
 let retry = 0;
@@ -60,15 +74,34 @@ export const useStore = create<Store>((set, get) => ({
   maximized: null,
   draftVersion: 0,
   ws: null,
+  ui: {},
+  replay: false,
+  setUi: (key, value) => {
+    if (get().replay) return;
+    set((s) => (Object.is(s.ui[key], value) ? {} : { ui: { ...s.ui, [key]: value } }));
+  },
+  clearUi: (key) => {
+    if (get().replay) return;
+    set((s) => {
+      if (!(key in s.ui)) return {};
+      const { [key]: _x, ...rest } = s.ui;
+      return { ui: rest };
+    });
+  },
 
   send: (msg) => {
     const ws = get().ws;
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg));
+      return true;
+    }
+    return false;
   },
   setConfirm: (c) => set({ confirm: c }),
   setAssistantOpen: (v) => set({ assistantOpen: v }),
   setMaximized: (id) => set({ maximized: id }),
-  pushToast: (t) => {
+  pushToast: (t, fromServer = false) => {
+    if (!fromServer) hooks.toast?.({ message: t.message, level: t.level });
     const id = toastId++;
     set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id }] }));
     const d = t.duration === undefined || t.duration === null ? (t.level === "error" ? 9000 : 5000) : t.duration;
@@ -146,19 +179,49 @@ export const useStore = create<Store>((set, get) => ({
           set((s) => (s.state ? { state: { ...s.state, draft: { ...s.state.draft, text: msg.text } }, draftVersion: s.draftVersion + 1 } : {}));
           break;
         case "toast":
-          get().pushToast({ message: msg.message, level: msg.level, duration: msg.duration, action: msg.action });
+          get().pushToast({ message: msg.message, level: msg.level, duration: msg.duration, action: msg.action }, true);
           break;
         case "confirm":
           set({ confirm: { kind: msg.kind, message: msg.message } });
           break;
       }
+      if (typeof msg._seq === "number") hooks.recv?.(msg._seq, String(msg.type));
     };
   },
   disconnect: () => {
     wanted = null;
     get().ws?.close();
-    set({ ws: null, state: null, toolViews: {}, connected: false });
+    set({ ws: null, state: null, toolViews: {}, connected: false, ui: {} });
   },
 }));
 
 export const send = (msg: Record<string, any>) => useStore.getState().send(msg);
+
+const UNSET = Symbol("unset");
+
+/** Drop-in for `useState` whose value lives in the store, so it is recorded
+ *  (`["ui", key, value]`) and can be replayed. The key must be unique per
+ *  on-screen instance. Without a key it is plain local state. Like
+ *  `useState`, the value resets when the component unmounts. */
+export function useUiState<T>(key: string | undefined, initial: T): [T, (v: T | ((p: T) => T)) => void] {
+  const init = useRef(initial);
+  const [local, setLocal] = useState<T>(initial);
+  const stored = useStore((s) => (key !== undefined && key in s.ui ? s.ui[key] : UNSET)) as T | typeof UNSET;
+  const value = key === undefined ? local : stored === UNSET ? init.current : stored;
+  const cur = useRef(value);
+  cur.current = value;
+  const setValue = useCallback(
+    (x: T | ((p: T) => T)) => {
+      const next = typeof x === "function" ? (x as (p: T) => T)(cur.current) : x;
+      cur.current = next;
+      if (key === undefined) setLocal(next);
+      else useStore.getState().setUi(key, next);
+    },
+    [key],
+  );
+  useEffect(() => {
+    if (key === undefined) return;
+    return () => useStore.getState().clearUi(key);
+  }, [key]);
+  return [value, setValue];
+}

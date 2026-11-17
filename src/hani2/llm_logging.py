@@ -46,13 +46,16 @@ def enabled() -> bool:
     return (os.environ.get("HANI2_LLM_LOG") or os.environ.get("HANI_LLM_LOG", "")).strip().lower() in ("1", "true", "yes", "on")
 
 
-def install() -> None:
-    """Wrap ``litellm.completion`` once so active calls are logged.
+def install(force: bool = False) -> None:
+    """Wrap ``litellm.completion`` once so active calls are logged (to the
+    per-negotiation file when logging is on, and to the session's recording
+    — see :mod:`hani2.recording`).
 
-    Safe to call repeatedly; a no-op if logging is disabled or already installed.
+    Safe to call repeatedly; a no-op if already installed, or if logging is
+    disabled and ``force`` is not set.
     """
     global _installed
-    if _installed or not enabled():
+    if _installed or not (enabled() or force):
         return
     with _install_lock:
         if _installed:
@@ -65,19 +68,30 @@ def install() -> None:
 
         def _logged_completion(*args, **kwargs):
             target = _current_log.get()
-            if not target:
-                return original(*args, **kwargs)
             t0 = time.perf_counter()
             try:
                 resp = original(*args, **kwargs)
             except Exception as exc:  # noqa: BLE001
-                _write(target, kwargs, None, time.perf_counter() - t0, error=repr(exc))
+                if target:
+                    _write(target, kwargs, None, time.perf_counter() - t0, error=repr(exc))
+                _record(kwargs, None, time.perf_counter() - t0, repr(exc))
                 raise
-            _write(target, kwargs, resp, time.perf_counter() - t0)
+            if target:
+                _write(target, kwargs, resp, time.perf_counter() - t0)
+            _record(kwargs, resp, time.perf_counter() - t0)
             return resp
 
         litellm.completion = _logged_completion
         _installed = True
+
+
+def _record(kwargs: dict, resp, dt: float, error: str | None = None) -> None:
+    try:
+        from hani2.recording.recorder import record_llm_call
+
+        record_llm_call(kwargs, resp, dt, error)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _write(target: str, kwargs: dict, resp, dt: float, error: str | None = None) -> None:

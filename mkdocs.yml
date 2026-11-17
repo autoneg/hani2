@@ -88,6 +88,8 @@ nav:
       - Opponents: guide/opponents.md
       - Scenarios: guide/scenarios.md
       - Studies and results: guide/studies.md
+      - Recording and replay: guide/recordings.md
+      - Evaluation metrics: guide/evaluation.md
       - Prolific: guide/prolific.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md

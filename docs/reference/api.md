@@ -25,3 +25,13 @@ This page is generated from the docstrings in the source. It covers the modules 
 ## Testing helpers
 
 ::: hani2.testing
+
+## Recordings
+
+::: hani2.recording.format
+
+## Evaluation
+
+::: hani2.evaluation
+
+::: hani2.evaluation.base

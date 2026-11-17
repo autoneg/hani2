@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
-import { send, useStore } from "../store";
+import { send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Icon } from "../ui/Icon";
@@ -11,7 +11,7 @@ const PANE_ICON = { upper: PanelTop, lower: PanelBottom, side: PanelRight };
 const PANE_NAME = { upper: "Top left", lower: "Bottom left", side: "Right" };
 
 function ToolMenu({ tool, allowMove }: { tool: ToolInfo; allowMove: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useUiState(`toolMenu.${tool.id}`, false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, CircleCheck, CircleX, FileText, Handshake, Loader2, Plane, Play, RefreshCw, Send, Sparkles, Wand2, X } from "lucide-react";
 import { api } from "../api";
-import { send, useStore } from "../store";
+import { send, useStore, useUiState } from "../store";
+import { now as clockNow } from "../clock";
 import type { IssueSpec, Questionnaire, SessionState } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Gauge } from "../ui/Gauge";
@@ -145,9 +146,9 @@ function Running({ st }: { st: SessionState }) {
   const myTurn = st.negotiation.is_my_turn && !st.negotiation.thinking;
   const po = st.partner_offer;
   const rv = st.reserved_value;
-  const [countering, setCountering] = useState(false);
-  const [text, setText] = useState(st.draft.text || "");
-  const [textOnly, setTextOnly] = useState(!!st.settings.text_only_mode);
+  const [countering, setCountering] = useUiState("dock.countering", false);
+  const [text, setText] = useUiState("dock.text", st.draft.text || "");
+  const [textOnly, setTextOnly] = useUiState("dock.textOnly", !!st.settings.text_only_mode);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => setText(st.draft.text || ""), [draftVersion]); // agent wrote the message
   useEffect(() => {
@@ -292,9 +293,10 @@ function Running({ st }: { st: SessionState }) {
 /* Intro: load / start                                                  */
 /* ------------------------------------------------------------------ */
 function AutoCountdown({ st }: { st: SessionState }) {
-  const [now, setNow] = useState(Date.now() / 1000);
+  const [, tick] = useState(0);
+  const now = clockNow();
   useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now() / 1000), 500);
+    const t = window.setInterval(() => tick((x) => x + 1), 500);
     return () => window.clearInterval(t);
   }, []);
   const d = st.study.auto_deadline;

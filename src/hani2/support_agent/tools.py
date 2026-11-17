@@ -8,7 +8,7 @@ capability is effective. Subclass :class:`ToolDispatcher` and override
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 from hani2.support_agent.capabilities import Capability
 
@@ -142,8 +142,26 @@ class ToolDispatcher:
             return {"ok": False, "error": f"unknown function '{name}'"}
         cap, handler, _ = entry
         if cap is not None and not self.caps.has(cap):
-            return {"ok": False, "error": f"capability '{cap.value}' is not enabled"}
-        return handler(args or {})
+            result = {"ok": False, "error": f"capability '{cap.value}' is not enabled"}
+            self._record(name, args, result, 0.0)
+            return result
+        import time as _time
+
+        t0 = _time.perf_counter()
+        try:
+            result = handler(args or {})
+        except Exception as e:
+            self._record(name, args, {"ok": False, "error": str(e)}, _time.perf_counter() - t0)
+            raise
+        self._record(name, args, result, _time.perf_counter() - t0)
+        return result
+
+    def _record(self, name: str, args: dict, result: Any, latency: float) -> None:
+        """Put the call in the session's recording (see :mod:`hani2.recording`)."""
+        s = self.ss.get("_session")
+        r = getattr(s, "recorder", None)
+        if r is not None:
+            r.function_call(name, args or {}, result, latency)
 
     # ------------------------------------------------------------------ #
     # Toasts                                                              #

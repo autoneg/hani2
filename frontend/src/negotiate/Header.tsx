@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
-import { send, useStore } from "../store";
+import { send, useStore, useUiState } from "../store";
+import { isVirtual, now as clockNow } from "../clock";
 import { Anchor } from "../ui/Anchor";
 import { clock } from "../ui/format";
 import { api } from "../api";
@@ -74,18 +75,19 @@ export function ThemeButton() {
 function Timer() {
   const n = useStore((s) => s.state?.negotiation);
   const phase = useStore((s) => s.state?.phase);
-  const [now, setNow] = useState(Date.now() / 1000);
+  const [, tick] = useState(0);
+  const now = clockNow();
   const skew = useRef(0);
   useEffect(() => {
-    if (n?.server_time) skew.current = n.server_time - Date.now() / 1000;
+    skew.current = isVirtual() ? 0 : n?.server_time ? n.server_time - clockNow() : skew.current;
   }, [n?.server_time]);
   useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now() / 1000), 500);
+    const t = window.setInterval(() => tick((x) => x + 1), 500);
     return () => window.clearInterval(t);
   }, []);
   if (!n) return null;
   const running = phase === "running";
-  const left = n.deadline ? n.deadline - (now + skew.current) : null;
+  const left = n.deadline ? n.deadline - (now + (isVirtual() ? 0 : skew.current)) : null;
   const frac = n.n_steps ? Math.min(1, n.step / n.n_steps) : n.relative_time ?? 0;
   const timeFrac = n.deadline && n.time_limit ? Math.max(0, Math.min(1, 1 - (left ?? 0) / n.time_limit)) : frac;
   const urgent = running && left !== null && left <= 10;
@@ -107,8 +109,8 @@ function Timer() {
   );
 }
 
-function Menu({ button, children }: { button: React.ReactNode; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+function Menu({ id, button, children }: { id: string; button: React.ReactNode; children: React.ReactNode }) {
+  const [open, setOpen] = useUiState(`headerMenu.${id}`, false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
@@ -244,6 +246,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
         )}
         {device !== "phone" && (
         <Menu
+          id="layout"
           button={
             <button className="btn-ghost px-2" aria-label="Layout">
               {view === "full" ? <Columns3 size={17} /> : view === "simple" ? <LayoutPanelLeft size={17} /> : <Maximize2 size={17} />}
@@ -269,6 +272,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
         </button>
         {device !== "phone" && <ThemeButton />}
         <Menu
+          id="account"
           button={
             <button className="btn-ghost gap-1.5 px-2" aria-label="Account">
               <UserRound size={17} />

@@ -180,5 +180,8 @@ def set_autopilot(session: "NegotiationSession", active: bool, driver: str | Non
 
             session.act(SAOResponse(ResponseType.REJECT_OFFER, None))
         elif sa is not None:
-            session.submit(sa.autopilot_step, 0.0)
+            from hani2.recording.recorder import acting
+
+            with acting("autopilot"):
+                session.submit(sa.autopilot_step, 0.0)
     return {"ok": True, "active": session.autopilot_active}

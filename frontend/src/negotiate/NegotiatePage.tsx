@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
 import { api, ApiError } from "../api";
 import { currentPath, navigate, queryParams } from "../router";
-import { useStore } from "../store";
+import { useStore, useUiState } from "../store";
 import { ActionDock, ConfirmDialog } from "./ActionDock";
 import { Assistant, FloatingPanels, StatusBoard, useAutoOpenAssistant } from "./Assistant";
 import { Header } from "./Header";
@@ -10,7 +10,8 @@ import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
 import { MaximizedTool, ToolPane } from "./ToolPane";
 import { stopWebMCP, syncWebMCP } from "../webmcp";
-import { useDevice } from "../device";
+import { useDevice, type Device } from "../device";
+import * as telemetry from "../telemetry";
 import { Splitter, useLayoutSize } from "../ui/Splitter";
 
 function useMedia(q: string) {
@@ -223,7 +224,7 @@ function useReveal(fn: () => void) {
  *  negotiation with a tool tray along the bottom that expands on demand. */
 function Tablet({ landscape }: { landscape: boolean }) {
   const st = useStore((s) => s.state)!;
-  const [trayOpen, setTrayOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useUiState("tablet.tray", false);
   const rowRef = useRef<HTMLDivElement>(null);
   const colRef = useRef<HTMLDivElement>(null);
   const [tools, setTools, commitTools] = useLayoutSize("tablet_tools");
@@ -277,7 +278,7 @@ function Mobile() {
   const st = useStore((s) => s.state)!;
   const assistantOpen = useStore((s) => s.assistantOpen);
   const setAssistant = useStore((s) => s.setAssistantOpen);
-  const [tab, setTab] = useState<"negotiate" | "tools">("negotiate");
+  const [tab, setTab] = useUiState<"negotiate" | "tools">("mobile.tab", "negotiate");
   useReveal(() => {
     setAssistant(false);
     setTab("tools");
@@ -316,14 +317,42 @@ function Mobile() {
   );
 }
 
+/** The negotiation screen itself (no networking): shared by the live page and the replay frame. */
+export function NegotiateBody({ device, landscape, live = true }: { device: Device; landscape: boolean; live?: boolean }) {
+  const connected = useStore((s) => s.connected);
+  const [settings, setSettings] = useUiState("settingsDrawer", false);
+  return (
+    <div className="relative flex h-[100dvh] flex-col">
+      <Header onSettings={() => setSettings(true)} device={device} />
+      {live && !connected && (
+        <div className="flex items-center justify-center gap-2 bg-warn/15 px-3 py-1 text-xs text-warn" role="status">
+          <WifiOff size={13} /> Reconnecting…
+        </div>
+      )}
+      {device === "desktop" ? <Desktop /> : device === "tablet" ? <Tablet landscape={landscape} /> : <Mobile />}
+      <StatusBoard />
+      <MaximizedTool />
+      <ConfirmDialog />
+      <SettingsDrawer open={settings} onClose={() => setSettings(false)} />
+    </div>
+  );
+}
+
 export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   const st = useStore((s) => s.state);
   const connected = useStore((s) => s.connected);
   const connect = useStore((s) => s.connect);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState(false);
   const { device, landscape } = useDevice();
   useAutoOpenAssistant();
+
+  useEffect(() => {
+    telemetry.start();
+    return () => telemetry.stop();
+  }, []);
+  useEffect(() => {
+    telemetry.setDevice(device, landscape);
+  }, [device, landscape]);
 
   useEffect(() => {
     let alive = true;
@@ -379,19 +408,5 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
         <Loader2 size={18} className="animate-spin" /> Preparing your negotiation…
       </div>
     );
-  return (
-    <div className="relative flex h-[100dvh] flex-col">
-      <Header onSettings={() => setSettings(true)} device={device} />
-      {!connected && (
-        <div className="flex items-center justify-center gap-2 bg-warn/15 px-3 py-1 text-xs text-warn" role="status">
-          <WifiOff size={13} /> Reconnecting…
-        </div>
-      )}
-      {device === "desktop" ? <Desktop /> : device === "tablet" ? <Tablet landscape={landscape} /> : <Mobile />}
-      <StatusBoard />
-      <MaximizedTool />
-      <ConfirmDialog />
-      <SettingsDrawer open={settings} onClose={() => setSettings(false)} />
-    </div>
-  );
+  return <NegotiateBody device={device} landscape={landscape} />;
 }

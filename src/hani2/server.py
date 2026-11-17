@@ -30,6 +30,7 @@ from hani2 import events as ev
 from hani2.config import get_env, load_env, read_settings_text, save_json_settings, settings_dir
 from hani2.hub import Hub
 from hani2.session import NegotiationSession
+from hani2.tools.ui import jsonable
 
 WEB_DIR = Path(__file__).parent / "web"
 AUTH_COOKIE = "hani2_auth"
@@ -116,6 +117,14 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(_gc())
     yield
     task.cancel()
+    # finish open recordings (compressed, with their summary); the sessions stay usable
+    for sess in list(hub.sessions.values()):
+        r = getattr(sess, "recorder", None)
+        if r is not None:
+            try:
+                r.finalize()
+            except Exception:
+                traceback.print_exc()
 
 
 app = FastAPI(title="HANI2", version=__version__, lifespan=lifespan)
@@ -389,6 +398,13 @@ def api_session(request: Request, response: Response, body: dict = Body(default=
 
 
 def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
+    from hani2.recording.recorder import acting
+
+    with acting("human"):
+        return _dispatch_msg(s, msg)
+
+
+def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
     t = msg.get("type")
     if t == "load":
         return s.load(msg.get("scenario_type"), msg.get("name"))
@@ -541,7 +557,7 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
         snap = await loop.run_in_executor(None, s.snapshot)
         from hani2.hub import _dumps
 
-        await websocket.send_text(_dumps({"type": "state", "state": snap}))
+        await websocket.send_text(_dumps(hub._stamp(sid, {"type": "state", "state": snap})))
         for t in list(s.tools):
             hub.tool_changed(sid, s.tool_state(t)["id"])
         while True:
@@ -553,6 +569,11 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 continue
             if msg.get("type") == "ping":
                 await websocket.send_text('{"type":"pong"}')
+                continue
+            r = getattr(s, "recorder", None)
+            if r is not None:
+                r.inbound(msg)  # before the executors, which may reorder messages
+            if msg.get("type") == "telemetry":
                 continue
             if msg.get("type") in ("chat", "answer", "panel_action", "extract", "generate"):
                 s.submit(_dispatch, s, msg)  # may block on an LLM / the human: keep the UI queue free
@@ -672,6 +693,89 @@ def admin_events_csv(_: str = Depends(require_admin)):
         w.writerows(rows)
     return Response(buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": "attachment; filename=hani2_events.csv"})
+
+
+# --------------------------------------------------------------------------- #
+# Recordings: replay and evaluation (admin only — a recording holds every     #
+# party's preferences)                                                         #
+# --------------------------------------------------------------------------- #
+def _rec_or_404(key: str):
+    from hani2.recording import store as rstore
+
+    try:
+        return rstore.load(key)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from None
+
+
+@app.get("/api/replay/recordings")
+def replay_list(all: bool = False, _: str = Depends(require_admin)):
+    from hani2.recording import store as rstore
+
+    return {"recordings": jsonable(rstore.list_recordings(include_empty=all)),
+            "roots": [str(r) for r in rstore.roots()]}
+
+
+@app.get("/api/replay/recording")
+def replay_get(key: str, _: str = Depends(require_admin)):
+    rec = _rec_or_404(key)
+    return Response(json.dumps({"key": key, "header": rec.header, "events": rec.events}, allow_nan=False, default=str),
+                    media_type="application/json")
+
+
+@app.get("/api/replay/download")
+def replay_download(key: str, _: str = Depends(require_admin)):
+    from hani2.recording import store as rstore
+
+    try:
+        p = rstore.resolve(key)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from None
+    return FileResponse(p, filename=p.name, media_type="application/octet-stream")
+
+
+@app.post("/api/replay/upload")
+async def replay_upload(request: Request, name: str = "upload.hrec", _: str = Depends(require_admin)):
+    from hani2.recording import store as rstore
+
+    data = await request.body()
+    if len(data) > 200 * 1024 * 1024:
+        raise HTTPException(413, "file too large")
+    try:
+        return {"key": rstore.save_upload(name, data)}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+@app.get("/api/replay/metrics")
+def replay_metrics(_: str = Depends(require_admin)):
+    from hani2.evaluation import available_metrics, llm_judge_status
+
+    return {"metrics": available_metrics(), "llm": llm_judge_status()}
+
+
+@app.post("/api/replay/evaluate")
+def replay_evaluate(body: dict = Body(...), _: str = Depends(require_admin)):
+    """Evaluate recordings: ``{"keys": [...], "metrics": [names] | null, "llm": bool, "refresh": bool}``."""
+    from hani2.evaluation import evaluate_keys
+
+    keys = [str(k) for k in body.get("keys") or []]
+    if not keys:
+        raise HTTPException(400, "no recordings selected")
+    return jsonable(evaluate_keys(keys, metrics=body.get("metrics"), use_llm=bool(body.get("llm")),
+                                  refresh=bool(body.get("refresh")), options=body.get("options") or {}))
+
+
+@app.post("/api/replay/compare")
+def replay_compare(body: dict = Body(...), _: str = Depends(require_admin)):
+    """Aggregate evaluated recordings by a field: ``{"keys", "metrics", "by", "llm"}``."""
+    from hani2.evaluation import compare_keys
+
+    keys = [str(k) for k in body.get("keys") or []]
+    if not keys:
+        raise HTTPException(400, "no recordings selected")
+    return jsonable(compare_keys(keys, by=str(body.get("by") or "opponent"), metrics=body.get("metrics"),
+                                 use_llm=bool(body.get("llm")), options=body.get("options") or {}))
 
 
 @app.get("/api/admin/users")

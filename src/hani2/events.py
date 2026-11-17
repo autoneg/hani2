@@ -102,6 +102,14 @@ def log_event(
     utility_value: float | None = None,
     duration_ms: float | None = None,
 ) -> None:
+    try:
+        from hani2.recording.recorder import on_log_event
+
+        on_log_event(session_id, event_type.value if isinstance(event_type, EventType) else str(event_type),
+                     dict(component=component, action=action, value=value, scenario_id=scenario_id,
+                          round_number=round_number, utility=utility_value, duration_ms=duration_ms))
+    except Exception as e:  # pragma: no cover
+        print(f"[hani2] event recording failed: {e}")
     if not _enabled():
         return
     try:

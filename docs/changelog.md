@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **Recording and replay**: every negotiation is recorded completely (screens, pointer, clicks,
+  keys, local UI state, every message and action with who took it, assistant chat, suggestions and
+  function calls, language-model calls with tokens and cost) in a compact `.hrec` file, and can be
+  replayed exactly in the new replay tool (`/replay`, `hani2 replay open`), with a fidelity check
+  against the participant's screen.
+- **Evaluation metrics** for recordings: hard (outcome, optimality, length, LLM usage, move types
+  and theory of mind, timing, activity, use of the assistant, engagement flags, assistant
+  interaction), subjective (questionnaire scales) and language-model judged (assistant, opponent,
+  human, assertions, error review); group comparisons with scenario-balanced means and pass^k.
+  `hani2 replay evaluate | compare | list | show | export | metrics`.
+- An evaluation questionnaire (UEQ, TAM, intention to use, opponent perception):
+  `HANI2_PER_NEG_YAML=evaluation`. Questions can carry `scale`, `reverse` and
+  `requires: support_agent`.
+
 ## 0.1.0 (2026-11-17)
 
 First release. See [Features](features.md) for the full list with links.

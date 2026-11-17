@@ -108,8 +108,17 @@ HANI2 uses the first of these files that exists and has questions:
 
 1. The file in the `HANI2_PER_NEG_YAML` environment variable.
 2. The file in the `PROLIFIC_PER_NEG_YAML` environment variable.
-3. `<experiment>/questionnaires/per_negotiation.yaml`, when an experiment is active.
-4. `~/negmas/hani2/settings/questionnaires/per_negotiation.yaml`.
+3. The questionnaire named by `"questionnaire"` in `env.json`.
+4. `<experiment>/questionnaires/per_negotiation.yaml`, when an experiment is active.
+5. `~/negmas/hani2/settings/questionnaires/per_negotiation.yaml`.
+
+Instead of a path, the first three can name a questionnaire: `evaluation` is
+`settings/questionnaires/evaluation.yaml`, or the one bundled with HANI2 — the
+[evaluation questionnaire](evaluation.md#subjective-metrics) (UEQ, TAM, opponent perception).
+
+Two optional keys per question feed the [subjective metrics](evaluation.md#subjective-metrics):
+`scale` (the score the item belongs to; add `reverse: true` for reversed items) and
+`requires: support_agent` (ask only when an assistant took part).
 
 `hani2 setup` writes an example to `settings/questionnaires/per_negotiation.example.yaml`. Copy or rename it to `per_negotiation.yaml` to turn the questionnaire on.
 

@@ -194,6 +194,15 @@ or the assistant write to the partner are sent as written.
 
 See [Tools](tools.md).
 
+### `recording`, `evaluation` and `questionnaire`
+
+| Key | Meaning |
+| --- | --- |
+| `recording.enabled` | Record every negotiation (default `true`). See [Recording and replay](recordings.md). |
+| `evaluation.llm` | Language-model settings for the evaluation judge (same keys as `llm_settings.json`); default: the HANI2 language model. |
+| `evaluation.assertions` | Statements for the `nl_assertions` metric. See [Evaluation metrics](evaluation.md#language-model-judgements). |
+| `questionnaire` | The questionnaire after each negotiation, by name (`evaluation`) or path. |
+
 ## `llm_settings.json`
 
 The language model for LLM opponents and for the message helpers.
@@ -273,8 +282,10 @@ See [Autopilot](autopilot.md).
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
 | `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when no experiment provides one, instead of `settings/scenarios`. |
-| `HANI2_PER_NEG_YAML` | none | Path of the questionnaire file; takes precedence over the experiment and settings folders. |
+| `HANI2_PER_NEG_YAML` | none | Path or name (`evaluation`) of the questionnaire file; takes precedence over the experiment and settings folders. |
 | `HANI2_EVENTS` | `1` | `0`, `false`, `no` or `off` disables the event log. |
+| `HANI2_RECORD` | `1` | `0`, `false`, `no` or `off` disables [recordings](recordings.md). |
+| `HANI2_REPLAY_DIRS` | none | Extra folders of recordings shown in the replay tool (`os.pathsep`-separated). Set by `hani2 replay open PATHS`. |
 | `HANI2_LLM_LOG` | off | `1`, `true`, `yes` or `on` logs every LLM call opponents make. |
 | `HANI2_OLLAMA_LOCAL_BASE` | `http://localhost:11434` | Local Ollama daemon for the missing-model fallback. |
 | `HANI2_WORKERS` | `32` | Size of the worker thread pool. |

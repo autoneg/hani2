@@ -49,15 +49,23 @@ def questionnaire_spec() -> dict | None:
     """
     import yaml
 
+    from hani2.config import DEFAULT_SETTINGS_DIR, get_env, settings_dir
+
+    def named(v: str) -> list[Path]:
+        # a bare name ("evaluation") is a questionnaire in the settings or bundled with HANI2
+        if "/" in v or v.endswith((".yaml", ".yml")):
+            return [Path(v).expanduser()]
+        return [settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
+
     cands: list[Path] = []
     for var in ("HANI2_PER_NEG_YAML", "PROLIFIC_PER_NEG_YAML"):
         if os.environ.get(var):
-            cands.append(Path(os.environ[var]).expanduser())
+            cands.extend(named(os.environ[var]))
+    if get_env("questionnaire", None):
+        cands.extend(named(str(get_env("questionnaire"))))
     exp = experiment_dir()
     if exp is not None:
         cands.append(exp / "questionnaires" / "per_negotiation.yaml")
-    from hani2.config import settings_dir
-
     cands.append(settings_dir() / "questionnaires" / "per_negotiation.yaml")
     for p in cands:
         if p.is_file():
@@ -68,6 +76,17 @@ def questionnaire_spec() -> dict | None:
             except Exception as e:  # pragma: no cover
                 print(f"[hani2] questionnaire {p} failed to parse: {e}")
     return None
+
+
+def questionnaire_for(session: "NegotiationSession", spec: dict | None) -> dict | None:
+    """The questionnaire as shown in this session: questions marked
+    ``requires: support_agent`` are dropped when no assistant took part."""
+    if not spec:
+        return spec
+    sa = session.support_agent
+    has_agent = sa is not None and bool(getattr(sa, "user_enabled", True))
+    qs = [q for q in spec.get("questions", []) if not (q.get("requires") == "support_agent" and not has_agent)]
+    return {**spec, "questions": qs} if qs else None
 
 
 def save_questionnaire(user_path: Path, row_meta: dict[str, Any], answers: dict[str, Any]) -> None:
@@ -129,7 +148,7 @@ class Study:
 
     def after_round(self, summary: dict) -> None:
         self._last_summary = summary
-        spec = questionnaire_spec() if self.wants_questionnaire(summary) else None
+        spec = questionnaire_for(self.session, questionnaire_spec()) if self.wants_questionnaire(summary) else None
         if spec:
             self.session.questionnaire = spec
             self.session.phase = "questionnaire"
@@ -158,6 +177,8 @@ class Study:
                  duration_seconds=f"{dur:.3f}" if dur is not None else ""),
             answers,
         )
+        if getattr(s, "recorder", None) is not None:
+            s.recorder.questionnaire(spec, answers, shown)
         s.questionnaire = None
         s.phase = "ended"
         self.after_questionnaire()
@@ -439,8 +460,8 @@ class ProlificStudy(Study):
             msg, level = f"{counted} of {self.n_required} counted negotiations complete — {self.n_required - counted} to go.", "info"
         s.notice = {"text": msg, "level": level}
         s.toast(msg, level, duration=0 if level != "info" else 10000)
-        if not uncounted and not summary.get("agent_failed") and questionnaire_spec():
-            s.questionnaire = questionnaire_spec()
+        if not uncounted and not summary.get("agent_failed") and questionnaire_for(s, questionnaire_spec()):
+            s.questionnaire = questionnaire_for(s, questionnaire_spec())
             s.phase = "questionnaire"
             self._shown_at = datetime.now().isoformat()
             return

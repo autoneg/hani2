@@ -146,6 +146,26 @@ hani2 experiment list
 
 Lists the experiments with the number of participants who have a `results.csv` in each.
 
+## `hani2 replay`
+
+Explore, replay and evaluate [recordings](../guide/recordings.md). `PATHS` are recording files or
+folders (default: the results folder).
+
+| Command | What it does |
+| --- | --- |
+| `hani2 replay open [PATHS…] [--port 5006]` | Start the server and open the replay tool, also listing recordings in `PATHS`. |
+| `hani2 replay list [PATHS…] [--all]` | List recordings with their result and length (`--all`: also those where no negotiation started). |
+| `hani2 replay show FILE [--events]` | What a recording holds. |
+| `hani2 replay export FILE -o out.json` | The recording as plain JSON. |
+| `hani2 replay metrics` | Every [evaluation metric](../guide/evaluation.md) and its columns. |
+| `hani2 replay evaluate [PATHS…] [-m a,b] [--llm] [--refresh] [-o file.csv] [--option k=v]` | One row of metrics per recording; `.json` output also works. |
+| `hani2 replay compare [PATHS…] --by opponent [-m …] [--llm] [-o file.csv]` | Means per group, and pass^k reliability. |
+
+```bash
+hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metrics.csv
+hani2 replay compare --by support_agent --columns human_utility,suggestion_adoption,llm_tokens
+```
+
 ## `hani2 users`
 
 Manages the accounts in `settings/users.json`. See [Authentication](../guide/authentication.md).

@@ -678,7 +678,10 @@ class SupportAgent:
             kwargs["api_key"] = api_key
         if s.get("api_base"):
             kwargs["api_base"] = s["api_base"]
-        response = litellm.completion(**kwargs)
+        from hani2.recording.recorder import current_actor, llm_role
+
+        with llm_role("autopilot" if current_actor() == "autopilot" else "support"):
+            response = litellm.completion(**kwargs)
         msg = response.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
         tool_calls = getattr(msg, "tool_calls", None)

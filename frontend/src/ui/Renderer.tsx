@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useUiState } from "../store";
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { Component } from "../types";
 import { Icon } from "./Icon";
@@ -320,7 +321,7 @@ function Slider({ c, v, ctx }: { c: Component; v: any; ctx: RenderCtx }) {
 }
 
 function Card({ c, ctx }: { c: Component; ctx: RenderCtx }) {
-  const [open, setOpen] = useState(!c.collapsed);
+  const [open, setOpen] = useUiState<boolean>(c.id ? `r.${c.id}.open` : undefined, !c.collapsed);
   return (
     <section className="rounded-xl border border-line bg-surface">
       {c.title && (
@@ -347,9 +348,10 @@ function Card({ c, ctx }: { c: Component; ctx: RenderCtx }) {
 function DataTable({ c, ctx }: { c: Component; ctx: RenderCtx }) {
   const rows: any[] = c.rows || [];
   const cols: string[] = c.columns || [];
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState<{ col: string; dir: 1 | -1 } | null>(null);
-  const [q, setQ] = useState("");
+  const k = (n: string) => (c.id ? `r.${c.id}.${n}` : undefined);
+  const [page, setPage] = useUiState(k("page"), 0);
+  const [sort, setSort] = useUiState<{ col: string; dir: 1 | -1 } | null>(k("sort"), null);
+  const [q, setQ] = useUiState(k("q"), "");
   const size = c.page_size || 25;
   const filtered = useMemo(() => {
     let r = rows.map((row, index) => ({ row, index }));

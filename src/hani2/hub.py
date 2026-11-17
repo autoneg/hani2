@@ -119,12 +119,39 @@ class Hub:
 
     # -- public API used by sessions --------------------------------------------
     def push(self, sid: str, msg: dict[str, Any]) -> None:
+        if self.sessions.get(sid) is not None and getattr(self.sessions[sid], "recorder", None) is not None:
+            try:
+                msg = jsonable(msg)  # a copy: the caller may change its lists before the loop sends
+            except Exception:
+                traceback.print_exc()
+                return
+            self._call(self._send_msg, sid, msg)  # recorded in send order on the loop
+            return
         try:
             text = _dumps(msg)
         except Exception:
             traceback.print_exc()
             return
         self._call(self._send, sid, text)
+
+    def _stamp(self, sid: str, msg: dict[str, Any]) -> dict[str, Any]:
+        """Record an outgoing message and add its sequence number (``_seq``),
+        which the browser echoes in its telemetry so a replay can line up
+        what was on screen with what the participant did."""
+        s = self.sessions.get(sid)
+        r = getattr(s, "recorder", None)
+        if r is None:
+            return msg
+        seq = r.outbound(msg)
+        return {**msg, "_seq": seq}
+
+    async def _send_msg(self, sid: str, msg: dict[str, Any]) -> None:
+        try:
+            text = _dumps(self._stamp(sid, msg))
+        except Exception:
+            traceback.print_exc()
+            return
+        await self._send(sid, text)
 
     def push_state(self, sid: str) -> None:
         with self._lock:
@@ -142,7 +169,7 @@ class Hub:
             return
         try:
             snap = await asyncio.get_running_loop().run_in_executor(None, s.snapshot)
-            await self._send(sid, _dumps({"type": "state", "state": snap}))
+            await self._send(sid, _dumps(self._stamp(sid, {"type": "state", "state": snap})))
         except Exception:
             traceback.print_exc()
         self._render_newly_shown(s)
@@ -201,7 +228,7 @@ class Hub:
             if view is not None:
                 with self._lock:
                     self._tools_sent.add(key)
-                await self._send(sid, _dumps({"type": "tool", **view}))
+                await self._send(sid, _dumps(self._stamp(sid, {"type": "tool", **view})))
         except Exception:
             traceback.print_exc()
         finally:

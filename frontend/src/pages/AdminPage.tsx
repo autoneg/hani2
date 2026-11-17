@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowLeft,
+  Clapperboard,
   Bot,
   ChartColumn,
   Download,
@@ -706,8 +707,14 @@ export function AdminPage() {
               <I size={16} /> {l}
             </button>
           ))}
+          <a className="flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-sunken/60 hover:text-ink lg:hidden" href={withBase("/replay")} onClick={(e) => { e.preventDefault(); navigate("/replay"); }}>
+            <Clapperboard size={16} /> Replay
+          </a>
         </div>
         <div className="mt-auto hidden p-3 lg:block">
+          <a className="btn-ghost w-full justify-start" href={withBase("/replay")} onClick={(e) => { e.preventDefault(); navigate("/replay"); }}>
+            <Clapperboard size={15} /> Replay recordings
+          </a>
           <a className="btn-ghost w-full justify-start" href={withBase("/app")} onClick={(e) => { e.preventDefault(); navigate("/app"); }}>
             <ArrowLeft size={15} /> Back to negotiating
           </a>

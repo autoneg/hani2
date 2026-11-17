@@ -10,3 +10,7 @@ build/
 site/
 .DS_Store
 frontend/.vite/
+_support_docs/
+_support_docs/*
+
+PLAN.md

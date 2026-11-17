@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Eraser, Send, SlidersHorizontal, X } from "lucide-react";
-import { send, useStore } from "../store";
+import { send, useStore, useUiState } from "../store";
 import type { AgentPanel, SessionState } from "../types";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
@@ -94,8 +94,8 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
   const st = useStore((s) => s.state);
   const open = useStore((s) => s.assistantOpen);
   const setOpen = useStore((s) => s.setAssistantOpen);
-  const [text, setText] = useState("");
-  const [settings, setSettings] = useState(false);
+  const [text, setText] = useUiState("assistant.text", "");
+  const [settings, setSettings] = useUiState("assistant.settings", false);
   const ref = useRef<HTMLDivElement>(null);
   const n = st?.chat.length ?? 0;
   useEffect(() => {
@@ -211,7 +211,7 @@ export function useAutoOpenAssistant() {
 export function StatusBoard() {
   const board = useStore((s) => s.state?.board);
   const hasAgent = useStore((s) => !!s.state?.support);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useUiState("statusBoard.collapsed", false);
   if (!hasAgent || !board) return null;
   return (
     <div className="flex items-start gap-2 border-t border-line bg-surface px-3 py-2 sm:px-4" role="status" aria-label="Assistant status board">

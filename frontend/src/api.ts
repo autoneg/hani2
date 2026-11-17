@@ -29,6 +29,22 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   return (ct.includes("json") ? res.json() : res.text()) as Promise<T>;
 }
 
+/** POST raw bytes (e.g. a file) and read the JSON answer. */
+export async function apiRaw<T = any>(path: string, body: Blob | ArrayBuffer): Promise<T> {
+  const res = await fetch(withBase(path), { method: "POST", body, credentials: "same-origin", headers: { "Content-Type": "application/octet-stream" } });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try {
+      const j = await res.json();
+      msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail ?? j);
+    } catch {
+      /* not json */
+    }
+    throw new ApiError(res.status, msg);
+  }
+  return res.json();
+}
+
 export interface AppConfig {
   title: string;
   subtitle: string;

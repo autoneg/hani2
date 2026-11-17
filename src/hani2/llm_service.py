@@ -396,12 +396,22 @@ def _call_ollama(prompt: str, settings: dict) -> str | None:
         base_url=base_url,
     )
 
-    response = client.chat.completions.create(
+    import time as _time
+
+    kwargs = dict(
         model=settings.get("model", "qwen2.5:1.5b"),
         messages=[{"role": "user", "content": prompt}],
         temperature=settings.get("temperature", 0.3),
         max_tokens=settings.get("max_tokens", 2000),
     )
+    t0 = _time.perf_counter()
+    response = client.chat.completions.create(**kwargs)
+    try:
+        from hani2.recording.recorder import record_llm_call
+
+        record_llm_call({**kwargs, "model": f"ollama/{kwargs['model']}"}, response, _time.perf_counter() - t0)
+    except Exception:  # noqa: BLE001
+        pass
 
     return response.choices[0].message.content
 
