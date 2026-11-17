@@ -189,7 +189,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
       <div className="hidden min-w-0 flex-1 md:block">
         <div className="truncate text-sm font-semibold">{st.scenario?.title ?? "Negotiation"}</div>
         <div className="flex items-center gap-2 truncate text-xs text-muted">
-          {st.scenario && <span>You are the {st.scenario.role}</span>}
+          {st.scenario?.role && <span>You are the {st.scenario.role}</span>}
           <span className={`rounded px-1.5 py-px font-medium ${st.round.practice ? "bg-warn/15 text-warn" : "bg-sunken text-ink"}`}>{st.round.label}</span>
           {st.opponent && (
             <span className="truncate rounded bg-partner/10 px-1.5 py-px text-partner" title={st.opponent.type}>

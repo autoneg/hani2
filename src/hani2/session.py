@@ -297,6 +297,39 @@ class NegotiationSession:
         except Exception:
             return None
 
+    @property
+    def labels(self) -> dict[str, str]:
+        """Display names for side words (``{"human": "You", "agent": "Partner"}``)
+        when relabelling applies (see :mod:`hani2.naming`), else ``{}``."""
+        cached = self.__dict__.get("_labels")
+        if cached is not None:
+            return cached
+        from hani2.naming import role_labels
+
+        m = role_labels(self)
+        if "support_agent" in self.__dict__:  # decided once the agent exists
+            self._labels = m
+        return m
+
+    def relabel(self, components: Any) -> Any:
+        """Tool components as the participant should see them (see :mod:`hani2.naming`)."""
+        from hani2.naming import relabel_components
+
+        return relabel_components(components, self.labels)
+
+    def relabel_text(self, text: str | None) -> str | None:
+        from hani2.naming import relabel_text
+
+        return relabel_text(text, self.labels)
+
+    def display_outcome(self, d: dict[str, Any] | None) -> dict[str, Any] | None:
+        from hani2.naming import relabel_value
+
+        m = self.labels
+        if d is None or not m:
+            return d
+        return {k: relabel_value(v, m) for k, v in d.items()}
+
     def outcome_to_dict(self, outcome) -> dict[str, Any] | None:
         if outcome is None:
             return None
@@ -411,7 +444,7 @@ class NegotiationSession:
         st = self.tool_state(t)
         if not st["enabled"] and not t.permanent and self.admin_prefs.get("allow_tool_switch", True):
             return {"id": tid, "view": None}
-        return {"id": tid, "view": t.render()}
+        return {"id": tid, "view": self.relabel(t.render())}
 
     def tool_input(self, tid: str, name: str, value: Any) -> None:
         t = self.tool_by_id(tid)
@@ -720,8 +753,8 @@ class NegotiationSession:
                     by="human" if by_human else "agent",
                     name=str(neg),
                     offer=self.outcome_to_dict(offer),
-                    offer_str=self.outcome_str(offer, by_human) if offer is not None else None,
-                    text=str(text) if text else (str(data.get("text")) if isinstance(data, dict) and data.get("text") else None),
+                    offer_str=self.relabel_text(self.outcome_str(offer, by_human)) if offer is not None else None,
+                    text=self._shown_text(text, data, by_human),
                     data=extra or None,
                     utility=util,
                     below_reserved=(util is not None and util < self.reserved_value()),
@@ -867,6 +900,10 @@ class NegotiationSession:
         kind = _issue_kind(issue)
         if value is None:
             return None
+        if self.labels and isinstance(value, str):
+            from hani2.naming import unlabel_value
+
+            value = unlabel_value(value, self.labels)
         try:
             if kind == "int":
                 return int(round(float(value)))
@@ -1187,7 +1224,7 @@ class NegotiationSession:
                 info["min"], info["max"] = ui.jsonable(i.min_value), ui.jsonable(i.max_value)
             else:
                 try:
-                    info["values"] = ui.jsonable(list(i.all))
+                    info["values"] = [self.display_outcome({"v": v})["v"] for v in ui.jsonable(list(i.all))]
                 except Exception:
                     pass
             return info
@@ -1195,7 +1232,7 @@ class NegotiationSession:
         history = [
             {
                 "by": "you" if h["by"] == "human" else "partner",
-                "offer": h.get("offer"),
+                "offer": self.display_outcome(h.get("offer")),
                 "message": h.get("text"),
                 "utility": h.get("utility"),
             }
@@ -1204,10 +1241,11 @@ class NegotiationSession:
         ]
         return {
             "issues": [_issue_info(i) for i in self.issues],
-            "partner_offer": self.outcome_to_dict(partner),
+            "partner_offer": self.display_outcome(self.outcome_to_dict(partner)),
             "partner_offer_utility": self.utility(partner),
-            "partner_message": (self.partner_data() or {}).get("text") if isinstance(self.partner_data(), dict) else None,
-            "draft_offer": dict(self.draft),
+            "partner_message": self.relabel_text((self.partner_data() or {}).get("text"))
+            if isinstance(self.partner_data(), dict) else None,
+            "draft_offer": self.display_outcome(dict(self.draft)),
             "draft_offer_utility": self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None,
             "draft_message": self.draft_text,
             "reserved_value": self.reserved_value(),
@@ -1220,6 +1258,9 @@ class NegotiationSession:
             "history": history,
             "result": self.result,
             "tools": [t.name for t in self.tools],
+            **({"names": "Values are shown with these names: "
+                         + ", ".join(f"{v} = {'the participant' if k == 'human' else 'the opponent (partner)'}"
+                                     for k, v in self.labels.items())} if self.labels else {}),
         }
 
     def _make_actions(self) -> dict[str, Callable]:
@@ -1439,6 +1480,10 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # Snapshot sent to the browser                                        #
     # ------------------------------------------------------------------ #
+    def _shown_text(self, text, data, by_human: bool) -> str | None:
+        t = str(text) if text else (str(data.get("text")) if isinstance(data, dict) and data.get("text") else None)
+        return t if by_human else self.relabel_text(t)
+
     def issues_spec(self) -> list[dict[str, Any]]:
         out = []
         info = (self.scenario.info or {}) if self.scenario is not None else {}
@@ -1453,6 +1498,12 @@ class NegotiationSession:
                     d["values"] = list(range(int(i.min_value), int(i.max_value) + 1))
             else:
                 d["values"] = ui.jsonable(list(i.all))
+                if self.labels:
+                    from hani2.naming import relabel_value
+
+                    shown = {str(v): relabel_value(v, self.labels) for v in d["values"]}
+                    if any(str(k) != str(v) for k, v in shown.items()):
+                        d["labels"] = shown
             desc = descs.get(role, {}).get(i.name) if isinstance(descs.get(role), dict) else descs.get(i.name)
             if desc:
                 d["description"] = str(desc)
@@ -1497,7 +1548,8 @@ class NegotiationSession:
                     short_description=info.get("short_description", ""),
                     issues=self.issues_spec(),
                     n_issue_columns=int(info.get("n_issue_columns") or (3 if len(self.issues_spec()) >= 7 else 2)),
-                    role=str(self.ss.get("human_id", "")).replace(" (You)", ""),
+                    role="" if str(self.ss.get("human_id", "")).replace(" (You)", "").strip().lower() in self.labels
+                    else str(self.ss.get("human_id", "")).replace(" (You)", ""),
                 ),
                 "opponent": dict(
                     name=short_name(self.ss.get("last_partner_type", "")),
@@ -1518,7 +1570,7 @@ class NegotiationSession:
                 ),
                 "partner_offer": None
                 if partner is None
-                else dict(values=self.outcome_to_dict(partner), text=self.outcome_str(partner),
+                else dict(values=self.outcome_to_dict(partner), text=self.relabel_text(self.outcome_str(partner)),
                           utility=self.utility(partner),
                           message=(pdata or {}).get("text") if isinstance(pdata, dict) else None),
                 "reserved_value": self.reserved_value(),

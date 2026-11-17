@@ -146,6 +146,27 @@ The Prolific flow overrides some of these per round (for example the time limits
 | --- | --- | --- |
 | `playground.enabled` | `true` | Allow the no-login playground at `/play`. Prolific links work even when it is off. |
 
+### `names`
+
+Some scenarios call the two sides `human` and `agent` (on the island, for example, every item goes
+to `human` or `agent`). With a support agent in the session, "agent" is ambiguous, so HANI2 shows
+these values as **You** and **Partner** instead: in the offer fields, the offer text, the
+partner's messages, tool tables and charts, and in what the support agent reads. Values typed or
+picked with the new names are mapped back, so results, logs and the opponent keep the scenario's
+own values, and results from sessions with and without an assistant stay comparable.
+
+```json
+"names": {"apply": "auto", "self": "You", "opponent": "Partner"}
+```
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `apply` | `auto` | `auto`: relabel when the session has a support agent; `always`; or `never`. |
+| `self` | `You` | Shown instead of `human`. |
+| `opponent` | `Partner` | Shown instead of `agent`. |
+
+When relabelling applies, the header no longer says "You are the human".
+
 ### `tools`
 
 | Key | Meaning |

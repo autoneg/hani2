@@ -188,6 +188,9 @@ class Tool:
         try:
             with self.view_lock:
                 comps = list(self.view() or [])
+            relabel = getattr(self.session, "relabel", None)
+            if relabel is not None:
+                comps = relabel(comps)
             body = describe_components(comps, max_chars=max_chars)
         except Exception as e:  # noqa: BLE001
             body = f"(this tool could not be read: {e})"

@@ -379,7 +379,10 @@ class SupportAgent:
             return {"ok": False, "error": f"the {controls['actions'][action].get('label') or action} button is disabled now"}
         sess = self.session
         results: list[Any] = []
-        inputs = {k: _coerce_input(controls["inputs"][k], v) for k, v in (inputs or {}).items()}
+        from hani2.naming import unlabel_value
+
+        inputs = {k: _coerce_input(controls["inputs"][k], unlabel_value(v, sess.labels if hasattr(sess, "labels") else {}))
+                  for k, v in (inputs or {}).items()}
         with sess.acting_for_agent(self._executable_capabilities()):
             for key, value in inputs.items():
                 try:

@@ -22,3 +22,9 @@ export const clock = (s: number) => {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, "0")}`;
 };
+
+/** A value as shown for an issue, using the issue's display labels if any. */
+export function showValue(issue: { labels?: Record<string, string> } | undefined, v: any): string {
+  const label = issue?.labels?.[String(v)];
+  return label ?? fmtValue(v);
+}

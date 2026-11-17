@@ -4,16 +4,17 @@ import { useStore } from "../store";
 import type { HistoryItem } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Gauge } from "../ui/Gauge";
-import { fmtValue } from "../ui/format";
+import { fmtValue, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
 
 function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" | "partner" }) {
+  const issues = useStore((s) => s.state?.scenario?.issues);
   return (
     <div className="flex flex-wrap gap-1">
       {Object.entries(offer).map(([k, v]) => (
         <span key={k} className={`inline-flex items-baseline gap-1 rounded-md px-1.5 py-0.5 text-xs ${tone === "you" ? "bg-you/10" : "bg-partner/10"}`}>
           <span className="text-muted">{k}</span>
-          <b className="tnum font-semibold">{fmtValue(v)}</b>
+          <b className="tnum font-semibold">{showValue(issues?.find((i) => i.name === k), v)}</b>
         </span>
       ))}
     </div>

@@ -5,7 +5,7 @@ import { send, useStore } from "../store";
 import type { IssueSpec, Questionnaire, SessionState } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Gauge } from "../ui/Gauge";
-import { clock, fmtValue, pct } from "../ui/format";
+import { clock, fmtValue, pct, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 
@@ -33,7 +33,7 @@ function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; 
               onClick={() => set(v)}
               className={`tnum min-w-[2.5rem] rounded-lg border px-2.5 py-1.5 text-sm transition-colors disabled:opacity-50 ${on ? "border-you bg-you text-white" : "border-line bg-surface hover:border-you/50"}`}
             >
-              {fmtValue(v)}
+              {showValue(issue, v)}
             </button>
           );
         })}
@@ -44,7 +44,7 @@ function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; 
       <select className="field tnum" value={JSON.stringify(value)} disabled={disabled} onChange={(e) => set(JSON.parse(e.target.value))} aria-label={issue.name}>
         {values.map((v) => (
           <option key={String(v)} value={JSON.stringify(v)}>
-            {fmtValue(v)}
+            {showValue(issue, v)}
           </option>
         ))}
       </select>
