@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { Brand, ThemeButton } from "../negotiate/Header";
-import { navigate } from "../router";
+import { navigate, withBase } from "../router";
 import { useStore } from "../store";
 import { Plot } from "../ui/Plot";
 import { Renderer } from "../ui/Renderer";
@@ -164,7 +164,7 @@ function Results() {
     <>
       <div className="flex items-start justify-between">
         <H sub={`${data.rows.length} negotiations from every participant.`}>Results</H>
-        <a className="btn-secondary" href="/api/admin/results.csv">
+        <a className="btn-secondary" href={withBase("/api/admin/results.csv")}>
           <Download size={15} /> Download CSV
         </a>
       </div>
@@ -205,7 +205,7 @@ function Analytics() {
     <>
       <div className="flex items-start justify-between">
         <H sub="Everything participants and support agents did, as logged by the server.">Event analytics</H>
-        <a className="btn-secondary" href="/api/admin/events.csv">
+        <a className="btn-secondary" href={withBase("/api/admin/events.csv")}>
           <Download size={15} /> Export CSV
         </a>
       </div>
@@ -708,7 +708,7 @@ export function AdminPage() {
           ))}
         </div>
         <div className="mt-auto hidden p-3 lg:block">
-          <a className="btn-ghost w-full justify-start" href="/app" onClick={(e) => { e.preventDefault(); navigate("/app"); }}>
+          <a className="btn-ghost w-full justify-start" href={withBase("/app")} onClick={(e) => { e.preventDefault(); navigate("/app"); }}>
             <ArrowLeft size={15} /> Back to negotiating
           </a>
         </div>

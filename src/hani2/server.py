@@ -281,7 +281,7 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
     if not p or not ep:
         raise HTTPException(404, "Unknown OAuth provider")
     if not code or state != request.cookies.get("hani2_oauth_state"):
-        return RedirectResponse("/login?error=oauth_state")
+        return RedirectResponse(root_path() + "/login?error=oauth_state")
     try:
         data = dict(client_id=p["key"], client_secret=p["secret"], code=code,
                     redirect_uri=_redirect_uri(request, provider))
@@ -290,7 +290,7 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
         tok = httpx.post(ep["token"], data=data, headers={"Accept": "application/json"}, timeout=15).json()
         access = tok.get("access_token")
         if not access:
-            return RedirectResponse("/login?error=oauth_token")
+            return RedirectResponse(root_path() + "/login?error=oauth_token")
         hdr = {"Authorization": f"Bearer {access}", "Accept": "application/json"}
         info = httpx.get(ep["user"], headers=hdr, timeout=15).json()
         if provider == "github":
@@ -309,12 +309,12 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
             name = info.get("name") or username
     except Exception:
         traceback.print_exc()
-        return RedirectResponse("/login?error=oauth_failed")
+        return RedirectResponse(root_path() + "/login?error=oauth_failed")
     if not auth.user_exists(username):
         auth.create_user(username, None, email=email or "", full_name=name or "", oauth=provider)
     else:
         auth.update_meta(username, email=email or "", oauth=provider)
-    r = RedirectResponse("/app")
+    r = RedirectResponse(root_path() + "/app")
     _set_auth(r, username)
     ev.log_event(None, ev.EventType.LOGIN, user=username, value={"oauth": provider})
     return r
@@ -736,6 +736,20 @@ if (WEB_DIR / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
 
 
+def root_path() -> str:
+    """Sub-path this server is mounted under behind a reverse proxy ('' at a root)."""
+    v = os.environ.get("HANI2_ROOT_PATH", "").strip().strip("/")
+    return f"/{v}" if v else ""
+
+
+def _index_html(text: str) -> str:
+    base = root_path()
+    if not base:
+        return text
+    text = text.replace('"/assets/', f'"{base}/assets/').replace('"/favicon.svg"', f'"{base}/favicon.svg"')
+    return text.replace("<head>", f'<head>\n    <meta name="hani2-base" content="{base}" />', 1)
+
+
 @app.get("/{path:path}", include_in_schema=False)
 def spa(path: str):
     if path.startswith("api/"):
@@ -745,7 +759,7 @@ def spa(path: str):
         return FileResponse(f)
     index = WEB_DIR / "index.html"
     if index.exists():
-        return HTMLResponse(index.read_text(), headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(_index_html(index.read_text()), headers={"Cache-Control": "no-cache"})
     return HTMLResponse(
         "<h1>HANI2</h1><p>The web interface has not been built. Run <code>npm run build</code> in "
         "<code>frontend/</code>.</p>",

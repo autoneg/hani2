@@ -1,0 +1,1 @@
+import{c as e}from"./index-Ba0Z34Z9.js";const a={name:"bangladeshi-taka",size:24,node:[["path",{d:"M6 5a2 2 0 0 1 4 0v12a4 4 0 0 0 8 0 2 2 0 0 0-4 0",key:"1rv5si"}],["path",{d:"M6 9h12",key:"oae0tv"}]]};a.node;const o=e(a);export{a as __iconData,o as default};

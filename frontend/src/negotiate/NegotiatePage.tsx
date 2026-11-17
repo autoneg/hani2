@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
 import { api, ApiError } from "../api";
-import { navigate, queryParams } from "../router";
+import { currentPath, navigate, queryParams } from "../router";
 import { useStore } from "../store";
 import { ActionDock, ConfirmDialog } from "./ActionDock";
 import { Assistant, FloatingPanels, StatusBoard, useAutoOpenAssistant } from "./Assistant";
@@ -332,7 +332,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
         .then(({ sid }) => alive && connect(sid))
         .catch((e: ApiError) => {
           if (!alive) return;
-          if (e.status === 401) navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`, true);
+          if (e.status === 401) navigate(`/login?next=${encodeURIComponent(currentPath() + location.search)}`, true);
           else if (e.status === 403 && e.message === "consent_required") navigate("/consent", true);
           else setError(e.message);
         });
@@ -357,7 +357,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   }, [connected, device, landscape]);
 
   useEffect(() => {
-    if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: location.pathname, width: window.innerWidth } });
+    if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: currentPath(), width: window.innerWidth } });
   }, [connected, mode]);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { BASE } from "./router";
 import type { Component, HistoryItem, SessionState, Toast } from "./types";
 
 type ConfirmReq = { kind: "accept" | "end"; message?: string | null } | null;
@@ -93,7 +94,7 @@ export const useStore = create<Store>((set, get) => ({
     const old = get().ws;
     if (old) old.close();
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/api/ws/${encodeURIComponent(sid)}`);
+    const ws = new WebSocket(`${proto}://${location.host}${BASE}/api/ws/${encodeURIComponent(sid)}`);
     set({ ws });
     ws.onopen = () => {
       retry = 0;

@@ -1,3 +1,5 @@
+import { withBase } from "./router";
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -7,7 +9,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: any } = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(withBase(path), {
     method: opts.method ?? (opts.body !== undefined ? "POST" : "GET"),
     headers: opts.body !== undefined ? { "Content-Type": "application/json" } : undefined,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,

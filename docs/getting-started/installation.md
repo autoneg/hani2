@@ -177,3 +177,7 @@ Run `hani2 users passwd admin`.
 
 **Everyone was logged out after a restart.**
 Login cookies are signed with `auth.cookie_secret` from `env.json`. When it is empty, HANI2 generates one and stores it in `settings/.cookie_secret`. Deleting that file, or changing `HANI2_HOME`, invalidates existing cookies.
+
+### Serving under a sub-path
+
+Behind a reverse proxy you can mount HANI2 under a path such as `/hanplay`: start it with `hani2 --root-path /hanplay` (or set `HANI2_ROOT_PATH`). It works whether the proxy strips the prefix or forwards it unchanged. Forward WebSocket upgrades for `<prefix>/api/ws/`.

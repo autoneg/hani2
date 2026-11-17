@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { KeyRound, Loader2, LogIn, Play } from "lucide-react";
 import { api, type AppConfig } from "../api";
 import { Brand, ThemeButton } from "../negotiate/Header";
-import { navigate } from "../router";
+import { navigate, withBase } from "../router";
 import { Gauge } from "../ui/Gauge";
 import { Markdown } from "../ui/Markdown";
 
@@ -112,7 +112,7 @@ export function LoginPage() {
           <>
             {pw && <div className="my-1 text-center text-xs text-muted">or</div>}
             {cfg.oauth_providers.map((prov) => (
-              <a key={prov} className="btn-secondary py-2.5" href={`/api/oauth/${prov}/login`}>
+              <a key={prov} className="btn-secondary py-2.5" href={withBase(`/api/oauth/${prov}/login`)}>
                 <KeyRound size={16} />
                 Continue with {prov === "github" ? "GitHub" : prov === "google" ? "Google" : prov}
               </a>
@@ -123,13 +123,13 @@ export function LoginPage() {
           {cfg?.allow_registration && (
             <p className="text-muted">
               No account?{" "}
-              <a className="font-medium text-you hover:underline" href="/register" onClick={(e) => { e.preventDefault(); navigate("/register"); }}>
+              <a className="font-medium text-you hover:underline" href={withBase("/register")} onClick={(e) => { e.preventDefault(); navigate("/register"); }}>
                 Create one
               </a>
             </p>
           )}
           {cfg?.playground && (
-            <a className="inline-flex items-center gap-1.5 font-medium text-you hover:underline" href="/play">
+            <a className="inline-flex items-center gap-1.5 font-medium text-you hover:underline" href={withBase("/play")}>
               <Play size={14} /> Try the playground without an account
             </a>
           )}
@@ -214,7 +214,7 @@ export function RegisterPage() {
         </button>
         <p className="text-sm text-muted">
           Have an account?{" "}
-          <a className="font-medium text-you hover:underline" href="/login" onClick={(e) => { e.preventDefault(); navigate("/login"); }}>
+          <a className="font-medium text-you hover:underline" href={withBase("/login")} onClick={(e) => { e.preventDefault(); navigate("/login"); }}>
             Log in
           </a>
         </p>

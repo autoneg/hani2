@@ -36,7 +36,7 @@ def _open_when_ready(url: str) -> None:
     threading.Thread(target=_run, daemon=True).start()
 
 
-def _serve(host: str, port: int, open_path: str | None, reload: bool = False, log_level: str = "info") -> None:
+def _serve(host: str, port: int, open_path: str | None, reload: bool = False, log_level: str = "info", root_path: str = "") -> None:
     import uvicorn
 
     from hani2.config import settings_dir
@@ -53,7 +53,7 @@ def _serve(host: str, port: int, open_path: str | None, reload: bool = False, lo
     typer.echo(f"  Settings    {settings_dir()}\n")
     if open_path is not None:
         _open_when_ready(f"http://{url_host}:{port}{open_path}")
-    uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1)
+    uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1, root_path=root_path)
 
 
 def _apply_support_agent_choice(value: Optional[str]) -> None:
@@ -126,6 +126,7 @@ def main(
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
     tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
+    root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
     page: Annotated[str, typer.Option(help="Page to open: app, play or admin.")] = "app",
@@ -137,6 +138,8 @@ def main(
     if version:
         typer.echo(__version__)
         raise typer.Exit()
+    if root_path:
+        os.environ["HANI2_ROOT_PATH"] = root_path
     if experiment:
         os.environ["HANI2_EXPERIMENT"] = experiment
     if agents and not opponents:
@@ -152,7 +155,7 @@ def main(
         return
     if verbose:
         os.environ["HANI2_VERBOSE"] = "1"
-    _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev)
+    _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev, root_path=os.environ.get("HANI2_ROOT_PATH", ""))
 
 
 @app.command()

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { NegotiatePage } from "./negotiate/NegotiatePage";
 import { AdminPage } from "./pages/AdminPage";
 import { ConsentPage, LoginPage, RegisterPage } from "./pages/AuthPages";
-import { navigate, usePath } from "./router";
+import { navigate, usePath, withBase } from "./router";
 import { Toasts } from "./ui/Toasts";
 import { useTheme } from "./negotiate/Header";
 
@@ -18,7 +18,7 @@ function Route({ path }: { path: string }) {
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-2 text-center">
       <div className="text-lg font-semibold">There is nothing at {p}</div>
-      <a className="text-you underline" href="/app">Go to the negotiation</a>
+      <a className="text-you underline" href={withBase("/app")}>Go to the negotiation</a>
     </div>
   );
 }

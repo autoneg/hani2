@@ -1,0 +1,1 @@
+import{c as t}from"./index-Ba0Z34Z9.js";const e={name:"git-pull-request-create",size:24,node:[["circle",{cx:"6",cy:"6",r:"3",key:"1lh9wr"}],["path",{d:"M6 9v12",key:"1sc30k"}],["path",{d:"M13 6h3a2 2 0 0 1 2 2v3",key:"1jb6z3"}],["path",{d:"M18 15v6",key:"9wciyi"}],["path",{d:"M21 18h-6",key:"139f0c"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
