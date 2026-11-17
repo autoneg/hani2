@@ -56,13 +56,44 @@ def _serve(host: str, port: int, open_path: str | None, reload: bool = False, lo
     uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1)
 
 
+def _apply_support_agent_choice(value: Optional[str]) -> None:
+    """Turn ``--support-agent`` into environment overrides for the server."""
+    if not value:
+        return
+    from hani2.support_agent.settings import parse_support_agent_choice
+
+    try:
+        mode, klass = parse_support_agent_choice(value)
+    except ValueError as e:
+        raise typer.BadParameter(str(e), param_hint="--support-agent") from None
+    os.environ["HANI2_SUPPORT_AGENT"] = mode
+    if klass:
+        if ".py:" in klass:
+            path, _, attr = klass.rpartition(":")
+            klass = f"{Path(path).expanduser().resolve()}:{attr}"
+        _check_support_agent_class(klass)
+        os.environ["HANI2_SUPPORT_AGENT_CLASS"] = klass
+
+
+def _check_support_agent_class(klass: str) -> None:
+    from hani2.support_agent.runtime import SupportAgent, load_class
+
+    try:
+        cls = load_class(klass)
+    except Exception as e:  # noqa: BLE001
+        raise typer.BadParameter(f"cannot load {klass!r}: {e}", param_hint="--support-agent") from None
+    if not (isinstance(cls, type) and issubclass(cls, SupportAgent)):
+        raise typer.BadParameter(f"{klass!r} is not a SupportAgent subclass", param_hint="--support-agent")
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
     agents: Annotated[Optional[str], typer.Option(help="Opponent pool: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan).")] = None,
-    support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Who gets the support agent: on, off or auto (admins only).")] = None,
+    support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
+    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
     page: Annotated[str, typer.Option(help="Page to open: app, play or admin.")] = "app",
@@ -80,8 +111,7 @@ def main(
         return
     if agents:
         os.environ["HANI2_AGENTS"] = agents
-    if support_agent:
-        os.environ["HANI2_SUPPORT_AGENT"] = support_agent
+    _apply_support_agent_choice("off" if no_support_agent else support_agent)
     if verbose:
         os.environ["HANI2_VERBOSE"] = "1"
     _serve(host, port, f"/{page.strip('/')}" if open_browser else None, reload=dev)
@@ -146,6 +176,7 @@ def experiment_create(
     name: str,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files.")] = False,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run this experiment without a support agent (e.g. a competition).")] = False,
+    support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent for this experiment: on, off, auto, or a class (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
 ):
     """Scaffold a self-contained experiment folder."""
@@ -169,10 +200,27 @@ def experiment_create(
     import json as _json
 
     if no_support_agent:
-        (exp / "support_agent_settings.json").write_text(_json.dumps({"mode": "off"}, indent=2))
-        auto = exp / "autopilot_settings.json"
-        auto.write_text(_json.dumps({"allowed": False}, indent=2))
-        typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
+        support_agent = "off"
+    if support_agent:
+        from hani2.support_agent.settings import parse_support_agent_choice
+
+        try:
+            mode, klass = parse_support_agent_choice(support_agent)
+        except ValueError as e:
+            raise typer.BadParameter(str(e), param_hint="--support-agent") from None
+        sa = {"mode": mode}
+        if klass:
+            if ".py:" in klass:
+                path, _, attr = klass.rpartition(":")
+                klass = f"{Path(path).expanduser().resolve()}:{attr}"
+            _check_support_agent_class(klass)
+            sa["agent_class"] = klass
+        (exp / "support_agent_settings.json").write_text(_json.dumps(sa, indent=2))
+        if mode == "off":
+            (exp / "autopilot_settings.json").write_text(_json.dumps({"allowed": False}, indent=2))
+            typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
+        else:
+            typer.echo(f"  support agent: {mode}{' using ' + klass if klass else ''} (support_agent_settings.json)")
     if no_webmcp:
         envf = exp / "env.json"
         env = _json.loads(envf.read_text()) if envf.exists() else {}

@@ -26,7 +26,7 @@ It also has a built-in safety net: when the participant edits a draft offer wort
 
 Who gets an agent is decided when a session is created. The first setting found wins:
 
-1. The `HANI2_SUPPORT_AGENT` environment variable. `hani2 --support-agent on|off|auto` sets it for you.
+1. The `HANI2_SUPPORT_AGENT` environment variable. `hani2 --support-agent on|off|auto` and `hani2 --no-support-agent` set it for you.
 2. The `mode` key in `support_agent_settings.json`.
 
 | Value | Who gets the agent |
@@ -42,12 +42,42 @@ hani2 --support-agent auto       # only admins see the assistant
 HANI2_SUPPORT_AGENT=off hani2    # the same switch as an environment variable
 ```
 
+### With or without a support agent (competitions)
+
+The same installation runs both competition formats; you choose at start-up:
+
+| Competition | Participants get | Start with |
+| --- | --- | --- |
+| Human-Agent Negotiation (HAN) | no assistant: they negotiate on their own | `hani2 --no-support-agent` |
+| Hybrid Intelligence (HI) | the built-in assistant | `hani2 --support-agent on` |
+| Hybrid Intelligence (HI) | a submitted assistant | `hani2 --support-agent team_a.agent:TeamAgent` or `hani2 --support-agent path/to/team_a.py:TeamAgent` |
+
+A value that is not `on`, `off` or `auto` is read as a support-agent class: `package.module:Class`,
+`package.module.Class`, or a Python file and a class name separated by a colon. The class must
+subclass `SupportAgent`; `hani2` checks this before the server starts and stops with an error if the
+class cannot be loaded. Passing a class means `on`: every participant gets that agent. The class goes
+into the `HANI2_SUPPORT_AGENT_CLASS` environment variable, which overrides `agent_class` in
+`support_agent_settings.json`.
+
+To keep a competition's choice with its data, make it part of an experiment:
+
+```bash
+hani2 experiment create han-2027 --no-support-agent --no-webmcp
+hani2 experiment create hi-2027 --support-agent submissions/team_a.py:TeamAgent
+hani2 --experiment han-2027     # or: hani2 --experiment hi-2027
+```
+
+`experiment create --support-agent` accepts the same values as the server option and writes them to
+the experiment's `support_agent_settings.json` (`mode`, and `agent_class` as an absolute path for a
+file). A command-line `--support-agent` given when starting the server still wins over the
+experiment's setting.
+
 ### Running without a support agent
 
 For studies or competitions where participants must negotiate on their own (for example the
 Human-Agent Negotiation competition), switch the agent off for everyone. Any of these works:
 
-- start the server with `hani2 --support-agent off` (or `HANI2_SUPPORT_AGENT=off`);
+- start the server with `hani2 --no-support-agent` (the same as `--support-agent off` or `HANI2_SUPPORT_AGENT=off`);
 - set **Who gets the assistant** to *Nobody* in the admin console (`"mode": "off"`);
 - create a dedicated experiment with `hani2 experiment create han --no-support-agent`, which
   writes `{"mode": "off"}` to the experiment's `support_agent_settings.json` and turns the

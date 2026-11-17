@@ -116,6 +116,8 @@ class ToolController:
             st["enabled"] = True
             t.enabled = True
         self.session.active_tabs[st["pane"]] = t.name
+        # views that show every pane in one tab strip (tablet, phone, simple) follow "all"
+        self.session.active_tabs["all"] = t.name
         t.refresh()
         self.session.push_state()
         return {"ok": True, "tool": t.name, "pane": st["pane"]}

@@ -39,7 +39,30 @@ The layout menu offers three views. The current view is part of the session stat
 
 ![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
 
-Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. The left column's width follows `layout.sizes.tools` (a fraction between 0.2 and 0.6, default 0.36), and a region listed in `layout.collapsed` (`tools` or `side`) is hidden. These two are set through the support agent's layout control; there is no participant control for them.
+Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the support agent's layout control sets it.
+
+### Resizing the panes
+
+Drag the thin dividers between the panes to change their sizes: the tools column against the
+negotiation, the upper tools against the lower ones, the history against the offer area, and the
+offer generators against the offer area (and the assistant when it is docked on wide screens).
+A divider highlights under the pointer. Double-click a divider, or focus it and press **Home**,
+to return to the default size; with the keyboard, focus a divider with **Tab** and nudge it with
+the arrow keys. Panes stop at sensible minimums, so the offer area never becomes too narrow to use.
+
+The sizes are part of the session layout (`layout.sizes`, each a fraction of its container), so they
+survive a page reload and a support agent can set them through its layout control:
+
+| Key | What it sizes |
+| --- | --- |
+| `tools` | Width of the tools column (full and simple views). |
+| `upper` | The upper tools' share of the tools column. |
+| `dock` | The offer area's share of the height (the history gets the rest). |
+| `side` | The offer generators' share of the row beside the offer area. |
+| `assistant` | Width of the docked assistant. |
+| `tablet_tools`, `tablet_dock`, `tray` | The tools column, offer area and tools tray on tablets. |
+
+A missing key means the default size. Phones have no dividers.
 
 ## Phones and tablets
 
@@ -74,6 +97,22 @@ Tools are added at different times: some exist from the start, others appear whe
 ### Enable switch
 
 Next to the tabs is a switch that turns the active tool on or off. A tool that is off shows a lock, its description and a **Turn on ⟨name⟩** button instead of its content, and its tab is dimmed. Permanent tools (such as Preferences and Scenario Info) have no switch. When the admin setting `allow_tool_switch` is off, the switch disappears and every tool shows its content.
+
+### Enlarge and put back
+
+The **⤢** button next to the tabs enlarges the active tool. Depending on the admin setting
+**Enlarged tools open as** (`tools.maximize` in `env.json`), it opens in a large window over the
+page (`window`, the default) or fills the whole screen (`fullscreen`); `off` removes the button.
+While a tool is enlarged its pane shows a **Put it back here** button. **Put back** in the enlarged
+view, the close button, or **Esc** returns the tool to the pane it came from. Opening and returning
+a tool are logged as `tool_maximized` and `tool_restored` events.
+
+### Your preferences when the negotiation starts
+
+When a negotiation starts, your **Preferences** tool comes into view: it becomes the active tab of
+its pane (and is shown again if it was hidden), a collapsed tools column opens, and the focus view
+switches to the full view. On a tablet in portrait the tools tray opens, and on a phone the
+**Tools** tab opens; tap **Negotiate** to return to the offer.
 
 ### Move, hide and restore
 

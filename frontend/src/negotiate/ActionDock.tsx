@@ -189,12 +189,12 @@ function Running({ st }: { st: SessionState }) {
       <Anchor id="partner_offer">
         <div className={`rounded-xl border px-4 py-3 ${po ? "border-partner/30 bg-partner/[0.05]" : "border-dashed border-line"}`}>
           {po ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="min-w-[10rem] flex-1">
                 <div className="text-xs font-medium text-partner">Offer on the table</div>
                 <div className="font-semibold">{po.text}</div>
               </div>
-              <div className="w-full sm:w-56">
+              <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
                 <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
                 <Gauge value={po.utility} reserved={rv} party="partner" />
               </div>
@@ -550,7 +550,7 @@ export function ActionDock({ embedded = false, maxHeight = "max-h-[64vh]" }: { e
   return (
     <div
       className={`scroll-thin overflow-y-auto bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4 ${
-        embedded ? "min-w-0 flex-1" : `${maxHeight} border-t border-line`
+        embedded ? "min-h-0 min-w-[300px] flex-1" : `${maxHeight} border-t border-line`
       }`}
     >
       <div className="mx-auto w-full max-w-4xl">{body}</div>

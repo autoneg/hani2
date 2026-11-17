@@ -178,3 +178,11 @@ body {
 [data-device="tablet"] .btn { min-height: 2.5rem; }
 [data-device="phone"] .field,
 [data-device="tablet"] .field { min-height: 2.5rem; font-size: 16px; }
+
+/* draggable dividers */
+.resizing-col, .resizing-col * { cursor: col-resize !important; user-select: none !important; }
+.resizing-row, .resizing-row * { cursor: row-resize !important; user-select: none !important; }
+[data-device="phone"] [role="separator"][aria-orientation="vertical"],
+[data-device="tablet"] [role="separator"][aria-orientation="vertical"] { width: 1rem; margin-left: -0.5rem; margin-right: -0.5rem; }
+[data-device="phone"] [role="separator"][aria-orientation="horizontal"],
+[data-device="tablet"] [role="separator"][aria-orientation="horizontal"] { height: 1rem; margin-top: -0.5rem; margin-bottom: -0.5rem; }

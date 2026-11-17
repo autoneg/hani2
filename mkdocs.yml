@@ -79,6 +79,7 @@ nav:
   - User guide:
       - The interface: guide/interface.md
       - Tools: guide/tools.md
+      - Showing other preferences: guide/preferences.md
       - Support agent: guide/support-agent.md
       - Autopilot: guide/autopilot.md
       - WebMCP (browser agents): guide/webmcp.md

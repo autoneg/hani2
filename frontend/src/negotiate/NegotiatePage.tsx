@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
 import { api, ApiError } from "../api";
 import { navigate, queryParams } from "../router";
@@ -8,9 +8,10 @@ import { Assistant, FloatingPanels, StatusBoard, useAutoOpenAssistant } from "./
 import { Header } from "./Header";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
-import { ToolPane } from "./ToolPane";
+import { MaximizedTool, ToolPane } from "./ToolPane";
 import { stopWebMCP, syncWebMCP } from "../webmcp";
 import { useDevice } from "../device";
+import { Splitter, useLayoutSize } from "../ui/Splitter";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -25,22 +26,96 @@ function useMedia(q: string) {
 
 
 /** History on top; below it the action dock, with the offer generators (the
- *  side pane) next to it when `withSide` is set (the full view). */
-function Center({ withSide = false, dockMax }: { withSide?: boolean; dockMax?: string }) {
+ *  side pane) next to it when `withSide` is set (the full view). Dividers
+ *  resize the dock against the history and the generators against the dock. */
+function Center({ withSide = false, dockMax, prefix = "" }: { withSide?: boolean; dockMax?: string; prefix?: string }) {
+  const centerRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const sideRef = useRef<HTMLDivElement>(null);
+  const [dock, setDock, commitDock] = useLayoutSize(`${prefix}dock`);
+  const [side, setSide, commitSide] = useLayoutSize("side");
+  const share = (el: HTMLElement | null, of: HTMLElement | null, h: boolean) =>
+    el && of ? (h ? el.offsetHeight / Math.max(1, of.offsetHeight) : el.offsetWidth / Math.max(1, of.offsetWidth)) : 0.4;
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
+    <div ref={centerRef} className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
       <FloatingPanels />
       <Thread />
-      {withSide ? (
-        <div className="flex max-h-[64vh] min-h-[340px] shrink-0 border-t border-line">
-          <ActionDock embedded />
-          <div className="flex min-h-0 w-[340px] shrink-0 flex-col border-l border-line bg-surface xl:w-[400px]">
-            <ToolPane panes={["side"]} className="min-h-0 flex-1" label="Offer generators" />
+      <Splitter
+        dir="row"
+        after
+        container={centerRef}
+        value={dock}
+        fallback={() => share(dockRef.current, centerRef.current, true)}
+        onChange={setDock}
+        onCommit={commitDock}
+        min={0.2}
+        max={0.88}
+        label="Resize the offer area"
+      />
+      <div ref={dockRef} className="flex min-h-0 shrink-0 flex-col" style={dock !== undefined ? { height: `${dock * 100}%` } : undefined}>
+        {withSide ? (
+          <div ref={rowRef} className={`flex min-h-0 flex-1 ${dock === undefined ? "max-h-[64vh] min-h-[340px]" : ""}`}>
+            <ActionDock embedded />
+            <Splitter
+              dir="col"
+              after
+              container={rowRef}
+              value={side}
+              fallback={() => share(sideRef.current, rowRef.current, false)}
+              onChange={setSide}
+              onCommit={commitSide}
+              min={0.2}
+              max={0.65}
+              label="Resize the offer generators"
+            />
+            <div
+              ref={sideRef}
+              className={`flex min-h-0 min-w-[240px] flex-col bg-surface ${side === undefined ? "w-[340px] shrink-0 xl:w-[400px]" : "shrink"}`}
+              style={side !== undefined ? { width: `${side * 100}%` } : undefined}
+            >
+              <ToolPane panes={["side"]} className="min-h-0 flex-1" label="Offer generators" />
+            </div>
           </div>
-        </div>
-      ) : (
-        <ActionDock maxHeight={dockMax} />
-      )}
+        ) : dock === undefined ? (
+          <ActionDock maxHeight={dockMax} />
+        ) : (
+          <ActionDock embedded />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** A column of upper / lower tool panes with a divider between them. */
+function ToolColumn() {
+  const st = useStore((s) => s.state)!;
+  const ref = useRef<HTMLDivElement>(null);
+  const upperRef = useRef<HTMLDivElement>(null);
+  const [upper, setUpper, commitUpper] = useLayoutSize("upper");
+  const has = (p: string) => st.tools.some((t) => t.pane === p);
+  const u = upper ?? 0.5;
+  if (!(has("upper") && has("lower")))
+    return <ToolPane panes={[has("upper") ? "upper" : "lower"]} className="min-h-0 flex-1" label="Tools" />;
+  return (
+    <div ref={ref} className="flex min-h-0 flex-1 flex-col">
+      <div ref={upperRef} className="flex min-h-0 flex-col" style={{ flex: `${u} 1 0%` }}>
+        <ToolPane panes={["upper"]} className="min-h-0 flex-1" label="Upper tools" />
+      </div>
+      <Splitter
+        dir="row"
+        container={ref}
+        value={upper}
+        fallback={() => 0.5}
+        onChange={setUpper}
+        onCommit={commitUpper}
+        min={0.12}
+        max={0.88}
+        label="Resize the upper and lower tools"
+      />
+      <div className="flex min-h-0 flex-col" style={{ flex: `${1 - u} 1 0%` }}>
+        <ToolPane panes={["lower"]} className="min-h-0 flex-1" label="Lower tools" />
+      </div>
     </div>
   );
 }
@@ -49,31 +124,68 @@ function Desktop() {
   const st = useStore((s) => s.state)!;
   const assistantOpen = useStore((s) => s.assistantOpen);
   const wide = useMedia("(min-width: 1600px)");
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [tools, setTools, commitTools] = useLayoutSize("tools");
+  const [asst, setAsst, commitAsst] = useLayoutSize("assistant");
   const view = st.layout.view;
   const collapsed = st.layout.collapsed ?? [];
-  const share = Math.max(0.2, Math.min(0.6, st.layout.sizes?.tools ?? 0.36));
+  const share = Math.max(0.15, Math.min(0.7, tools ?? 0.36));
   const has = (p: string) => st.tools.some((t) => t.pane === p);
   const toolsCol = view === "full" && !collapsed.includes("tools") && (has("upper") || has("lower"));
   const sideCol = view === "full" && !collapsed.includes("side") && has("side");
   const simpleCol = view === "simple" && !collapsed.includes("tools");
+  const toolsSplitter = (after: boolean) => (
+    <Splitter
+      dir="col"
+      after={after}
+      container={rowRef}
+      value={tools}
+      fallback={() => share}
+      onChange={setTools}
+      onCommit={commitTools}
+      min={0.15}
+      max={0.7}
+      label="Resize the tools"
+    />
+  );
   return (
-    <div className="flex min-h-0 flex-1">
+    <div ref={rowRef} className="flex min-h-0 flex-1">
       {toolsCol && (
-        <div className="flex min-h-0 flex-col border-r border-line bg-surface" style={{ width: `${share * 100}%`, minWidth: 320 }}>
-          {has("upper") && <ToolPane panes={["upper"]} className="flex-1" label="Upper tools" />}
-          {has("upper") && has("lower") && <div className="h-px shrink-0 bg-line" />}
-          {has("lower") && <ToolPane panes={["lower"]} className="flex-1" label="Lower tools" />}
-        </div>
+        <>
+          <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+            <ToolColumn />
+          </div>
+          {toolsSplitter(false)}
+        </>
       )}
       <Center withSide={sideCol} />
       {simpleCol && (
-        <div className="flex min-h-0 flex-col border-l border-line bg-surface" style={{ width: `${share * 100}%`, minWidth: 320 }}>
-          <ToolPane panes={["upper", "lower", "side"]} className="flex-1" label="Tools" />
-        </div>
+        <>
+          {toolsSplitter(true)}
+          <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+            <ToolPane panes={["upper", "lower", "side"]} className="flex-1" label="Tools" />
+          </div>
+        </>
       )}
       {assistantOpen &&
         (wide ? (
-          <Assistant />
+          <>
+            <Splitter
+              dir="col"
+              after
+              container={rowRef}
+              value={asst}
+              fallback={() => 360 / Math.max(1, rowRef.current?.offsetWidth ?? 1600)}
+              onChange={setAsst}
+              onCommit={commitAsst}
+              min={0.15}
+              max={0.45}
+              label="Resize the assistant"
+            />
+            <div className="flex min-h-0 shrink-0" style={{ width: asst !== undefined ? `${asst * 100}%` : 360 }}>
+              <Assistant fill />
+            </div>
+          </>
         ) : (
           <div className="absolute bottom-0 right-0 top-14 z-40 flex shadow-pop">
             <Assistant />
@@ -94,39 +206,67 @@ function AssistantOverlay() {
   );
 }
 
+/** Re-runs `fn` whenever the server asks to reveal a tool (e.g. the
+ *  participant's own preferences when a negotiation starts). */
+function useReveal(fn: () => void) {
+  const seq = useStore((s) => s.state?.reveal?.seq);
+  const seen = useRef(seq);
+  useEffect(() => {
+    if (seq !== undefined && seq !== seen.current) {
+      seen.current = seq;
+      fn();
+    }
+  }, [seq]);
+}
+
 /** Tablets. Landscape: the negotiation plus one tools column. Portrait: the
  *  negotiation with a tool tray along the bottom that expands on demand. */
 function Tablet({ landscape }: { landscape: boolean }) {
   const st = useStore((s) => s.state)!;
   const [trayOpen, setTrayOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const colRef = useRef<HTMLDivElement>(null);
+  const [tools, setTools, commitTools] = useLayoutSize("tablet_tools");
+  const [tray, setTray, commitTray] = useLayoutSize("tray");
+  useReveal(() => setTrayOpen(true));
   const focus = st.layout.view === "focus";
   const hasTools = st.tools.some((t) => t.visible);
   if (landscape) {
+    const w = tools ?? 0.42;
     return (
-      <div className="flex min-h-0 flex-1">
-        <Center />
+      <div ref={rowRef} className="flex min-h-0 flex-1">
+        <Center prefix="tablet_" />
         {!focus && hasTools && (
-          <div className="flex min-h-0 w-[42%] min-w-[340px] max-w-[520px] flex-col border-l border-line bg-surface">
-            <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />
-          </div>
+          <>
+            <Splitter dir="col" after container={rowRef} value={tools} fallback={() => w} onChange={setTools} onCommit={commitTools} min={0.25} max={0.65} label="Resize the tools" />
+            <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${w * 100}%`, minWidth: 280 }}>
+              <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />
+            </div>
+          </>
         )}
         <AssistantOverlay />
       </div>
     );
   }
+  const h = tray ?? 0.42;
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <Center dockMax={trayOpen ? "max-h-[30vh]" : "max-h-[58vh]"} />
+    <div ref={colRef} className="flex min-h-0 flex-1 flex-col">
+      <Center prefix="tablet_" dockMax={trayOpen ? "max-h-[30vh]" : "max-h-[58vh]"} />
       {!focus && hasTools && (
-        <div className={`flex shrink-0 flex-col border-t border-line bg-surface ${trayOpen ? "h-[42vh]" : ""}`}>
-          <button className="flex items-center justify-between px-4 py-2.5 text-sm font-medium" onClick={() => setTrayOpen(!trayOpen)} aria-expanded={trayOpen}>
-            <span className="flex items-center gap-2">
-              <LayoutGrid size={16} /> Tools
-            </span>
-            {trayOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-          </button>
-          {trayOpen && <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />}
-        </div>
+        <>
+          {trayOpen && (
+            <Splitter dir="row" after container={colRef} value={tray} fallback={() => h} onChange={setTray} onCommit={commitTray} min={0.2} max={0.8} label="Resize the tools" />
+          )}
+          <div className={`flex shrink-0 flex-col bg-surface ${trayOpen ? "" : "border-t border-line"}`} style={trayOpen ? { height: `${h * 100}%` } : undefined}>
+            <button className="flex items-center justify-between px-4 py-2.5 text-sm font-medium" onClick={() => setTrayOpen(!trayOpen)} aria-expanded={trayOpen}>
+              <span className="flex items-center gap-2">
+                <LayoutGrid size={16} /> Tools
+              </span>
+              {trayOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+            </button>
+            {trayOpen && <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />}
+          </div>
+        </>
       )}
       <AssistantOverlay />
     </div>
@@ -138,6 +278,10 @@ function Mobile() {
   const assistantOpen = useStore((s) => s.assistantOpen);
   const setAssistant = useStore((s) => s.setAssistantOpen);
   const [tab, setTab] = useState<"negotiate" | "tools">("negotiate");
+  useReveal(() => {
+    setAssistant(false);
+    setTab("tools");
+  });
   const current = assistantOpen ? "assistant" : tab;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -245,6 +389,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
       )}
       {device === "desktop" ? <Desktop /> : device === "tablet" ? <Tablet landscape={landscape} /> : <Mobile />}
       <StatusBoard />
+      <MaximizedTool />
       <ConfirmDialog />
       <SettingsDrawer open={settings} onClose={() => setSettings(false)} />
     </div>

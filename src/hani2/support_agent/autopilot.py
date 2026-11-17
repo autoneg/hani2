@@ -72,9 +72,13 @@ def user_can_select_driver(session: "NegotiationSession", settings: dict | None 
     return session.mode == "guest" and not session.user.startswith("prolific_")
 
 
-def driver_options(settings: dict | None = None) -> list[str]:
+def driver_options(settings: dict | None = None, session: "NegotiationSession | None" = None) -> list[str]:
+    """The drivers on offer; without a support agent in ``session`` the
+    Support Agent driver is left out."""
     s = settings or load_autopilot_settings()
     opts = [SUPPORT_AGENT_DRIVER] + all_autopilot_negotiators()
+    if session is not None and session.support_agent is None:
+        opts = opts[1:]
     allowed = s.get("allowed_drivers")
     if allowed:
         opts = [o for o in opts if o in set(allowed)]
@@ -83,12 +87,12 @@ def driver_options(settings: dict | None = None) -> list[str]:
 
 def resolve_driver(session: "NegotiationSession", settings: dict | None = None) -> str | None:
     s = settings or load_autopilot_settings()
-    opts = driver_options(s)
+    opts = driver_options(s, session)
     if user_can_select_driver(session, s) and session.autopilot_driver_name in opts:
         return session.autopilot_driver_name
     driver = s.get("driver") or None
-    if driver and opts and driver not in opts:
-        return opts[0]
+    if driver and driver not in opts:
+        return opts[0] if opts else None
     return driver
 
 
@@ -128,14 +132,14 @@ def client_state(session: "NegotiationSession") -> dict[str, Any]:
         "available": available,
         "active": session.autopilot_active,
         "driver": driver,
-        "drivers": driver_options(s) if user_can_select_driver(session, s) else None,
+        "drivers": driver_options(s, session) if user_can_select_driver(session, s) else None,
         "can_choose": user_can_select_driver(session, s),
     }
 
 
 def set_autopilot(session: "NegotiationSession", active: bool, driver: str | None = None) -> dict:
     s = load_autopilot_settings()
-    if driver and user_can_select_driver(session, s) and driver in driver_options(s):
+    if driver and user_can_select_driver(session, s) and driver in driver_options(s, session):
         session.autopilot_driver_name = driver
         if session.mechanism is not None and is_negotiator_driver(driver):
             # rebuild the seat's driver so a mid-round switch takes effect

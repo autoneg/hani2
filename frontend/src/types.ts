@@ -140,6 +140,7 @@ export interface SessionState {
   history: HistoryItem[];
   tools: ToolInfo[];
   active_tabs: Record<string, string | null>;
+  reveal?: { tool: string; pane: string; seq: number } | null;
   prefs: Record<string, Json>;
   settings: Record<string, Json>;
   highlights: Highlight[];
@@ -157,6 +158,7 @@ export interface SessionState {
   study: { kind: string; pid?: string; required?: number; counted?: number; practice_next?: boolean; auto_deadline?: number | null; auto_kind?: string | null; max_minutes?: number };
   can_choose_scenario: boolean;
   webmcp?: { enabled: boolean; actions: boolean };
+  tool_maximize?: "window" | "fullscreen" | "off";
   next_opponent: string | null;
 }
 

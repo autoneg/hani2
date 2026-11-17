@@ -149,7 +149,7 @@ DEFAULT_ENV: dict[str, Any] = {
     "playground": {"enabled": True},
     # WebMCP: expose the negotiation to AI agents running in the browser.
     "webmcp": {"enabled": True, "actions": True, "studies": False},
-    "tools": {},
+    "tools": {"maximize": "window"},
 }
 
 

@@ -18,6 +18,7 @@ Build your own agent by subclassing :class:`SupportAgent` and pointing
 from __future__ import annotations
 
 import importlib
+import sys
 import json
 import re
 import threading
@@ -554,18 +555,39 @@ class SupportAgent:
         return name
 
 
+def load_class(path: str) -> type:
+    """Load ``module:Class``, ``module.Class`` or ``path/to/file.py:Class``."""
+    if ":" in path:
+        mod, _, attr = path.rpartition(":")
+    else:
+        mod, _, attr = path.rpartition(".")
+    if mod.endswith(".py"):
+        from importlib import util as import_util
+        from pathlib import Path
+
+        file = Path(mod).expanduser().resolve()
+        if not file.is_file():
+            raise FileNotFoundError(file)
+        name = f"hani2_user_{file.stem}_{abs(hash(str(file)))}"
+        module = sys.modules.get(name)
+        if module is None:
+            spec = import_util.spec_from_file_location(name, file)
+            module = import_util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+        return getattr(module, attr)
+    return getattr(importlib.import_module(mod), attr)
+
+
 def resolve_agent_class(settings: dict) -> type[SupportAgent]:
-    """Resolve ``agent_class`` (``module:Class`` or ``module.Class``); fall back
-    to :class:`SupportAgent` (with a warning) if it cannot be loaded."""
+    """Resolve ``agent_class`` (``module:Class``, ``module.Class`` or
+    ``path/to/file.py:Class``); fall back to :class:`SupportAgent` (with a
+    warning) if it cannot be loaded."""
     path = (settings.get("agent_class") or "").strip()
     if not path:
         return SupportAgent
     try:
-        if ":" in path:
-            mod, _, attr = path.partition(":")
-        else:
-            mod, _, attr = path.rpartition(".")
-        klass = getattr(importlib.import_module(mod), attr)
+        klass = load_class(path)
         if not (isinstance(klass, type) and issubclass(klass, SupportAgent)):
             raise TypeError(f"{path} is not a SupportAgent subclass")
         return klass

@@ -10,6 +10,9 @@ interface Store {
   connected: boolean;
   confirm: ConfirmReq;
   assistantOpen: boolean;
+  /** id of the tool shown enlarged (window or full screen), if any */
+  maximized: string | null;
+  setMaximized: (id: string | null) => void;
   draftVersion: number;
   ws: WebSocket | null;
   send: (msg: Record<string, any>) => void;
@@ -35,6 +38,7 @@ export const useStore = create<Store>((set, get) => ({
   connected: false,
   confirm: null,
   assistantOpen: false,
+  maximized: null,
   draftVersion: 0,
   ws: null,
 
@@ -44,6 +48,7 @@ export const useStore = create<Store>((set, get) => ({
   },
   setConfirm: (c) => set({ confirm: c }),
   setAssistantOpen: (v) => set({ assistantOpen: v }),
+  setMaximized: (id) => set({ maximized: id }),
   pushToast: (t) => {
     const id = toastId++;
     set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id }] }));

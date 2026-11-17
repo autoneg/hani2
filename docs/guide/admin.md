@@ -99,7 +99,7 @@ Edits `env.json`.
 
 Under the partner pool, **Available groups** lists the opponent groups and how many negotiators each contains. See [Opponents](opponents.md).
 
-**Tools**: one row per registered tool with its description, its pane, when it appears, and whether it is admin-only. Untick **Offered** to add the tool to `tools.disabled`; untick **Admins only** to give an admin-only tool to every participant (`tools.overrides.<name>.admin_only`). **Participants see opponent utilities** sets `tools.show_opponent_utility`. **Extra tools** edits `tools.extra` (class paths such as `my_pkg.tools:MyTool`). See [Tools](tools.md).
+**Tools**: one row per registered tool with its description, its pane, when it appears, and whether it is admin-only. Untick **Offered** to add the tool to `tools.disabled`; untick **Admins only** to give an admin-only tool to every participant (`tools.overrides.<name>.admin_only`). **Participants see opponent utilities** sets `tools.show_opponent_utility`. **Extra tools** edits `tools.extra` (class paths such as `my_pkg.tools:MyTool`). **Enlarged tools open as** chooses whether a tool's enlarge button opens it in a large window, fills the screen, or is not offered (`tools.maximize`: `window`, `fullscreen` or `off`; see [The interface](interface.md#enlarge-and-put-back)). See [Tools](tools.md).
 
 The OAuth rows edit the key and secret only. The `enabled` flag of a provider is not shown; a provider is used when it has both a key and a secret and is not explicitly disabled.
 

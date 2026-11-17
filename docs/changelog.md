@@ -14,4 +14,6 @@ First release.
 - **Studies.** Experiments with their own settings and results, per-negotiation questionnaires, results CSV files, an SQLite event log with analytics, and a Prolific flow with practice rounds and completion links.
 - **Authentication.** Password, GitHub and Google OAuth, both, or none; consent enforcement; PBKDF2 password hashes; `hani2 users`.
 - **Language models.** Any litellm provider for the assistant and LLM opponents, local models through Ollama, editable prompt templates and per-negotiation LLM call logs.
+- **Layout control.** Drag the dividers between panes to resize them (kept in the session and settable by the support agent); enlarge any tool into a large window or the full screen and put it back where it came from; your own preferences come into view when a negotiation starts.
+- **Competitions.** `hani2 --no-support-agent` for the Human-Agent Negotiation competition, `hani2 --support-agent <class or file.py:Class>` to give every participant a submitted assistant for the Hybrid Intelligence competition, and the same choices for `hani2 experiment create`.
 - **Testing.** `hani2.testing.make_session` runs a full session without a browser for testing tools and agents.

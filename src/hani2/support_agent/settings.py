@@ -3,7 +3,8 @@
 Who gets the assistant is resolved, highest precedence first, from the
 ``HANI2_SUPPORT_AGENT`` environment variable (set by ``hani2 --support-agent``),
 then the ``mode`` setting: ``on`` (everyone), ``off`` (nobody) or ``auto``
-(admins only).
+(admins only). ``HANI2_SUPPORT_AGENT_CLASS`` (set by ``hani2 --support-agent
+<class>``) overrides the ``agent_class`` setting.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from hani2.config import load_json_settings, save_json_settings
 
 __all__ = [
     "SUPPORT_AGENT_ENV_VAR",
+    "SUPPORT_AGENT_CLASS_ENV_VAR",
+    "parse_support_agent_choice",
     "DEFAULT_CAPABILITIES",
     "DEFAULT_SUPPORT_AGENT_SETTINGS",
     "load_support_agent_settings",
@@ -24,6 +27,7 @@ __all__ = [
 ]
 
 SUPPORT_AGENT_ENV_VAR = "HANI2_SUPPORT_AGENT"
+SUPPORT_AGENT_CLASS_ENV_VAR = "HANI2_SUPPORT_AGENT_CLASS"
 FILENAME = "support_agent_settings.json"
 
 try:
@@ -98,7 +102,32 @@ def load_support_agent_settings() -> dict:
     s["capabilities"] = caps
     if not s.get("system_prompt"):
         s["system_prompt"] = DEFAULT_SYSTEM_PROMPT
+    klass = os.getenv(SUPPORT_AGENT_CLASS_ENV_VAR)
+    if klass and klass.strip():
+        s["agent_class"] = klass.strip()
     return s
+
+
+_MODES = {
+    "on": "on", "1": "on", "true": "on", "yes": "on", "enabled": "on",
+    "off": "off", "0": "off", "false": "off", "no": "off", "disabled": "off", "none": "off",
+    "auto": "auto", "admin": "auto", "admins": "auto",
+}
+
+
+def parse_support_agent_choice(value: str) -> tuple[str, str | None]:
+    """Interpret a ``--support-agent`` value: a mode (``on``, ``off``, ``auto``)
+    or a support-agent class (``package.module:Class``, ``package.module.Class``
+    or ``path/to/file.py:Class``), which means ``on`` with that class.
+    Returns ``(mode, agent_class)``; raises ``ValueError`` for anything else."""
+    v = (value or "").strip()
+    if v.lower() in _MODES:
+        return _MODES[v.lower()], None
+    if ":" in v or "." in v:
+        return "on", v
+    raise ValueError(
+        f"{value!r} is not a support-agent choice: use on, off, auto or a class such as mypkg.agents:MyAgent"
+    )
 
 
 def save_support_agent_settings(settings: dict) -> None:
@@ -107,14 +136,8 @@ def save_support_agent_settings(settings: dict) -> None:
 
 def support_agent_mode(settings: dict | None = None) -> str:
     env = os.getenv(SUPPORT_AGENT_ENV_VAR)
-    if env is not None:
-        v = env.strip().lower()
-        if v in ("on", "1", "true", "yes", "enabled"):
-            return "on"
-        if v in ("off", "0", "false", "no", "disabled"):
-            return "off"
-        if v in ("auto", "admin", "admins"):
-            return "auto"
+    if env is not None and env.strip().lower() in _MODES:
+        return _MODES[env.strip().lower()]
     if settings is None:
         settings = load_support_agent_settings()
     mode = settings.get("mode")

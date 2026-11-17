@@ -90,7 +90,7 @@ function Controls({ st }: { st: SessionState }) {
   );
 }
 
-export function Assistant() {
+export function Assistant({ fill = false }: { fill?: boolean } = {}) {
   const st = useStore((s) => s.state);
   const open = useStore((s) => s.assistantOpen);
   const setOpen = useStore((s) => s.setAssistantOpen);
@@ -111,7 +111,7 @@ export function Assistant() {
     setText("");
   };
   return (
-    <aside className="flex h-full w-full flex-col border-l border-line bg-surface lg:w-[360px]" aria-label="Assistant">
+    <aside className={`flex h-full w-full flex-col bg-surface ${fill ? "" : "border-l border-line lg:w-[360px]"}`} aria-label="Assistant">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
         <div className={`flex h-8 w-8 items-center justify-center rounded-full ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"}`}>
           <Bot size={17} />

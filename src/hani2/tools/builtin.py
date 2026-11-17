@@ -7,16 +7,15 @@ import random
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import plotly.graph_objects as go
-from negmas import LinearAdditiveUtilityFunction, LinearUtilityAggregationFunction, Outcome
+from negmas import Outcome
 
 from hani2.tools import ui
 from hani2.tools.base import OutcomeSelector, Tool
+from hani2.tools.ufun_views import PREFERENCES_HELP_MD, render_ufun_view  # noqa: F401
 from hani2.tools.plotting import (
     AGENT_COLOR,
     HUMAN_COLOR,
-    SEQUENCE,
     base_layout,
     party_color,
     trace_frame,
@@ -39,101 +38,12 @@ __all__ = [
     "ResponseGeneratorTool",
 ]
 
-PREFERENCES_HELP_MD = """
-Your **preferences** say how good each possible agreement is *for you*, on a
-scale from **0% (worst) to 100% (best)**. Your AI partner has its own
-preferences, and you usually value things differently — that difference is
-what makes a deal worth doing.
-
-**How a deal's value is worked out**
-
-An agreement fixes one option for every *issue* (for example a price, a
-quantity or a delivery time). Each issue contributes in two steps:
-
-- **Issue value** — within one issue, each option is worth a percentage to you
-  (the bar chart). 100% is your favourite option for that issue, 0% your least
-  favourite.
-- **Issue weight** — issues are not equally important. The donut chart shows
-  how much each issue *weighs*; the weights add up to 100%.
-
-Your total score for a deal is the **weighted sum** of the issue values:
-
-> total = weight₁ × value₁ + weight₂ × value₂ + …
-
-The **value on disagreement** is what you get if the negotiation ends with
-**no agreement**. A deal worth *more* than that beats walking away; a deal
-worth *less* is worse than no deal at all.
-
-**Worked example (Price and Delivery)**
-
-Price weighs **70%** and Delivery **30%**; Price $10 → 100%, $20 → 50%;
-Delivery Fast → 100%, Slow → 20%.
-
-- Deal A — *$20, Fast*: 0.7 × 50% + 0.3 × 100% = **65%**
-- Deal B — *$10, Slow*: 0.7 × 100% + 0.3 × 20% = **76%**
-
-Deal B is better for you: a low price matters enough that you would accept
-slow delivery to get it.
-"""
-
-
 # --------------------------------------------------------------------------- #
 # Preferences                                                                  #
 # --------------------------------------------------------------------------- #
-def _issue_values(ufun, index: int) -> tuple[list, list[float]]:
-    issue = ufun.outcome_space.issues[index]
-    if issue.is_continuous():
-        labels = list(np.linspace(issue.min_value, issue.max_value, num=20, endpoint=True))
-    else:
-        labels = list(issue.all)
-    fun = ufun.values[index]
-    return labels, [100 * float(fun(v)) for v in labels]
-
-
 def preference_view(tool: Tool, ufun, *, title_prefix: str = "", help_card: bool = True) -> list[ui.Component]:
-    if ufun is None:
-        return [ui.text_block("No preferences loaded yet.", muted=True)]
-    issues = list(ufun.outcome_space.issues)
-    names = [i.name for i in issues]
-    selected = tool.values.get("issue", names[0] if names else None)
-    if selected not in names and names:
-        selected = names[0]
-    comps: list[ui.Component] = []
-    if isinstance(ufun, LinearUtilityAggregationFunction) or hasattr(ufun, "weights"):
-        weights = [float(w) for w in ufun.weights]
-        fig = go.Figure(
-            data=[go.Pie(labels=names, values=weights, hole=0.55, textinfo="label+percent",
-                         marker=dict(colors=SEQUENCE * 4), sort=False)]
-        )
-        fig.update_layout(**base_layout(220, legend=False, margin=dict(l=8, r=8, t=8, b=8)))
-        weights_card = ui.card(ui.plot(fig), title=f"{title_prefix}Issue weights")
-    else:
-        weights_card = ui.alert("This utility function is not additive; weights are not available.", "neutral")
-    issue_comps: list[ui.Component] = [ui.select("issue", names, selected, label="Issue")]
-    if isinstance(ufun, LinearAdditiveUtilityFunction) and selected is not None:
-        idx = names.index(selected)
-        labels, vals = _issue_values(ufun, idx)
-        fig = go.Figure(
-            data=[go.Bar(y=[str(v) for v in labels], x=vals, orientation="h", marker_color=HUMAN_COLOR,
-                         hovertemplate="%{y}: %{x:.0f}%<extra></extra>")]
-        )
-        fig.update_layout(**base_layout(max(160, 26 * len(labels) + 40), legend=False,
-                                        xaxis=dict(range=[0, 100], ticksuffix="%"),
-                                        yaxis=dict(type="category", autorange="reversed")))
-        issue_comps.append(ui.plot(fig))
-    rv = float(getattr(ufun, "reserved_value", 0.0) or 0.0)
-    comps.append(
-        ui.grid(
-            ui.column(weights_card, ui.stat("Value on disagreement", f"{rv:.1%}",
-                                            hint="What you get if no agreement is reached")),
-            ui.card(*issue_comps, title=f"{title_prefix}Value of each option"),
-            cols=2,
-        )
-    )
-    if help_card:
-        comps.append(ui.card(ui.markdown(PREFERENCES_HELP_MD, size="sm"), title="How your preferences work",
-                             collapsible=True, collapsed=True))
-    return comps
+    """The preferences of ``ufun``, rendered by the view registered for its type (see :mod:`hani2.tools.ufun_views`)."""
+    return render_ufun_view(tool, ufun, title_prefix=title_prefix, help_card=help_card)
 
 
 class PreferencesTool(Tool):

@@ -1,1 +1,0 @@
-import{c as a}from"./index-C6kAG8dw.js";const e={name:"square-arrow-down-right-enter",size:24,node:[["path",{d:"M13 7v6H7",key:"1kunrb"}],["path",{d:"m4 4 9 9",key:"1kc43r"}],["path",{d:"M8.67 3H19a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V8.67",key:"f5h51d"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

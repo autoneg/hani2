@@ -433,6 +433,9 @@ function ServerSection({ meta }: { meta: any }) {
       </section>
       <h3 className="mb-1 mt-6 font-semibold">Tools</h3>
       <section className="panel px-4">
+        <Row label="Enlarged tools open as" hint="Each tool has an enlarge button; Put back returns it to its pane">
+          <Sel v={d.tools?.maximize ?? "window"} on={(v) => set("tools.maximize", v)} opts={[["window", "A large window"], ["fullscreen", "The full screen"], ["off", "Not allowed"]]} />
+        </Row>
         <Row label="Participants see opponent utilities" hint="Lets everyone switch on the opponent's utility in the Utility Plot and Trace">
           <Check v={d.tools?.show_opponent_utility} on={(v) => set("tools.show_opponent_utility", v)} />
         </Row>

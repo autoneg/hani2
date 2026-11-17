@@ -18,6 +18,8 @@ Threading model
 
 from __future__ import annotations
 
+import math
+
 import os
 import random
 import threading
@@ -539,6 +541,7 @@ class NegotiationSession:
             tl = self.mechanism.nmi.time_limit if self.mechanism else None
             self.deadline = (time.time() + float(tl)) if tl and tl != float("inf") else None
         self._add_tools("start")
+        self._reveal_own_preferences()
         self._tools_hook("negotiation_started")
         ev.log_event(self.sid, ev.EventType.SCENARIO_STARTED, user=self.user, scenario_id=self._scenario_name(),
                      value={"partner": self.ss.get("last_partner_type")})
@@ -546,6 +549,40 @@ class NegotiationSession:
         self._agent_event("negotiation_started")
         self.push_state()
         self._step_to_human()
+
+    def _reveal_own_preferences(self) -> None:
+        """When a negotiation starts the participant must see their own
+        preferences: bring the Preferences tool to the front of its pane, make
+        sure that pane is not collapsed, and tell the browser to reveal it
+        (open the tool tray on tablets, switch to Tools on phones, leave the
+        focus view)."""
+        from hani2.tools.builtin import PreferencesTool
+
+        tool = next((t for t in self.tools if isinstance(t, PreferencesTool)), None)
+        if tool is None:
+            tool = next((t for t in self.tools if t.name == "Preferences"), None)
+        if tool is None:
+            return
+        with self.lock:
+            st = self.tool_state(tool)
+            st["visible"] = True
+            if not st["enabled"]:
+                st["enabled"] = True
+                tool.enabled = True
+            self.active_tabs[st["pane"]] = tool.name
+            self.active_tabs["all"] = tool.name
+            region = "side" if st["pane"] == "side" else "tools"
+            collapsed = [c for c in (self.layout.get("collapsed") or []) if c != region]
+            self.layout["collapsed"] = collapsed
+            if self.layout.get("view") == "focus":
+                self.layout["view"] = "full"
+                self.ss["view_mode"] = "full"
+            self._reveal_seq = getattr(self, "_reveal_seq", 0) + 1
+            self.reveal = {"tool": tool.name, "pane": st["pane"], "seq": self._reveal_seq}
+        try:
+            tool.refresh()
+        except Exception:
+            traceback.print_exc()
 
     def _scenario_name(self) -> str:
         s = self.scenario
@@ -725,6 +762,9 @@ class NegotiationSession:
                 with self.lock:
                     self._record_new_trace()
             with self.lock:
+                if not m.state.done:
+                    # fill the counter-offer fields before the turn is visible as ours
+                    self._init_draft()
                 self.thinking = False
         finally:
             self.step_lock.release()
@@ -1183,13 +1223,30 @@ class NegotiationSession:
 
     def set_layout(self, **changes: Any) -> dict:
         """Change the interface layout: ``view`` (full | simple | focus),
-        ``sizes`` (pane → fraction), ``collapsed`` (list of region names)."""
+        ``sizes`` (region → fraction of its container, as set by dragging the
+        dividers: ``tools`` (tool column width), ``upper`` (upper tools' share of
+        the column), ``dock`` (offer area's share of the height), ``side``
+        (offer generators' share of the offer row), ``assistant``; tablets use
+        ``tablet_tools``, ``tablet_dock`` and ``tray``; a missing key means the
+        default size), ``collapsed`` (list of region names)."""
         allowed = {"view", "sizes", "collapsed", "history_side"}
         with self.lock:
             for k, v in changes.items():
                 if k in allowed and v is not None:
                     if k == "view" and v not in ("full", "simple", "focus"):
                         return {"ok": False, "error": "view must be full, simple or focus"}
+                    if k == "sizes":
+                        if not isinstance(v, dict):
+                            return {"ok": False, "error": "sizes must map region names to fractions"}
+                        clean = {}
+                        for name, frac in v.items():
+                            try:
+                                f = float(frac)
+                            except (TypeError, ValueError):
+                                continue
+                            if math.isfinite(f) and 0.05 <= f <= 0.95:
+                                clean[str(name)[:32]] = round(f, 3)
+                        v = clean
                     self.layout[k] = v
             self.ss["view_mode"] = self.layout.get("view")
         self.push_state()
@@ -1288,7 +1345,7 @@ class NegotiationSession:
                     title=info.get("title") or self._scenario_name(),
                     short_description=info.get("short_description", ""),
                     issues=self.issues_spec(),
-                    n_issue_columns=int(info.get("n_issue_columns", 2) or 2),
+                    n_issue_columns=int(info.get("n_issue_columns") or (3 if len(self.issues_spec()) >= 7 else 2)),
                     role=str(self.ss.get("human_id", "")).replace(" (You)", ""),
                 ),
                 "opponent": dict(
@@ -1320,6 +1377,7 @@ class NegotiationSession:
                 "history": self.history,
                 "tools": tools,
                 "active_tabs": dict(self.active_tabs),
+                "reveal": getattr(self, "reveal", None),
                 "prefs": dict(self.prefs),
                 "settings": dict(self.admin_prefs)
                 if self.is_admin
@@ -1341,9 +1399,16 @@ class NegotiationSession:
                 "study": self.study.client_state(),
                 "can_choose_scenario": self.can_choose_scenario(),
                 "webmcp": self.webmcp_policy(),
+                "tool_maximize": self.tool_maximize_mode(),
                 "next_opponent": self.next_opponent if self.admin_mode else None,
             }
         return snap
+
+    def tool_maximize_mode(self) -> str:
+        """How an enlarged tool opens: ``window`` (a large dialog), ``fullscreen``
+        or ``off`` (no enlarge button); env.json → ``tools.maximize``."""
+        mode = str(get_env("tools.maximize", "window") or "window").lower()
+        return mode if mode in ("window", "fullscreen", "off") else "window"
 
     def webmcp_policy(self) -> dict[str, bool]:
         """Whether the page exposes WebMCP tools, and whether they may act.
