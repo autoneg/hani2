@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "*"
+  workflow_dispatch:
 jobs:
   tests:
     name: "Tests on ${{ matrix.os }}"
