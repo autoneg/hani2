@@ -1,0 +1,439 @@
+"""Groups: named pools of opponents and of Assistants.
+
+A group is a JSON file. Opponent groups live in ``groups/<key>.json``, Assistant
+groups in ``assistant_groups/<key>.json``; both have the same shape::
+
+    ["spec", ...]                                     # a plain list
+    {"description": "...",                            # or an object
+     "syspath": ["/dir/with/packages", ...],          # added to sys.path (relative: to the file)
+     "agents": ["spec", ...],                         # opponent groups (Assistant groups: "assistants")
+     "assistant": "pkg.module:Class"}                 # opponent groups only: the Assistant for
+                                                      # participants arriving with ?group=<key>
+                                                      # ("support_agent" is the old name)
+
+A group token ``:key`` (or ``?group=key``) is looked up, first hit wins, in
+
+1. the current study's results folder (``<results>/groups/``) — where an outside
+   system drops its files, so its groups always win;
+2. the study folder (``<study>/groups/``);
+3. the project folder (``projects/<P>/groups/``; for the default project: the
+   settings folder, ``settings/groups/``);
+4. the settings folder (``settings/groups/``), for every project;
+5. the built-in groups (opponents: ``:llm``, ``:template``, …; Assistants:
+   ``:default`` and ``:tutorial``).
+
+The server only reads these files (and writes project group files when an admin
+asks); it never calls another service.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+OPPONENT = "opponent"
+ASSISTANT = "assistant"
+KINDS = (OPPONENT, ASSISTANT)
+SUBDIR = {OPPONENT: "groups", ASSISTANT: "assistant_groups"}
+#: the key holding a group's members (Assistant groups also accept "agents")
+MEMBERS_KEY = {OPPONENT: "agents", ASSISTANT: "assistants"}
+#: keys of an opponent group file naming the Assistant for its participants (new name first)
+ASSISTANT_KEYS = ("assistant", "support_agent")
+# group keys: letters, digits, '.', '_' and '-' (long enough for hmac-carrying keys)
+_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
+
+
+def valid_key(key: Any) -> bool:
+    return isinstance(key, str) and bool(_KEY.match(key)) and ".." not in key
+
+
+def check_key(key: Any) -> str:
+    if not valid_key(key):
+        raise ValueError(f"invalid group name {key!r}: use letters, digits, '.', '_' and '-'")
+    return key
+
+
+def check_kind(kind: str) -> str:
+    k = {"opponents": OPPONENT, "assistants": ASSISTANT}.get(kind, kind)
+    if k not in KINDS:
+        raise ValueError(f"group kind must be one of {', '.join(KINDS)}")
+    return k
+
+
+@dataclass
+class Group:
+    key: str
+    kind: str
+    members: list[str] = field(default_factory=list)
+    syspath: list[str] = field(default_factory=list)
+    #: opponent groups: the Assistant(s) named by the file (``assistant`` / ``support_agent``)
+    assistant: Any = None
+    description: str = ""
+    #: results | study | project | settings | builtin
+    source: str = "builtin"
+    path: Path | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        out = dict(key=self.key, kind=self.kind, members=list(self.members), syspath=list(self.syspath),
+                   description=self.description, source=self.source, path=str(self.path) if self.path else None)
+        if self.kind == OPPONENT:
+            out["assistant"] = self.assistant
+        return out
+
+
+# --------------------------------------------------------------------------- #
+# Where group files live                                                       #
+# --------------------------------------------------------------------------- #
+def project_group_dir(project: str, kind: str) -> Path:
+    """The folder of a project's group files (the default project: the settings folder)."""
+    from hani2 import projects
+    from hani2.config import settings_dir
+
+    sub = SUBDIR[check_kind(kind)]
+    if not project or project == projects.DEFAULT_PROJECT:
+        return settings_dir() / sub
+    return projects.project_dir(project) / sub
+
+
+def search_dirs(kind: str, ref: Any = None) -> list[tuple[Path, str]]:
+    """The folders searched for a group of ``kind``, most specific first, for study
+    ``ref`` (default: the current study)."""
+    from hani2 import projects
+    from hani2.config import home, settings_dir
+
+    kind = check_kind(kind)
+    sub = SUBDIR[kind]
+    r = projects.current_study() if ref is None else ref
+    out: list[tuple[Path, str]] = []
+    if r is not None:
+        try:
+            sdir = projects.study_dir(r)
+            out.append((sdir / "results" / sub, "results"))
+            out.append((sdir / sub, "study"))
+        except ValueError:
+            pass
+    else:
+        out.append((home() / "db" / sub, "results"))
+    proj = r.project if r is not None else projects.DEFAULT_PROJECT
+    try:
+        out.append((project_group_dir(proj, kind), "project"))
+    except ValueError:
+        pass
+    s = settings_dir() / sub
+    if all(p != s for p, _ in out):
+        out.append((s, "settings"))
+    return out
+
+
+def _add_syspath(dirs: list[str]) -> None:
+    for d in dirs:
+        if d and d not in sys.path:
+            sys.path.append(d)
+
+
+def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -> Group | None:
+    """Read one group file (``None`` when missing or broken); its ``syspath`` is added to ``sys.path``."""
+    kind = check_kind(kind)
+    try:
+        if not path.is_file():
+            return None
+        data = json.loads(path.read_text())
+    except Exception as e:  # noqa: BLE001 - a broken file must not break the server
+        print(f"⚠️ Could not read group file {path}: {e}")
+        return None
+    g = Group(key=key or path.stem, kind=kind, source=source, path=path)
+    members: Any = data
+    if isinstance(data, dict):
+        for d in data.get("syspath", []) or []:
+            p = Path(str(d)).expanduser()
+            if str(d).strip():
+                g.syspath.append(str(p if p.is_absolute() else (path.parent / p).resolve()))
+        members = data.get(MEMBERS_KEY[kind])
+        if members is None:
+            members = data.get("agents", [])
+        g.description = str(data.get("description") or "")
+        if kind == OPPONENT:
+            g.assistant = next((data[k] for k in ASSISTANT_KEYS if data.get(k)), None)
+    if not isinstance(members, list):
+        print(f"⚠️ Group file {path} has no member list")
+        members = []
+    g.members = [str(x).strip() for x in members if str(x).strip()]
+    _add_syspath(g.syspath)
+    return g
+
+
+def find_file(kind: str, key: str, ref: Any = None) -> Group | None:
+    """The first group file named ``key`` along :func:`search_dirs` (``None``: no file)."""
+    k = key.strip().lstrip(":")
+    if not valid_key(k):
+        return None
+    for d, source in search_dirs(kind, ref):
+        g = load_file(d / f"{k}.json", kind, k, source)
+        if g is not None:
+            return g
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Built-in groups                                                              #
+# --------------------------------------------------------------------------- #
+def _tutorial_dir() -> Path | None:
+    import hani2
+
+    for cand in (Path(hani2.__file__).resolve().parents[2] / "examples" / "support_agent_tutorial",
+                 Path.cwd() / "examples" / "support_agent_tutorial"):
+        if cand.is_dir():
+            return cand
+    return None
+
+
+#: the tutorial Assistants (module:Class), in level order
+TUTORIAL_ASSISTANTS = [
+    "level1_hello:HelloAgent", "level2_rules:RulesAgent", "level3_llm_coach:CoachAgent",
+    "level4_tools:ToolCoachAgent", "level5_deal_coach:DealCoach", "level6_guided:GuidedAgent",
+    "level7_asking:AskingCoach", "level8_spotlight:SpotlightAgent", "level9_panels:PanelAgent",
+    "level10_toolsmith:ToolsmithAgent",
+]
+
+DEFAULT_ASSISTANT_SPEC = "hani2.assistant:Assistant"
+
+
+def default_assistant_spec(settings: dict | None = None) -> str:
+    """The configured Assistant class (``agent_class`` in assistant_settings.json), else the built-in one."""
+    if settings is None:
+        from hani2.support_agent import runtime
+
+        settings = runtime.load_support_agent_settings()
+    return str((settings or {}).get("agent_class") or "").strip() or DEFAULT_ASSISTANT_SPEC
+
+
+def tutorial_assistants() -> list[str]:
+    """The example tutorial Assistants, when the examples folder is present (else ``[]``)."""
+    import importlib.util
+
+    d = _tutorial_dir()
+    if d is not None:
+        _add_syspath([str(d)])
+    out = []
+    for spec in TUTORIAL_ASSISTANTS:
+        mod = spec.split(":")[0]
+        try:
+            if importlib.util.find_spec(mod) is not None:
+                out.append(spec)
+        except (ImportError, ValueError):
+            pass
+    return out
+
+
+BUILTIN_DESCRIPTIONS = {
+    (ASSISTANT, "default"): "The configured Assistant (agent_class in assistant_settings.json, else the built-in one)",
+    (ASSISTANT, "tutorial"): "The tutorial Assistants (examples/support_agent_tutorial), when present",
+    (OPPONENT, "llm"): "Negotiators driven by a language model",
+    (OPPONENT, "template"): "Strategy negotiators that talk with text templates (no language model)",
+    (OPPONENT, "notext"): "Strategy negotiators without text",
+    (OPPONENT, "negmas"): "Every negotiator NegMAS ships",
+    (OPPONENT, "classic"): "Classic competition agents",
+    (OPPONENT, "hani"): "Old name of :classic",
+    (OPPONENT, "genius"): "Genius agents (needs the Genius bridge)",
+    (OPPONENT, "pan"): "The personality-adjusted pool (pan.py), when present",
+    (OPPONENT, "custom"): "The negotiators in HANI2_CUSTOM_AGENTS",
+}
+
+
+def builtin_keys(kind: str) -> list[str]:
+    kind = check_kind(kind)
+    if kind == ASSISTANT:
+        return ["default", "tutorial"]
+    from hani2.agents import AGENT_GROUPS
+
+    return [k.lstrip(":") for k in AGENT_GROUPS] + ["notext", "pan", "custom"]
+
+
+def builtin_members(kind: str, key: str) -> list[str] | None:
+    """The members of a built-in group (``None``: no such built-in)."""
+    kind = check_kind(kind)
+    k = key.strip().lstrip(":").lower()
+    if kind == ASSISTANT:
+        if k == "default":
+            return [default_assistant_spec()]
+        if k == "tutorial":
+            return tutorial_assistants()
+        return None
+    if k not in builtin_keys(OPPONENT):
+        return None
+    from hani2.agents import _resolve_builtin
+
+    return [str(x) for x in _resolve_builtin(":" + k)]
+
+
+# --------------------------------------------------------------------------- #
+# Resolution                                                                   #
+# --------------------------------------------------------------------------- #
+def resolve(kind: str, key: str, ref: Any = None) -> Group | None:
+    """A group by key: a file along :func:`search_dirs`, else a built-in group."""
+    g = find_file(kind, key, ref)
+    if g is not None:
+        return g
+    members = builtin_members(kind, key)
+    if members is None:
+        return None
+    k = key.strip().lstrip(":").lower()
+    return Group(key=k, kind=check_kind(kind), members=members, description=BUILTIN_DESCRIPTIONS.get((kind, k), ""))
+
+
+def expand_assistants(items: Any, ref: Any = None) -> list[str]:
+    """Expand Assistant specs and group tokens into a flat, de-duplicated list of
+    class specs: ``:key`` is an Assistant group; a bare word without ``.``/``:``
+    that names an Assistant group file is that group; anything else is a class spec."""
+    if isinstance(items, str):
+        items = [s for s in items.split(",") if s.strip()]
+    out: list[str] = []
+
+    def add(spec: str) -> None:
+        if spec and spec not in out:
+            out.append(spec)
+
+    for item in list(items or []):
+        t = str(item).strip()
+        if not t:
+            continue
+        if t.startswith(":"):
+            g = resolve(ASSISTANT, t, ref)
+            if g is None:
+                print(f"⚠️ Unknown Assistant group '{t}'")
+                continue
+            for m in g.members:
+                for x in expand_assistants([m], ref) if m.startswith(":") else [m]:
+                    add(x)
+            continue
+        if "." not in t and ":" not in t:
+            g = find_file(ASSISTANT, t, ref)
+            if g is not None:
+                for m in g.members:
+                    add(m)
+                continue
+        add(t)
+    return out
+
+
+def list_groups(kind: str, *, project: str | None = None, ref: Any = None,
+                include_builtin: bool = True) -> list[dict[str, Any]]:
+    """Every group of ``kind`` with its members, source file and description.
+
+    With ``project``: the project's folder, the settings folder and each of its
+    studies (study folder and results). Otherwise the folders searched for study
+    ``ref`` (default: the current study). ``active`` marks the file a token resolves to."""
+    from hani2 import projects
+
+    kind = check_kind(kind)
+    dirs: list[tuple[Path, str]]
+    if project is not None:
+        projects.check_name(project, "project")
+        dirs = [(project_group_dir(project, kind), "project")]
+        for st in projects.list_studies(project):
+            sdir = projects.study_dir(projects.StudyRef(project, st))
+            dirs += [(sdir / "results" / SUBDIR[kind], f"results:{st}"), (sdir / SUBDIR[kind], f"study:{st}")]
+        from hani2.config import settings_dir
+
+        s = settings_dir() / SUBDIR[kind]
+        if all(p != s for p, _ in dirs):
+            dirs.append((s, "settings"))
+    else:
+        dirs = search_dirs(kind, ref)
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for d, source in dirs:
+        if not d.is_dir():
+            continue
+        for f in sorted(d.glob("*.json")):
+            if not valid_key(f.stem):
+                continue
+            g = load_file(f, kind, f.stem, source)
+            if g is None:
+                continue
+            item = g.to_dict()
+            item["active"] = f.stem not in seen if project is None else None
+            seen.add(f.stem)
+            out.append(item)
+    if include_builtin:
+        for k in builtin_keys(kind):
+            members = builtin_members(kind, k) or []
+            out.append(dict(key=k, kind=kind, members=members, syspath=[], source="builtin", path=None,
+                            description=BUILTIN_DESCRIPTIONS.get((kind, k), ""),
+                            active=(k not in seen) if project is None else None))
+    return out
+
+
+def prime_syspaths(ref: Any = None) -> None:
+    """Add the ``syspath`` of every group file reachable from the current study to
+    ``sys.path``, so a dotted spec imports however the session reached it."""
+    for kind in KINDS:
+        try:
+            dirs = search_dirs(kind, ref)
+        except Exception:  # noqa: BLE001
+            continue
+        for d, _ in dirs:
+            if not d.is_dir():
+                continue
+            for f in sorted(d.glob("*.json")):
+                try:
+                    data = json.loads(f.read_text())
+                except Exception:  # noqa: BLE001
+                    continue
+                if isinstance(data, dict):
+                    load_file(f, kind, f.stem)
+
+
+# --------------------------------------------------------------------------- #
+# Writing project groups (admin)                                               #
+# --------------------------------------------------------------------------- #
+def validate_data(kind: str, data: Any) -> dict[str, Any]:
+    """Normalise a group's content (a list, or an object with members, syspath, description)."""
+    kind = check_kind(kind)
+    if isinstance(data, list):
+        data = {MEMBERS_KEY[kind]: data}
+    if not isinstance(data, dict):
+        raise ValueError("a group is a list of specs or an object")
+    members = data.get(MEMBERS_KEY[kind], data.get("agents", data.get("members")))
+    if not isinstance(members, list) or not all(isinstance(x, str) and x.strip() for x in members):
+        raise ValueError(f"'{MEMBERS_KEY[kind]}' must be a list of non-empty strings")
+    out: dict[str, Any] = {}
+    if data.get("description"):
+        out["description"] = str(data["description"])
+    sp = data.get("syspath") or []
+    if not isinstance(sp, list) or not all(isinstance(x, str) for x in sp):
+        raise ValueError("'syspath' must be a list of folders")
+    if sp:
+        out["syspath"] = sp
+    out[MEMBERS_KEY[kind]] = [x.strip() for x in members]
+    if kind == OPPONENT:
+        a = next((data[k] for k in ASSISTANT_KEYS if data.get(k)), None)
+        if a is not None:
+            if not (isinstance(a, str) or (isinstance(a, list) and all(isinstance(x, str) for x in a))):
+                raise ValueError("'assistant' must be a class spec or a list of them")
+            out["assistant"] = a
+    return out
+
+
+def write_group(project: str, kind: str, key: str, data: Any) -> Path:
+    check_key(key)
+    clean = validate_data(kind, data)
+    f = project_group_dir(project, kind) / f"{key}.json"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(clean, indent=2))
+    tmp.replace(f)
+    return f
+
+
+def delete_group(project: str, kind: str, key: str) -> bool:
+    check_key(key)
+    f = project_group_dir(project, kind) / f"{key}.json"
+    if f.is_file():
+        f.unlink()
+        return True
+    return False

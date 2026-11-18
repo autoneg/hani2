@@ -249,6 +249,11 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `device` / `orientation` | The layout in use (`desktop`, `tablet` or `phone`) and `landscape` or `portrait`. |
 | `support_agent` | Whether the Assistant acted (sent a message or changed something) during this negotiation. |
 | `autopilot` | Whether the autopilot was switched on during this negotiation. |
+| `assistant` | The Assistant assigned for this negotiation (its spec), empty without one. See [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment). |
+| `assistant_group` | The Assistant group it came from, if any. |
+| `assistant_class` | The class that actually ran (`module.Class`). |
+| `assistant_error` | Why the assigned Assistant could not be started, if it failed. |
+| `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.

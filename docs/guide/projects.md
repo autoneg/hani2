@@ -185,6 +185,41 @@ Participants who arrive with a Prolific ID, an online participant ID or a sessio
 
 Every row of `results.csv` and of `negotiation_questionnaires.csv`, every event (`events.db`) and every recording carries `project` and `study` columns. The returning-participant check, the practice round, `prolific_session.json`, `schedule.json` and the opponent rotation all live in the study's `results/` folder, so they never mix across studies. The admin console's results, events and recordings show the server's default study; add `?study=<project>/<study>` to the API calls, or open the admin page at `/s/<project>/<study>/admin` to see a study's results, events and recordings. Do not save settings from there: the settings editors show the study's effective settings but save to the shared settings folder (a later version adds per-study editing; until then use the [admin API](#admin-api) with `?study=` or edit the study's files).
 
+## Groups and assignment
+
+A project shares its pools with all its studies:
+
+```
+projects/HI2027/
+  project.yaml               # opponents: [":finalists"]   assistants: [":entries"]
+  groups/finalists.json      # opponent group   {"agents": [...], "syspath": [...]}
+  assistant_groups/entries.json   # Assistant group  {"assistants": [...], "syspath": [...]}
+  studies/hi-2027-01/
+    study.yaml               # may override opponents / assistants
+    groups/ assistant_groups/   # optional groups of this study only
+    results/
+      groups/                # files an outside system drops (they win)
+      assignments.json       # each human's index and Assistant
+```
+
+A token `:key` is looked up in the study's `results/groups/`, the study folder, the project folder,
+the settings folder and finally the built-in groups (see [Group files](opponents.md#group-files)
+and [Assistant groups](assistant.md#assistant-groups)). Within a study HANI2 assigns:
+
+- **Assistants** fixed per human and balanced across the study's humans (fewest assigned first,
+  ties in pool order; admins and playground guests not counted; drop-outs counted). See
+  [Fixed per human, balanced](assistant.md#fixed-per-human-balanced).
+- **Opponents** in a balanced Latin-square order over the study's opponent pool, by participant
+  index. See [Latin squares](opponents.md#latin-squares).
+- **Scenario types** by participant index over the active scenario set; each negotiation takes the
+  participant's next slot of that type.
+
+Participants are counted per study (their index is kept in the study's `assignments.json`), so
+each study is balanced on its own. A `schedule.json` (and a group file named in the URL) still wins
+over all of this. The assigned Assistant, its group and the opponent's group are written to every
+results row (`assistant`, `assistant_group`, `assistant_class`, `assistant_error`,
+`opponent_group`), to the `scenario_started` event and to the recordings.
+
 ## Two ways to run HANI2
 
 **Standalone.** HANI2 runs the whole study: create the project and the study, give out the link it prints, and HANI2 shows the consent form and the questionnaires, assigns scenarios and opponents, and ends with the completion code, the Prolific redirect or a thank-you page.
@@ -210,13 +245,14 @@ hani2 study create PROJECT/STUDY [--type prolific|online|lab] [--title TEXT] [--
 hani2 study list [PROJECT]
 hani2 study show PROJECT/STUDY [--base-url URL]
 hani2 --study PROJECT/STUDY         # the default study of this server
+hani2 groups list [--project P | --study P/S] [--kind opponent|assistant] [--no-builtin]
 ```
 
 `create` on an existing project or study updates the given fields. `study create` also creates the project when it is missing, and prints the links to give participants. The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in `env.json`, else `http://localhost:5006` plus the root path. A bare study name (`hani2 study create pilot`) is a study of the `default` project.
 
 ## Admin API
 
-These JSON endpoints are for admins only. Project and study names may contain only letters, digits, `.`, `_` and `-`.
+These JSON endpoints are for admins only. Project, study and group names may contain only letters, digits, `.`, `_` and `-`. The project's group folder of the `default` project is the settings folder.
 
 | Endpoint | Does |
 |---|---|
@@ -227,6 +263,11 @@ These JSON endpoints are for admins only. Project and study names may contain on
 | `PUT /api/admin/projects/{project}/studies/{study}` | Create or replace `study.yaml` (the project is created when missing). |
 | `GET /api/admin/settings/{kind}?study=P/S` or `?project=P` | That layer's own file (raw, without variables filled in; `{}` or an empty text when the layer has none), plus the effective text for text files. Without the parameter: the effective settings, as before. |
 | `PUT /api/admin/settings/{kind}?study=P/S` or `?project=P` | Write the file to that layer. Without the parameter: the settings folder, as before. |
+| `GET /api/admin/groups?project=P` | The project's opponent and Assistant groups (its folder, its studies, the settings folder and the built-in groups): key, members, `syspath`, description, the group file's `assistant`, source and file. With `?study=P/S` instead: the groups as that study resolves them, `active` marking the file a token resolves to. |
+| `GET /api/admin/projects/{project}/groups/{kind}/{key}` | One group file of the project (`kind`: `opponent` or `assistant`, plural accepted). |
+| `PUT /api/admin/projects/{project}/groups/{kind}/{key}` | Create or replace it: a list of specs, or `{"description", "syspath", "agents"` (opponents) or `"assistants"`, and for opponent groups `"assistant"}`. Checked before it is written. |
+| `DELETE /api/admin/projects/{project}/groups/{kind}/{key}` | Delete it. |
+| `GET /api/admin/projects/{project}/studies/{study}/assignments` | The study's `assignments.json`. |
 | `POST /api/admin/templates/preview` | `{"text": "...", "study": "P/S"}` or `{"kind": "consent", "study": "P/S"}`: the rendered text, the unknown variables, and every variable with its value. |
 
 ## Migrating from experiments

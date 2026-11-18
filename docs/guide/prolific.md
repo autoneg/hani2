@@ -47,10 +47,11 @@ The questionnaire configured for the study (see [Studies and results](studies.md
 
 ### Scenarios and opponents
 
-- **Scenario type.** Each participant is assigned one scenario type from the active [scenario set](scenario-sets.md), based on a hash of their Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
+- **Scenario type.** Each participant is assigned one scenario type from the active [scenario set](scenario-sets.md). In a study, participant number *i* (in order of arrival) gets type `i mod t` of the set's `t` types, so the types are spread evenly; without a study the type comes from a hash of the Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
 - **Scenario slot.** Each round uses the next slot of that type's pool (the participant's counter in `last_scenario.txt`). Prolific rounds always use the saved pools.
 - **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_OPPONENTS` (default `:pan`; the old name `PROLIFIC_PRACTICE_AGENTS` also works). If that list resolves to no agents, HANI2 uses the normal opponent pool.
-- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset, and rotates through them: round *k* uses agent `(offset + k) mod n`. Each new participant gets the next offset, so participants start at different opponents and the agents are spread evenly across participants.
+- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset. In a study, participants face them in the order of a balanced Latin square (see [Latin squares](opponents.md#latin-squares)). Without a study, or for a participant who already has a `fallback_rotation.txt`, HANI2 rotates through them: round *k* uses agent `(offset + k) mod n`, and each new participant gets the next offset.
+- **Assistant.** With an Assistant pool, each participant keeps one Assistant for the whole study, balanced across participants (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)).
 
 ### Schedules
 
@@ -73,6 +74,9 @@ A plain list of entries works too. Entry *k* applies to the *k*-th counted round
 | `scenario_index` | The slot in that type's pool (an integer). |
 | `agent_class_name` | The opponent. HANI2 matches it against the counted-opponent pool, by full spec or by class name, and otherwise uses it as a spec as written. |
 | `time_limit` | The time limit in seconds. |
+| `assistant` | The Assistant for this round (a class spec, a list, or an Assistant group token). |
+
+A top-level `assistant` next to `negotiations` names the Assistant for every round without one of its own, including the practice round. The schedule's Assistant wins over the study's pool and is used as given.
 
 Other tools can write schedule files before participants arrive; HANI2 only reads them.
 
@@ -127,10 +131,10 @@ Prolific participants have the usual result files (see [Studies and results](stu
 | File | Content |
 |------|---------|
 | `prolific_session.json` | `started_at`, the assigned `scenario_type`, `max_minutes` and `max_negs` (`PROLIFIC_N_REQUIRED + 1`). Written on the first visit. |
-| `fallback_rotation.txt` | The participant's offset in the opponent rotation. |
+| `fallback_rotation.txt` | The participant's offset in the opponent rotation (sessions outside a study, and older participants). |
 | `schedule.json` | Only if you write one. |
 
-The shared counter for the rotation offsets is `<results>/_prolific_fallback_counter.txt`.
+The shared counter for the rotation offsets is `<results>/_prolific_fallback_counter.txt`. In a study, `<results>/assignments.json` holds every participant's index (for the Latin square and the scenario type) and Assistant.
 
 The `practice` column of `results.csv` marks the practice round.
 

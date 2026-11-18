@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **Groups and assignment.** Opponent groups (`groups/<key>.json`) and the new Assistant groups
+  (`assistant_groups/<key>.json`, members under `assistants`) can live in a project, shared by its
+  studies; a token `:key` or `?group=key` is looked up in the study's results folder, the study
+  folder, the project folder, the settings folder and then the built-in groups (new built-in
+  Assistant groups `:default` and `:tutorial`). Relative `syspath` folders are relative to the file.
+  A group file's `assistant` key (old name `support_agent`) names the Assistant for participants
+  arriving with that group, switched on from the start, so a team can try its own Assistant from a
+  link. A study's Assistant pool comes from the URL (admins), the group file, `schedule.json`
+  (per slot or top level, new `assistant` field), `hani2 --assistants` / `HANI2_ASSISTANTS`
+  (new), `assistants` in study.yaml / project.yaml, or `agent_class`; with more than one Assistant,
+  each human keeps one for the whole study, balanced across the study's humans (fewest first,
+  ties in pool order; admins and playground guests not counted; drop-outs counted), stored in the
+  study's `assignments.json`. In a study, opponents follow a balanced Latin square over the pool
+  and scenario types are spread by participant index (a `schedule.json` still wins). An assigned
+  Assistant that cannot be loaded now fails loudly (an error notice, an `assistant_failed` event,
+  no silent fallback). Results rows gain `assistant`, `assistant_group`, `assistant_class`,
+  `assistant_error` and `opponent_group`; events, recordings and the admin sessions list carry
+  them too. New `hani2 groups list` and admin endpoints to list groups and to read, write and
+  delete a project's group files and to read a study's assignments. See
+  [Assistant pools and assignment](guide/assistant.md#assistant-pools-and-assignment) and
+  [Latin squares](guide/opponents.md#latin-squares).
 - **Projects and studies.** One server now runs many data collections at once. A *project*
   (`projects/<project>/project.yaml`: name, full name, kind, year, organiser, contact and defaults
   such as `n_required` and time limits) owns *studies* (`studies/<study>/study.yaml`: type

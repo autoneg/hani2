@@ -256,6 +256,8 @@ class SessionRecorder:
             status=summary.get("status"), ended_by=summary.get("ended_by"),
             human_utility=summary.get("human_utility"), agent_utility=summary.get("agent_utility"),
             support_agent=meta.get("support_agent"), questionnaire=bool(meta.get("questionnaire")),
+            assistant=meta.get("assistant"), assistant_group=meta.get("assistant_group"),
+            opponent_group=meta.get("opponent_group"),
             size=final.stat().st_size,
         )
         try:
@@ -349,10 +351,14 @@ class SessionRecorder:
         m = s.mechanism
         nmi = getattr(m, "nmi", None)
         sa = s.support_agent
+        attribution = dict(s.ss.get("assistant_attribution") or {})
+        attribution["opponent_group"] = s.ss.get("opponent_group") or ""
         self.meta.update(mechanism_id=getattr(m, "id", None), opponent=s.ss.get("last_partner_type"),
-                         support_agent=bool(sa is not None and getattr(sa, "user_enabled", True)))
+                         support_agent=bool(sa is not None and getattr(sa, "user_enabled", True)),
+                         **{k: attribution.get(k, "") for k in ("assistant", "assistant_group", "opponent_group")})
         self._write(
             "start", mechanism_id=getattr(m, "id", None), opponent=s.ss.get("last_partner_type"),
+            assignment=_clean(attribution),
             human_id=s.ss.get("human_id"), human_index=s.human_index, round=s.round_number,
             practice=bool(s.ss.get("is_practice_round")), deadline=s.deadline,
             n_steps=getattr(nmi, "n_steps", None), time_limit=getattr(nmi, "time_limit", None),

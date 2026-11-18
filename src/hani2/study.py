@@ -138,7 +138,42 @@ class Study:
 
     # -- planning -----------------------------------------------------------
     def plan_round(self, scenario_type: str | None, name: str | None) -> dict[str, Any]:
-        return {"type": scenario_type, "name": name}
+        plan: dict[str, Any] = {"type": scenario_type, "name": name}
+        s = self.session
+        q = s.query or {}
+        url_pool = any(str(q.get(k) or "").strip() for k in ("opponents", "agents", "group"))
+        # a pool from the URL (a test link) or an admin-mode session keeps the random choice
+        partner = None if (url_pool or s.admin_mode) else self.latin_square_partner(s.round_number)
+        if partner is not None:
+            plan["partner"] = partner
+            plan["opponent_group"] = self.session.opponent_group
+        return plan
+
+    def participant_index(self) -> int | None:
+        """This human's index within the study (``None`` outside a study, for admins and guests)."""
+        from hani2 import assignment
+
+        if self.session.study_ref is None:
+            return None
+        return assignment.participant_index(self.session)
+
+    def latin_square_partner(self, slot: int, pool: list | None = None) -> Any:
+        """The opponent for ``slot`` from the balanced Latin square over the opponent pool,
+        for humans of a study run by HANI2 itself (``None`` otherwise)."""
+        from hani2 import assignment
+
+        s = self.session
+        if s.study_ref is None or not assignment.counts_as_human(s):
+            return None
+        pool = list(pool if pool is not None else s.opponent_pool())
+        if len(pool) < 2:
+            return None
+        idx = self.participant_index()
+        return None if idx is None else assignment.latin_pick(pool, idx, slot)
+
+    def schedule_assistant(self) -> Any:
+        """The Assistant a schedule.json names for the next negotiation (``None``: none)."""
+        return None
 
     def after_load(self) -> None:
         pass
@@ -251,13 +286,17 @@ class ProlificStudy(Study):
                 pass
         types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
         h = int(hashlib.sha1(self.pid.encode()).hexdigest(), 16)
+        # in a study: the scenario type cycles over the set by participant index (balanced)
+        idx = self.participant_index()
         meta = {
             "started_at": datetime.now().isoformat(),
-            "scenario_type": types[h % len(types)] if types else None,
+            "scenario_type": types[(h if idx is None else idx) % len(types)] if types else None,
             "max_minutes": projects.setting("minutes", 45, env="PROLIFIC_MAX_MINUTES", cast=int,
                                             ref=self.session.study_ref),
             "max_negs": self.n_required + 1,
         }
+        if idx is not None:
+            meta["participant_index"] = idx
         self.user_path.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(meta))
         return meta
@@ -317,22 +356,50 @@ class ProlificStudy(Study):
             n += 1
         return n
 
-    def schedule(self) -> list[dict]:
+    def schedule_data(self) -> Any:
+        """The participant's ``schedule.json`` as written (``None`` when missing or broken)."""
         path = self.user_path / self.SCHEDULE
         if not path.exists():
-            return []
+            return None
         try:
-            data = json.loads(path.read_text())
+            return json.loads(path.read_text())
         except Exception:
-            return []
+            return None
+
+    def schedule(self) -> list[dict]:
+        data = self.schedule_data()
         if isinstance(data, dict):
             data = data.get("negotiations", [])
         return data if isinstance(data, list) else []
 
+    def schedule_assistant(self, slot: int | None = None, practice: bool | None = None) -> Any:
+        """The Assistant schedule.json names: the slot's ``assistant``, else the top-level one."""
+        data = self.schedule_data()
+        if data is None:
+            return None
+        if practice is None:
+            practice = self.is_practice_next()
+        if not practice:
+            sched = self.schedule()
+            i = self.counted() if slot is None else slot
+            entry = sched[i] if 0 <= i < len(sched) and isinstance(sched[i], dict) else {}
+            if entry.get("assistant"):
+                return entry["assistant"]
+        return data.get("assistant") if isinstance(data, dict) and data.get("assistant") else None
+
     def finalists(self) -> list[str]:
         raw = os.environ.get("PROLIFIC_FINALISTS", "")
         pool = expand_agents(raw) if raw.strip() else []
-        return pool or list(self.session.opponent_pool())
+        if pool:
+            from hani2.session import _group_name
+
+            self._finalists_group = _group_name(raw)
+            return pool
+        pool = list(self.session.opponent_pool())
+        self._finalists_group = self.session.opponent_group
+        return pool
+
+    _finalists_group = ""
 
     def _rotation_offset(self) -> int:
         try:
@@ -361,24 +428,38 @@ class ProlificStudy(Study):
         if idx is None:
             idx = store.next_index(self.user_path)
         partner = None
+        group: str | None = None
         if practice:
             practice_pool = expand_agents(os.environ.get("PROLIFIC_PRACTICE_OPPONENTS") or os.environ.get("PROLIFIC_PRACTICE_AGENTS", ":pan")) or self.session.opponent_pool()
             partner = random.choice(practice_pool)
+            group = ""
         else:
             want = entry.get("agent_class_name")
             pool = self.finalists()
+            group = self._finalists_group
             if want:
-                partner = next((p for p in pool if str(p) == want or str(p).endswith("." + str(want).split(".")[-1])), want)
+                partner = next((p for p in pool if str(p) == want or str(p).endswith("." + str(want).split(".")[-1])), None)
+                if partner is None:  # not a pool member: used as written, from no group
+                    partner, group = want, ""
             elif pool:
-                partner = pool[(self._rotation_offset() + slot) % len(pool)]
-        return {
+                # a study run by HANI2 itself (no schedule.json): balanced Latin square over the pool,
+                # by participant index within the study; otherwise the old rotation
+                legacy = (self.user_path / "fallback_rotation.txt").exists()
+                latin = None if (sched or legacy) else self.latin_square_partner(slot, pool)
+                partner = latin if latin is not None else pool[(self._rotation_offset() + slot) % len(pool)]
+        plan = {
             "type": stype,
             "index": idx,
             "partner": partner,
+            "opponent_group": group,
             "practice": practice,
             "time_limit": entry.get("time_limit") or (self.practice_time if practice else self.counted_time),
             "load_existing": True,
         }
+        assistant = self.schedule_assistant(slot, practice)
+        if assistant:
+            plan["assistant"] = assistant
+        return plan
 
     def finished(self) -> bool:
         return self.counted() >= self.n_required

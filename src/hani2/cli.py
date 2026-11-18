@@ -29,6 +29,8 @@ app.add_typer(users_app, name="users")
 app.add_typer(replay_app, name="replay")
 app.add_typer(tools_app, name="tools")
 app.add_typer(scenario_app, name="scenario")
+groups_app = typer.Typer(help="List opponent and Assistant groups (named pools).")
+app.add_typer(groups_app, name="groups")
 
 
 def _open_when_ready(url: str) -> None:
@@ -154,6 +156,30 @@ def _check_assistant_class(klass: str) -> None:
 _check_support_agent_class = _check_assistant_class  # old name
 
 
+def _check_assistants(value: str) -> str:
+    """Fail early when the Assistant pool is empty or a member does not load;
+    returns the list with file paths made absolute."""
+    from hani2 import groups
+
+    items = []
+    for spec in [x.strip() for x in value.split(",") if x.strip()]:
+        if ".py:" in spec:
+            path, _, attr = spec.rpartition(":")
+            spec = f"{Path(path).expanduser().resolve()}:{attr}"
+        items.append(spec)
+    pool = groups.expand_assistants(items)
+    if not pool:
+        raise typer.BadParameter(f"{value!r} names no Assistant", param_hint="--assistants")
+    from hani2.support_agent.runtime import AssistantLoadError, load_assistant_class
+
+    for spec in pool:
+        try:
+            load_assistant_class(spec)
+        except AssistantLoadError as e:
+            raise typer.BadParameter(str(e), param_hint="--assistants") from None
+    return ",".join(items)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -162,6 +188,7 @@ def main(
     opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant: on (everyone), off (nobody), auto (admins only), or an Assistant class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
+    assistants: Annotated[Optional[str], typer.Option("--assistants", help="Assistant pool: comma-separated Assistant classes and/or Assistant groups (:default, :tutorial, or a group file's key). With more than one, each human keeps one Assistant, balanced across the humans of a study.")] = None,
     no_assistant: Annotated[bool, typer.Option("--no-assistant", help="Run without the Assistant (same as --assistant off).")] = False,
     support_agent: Annotated[Optional[str], typer.Option("--support-agent", hidden=True, help="Old name of --assistant.")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", hidden=True, help="Old name of --no-assistant.")] = False,
@@ -215,6 +242,8 @@ def main(
         _check_opponents(opponents)
         os.environ["HANI2_OPPONENTS"] = opponents
     _apply_assistant_choice("off" if (no_assistant or no_support_agent) else _assistant_option(assistant, support_agent))
+    if assistants:
+        os.environ["HANI2_ASSISTANTS"] = _check_assistants(assistants)
     if tools:
         os.environ["HANI2_TOOLS"] = _check_tools(tools)
     if ctx.invoked_subcommand is not None:
@@ -252,6 +281,7 @@ def info():
     typer.echo(f"study           {default_study() or '-'}  ({experiment_dir() or 'no study folder'})")
     typer.echo(f"auth mode       {auth_mode()}  (oauth: {', '.join(oauth_providers()) or 'none'})")
     typer.echo(f"assistant       {assistant_mode()}")
+    typer.echo(f"assistants      {os.environ.get('HANI2_ASSISTANTS') or 'study / project / assistant_settings.json'}")
     opp = os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS")
     from hani2.config import get_env
 
@@ -412,6 +442,7 @@ def scenario_check(
 def experiment_create(
     name: str,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files.")] = False,
+    assistants: Annotated[Optional[str], typer.Option("--assistants", help="Assistant pool: comma-separated Assistant classes and/or Assistant groups (:default, :tutorial, or a group file's key). With more than one, each human keeps one Assistant, balanced across the humans of a study.")] = None,
     no_assistant: Annotated[bool, typer.Option("--no-assistant", help="Run this experiment without the Assistant (e.g. a competition).")] = False,
     assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant for this experiment: on, off, auto, or an Assistant class (pkg.module:Class or path/to/file.py:Class).")] = None,
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", hidden=True, help="Old name of --no-assistant.")] = False,
@@ -750,8 +781,6 @@ def replay_open(
     _serve(host, port, "/replay" if open_browser else None)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    app()
 
 
 # --------------------------------------------------------------------------- #
@@ -998,3 +1027,40 @@ def study_show(
     typer.echo(f"{r}  ({st.path})")
     _echo_mapping({k: v for k, v in st.to_dict().items() if k not in ("name", "project")})
     _print_links(r, base_url)
+
+
+@groups_app.command("list")
+def groups_list(
+    project: Annotated[Optional[str], typer.Option("--project", help="List the groups of this project (its folder, its studies and the settings folder).")] = None,
+    study: Annotated[Optional[str], typer.Option("--study", help="List the groups as this study (project/study) resolves them (default: the default study).")] = None,
+    kind: Annotated[Optional[str], typer.Option("--kind", help="opponent or assistant (default: both).")] = None,
+    builtin: Annotated[bool, typer.Option("--builtin/--no-builtin", help="Include the built-in groups.")] = True,
+):
+    """List opponent and Assistant groups with their members and where they come from."""
+    from hani2 import groups, projects
+
+    try:
+        kinds = [groups.check_kind(kind)] if kind else list(groups.KINDS)
+        kw: dict = {"project": project} if project else {"ref": projects.parse_ref(study) if study else None}
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    for k in kinds:
+        typer.secho(f"{k.capitalize()} groups", bold=True)
+        items = groups.list_groups(k, include_builtin=builtin, **kw)
+        if not items:
+            typer.echo("  (none)")
+        for g in items:
+            where = g["path"] or "built-in"
+            mark = " (shadowed)" if g.get("active") is False else ""
+            typer.echo(f"  :{g['key']:<22s} {g['source']:<10s} {where}{mark}")
+            if g.get("description"):
+                typer.echo(f"      {g['description']}")
+            members = g["members"]
+            shown = ", ".join(members[:8]) + (f", … (+{len(members) - 8})" if len(members) > 8 else "")
+            typer.echo(f"      members: {shown or '-'}")
+            if g.get("assistant"):
+                typer.echo(f"      assistant: {g['assistant']}")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    app()

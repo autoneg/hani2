@@ -61,6 +61,18 @@ def _stamp(ss: dict[str, Any]) -> dict[str, str]:
     return projects.stamp(sess.study_ref) if sess is not None else projects.stamp()
 
 
+#: columns naming who took part besides the human (added after the existing ones)
+ATTRIBUTION_COLUMNS = ["assistant", "assistant_group", "assistant_class", "assistant_error", "opponent_group"]
+
+
+def _attribution(ss: dict[str, Any]) -> dict[str, str]:
+    """The Assistant (spec, group, class, error) and the opponent's group of this negotiation."""
+    a = dict(ss.get("assistant_attribution") or {})
+    out = {k: str(a.get(k) or "") for k in ATTRIBUTION_COLUMNS[:-1]}
+    out["opponent_group"] = str(ss.get("opponent_group") or "")
+    return out
+
+
 def get_status(state: SAOState) -> str:
     if state.agreement is not None:
         return "success"
@@ -180,6 +192,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             support_agent=bool(ss.get("support_agent_used", False)),
             autopilot=bool(ss.get("autopilot_used", False)),
         )
+        | _attribution(ss)
         | _stamp(ss)
         | asdict(m.state)
         | {k: v for k, v in asdict(m.nmi).items() if not k.startswith("_") and not k.startswith("outcome_space")}

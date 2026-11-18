@@ -159,6 +159,8 @@ export interface SessionState {
   support: SupportState | null;
   autopilot: { allowed?: boolean; available: boolean; active?: boolean; driver?: string | null; drivers?: string[] | null; can_choose?: boolean };
   notice: null | { text: string; level: string };
+  /** why an assigned Assistant could not be started (the session runs without one) */
+  assistant_error?: string | null;
   questionnaire: Questionnaire | null;
   finish_url: string | null;
   finish_text?: string | null;

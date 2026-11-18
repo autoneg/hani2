@@ -35,8 +35,8 @@ from hani2.support_agent.tools import ToolDispatcher, _log_agent_action
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
 
-__all__ = ["Assistant", "SupportAgent", "resolve_agent_class", "create_assistant_for", "create_support_agent_for",
-           "flatten_tool_messages"]
+__all__ = ["Assistant", "SupportAgent", "AssistantLoadError", "resolve_agent_class", "load_assistant_class",
+           "create_assistant_for", "create_support_agent_for", "flatten_tool_messages"]
 
 _VALID_TOAST_LEVELS = {"info", "success", "warning", "error"}
 _VALID_PROACTIVE_DELIVERY = {"toast", "board", "chat"}
@@ -797,16 +797,88 @@ def resolve_agent_class(settings: dict) -> type[SupportAgent]:
         return SupportAgent
 
 
-def create_support_agent_for(session: "NegotiationSession") -> SupportAgent | None:
-    settings = load_support_agent_settings()
-    if not support_agent_enabled(settings, is_admin=session.is_admin):
-        return None
-    klass = resolve_agent_class(settings)
+class AssistantLoadError(RuntimeError):
+    """An assigned Assistant could not be imported or created."""
+
+
+def load_assistant_class(spec: str) -> type[SupportAgent]:
+    """Load an Assistant class strictly (raises :class:`AssistantLoadError`)."""
     try:
-        agent = klass(session.ss, settings)
-    except Exception:  # noqa: BLE001
-        traceback.print_exc()
-        agent = SupportAgent(session.ss, settings)
+        klass = load_class(spec)
+    except Exception as e:  # noqa: BLE001
+        raise AssistantLoadError(f"cannot import the Assistant {spec!r}: {type(e).__name__}: {e}") from e
+    if not (isinstance(klass, type) and issubclass(klass, SupportAgent)):
+        raise AssistantLoadError(f"{spec!r} is not an Assistant (SupportAgent) subclass")
+    return klass
+
+
+def _assistant_failed(session: "NegotiationSession", choice: Any, message: str) -> None:
+    """Fail loudly: no Assistant, a visible error for the participant and admins, an event and a log line."""
+    print(f"[hani2] ERROR: {message}")
+    session.assistant_error = message
+    session.ss["support_agent"] = None
+    try:
+        ev.log_event(session.sid, ev.EventType.ERROR, user=session.user, component="assistant",
+                     action="assistant_failed", value={"error": message, **(choice.to_dict() if choice else {})})
+    except Exception:  # pragma: no cover
+        pass
+    try:
+        session.toast(f"The Assistant could not be started: {message}", "error", duration=0)
+    except Exception:  # pragma: no cover
+        pass
+
+
+def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
+                             settings: dict | None = None) -> SupportAgent | None:
+    """Create the session's Assistant.
+
+    The class comes from the session's Assistant pool (see :mod:`hani2.assignment`):
+    an assigned Assistant (URL, group file, schedule.json, ``--assistants``, study.yaml /
+    project.yaml) that cannot be imported or created leaves the session without an
+    Assistant and shows the error (no silent fallback); the configured
+    ``agent_class`` of assistant_settings.json keeps its old behaviour (a warning and
+    the built-in Assistant)."""
+    from hani2 import assignment
+
+    settings = settings or getattr(session, "assistant_settings", None) or load_support_agent_settings()
+    assert settings is not None
+    session.assistant_settings = settings
+    session.assistant_error = None
+    if not support_agent_enabled(settings, is_admin=session.is_admin):
+        session.assistant_choice = None
+        session.ss["support_agent"] = None
+        return None
+    if choice is None:
+        try:
+            choice = assignment.choose_assistant(session, settings, getattr(session, "round_plan", None))
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            choice = assignment.AssistantChoice(spec=None, source="error", error=f"could not assign an Assistant: {e}")
+    session.assistant_choice = choice
+    if choice.error or not choice.spec:
+        _assistant_failed(session, choice, choice.error or "no Assistant to run")
+        return None
+    if choice.source == "group":
+        # a group file naming an Assistant is there to try that Assistant: start it switched on
+        session.ss["support_agent_default_enabled"] = True
+    if not choice.strict:
+        klass = resolve_agent_class(settings)
+        try:
+            agent = klass(session.ss, settings)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            agent = SupportAgent(session.ss, settings)
+    else:
+        try:
+            klass = load_assistant_class(choice.spec)
+            agent = klass(session.ss, settings)
+        except AssistantLoadError as e:
+            _assistant_failed(session, choice, str(e))
+            return None
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            _assistant_failed(session, choice, f"the Assistant {choice.spec!r} failed to start: {type(e).__name__}: {e}")
+            return None
     session.ss["support_agent"] = agent
     return agent
 

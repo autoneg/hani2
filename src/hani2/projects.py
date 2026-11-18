@@ -245,28 +245,39 @@ def _split(data: dict, fields: tuple[str, ...], nested: str) -> tuple[dict, dict
     return known, settings, extra
 
 
+def _no_none(known: dict[str, Any]) -> dict[str, Any]:
+    """Text fields given as ``null`` in the YAML read as ``""`` (``year`` may stay ``None``)."""
+    return {k: ("" if v is None and k != "year" else v) for k, v in known.items()}
+
+
+def _ref(ref: "StudyRef | str") -> StudyRef:
+    r = parse_ref(ref)
+    if r is None:
+        raise ValueError("a study is needed (project/study)")
+    return r
+
+
 def load_project(name: str) -> Project:
     check_name(name, "project")
     path = project_dir(name)
     data = read_yaml(path / PROJECT_FILE)
     known, defaults, extra = _split(data, PROJECT_FIELDS, "defaults")
     known.pop("name", None)
-    known = {k: ("" if v is None and k != "year" else v) for k, v in known.items()}
+    known = _no_none(known)
     kind = str(known.pop("kind", "none") or "none").lower()
     return Project(name=name, kind=kind if kind in KINDS else "none", defaults=defaults, extra=extra,
                    path=path if path.is_dir() else None, **{k: v for k, v in known.items()})
 
 
 def load_study(ref: "StudyRef | str") -> Study:
-    ref = parse_ref(ref)
-    assert ref is not None
+    ref = _ref(ref)
     folder = study_dir(ref)
     f = folder / STUDY_FILE
     data = read_yaml(f)
     known, overrides, extra = _split(data, STUDY_FIELDS, "overrides")
     known.pop("name", None)
     known.pop("project", None)
-    known = {k: ("" if v is None and k != "year" else v) for k, v in known.items()}
+    known = _no_none(known)
     stype = str(known.pop("type", "prolific") or "prolific").lower()
     for k in ("start", "end", "completion_code", "prolific_study_id"):
         if k in known and not isinstance(known[k], str):
@@ -314,8 +325,7 @@ def create_project(name: str, **fields: Any) -> Project:
 def create_study(ref: "StudyRef | str", **fields: Any) -> Study:
     """Create (or update) a study folder with its ``study.yaml`` and ``results/``.
     The project is created when it does not exist yet."""
-    ref = parse_ref(ref)
-    assert ref is not None
+    ref = _ref(ref)
     if ref.project != DEFAULT_PROJECT and not project_dir(ref.project).is_dir():
         create_project(ref.project)
     folder = study_dir(ref)

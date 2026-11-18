@@ -202,3 +202,52 @@ def test_cli_options_used_by_the_outside_system(hani2_home, monkeypatch):
     assert seen["port"] == 5019 and seen["open_path"] is None
     for v in ("HANI2_ROOT_PATH", "HANI2_EXPERIMENT", "HANI2_ASSISTANT", "HANI2_SUPPORT_AGENT"):
         os.environ.pop(v, None)
+
+
+AGENT_PY = """from hani2.support_agent.runtime import SupportAgent
+
+
+class MyAgent(SupportAgent):
+    name = "Mine"
+"""
+
+
+@pytest.mark.parametrize("key", ["support_agent", "assistant"])
+def test_hi_test_your_agent_group_file(wave, tmp_path, client, key):
+    # the outside system unzips the participant's package and names it in the group file
+    pkgs = tmp_path / f"_agents_{key}"
+    (pkgs / f"a789{key}").mkdir(parents=True)
+    (pkgs / f"a789{key}" / "__init__.py").write_text("")
+    (pkgs / f"a789{key}" / "module.py").write_text(AGENT_PY)
+    gkey = "test_hi_789_0123456789"
+    g = wave / "groups"
+    g.mkdir(parents=True)
+    (g / f"{gkey}.json").write_text(json.dumps({"syspath": [str(pkgs)], "agents": ["ConcederTBNegotiator"],
+                                                key: f"a789{key}.module.MyAgent"}))
+    s = make_session(user="guest_t1", mode="guest", partner=None, query={"group": gkey})
+    assert type(s.support_agent).__name__ == "MyAgent" and s.support_agent.user_enabled
+    assert [str(x) for x in s.opponent_pool()] == ["ConcederTBNegotiator"]
+    r = client.post("/hiplay2/api/session", json={"mode": "guest", "query": {"group": gkey}})
+    assert r.status_code == 200
+    from hani2.server import hub
+
+    live = hub.get(r.json()["sid"])
+    assert type(live.support_agent).__name__ == "MyAgent"
+
+
+def test_schedule_json_assistant_field(wave, monkeypatch):
+    from hani2.testing import make_session as ms
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    d = wave / "prolific_SA"
+    d.mkdir(parents=True)
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "pid": "SA", "negotiations": [
+        {"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Trade", "scenario_index": 0,
+         "time_limit": 77, "assistant": "level2_rules:RulesAgent"}]}))
+    s = ms(user="prolific_SA", mode="guest", partner=None, query={"noautostart": "1"})
+    assert type(s.support_agent).__name__ == "RulesAgent"
+    _play_one(s)
+    row = list(csv.DictReader(open(d / "results.csv")))[-1]
+    assert row["assistant"] == "level2_rules:RulesAgent" and row["agent_type"] == "ConcederTBNegotiator"

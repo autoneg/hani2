@@ -165,6 +165,20 @@ def _issue_kind(issue) -> str:
     return "category"
 
 
+def _group_name(raw: Any) -> str:
+    """The group a pool setting names when it is exactly one group (``:key`` or a group file's key)."""
+    items = [x.strip() for x in raw.split(",")] if isinstance(raw, str) else [str(x).strip() for x in (raw or [])]
+    items = [x for x in items if x]
+    if len(items) != 1:
+        return ""
+    t = items[0]
+    if t.startswith(":"):
+        return t[1:]
+    from hani2 import groups
+
+    return t if "." not in t and groups.find_file(groups.OPPONENT, t) is not None else ""
+
+
 class NegotiationSession:
     def __init__(self, sid: str, user: str, *, study: Any = projects.UNSET, **kwargs: Any):
         """``study``: the study this session belongs to (a :class:`~hani2.projects.StudyRef`,
@@ -244,6 +258,8 @@ class NegotiationSession:
         self.autopilot_active = False
         self.autopilot_driver_name: str | None = None
         self.next_opponent: str = ""
+        #: the opponent group of the current pool / negotiation ("" when not from a group)
+        self.opponent_group: str = ""
 
         user_path = results_root() / user
         user_path.mkdir(parents=True, exist_ok=True)
@@ -285,9 +301,13 @@ class NegotiationSession:
         self.study = study.make_study(self)
         from hani2.support_agent.runtime import create_support_agent_for
 
-        self.support_agent = create_support_agent_for(self)
+        #: the Assistant's settings, the choice made from its pool and any error (see hani2.assignment)
+        self.assistant_settings: dict | None = None
+        self.assistant_choice: Any = None
+        self.assistant_error: str | None = None
         ev.start_session_record(sid, user, mode, user_agent=user_agent)
-        ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode})
+        self.support_agent = create_support_agent_for(self)
+        ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution()})
 
     # ------------------------------------------------------------------ #
     # Small helpers                                                       #
@@ -591,6 +611,7 @@ class NegotiationSession:
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
             self.round_plan = plan
+            self.refresh_assistant(plan)  # a schedule slot or a new ?group= may name another Assistant
             self.ss["is_practice_round"] = bool(plan.get("practice", False))
             self.ss["scenario"] = scenario
             self.ss["scenario_info"] = info
@@ -637,30 +658,90 @@ class NegotiationSession:
         self.push_state()
         self.study.after_load()
 
+    # ------------------------------------------------------------------ #
+    # The Assistant: which one, attribution                               #
+    # ------------------------------------------------------------------ #
+    @_in_own_study
+    def refresh_assistant(self, plan: dict | None = None) -> None:
+        """Re-resolve the Assistant this session should run (the URL's group, a
+        schedule slot, the pool) and swap it in when it changed (between negotiations only)."""
+        from hani2 import assignment
+        from hani2.support_agent.runtime import create_support_agent_for
+        from hani2.support_agent.settings import support_agent_enabled
+
+        if self.phase in ("running", "starting"):
+            return
+        settings = self.assistant_settings
+        if settings is None or not support_agent_enabled(settings, is_admin=self.is_admin):
+            return
+        try:
+            choice = assignment.choose_assistant(self, settings, plan)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            return
+        cur = self.assistant_choice
+        if cur is not None and choice.spec == cur.spec and choice.error == cur.error and \
+                (self.support_agent is not None or self.assistant_error):
+            cur.group, cur.source, cur.pool = choice.group, choice.source, choice.pool
+            return
+        self.support_agent = create_support_agent_for(self, choice=choice, settings=settings)
+        if self.support_agent is not None and self.autopilot_active:
+            try:  # the new Assistant drives the autopilot like the old one did
+                from hani2.support_agent import autopilot as ap
+
+                drv = ap.resolve_driver(self, ap.load_autopilot_settings())
+                self.support_agent.set_autopilot(not ap.is_negotiator_driver(drv))
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+        ev.log_event(self.sid, ev.EventType.SUPPORT_AGENT, user=self.user, component="assistant",
+                     action="assistant_changed", value=self.assistant_attribution())
+
+    def assistant_attribution(self) -> dict[str, Any]:
+        """``assistant``, ``assistant_group``, ``assistant_class``, ``assistant_error`` (results rows,
+        events, recordings)."""
+        c = self.assistant_choice
+        sa = self.__dict__.get("support_agent")
+        return dict(
+            assistant=(c.spec or "") if c is not None else "",
+            assistant_group=(c.group or "") if c is not None else "",
+            assistant_source=c.source if c is not None else "",
+            assistant_class=f"{type(sa).__module__}.{type(sa).__qualname__}" if sa is not None else "",
+            assistant_error=self.__dict__.get("assistant_error") or "",
+        )
+
     def can_choose_scenario(self) -> bool:
         return self.is_admin or bool(self.admin_prefs.get("allow_scenario_selection", False))
 
     # ------------------------------------------------------------------ #
     # Opponents                                                           #
     # ------------------------------------------------------------------ #
+    @_in_own_study
     def opponent_pool(self) -> list:
         """The opponents this session may face, first match wins: the page's
         ``?opponents=`` / ``?group=``, ``hani2 --opponents`` (``HANI2_OPPONENTS``),
-        the admin session setting ``opponent_types``, ``opponents`` in env.json,
-        else the built-in default pool. Old names (``?agents=``,
-        ``HANI2_AGENTS``, ``agents``) are still read."""
+        the admin session setting ``opponent_types`` (study.yaml / project.yaml
+        ``opponents``), ``opponents`` in env.json, else the built-in default pool.
+        Old names (``?agents=``, ``HANI2_AGENTS``, ``agents``) are still read.
+        :attr:`opponent_group` names the group the pool came from (when it came from one)."""
         override = session_agent_override(self.query)
         if override:
+            q = self.query
+            raw = q.get("opponents") or q.get("agents")
+            self.opponent_group = _group_name(raw) if raw else str(q.get("group") or "").strip().lstrip(":")
             return override
         cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
         if cmdline:
             pool = expand_agents(cmdline)
             if pool:
+                self.opponent_group = _group_name(cmdline)
                 return pool
         pool = expand_agents(self.admin_prefs.get("opponent_types") or [])
         if pool:
+            self.opponent_group = _group_name(self.admin_prefs.get("opponent_types"))
             return pool
-        pool = expand_agents(get_env("opponents", []) or get_env("agents", []) or [])
+        env = get_env("opponents", []) or get_env("agents", []) or []
+        pool = expand_agents(env)
+        self.opponent_group = _group_name(env) if pool else ""
         return pool or list(DEFAULT_POOL)
 
     partner_pool = opponent_pool  # old name
@@ -668,8 +749,11 @@ class NegotiationSession:
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}
         if plan.get("partner"):
+            if plan.get("opponent_group") is not None:
+                self.opponent_group = plan["opponent_group"]
             return plan["partner"]
         if self.admin_mode and self.next_opponent:
+            self.opponent_group = ""
             return self.next_opponent
         return random.choice(self.opponent_pool())
 
@@ -707,7 +791,8 @@ class NegotiationSession:
         self._reveal_own_preferences()
         self._tools_hook("negotiation_started")
         ev.log_event(self.sid, ev.EventType.SCENARIO_STARTED, user=self.user, scenario_id=self._scenario_name(),
-                     value={"partner": self.ss.get("last_partner_type")})
+                     value={"partner": self.ss.get("last_partner_type"), "opponent_group": self.ss.get("opponent_group", ""),
+                            **(self.ss.get("assistant_attribution") or {})})
         self._schedule_timeout()
         self._agent_event("negotiation_started")
         self.push_state()
@@ -758,6 +843,8 @@ class NegotiationSession:
         hi = self.human_index
         partner = self.choose_partner()
         self.ss["last_partner_type"] = partner if isinstance(partner, str) else getattr(partner, "__name__", str(partner))
+        self.ss["opponent_group"] = self.opponent_group
+        self.ss["assistant_attribution"] = self.assistant_attribution()
         time_limit = plan.get("time_limit", p.get("time_limit"))
         mech_params = dict(
             n_steps=p.get("n_steps") or None,
@@ -1721,7 +1808,7 @@ class NegotiationSession:
                               utility=self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None),
                 "result": None if self.result is None else {
                     **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str"))},
-                "history": self.history,
+                "history": list(self.history),  # a copy: the list grows while the state is sent
                 "tools": tools,
                 "active_tabs": dict(self.active_tabs),
                 "reveal": getattr(self, "reveal", None),
@@ -1741,6 +1828,7 @@ class NegotiationSession:
                 "support": sa.client_state() if sa is not None else None,
                 "autopilot": self._autopilot_state(),
                 "notice": self.notice,
+                "assistant_error": self.assistant_error,
                 "questionnaire": self.questionnaire,
                 "finish_url": self.finish_url,
                 "finish_text": self.finish_text,

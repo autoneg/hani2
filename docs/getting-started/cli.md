@@ -29,6 +29,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--opponents`, `--opponent`, `-o` | none | The opponent agent(s) participants negotiate against: comma-separated negotiators and/or group tokens (`:llm`, `:template`, `:notext`, `:negmas`, `:classic`, `:genius`, `:custom`). Sets `HANI2_OPPONENTS`. The old name `--agents` still works. See [Opponents](../guide/opponents.md). |
 | `--assistant` | none | Who gets the Assistant: `on`, `off`, `auto` (admins only), or a Assistant class for everyone (`package.module:Class` or `path/to/file.py:Class`). Sets `HANI2_ASSISTANT` (and `HANI2_ASSISTANT_CLASS` for a class), overriding `mode` and `agent_class` in `assistant_settings.json`. |
 | `--no-assistant` | off | Run without an Assistant; the same as `--assistant off`. |
+| `--assistants` | none | The Assistant pool: comma-separated Assistant classes and Assistant groups (`:default`, `:tutorial`, `:<key>` for a group file). With more than one, each human keeps one Assistant for the whole study, balanced across the study's humans. Every member is loaded before the server starts. Sets `HANI2_ASSISTANTS`. See [Assistant pools and assignment](../guide/assistant.md#assistant-pools-and-assignment). |
 
 The old names `--support-agent` and `--no-support-agent` still work, here and in `hani2 experiment create` (see [Old names](../guide/assistant.md#old-names)).
 | `--tools` | none | Extra tools: comma-separated `package.module:Class`, `path/to/file.py:Class`, or a folder or `.py` file (every tool in it, see [Build a tool](../tutorials/tools.md#set-up)). Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the Assistant adds them. |
@@ -53,6 +54,7 @@ hani2 --opponents ":template,AspirationNegotiator" --page play
 hani2 --assistant off --experiment pilot-1
 hani2 --no-assistant --opponents :template       # Human-Agent Negotiation competition
 hani2 --assistant submissions/team_a.py:TeamAgent # Hybrid Intelligence: a submitted assistant
+hani2 --assistants "team_a.agent:A,team_b.agent:B"  # compare two Assistants, balanced per study
 PYTHONPATH=$PWD hani2 --page play      # make local modules (custom agents, tools) importable
 hani2 --tools ./my-tools --page play   # load every tool in ./my-tools
 ```
@@ -88,7 +90,9 @@ scenarios       /home/me/negmas/hani2/settings/scenarios
 results         /home/me/negmas/hani2/db
 study           -  (no study folder)
 auth mode       password  (oauth: none)
-Assistant   on
+assistant       on
+assistants      study / project / assistant_settings.json
+opponents       built-in default pool
 ```
 
 `auth mode` is the effective mode after fallbacks (for example `oauth` falls back to `password` when no provider is configured). It honours `HANI2_HOME`, `HANI2_EXPERIMENT` and `HANI2_ASSISTANT`.
@@ -140,6 +144,30 @@ hani2 sets [NAME]
 ```
 
 Lists the scenario sets with their scenario types, marks the active and the default set, and flags types that have neither a generator nor a folder. See [Scenario sets](../guide/scenario-sets.md).
+
+## `hani2 groups`
+
+```bash
+hani2 groups list [--project P | --study P/S] [--kind opponent|assistant] [--no-builtin]
+```
+
+Lists the opponent and Assistant groups with their members, the file each comes from (and
+whether another file shadows it), a group file's description and `assistant`. Without options it
+shows the groups as the server's default study resolves them; `--project` lists a project's
+folder, its studies and the settings folder. See [Group files](../guide/opponents.md#group-files)
+and [Assistant groups](../guide/assistant.md#assistant-groups).
+
+```text
+Opponent groups
+  :finalists              project    /home/me/negmas/hani2/projects/HI2027/groups/finalists.json
+      members: a123.module.FinalistA, a456.module.FinalistB
+  :llm                    builtin    built-in
+      Negotiators driven by a language model
+      members: LLMHybridNegotiator, LLMBoulwareTBNegotiator, ...
+Assistant groups
+  :default                builtin    built-in
+      members: hani2.assistant:Assistant
+```
 
 ## `hani2 project` and `hani2 study`
 

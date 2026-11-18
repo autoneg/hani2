@@ -64,7 +64,13 @@ The module must define the lists `HSHP`, `HSLP`, `LSHP` and `LSLP` of negotiator
 
 ### Group files
 
-A *bare* spec (no `:` and no dot) can also name a group file. If `<results>/groups/<key>.json` exists, the spec `<key>` expands to the agents in it. `<results>` is `~/negmas/hani2/db` by default, or `<experiment>/results` when an experiment is active (see [Studies and results](studies.md)).
+A group file `groups/<key>.json` names a pool of opponents. The token `:<key>` expands to the agents in it, and so does a *bare* spec `<key>` (no `:` and no dot) when such a file exists. HANI2 looks for the file in these folders, in order, and the first file found wins:
+
+1. The study's results folder, `<results>/groups/`. `<results>` is `~/negmas/hani2/db` without a study, or the study's `results/` folder (see [Studies and results](studies.md)). An outside system (for example a competition website) drops its files here, so its groups always win.
+2. The study folder, `<study>/groups/`.
+3. The project folder, `projects/<project>/groups/`, shared by all studies of the project. For the `default` project this is the settings folder.
+4. The settings folder, `settings/groups/`, for every project.
+5. The built-in groups above (`:llm`, `:template`, …). A file with the same name, such as `groups/llm.json`, replaces the built-in group.
 
 A group file has one of two shapes:
 
@@ -83,9 +89,11 @@ A group file has one of two shapes:
     }
     ```
 
-In the object form, every directory in `syspath` is appended to `sys.path` before the agents are imported, so you can drop unpacked agent packages anywhere on disk. HANI2 adds the `syspath` entries of all group files at server start-up, so an agent from a group file imports even in a session that never named the group. Group files may contain group tokens and other group keys. HANI2 only reads these files; other tools can write them.
+In the object form, every directory in `syspath` (relative folders are relative to the file) is appended to `sys.path` before the agents are imported, so you can drop unpacked agent packages anywhere on disk. HANI2 adds the `syspath` entries of all group files at server start-up, so an agent from a group file imports even in a session that never named the group. Group files may contain group tokens and other group keys. HANI2 only reads these files; other tools can write them.
 
-A group file takes priority over a negmas class with the same bare name.
+A group file takes priority over a negmas class with the same bare name. The object form may also carry a `description`, and an `assistant` (old name `support_agent`): the Assistant for the participants who arrive with `?group=<key>` (see [Assistant pools and assignment](assistant.md#the-group-files-assistant-key)).
+
+`hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can list, read and write a project's group files through the [admin API](projects.md#admin-api).
 
 ## Choosing the pool
 
@@ -118,10 +126,34 @@ http://localhost:5006/play?group=finalists
 }
 ```
 
-The opponent is then chosen at random from the pool, with two exceptions:
+The opponent is then chosen at random from the pool, with these exceptions:
 
-- A study can fix the opponent per round. The [Prolific](prolific.md) study does this for practice and counted rounds.
+- In a study, every participant faces the pool in a balanced order (see [Latin squares](#latin-squares)).
+- A `schedule.json` fixes the opponent per round. The [Prolific](prolific.md) study also fixes the practice opponent.
 - In admin mode, the *Opponent for the next negotiation* field on the start screen overrides the random choice (see below).
+
+## Latin squares
+
+In a [study](projects.md) run by HANI2 itself (no `schedule.json` for the participant), the
+opponents follow a **balanced Latin square** (a Williams design) over the pool: every opponent
+appears once in every position, and every opponent follows every other opponent equally often,
+so order and carry-over effects cancel out across participants. With `n` opponents the square has
+`n` rows (`2n` when `n` is odd). Participant number *i* of the study (counted in order of arrival,
+stored in the study's `assignments.json`) takes row `i mod rows`, and their *k*-th counted
+negotiation uses position `k mod n` of that row. With four opponents A, B, C, D:
+
+| Participant | 1st | 2nd | 3rd | 4th |
+|---|---|---|---|---|
+| 0 | A | B | D | C |
+| 1 | B | C | A | D |
+| 2 | C | D | B | A |
+| 3 | D | A | C | B |
+
+Admins and playground guests are not counted and keep the random choice, and so do admin-mode sessions and logged-in users whose pool comes from the URL (`?opponents=`, `?group=`, a test link); Prolific, online and lab participants arriving with `?group=` follow the square over that group. Participants are
+counted per study, so each study is balanced on its own. A participant with a `schedule.json`
+gets the schedule's opponents; participants of a study started before this rule (with a
+`fallback_rotation.txt`) and sessions outside a study keep the older rotation. Each participant
+of a study also gets the scenario type `i mod t` of the active scenario set's `t` types.
 
 ## The admin opponent picker
 

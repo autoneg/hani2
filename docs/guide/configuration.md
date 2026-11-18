@@ -242,7 +242,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `mode` | `"on"` | Who gets the Assistant: `on` (everyone), `off` (nobody) or `auto` (admins only). Overridden by `--assistant`/`HANI2_ASSISTANT`. |
-| `agent_class` | `null` | Your `Assistant` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. |
+| `agent_class` | `null` | Your `Assistant` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. Used when nothing else names an Assistant pool (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)); the `:default` Assistant group. |
 | `provider` | `"ollama"` | Any litellm provider. |
 | `model` | `"qwen3:4b-instruct"` | Model name. |
 | `api_key_env` | `"OPENAI_API_KEY"` | Name of the environment variable holding the key. |
@@ -296,7 +296,8 @@ See [Autopilot](autopilot.md).
 | `HANI2_PUBLIC_URL` | none | The address participants use to reach the server, for the links `hani2 study create` prints (else `public_url` in `env.json`). |
 | `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
 | `HANI2_TOOLS` | none | Extra tool classes, folders and `.py` files, comma separated. Set by `--tools`. |
-| `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. |
+| `HANI2_ASSISTANTS` | none | The Assistant pool: comma-separated Assistant classes and Assistant group tokens (`:default`, `:tutorial`, `:<key>`). With more than one, each human keeps one Assistant, balanced across the study. Wins over `HANI2_ASSISTANT_CLASS`, `assistants` in study.yaml / project.yaml and `agent_class`; loses to a group file's `assistant` and to `schedule.json`. Set by `--assistants`. See [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment). |
+| `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. Wins over `assistants` in study.yaml / project.yaml and `agent_class`. |
 | `HANI2_ASSISTANT` | none | `on`, `off` or `auto`; overrides `mode` in `assistant_settings.json`. Set by `--assistant`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |

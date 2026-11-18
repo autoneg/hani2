@@ -469,6 +469,7 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
         s.load()
     else:
         s.query.update(query)
+        s.refresh_assistant(getattr(s, "round_plan", None))  # a new ?group= may name another Assistant
     s.last_seen = time.time()
     return {"sid": sid}
 
@@ -835,6 +836,97 @@ def admin_put_study(project: str, study: str, body: dict = Body(...), _: str = D
     return {"ok": True, "links": projects.participant_links(ref, projects.public_base_url())}
 
 
+# --------------------------------------------------------------------------- #
+# Groups (opponent and Assistant pools)                                        #
+# --------------------------------------------------------------------------- #
+def _group_kind(kind: str) -> str:
+    from hani2 import groups
+
+    try:
+        return groups.check_kind(kind)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+@app.get("/api/admin/groups")
+def admin_groups(project: str | None = None, study: str | None = None, _: str = Depends(require_admin)):
+    """Opponent and Assistant groups with members, source file and description:
+    of a project (``?project=P``: its folder, its studies and the settings folder),
+    else as a study resolves them (``?study=P/S``, default: the default study)."""
+    from hani2 import groups
+
+    try:
+        if project is not None:
+            if not projects.project_exists(project):
+                raise HTTPException(404, "Unknown project")
+            kw: dict[str, Any] = {"project": project}
+        else:
+            kw = {"ref": projects.parse_ref(study) if study else None}
+        return {"project": project, "study": study,
+                "opponent": groups.list_groups(groups.OPPONENT, **kw),
+                "assistant": groups.list_groups(groups.ASSISTANT, **kw)}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+@app.get("/api/admin/projects/{project}/groups/{kind}/{key}")
+def admin_get_group(project: str, kind: str, key: str, _: str = Depends(require_admin)):
+    """A project's group file (``kind``: ``opponent(s)`` or ``assistant(s)``)."""
+    from hani2 import groups
+
+    k = _group_kind(kind)
+    try:
+        groups.check_key(key)
+        f = groups.project_group_dir(project, k) / f"{key}.json"
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    g = groups.load_file(f, k, key, "project")
+    if g is None:
+        raise HTTPException(404, "Unknown group")
+    return {**g.to_dict(), "data": json.loads(f.read_text())}
+
+
+@app.put("/api/admin/projects/{project}/groups/{kind}/{key}")
+def admin_put_group(project: str, kind: str, key: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Create or replace a project's group file: a list of specs, or
+    ``{"description", "syspath", "agents"|"assistants", "assistant"}``."""
+    from hani2 import groups
+
+    k = _group_kind(kind)
+    try:
+        if not projects.project_exists(project):
+            raise HTTPException(404, "Unknown project")
+        f = groups.write_group(project, k, key, body.get("data", body) if isinstance(body, dict) and "data" in body else body)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"ok": True, "path": str(f)}
+
+
+@app.delete("/api/admin/projects/{project}/groups/{kind}/{key}")
+def admin_delete_group(project: str, kind: str, key: str, _: str = Depends(require_admin)):
+    from hani2 import groups
+
+    k = _group_kind(kind)
+    try:
+        projects.check_name(project, "project")
+        if not groups.delete_group(project, k, key):
+            raise HTTPException(404, "Unknown group")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"ok": True}
+
+
+@app.get("/api/admin/projects/{project}/studies/{study}/assignments")
+def admin_study_assignments(project: str, study: str, _: str = Depends(require_admin)):
+    """The study's ``assignments.json`` (participant index and Assistant of each human)."""
+    from hani2 import assignment
+
+    ref = _ref_or_404(project, study)
+    if not projects.study_exists(ref):
+        raise HTTPException(404, "Unknown study")
+    return assignment.read_assignments(ref)
+
+
 @app.post("/api/admin/templates/preview")
 def admin_template_preview(body: dict = Body(...), _: str = Depends(require_admin)):
     """Render a text for a study: ``{"text": "...", "study": "P/S"}`` or ``{"kind": "consent", "study": "P/S"}``
@@ -1064,7 +1156,9 @@ def admin_sessions(_: str = Depends(require_admin)):
         out.append(dict(sid=sid, user=s.user, mode=s.mode, phase=s.phase, round=s.round_number,
                         study=str(s.study_ref) if getattr(s, "study_ref", None) else None,
                         connections=hub.n_connections(sid), idle=round(time.time() - s.last_seen),
-                        opponent=s.ss.get("last_partner_type"), support_agent=type(s.support_agent).__name__ if s.support_agent is not None else "none", scenario=s._scenario_name()))
+                        opponent=s.ss.get("last_partner_type"), opponent_group=s.ss.get("opponent_group", ""),
+                        support_agent=type(s.support_agent).__name__ if s.support_agent is not None else "none",
+                        **s.assistant_attribution(), scenario=s._scenario_name()))
     return out
 
 

@@ -201,49 +201,30 @@ def _pan_group_specs() -> list:
 
 
 def _read_group_file(key: str) -> "list[str] | None":
-    """Read DB_PATH/groups/<key>.json (written by an external tool for
-    participant groups; the server only ever reads it). Two accepted shapes:
+    """The members of the opponent group file ``<key>.json`` (``None``: no file).
+
+    Looked up, first hit wins, in the study's results folder (``<results>/groups/``,
+    where an outside system drops its files), the study folder, the project folder
+    and the settings folder (see :mod:`hani2.groups`). Two accepted shapes::
 
       ["spec", ...]
       {"syspath": ["/abs/dir", ...], "agents": ["spec", ...]}
 
-    The object form lets the writer point the server at the directory holding the
-    unzipped agent packages: those dirs are added to sys.path here so the
-    dotted specs (``<pkg>.<module>.<Class>``) import. The server stays standalone —
-    it just adds paths it was told about and imports."""
+    The ``syspath`` dirs are added to ``sys.path`` so the dotted specs
+    (``<pkg>.<module>.<Class>``) import."""
+    from hani2 import groups
+
     try:
-        f = results_root() / "groups" / f"{key}.json"
-        if not f.exists():
-            return None
-        data = json.loads(f.read_text())
-        agents = data
-        if isinstance(data, dict):
-            import sys as _sys
-            for d in data.get("syspath", []) or []:
-                d = str(d)
-                if d and d not in _sys.path:
-                    _sys.path.append(d)
-            agents = data.get("agents", [])
-        if isinstance(agents, list):
-            return [str(x) for x in agents if str(x).strip()]
-    except Exception as e:
+        g = groups.find_file(groups.OPPONENT, key)
+    except Exception as e:  # noqa: BLE001
         print(f"⚠️ Could not read agent group file for '{key}': {e}")
-    return None
+        return None
+    return list(g.members) if g is not None else None
 
 
-def _resolve_agent_token(item) -> list:
-    """Resolve ONE agent-list item to a list of agent specs:
-      - ':pan'/':notext'/':custom'/':llm'/':template'/... -> built-in group
-      - a bare key with a DB_PATH/groups/<key>.json file  -> that list
-      - anything else                                     -> a single literal
-        agent spec (class name / dotted path), returned unchanged.
-    """
-    if not isinstance(item, str):
-        return [item]
-    t = item.strip()
-    if not t:
-        return []
-    low = t.lower()
+def _resolve_builtin(token: str) -> list:
+    """A built-in group token (``:llm``, ``:pan``, …) → its specs (``[]`` when unknown)."""
+    low = token.strip().lower()
     if low == ":pan":
         return _pan_group_specs()
     if low == ":notext":
@@ -251,15 +232,34 @@ def _resolve_agent_token(item) -> list:
     if low == ":custom":
         raw = os.environ.get("HANI2_CUSTOM_AGENTS") or os.environ.get("HANI_CUSTOM_AGENTS", "")
         return _expand_agent_items([s for s in raw.split(",") if s.strip()])
-    if low.startswith(":"):
-        grp = AGENT_GROUPS.get(low)
-        if grp:
-            return list(grp)
-        avail = ", ".join(list(AGENT_GROUPS) + [":pan", ":notext", ":custom"])
-        print(f"⚠️ Unknown agent group '{t}'. Available: {avail}")
+    grp = AGENT_GROUPS.get(low)
+    if grp:
+        return list(grp)
+    avail = ", ".join(list(AGENT_GROUPS) + [":pan", ":notext", ":custom"])
+    print(f"⚠️ Unknown agent group '{token}'. Available: {avail}")
+    return []
+
+
+def _resolve_agent_token(item) -> list:
+    """Resolve ONE agent-list item to a list of agent specs:
+      - ':key' -> a group file <key>.json (results, study, project, settings
+                  folders), else the built-in group (:llm, :template, :pan, …)
+      - a bare key with a group file             -> that list
+      - anything else                            -> a single literal agent
+        spec (class name / dotted path), returned unchanged.
+    """
+    if not isinstance(item, str):
+        return [item]
+    t = item.strip()
+    if not t:
         return []
-    # Bare token: a materialised participant group file takes priority,
-    # otherwise treat it as a literal agent class / dotted path.
+    if t.startswith(":"):
+        fromfile = _read_group_file(t[1:])
+        if fromfile is not None:
+            return _expand_agent_items(fromfile)
+        return _resolve_builtin(t)
+    # Bare token: a group file takes priority, otherwise treat it as a
+    # literal agent class / dotted path.
     fromfile = _read_group_file(t)
     if fromfile is not None:
         return _expand_agent_items(fromfile)
@@ -296,35 +296,17 @@ def resolve_agent_group(key: str) -> list:
 
 
 def _prime_group_syspaths() -> None:
-    """Add the ``syspath`` dirs of EVERY participant group file to sys.path
-    at process startup.
+    """Add the ``syspath`` dirs of EVERY group file (opponent and Assistant
+    groups, along the study's search folders) to sys.path.
 
-    ``_read_group_file`` only appends a group's code dir to sys.path as a
-    SIDE EFFECT of resolving ``?group=<key>``. A dotted agent spec
-    (``a<id>.<module>.<Class>``) can reach ``get_class()`` in a process that
-    never materialised that group — e.g. an admin-picked / persisted
-    opponent used after the Load reload, or the playground opened without
-    ``?group=`` — and then the top-level package import fails with
-    ``No module named 'a<id>'`` even though the package exists on disk. By
-    priming every group file's syspath once at import, specs resolve no
-    matter how the session reached them. Idempotent and silent on error."""
+    A dotted spec (``a<id>.<module>.<Class>``) can reach ``get_class()`` in a
+    process that never resolved that group (an admin-picked opponent, the
+    playground opened without ``?group=``); priming every group file's syspath
+    makes specs resolve however the session reached them. Silent on error."""
     try:
-        import sys as _sys
+        from hani2 import groups
 
-        gdir = results_root() / "groups"
-        if not gdir.is_dir():
-            return
-        for f in sorted(gdir.glob("*.json")):
-            try:
-                data = json.loads(f.read_text())
-            except Exception:
-                continue
-            if not isinstance(data, dict):
-                continue
-            for d in data.get("syspath", []) or []:
-                d = str(d)
-                if d and d not in _sys.path:
-                    _sys.path.append(d)
+        groups.prime_syspaths()
     except Exception:
         pass
 

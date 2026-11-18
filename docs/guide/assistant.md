@@ -98,6 +98,134 @@ The participant can switch their agent off and on with the switch in the dock he
 !!! note
     The agent is created once per session. A changed setting or a new `agent_class` applies to sessions created afterwards. Restart `hani2` (sessions live in memory) to pick up changes during development.
 
+## Assistant pools and assignment
+
+A study can compare several Assistants: give it a *pool* and HANI2 assigns one Assistant to each
+human. The pool of a session comes from the first of these that names one:
+
+1. **The page URL** (admins only): `?assistant=<spec>` or `?assistants=<specs>`. Else the
+   `assistant` key of the [opponent group file](opponents.md#group-files) the participant arrived
+   with (`?group=<key>`; the old key `support_agent` is read too).
+2. **`schedule.json`** in the participant's results folder: the `assistant` of the current slot,
+   else the top-level `assistant` (see [Prolific](prolific.md#schedules)).
+3. **`hani2 --assistants`** (the `HANI2_ASSISTANTS` environment variable), else `hani2 --assistant <class>`
+   (`HANI2_ASSISTANT_CLASS`).
+4. **`assistants`** in the study's `study.yaml`, else in the project's `project.yaml`.
+5. **`agent_class`** in `assistant_settings.json`: the single configured class, as before.
+
+Each of these is a comma-separated text or a list of Assistant classes (`package.module:Class`,
+`package.module.Class` or `path/to/file.py:Class`) and Assistant group tokens:
+
+```yaml
+# projects/HI2027/studies/hi-2027-01/study.yaml
+type: prolific
+assistants: [":finalists", "team_x.agent:TeamX"]
+```
+
+```bash
+hani2 --assistants ":tutorial"                          # every tutorial Assistant
+hani2 --assistants "team_a.agent:A,team_b.agent:B"      # two submitted Assistants
+```
+
+Who gets the Assistant at all is still decided by `--assistant on|off|auto` and `mode` (see
+[Turning the agent on](#turning-the-agent-on)); with the Assistant off no one is assigned.
+
+### Assistant groups
+
+An Assistant group is a JSON file `assistant_groups/<key>.json` with the same shape as an
+opponent group file; the members go under `assistants` (`agents` is accepted too):
+
+```json
+{
+  "description": "The 2027 finalists",
+  "syspath": ["/srv/hi2027/unpacked"],
+  "assistants": ["a12.coach.Coach", "a31.helper.Helper"]
+}
+```
+
+A plain list of specs works too. Every `syspath` folder is added to Python's path, so unpacked
+packages import; a relative folder is relative to the group file. `:key` names the group, and so
+does a bare `key` (no dot or colon) when such a file exists. HANI2 looks for the file in the
+study's results folder (`<results>/assistant_groups/`), the study folder, the project folder
+(`projects/<project>/assistant_groups/`; for the `default` project the settings folder) and
+the settings folder, in that order; the first file found wins. Two groups are built in:
+
+| Token | Members |
+|---|---|
+| `:default` | The configured Assistant: `agent_class` in `assistant_settings.json`, else the built-in Assistant (`hani2.assistant:Assistant`). |
+| `:tutorial` | The ten Assistants of the [tutorial](../tutorials/assistant.md) (`level1_hello:HelloAgent`, …), when the `examples/support_agent_tutorial` folder is present (a source checkout); empty otherwise. |
+
+`hani2 groups list --kind assistant` shows every group with its members and the file it comes from.
+
+### The group file's `assistant` key
+
+An opponent group file may name the Assistant for the participants who arrive with it:
+
+```json
+{
+  "syspath": ["/srv/agents/unpacked"],
+  "agents": ["a123.module.FinalistA", "a456.module.FinalistB"],
+  "assistant": "a789.module.MyAgent"
+}
+```
+
+A participant opening `/play?group=<key>` then negotiates against the group's opponents with
+`a789.module.MyAgent` as their Assistant, switched on from the start (also in a Prolific session).
+The value may be one spec, a list, or an Assistant group token. The old key name `support_agent`
+works the same way. This is how an outside system (for example a competition website) lets a
+team try its own Assistant: it unpacks the package, writes the group file into the results folder
+and sends the team to the link.
+
+### Fixed per human, balanced
+
+With a pool of more than one Assistant:
+
+- **Each human keeps one Assistant** for every negotiation of the study, across sessions and visits.
+- **A new human gets the Assistant with the fewest humans** assigned so far in that study. Ties go to
+  the Assistant listed first in the pool, so the order is deterministic: with three Assistants the
+  humans get A, B, C, A, B, C, …
+- **Who counts.** Participants (Prolific `prolific_*`, online and lab `participant_*`) and logged-in
+  users count. Admins and playground guests (`guest_*`) get an Assistant the same way (the one the
+  next participant would get) but are not recorded and do not move the balance.
+- **Drop-outs count.** A human counts from the moment they are assigned, even if they leave before
+  finishing, so the balance reflects the people who actually saw each Assistant.
+- **A changed pool.** A human whose Assistant is no longer in the pool is assigned again (the old one
+  is kept under `previous_assistants`); the others keep theirs.
+- An admin's `?assistant=`, a `schedule.json` entry and a group file naming a single Assistant (a
+  test link) are used as given (their first member) and are not recorded.
+
+The assignments are stored in the study's results folder, `assignments.json`, one entry per human
+with their participant index (0, 1, … in order of arrival, also used for the
+[opponent order](opponents.md#latin-squares)), the Assistant, its group and when it was assigned:
+
+```json
+{"version": 1, "next_index": 2, "humans": {
+  "prolific_5f2a": {"index": 0, "assistant": "a12.coach.Coach", "assistant_group": "finalists", "assigned_at": "..."},
+  "prolific_77c1": {"index": 1, "assistant": "a31.helper.Helper", "assistant_group": "finalists", "assigned_at": "..."}}}
+```
+
+The file is read and written under a lock (a thread lock and a file lock) and replaced atomically,
+so humans arriving at the same moment never get the same slot twice. Admins can read it at
+`GET /api/admin/projects/{project}/studies/{study}/assignments`.
+
+### When an Assistant does not load
+
+An Assistant from the URL, a group file, `schedule.json`, `--assistants` or `study.yaml` /
+`project.yaml` that cannot be imported or created **fails loudly**: the session runs without an
+Assistant, the participant sees a red banner above the negotiation saying so (it stays until the problem is fixed), an
+`error` event with action `assistant_failed` is logged, the server log has the reason, the admin
+sessions list (`GET /api/admin/sessions`) shows it, and the results rows carry it in
+`assistant_error`. HANI2 never silently swaps in the default Assistant. Only the configured
+`agent_class` of `assistant_settings.json` keeps its old behaviour (a warning in the log and the
+built-in Assistant). `hani2 --assistants` checks every member before the server starts.
+
+### Changing Assistant between negotiations
+
+HANI2 re-checks the Assistant before every negotiation: a `schedule.json` slot with another
+`assistant`, or a participant coming back with another `?group=`, gets the new Assistant for the
+next negotiation (never during one). The practice round uses the top-level `assistant` of the
+schedule, else the pool.
+
 ## Settings
 
 The agent reads `assistant_settings.json` from the settings folder (`~/negmas/hani2/settings` by default, or the active experiment folder). Your file is merged over the bundled defaults, so it only needs the keys you change. You can also edit these settings in the admin console under **Assistant**. See the [configuration reference](configuration.md) for how settings files are found.
@@ -213,7 +341,7 @@ It warns once until the draft is fixed, and again on the next turn. This happens
 
 Every function the agent runs through its dispatcher is logged to the event log as a `support_agent` event with `{"actor": "agent", ...}` and the function name as the action (for example `set_offer`, `accept_executed`, `accept_confirm_requested` or `recommend_accept`). Chat messages the participant sends to the agent are logged as `support_agent` events with `actor` `human` and action `user_message`.
 
-The first logged agent action marks the session, and every negotiation result saved afterwards has `support_agent` set to true in `results.csv`. A negotiation where autopilot was used has `autopilot` set to true. See [Studies and results](studies.md) for the full results format.
+The first logged agent action marks the session, and every negotiation result saved afterwards has `support_agent` set to true in `results.csv`. Every row also says which Assistant took part: `assistant` (the assigned spec), `assistant_group` (the group it came from, if any), `assistant_class` (the class that ran) and `assistant_error` (why it did not start, if it failed); the opponent's group is in `opponent_group`. The same fields are in the `scenario_started` event and in the recordings (the `start` record's `assignment`, and the recording index). A negotiation where autopilot was used has `autopilot` set to true. See [Studies and results](studies.md) for the full results format.
 
 Helper calls made directly on `Assistant` (such as `self.highlight(...)` or `self.post(...)`) are not logged this way. Call `self.dispatcher.execute(name, args)` when you want the action attributed.
 
