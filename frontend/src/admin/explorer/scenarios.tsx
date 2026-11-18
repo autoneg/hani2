@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Dices, Map as MapIcon, TriangleAlert } from "lucide-react";
 import { api } from "../../api";
 import { Markdown } from "../../ui/Markdown";
+import { Plot } from "../../ui/Plot";
 import { Group } from "../Group";
 import { InfoRow, Row } from "../Row";
 import { Disclosure } from "../Disclosure";
@@ -72,6 +73,7 @@ function ScenarioBody({ d }: { d: any }) {
           </Row>
         ))}
       </Group>
+      <UtilityPlots d={d} />
       {d.sample?.length > 0 && (
         <Group title="Sample utilities" footer="The best outcome for each role, then a few others.">
           <div className="scroll-thin overflow-x-auto">
@@ -98,6 +100,43 @@ function ScenarioBody({ d }: { d: any }) {
     </>
   );
 }
+/** Every outcome in utility space (negmas's 2D plot): the participant's role against each other
+ *  role, with the Pareto frontier, the bargaining solutions and the no-deal regions shaded. */
+function UtilityPlots({ d }: { d: any }) {
+  // fetched after the details, so the page never waits for the plot
+  const [r, setR] = useState<{ plots: { title: string; figure: any }[]; plot_note: string } | { error: string } | null>(null);
+  const [k, setK] = useState(0);
+  useEffect(() => {
+    setR(null);
+    setK(0);
+    if (!d.plot_token) return;
+    let live = true;
+    api<any>(`/api/admin/scenarios/plot/${enc(d.plot_token)}`).then((x) => live && setR(x)).catch((e) => live && setR({ error: e.message }));
+    return () => void (live = false);
+  }, [d.plot_token]);
+  if (!d.plot_token) return null;
+  if (!r) return <Group title="Outcome space"><div className="px-4"><Spinner /></div></Group>;
+  if ("error" in r) return <Note tone="warn">{r.error}</Note>;
+  const plots = r.plots;
+  if (!plots.length) return r.plot_note ? <Note>{r.plot_note}</Note> : null;
+  const p = plots[Math.min(k, plots.length - 1)];
+  return (
+    <Group
+      title="Outcome space"
+      footer={["Each dot is an outcome at its utility for the two roles; shading marks where an outcome is worse than a role's no-deal value.", r.plot_note].filter(Boolean).join(" ")}
+    >
+      {plots.length > 1 && (
+        <Row label="Roles" hint="The participant's role against each other role">
+          <Select label="Roles plotted" value={String(k)} onChange={(v) => setK(Number(v))} options={plots.map((x, i) => ({ value: String(i), label: x.title }))} />
+        </Row>
+      )}
+      <div className="px-2 pb-2">
+        <Plot figure={p.figure} height={480} />
+      </div>
+    </Group>
+  );
+}
+
 const fmt = (x: any) => (typeof x === "number" ? x.toFixed(2) : x == null ? "—" : String(x));
 
 /** The default scenario set of the layer (``scenario_sets.yaml`` → ``default``). */

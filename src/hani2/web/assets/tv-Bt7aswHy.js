@@ -1,1 +1,0 @@
-import{c as t}from"./index-CpXqbVls.js";const e={name:"tv",size:24,node:[["path",{d:"m17 2-5 5-5-5",key:"16satq"}],["rect",{width:"20",height:"15",x:"2",y:"7",rx:"2",key:"1e6viu"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

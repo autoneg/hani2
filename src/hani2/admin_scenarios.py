@@ -8,7 +8,9 @@ not: ``GET /api/admin/scenarios/{name}`` describes one type as participants woul
 from __future__ import annotations
 
 import math
+import secrets
 import threading
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -126,6 +128,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
                        "description": str(idesc.get(iss.name, "") or "")})
     card = _num(getattr(s.outcome_space, "cardinality", None))
     sample = _sample(s)
+    plot_token = _remember(s, human_idx)
     if len(s.ufuns) < 2:
         warnings.append(f"needs a utility function per role, found {len(s.ufuns)}")
     for k in store.REQUIRED_INFO:
@@ -143,7 +146,117 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
         "roles": roles, "issues": issues, "n_outcomes": int(card) if card is not None else None, "pool": pool,
         "loaded_from": str(path) if path else None, "generated": generated, "sample": sample,
         "has_display_py": _display_py(folder_for_display), "warnings": warnings,
+        "plot_token": plot_token,
     }
+
+
+_SHOWN: OrderedDict[str, tuple[Any, int | None]] = OrderedDict()
+"""The scenarios last described, by plot token, so their plot (fetched after the details, to not
+delay them) shows the very scenario on screen: generators do not repeat a draw."""
+_SHOWN_MAX = 64
+_SHOWN_LOCK = threading.Lock()
+
+
+def _remember(s, human_idx: int | None) -> str:
+    token = secrets.token_urlsafe(12)
+    with _SHOWN_LOCK:
+        _SHOWN[token] = (s, human_idx)
+        while len(_SHOWN) > _SHOWN_MAX:
+            _SHOWN.popitem(last=False)
+    return token
+
+
+def scenario_plots(token: str) -> dict:
+    """The plots of a scenario described before (``plot_token`` of its details)."""
+    with _SHOWN_LOCK:
+        hit = _SHOWN.get(token)
+        if hit is not None:
+            _SHOWN.move_to_end(token)
+    if hit is None:
+        raise HTTPException(404, "This example is no longer available; reload the details to plot it.")
+    plots, note = _plots(*hit)
+    return {"plots": plots, "plot_note": note}
+
+
+PLOT_MAX_OUTCOMES = 5_000
+"""Outcome spaces larger than this (or continuous ones) are plotted from a random sample."""
+
+
+def _role_names(s) -> list[str]:
+    names: list[str] = []
+    for i, u in enumerate(s.ufuns):
+        n = str(getattr(u, "name", "") or "") or f"role {i + 1}"
+        while n in names:
+            n = f"{n} ({i + 1})"
+        names.append(n)
+    return names
+
+
+def _plots(s, human_idx: int | None) -> tuple[list[dict], str]:
+    """The outcome space in utility space (negmas ``plot_2dutils``), one Plotly figure per pair of
+    roles: the participant's role against each other role. Returns ``(figures, note)``; a failure
+    gives no figures and the reason in the note, never an error for the whole page."""
+    import json
+
+    from negmas.plots.util import plot_2dutils
+
+    ufuns = list(s.ufuns)
+    if len(ufuns) < 2:
+        return [], "Needs two roles to plot."
+    try:
+        card = _num(s.outcome_space.cardinality)
+        sampled = card is None or card > PLOT_MAX_OUTCOMES
+        outcomes = (list(s.outcome_space.sample(PLOT_MAX_OUTCOMES, with_replacement=False, fail_if_not_enough=False))
+                    if sampled else list(s.outcome_space.enumerate()))
+        names = _role_names(s)
+        h = human_idx if human_idx is not None and 0 <= human_idx < len(ufuns) else 0
+        pairs = [(h, j) for j in range(len(ufuns)) if j != h] if len(ufuns) > 2 else [(h, 1 - h)]
+        figs = []
+        for i, j in pairs:
+            pn = [names[i], names[j]]
+            fig = plot_2dutils(
+                [], [ufuns[i], ufuns[j]], pn, offering_negotiators=pn,
+                outcome_space=s.outcome_space, outcomes=outcomes,
+                show_annotations=False, show_total_time=False, show_relative_time=False,
+                show_n_steps=False,
+            )
+            figs.append({"title": f"{names[i]} vs {names[j]}", "figure": _tidy(json.loads(fig.to_json()), pn)})
+    except Exception as e:  # noqa: BLE001 - the plot is a nicety; the details must still load
+        return [], f"Could not plot this scenario: {e}"
+    note = (f"Plotted from a random sample of {len(outcomes)} outcomes; the frontier and the "
+            "bargaining solutions are those of the sample.") if sampled else ""
+    return figs, note
+
+
+# mid-tone colours that read on light and dark backgrounds
+_POINT_COLORS = {"Max Welfare Points": "#3b82f6", "Kalai Point": "#22c55e", "KS Point": "#06b6d4", "Nash Point": "#ef4444"}
+
+
+def _tidy(fig: dict, roles: list[str]) -> dict:
+    """Drop the empty offer traces (no negotiation ran), make the frontier visible on any
+    background, and label the axes and the shaded no-deal regions plainly."""
+    data = []
+    for t in fig.get("data", []):
+        if t.get("name") in roles and not t.get("x"):
+            continue
+        if t.get("name") == "Pareto":
+            t["marker"] = {**t.get("marker", {}), "color": "#d97706", "opacity": 0.9, "size": 9}
+            t["name"] = "Pareto frontier"
+        if t.get("name") in _POINT_COLORS:
+            t["marker"] = {**t.get("marker", {}), "color": _POINT_COLORS[t["name"]], "opacity": 0.95}
+        if t.get("name") == "Outcomes":
+            t["marker"] = {**t.get("marker", {}), "color": "rgba(128,128,128,0.55)", "size": 5}
+        data.append(t)
+    fig["data"] = data
+    lay = fig.setdefault("layout", {})
+    for ax, r in (("xaxis", roles[0]), ("yaxis", roles[1])):
+        a = lay.setdefault(ax, {})
+        a["title"] = {**(a.get("title") or {}), "text": f"{r} utility"}
+    # square, without widening the range: the plot area shrinks rather than the axis growing
+    lay["xaxis"]["constrain"] = "domain"
+    lay["legend"] = {"orientation": "h", "yanchor": "top", "y": -0.15, "xanchor": "left", "x": 0}
+    lay["margin"] = {"l": 50, "r": 10, "t": 10, "b": 40}
+    return fig
 
 
 def _sample(s) -> list[dict]:
@@ -172,6 +285,12 @@ def _sample(s) -> list[dict]:
         out.append({"outcome": {n: str(v) for n, v in zip(names, outs[k])},
                     "utilities": {str(getattr(u, "name", j)): vals[k][j] for j, u in enumerate(ufs)}})
     return out
+
+
+@router.get("/api/admin/scenarios/plot/{token}")
+def admin_scenario_plot(token: str):
+    """The outcome-space plots of the example a details call just showed (by its ``plot_token``)."""
+    return scenario_plots(token)
 
 
 @router.get("/api/admin/scenarios/{name}")

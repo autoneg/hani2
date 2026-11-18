@@ -26,6 +26,15 @@
   `hani2 connections …` and `hani2 models list|resolve`, and new endpoints
   `/api/admin/connections`, `/api/admin/providers` and `/api/admin/models`. See
   [Models and connections](guide/models.md).
+||||||| parent of fb956fec0 (feat: scenarios in admin sets open their details page, with a lazily loaded outcome-space plot)
+- **Scenario details from a set, with a plot of the outcome space.** In the console, the entries
+  of a scenario set (and of any opponent, Assistant or tool group) open forward: an item shows its
+  full details page, a nested group its members, and going back keeps the group's unsaved edits.
+  A scenario's details add **Outcome space**, negmas's 2D utility plot (all outcomes, the Pareto
+  frontier, the Nash, Kalai, Kalai–Smorodinsky and maximum-welfare points, the no-deal regions),
+  the participant's role against each other role; large or continuous outcome spaces are sampled.
+  The plot loads after the details (`plot_token` in `GET /api/admin/scenarios/{name}`, then
+  `GET /api/admin/scenarios/plot/{token}`), so it never delays the page.
 - **Scheduling methods.** A study (`study.yaml`) or a project (`project.yaml`, for all its
   studies) chooses how HANI2 schedules each dimension, merged per dimension:
   `scheduling: {opponents: ..., assistants: ..., scenarios: ...}`. Opponents: `latin_square`

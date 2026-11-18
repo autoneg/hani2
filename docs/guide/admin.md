@@ -145,7 +145,9 @@ for the layer picked at the top:
   of another layer is read-only here, and **Copy into** saves it at the chosen layer, where it
   then replaces the other one. Built-in groups cannot be changed. When a saved group names an
   unknown group or item, a class that does not load, or forms a cycle, it is saved anyway and the
-  console lists the warnings. **New group** creates one.
+  console lists the warnings. **New group** creates one. Click an entry (or its arrow) to go
+  forward: an item opens the same details page as in the item list, a group lists its members.
+  **Back** returns to the group with any unsaved changes intact.
 - The page's own sections: the default scenario set, the pools, the tools offered and their
   placement (below).
 - **Add**: upload a file or link a path, at the chosen layer.
@@ -187,6 +189,14 @@ Open one for its title and descriptions, its roles (with the participant's role 
 values), its issues and options and a table of sample utilities (the best outcome for each role
 and a few others); pick a saved scenario of its pool, or **Generate** a fresh example from a
 generator. Scenarios with a `display.py` are marked.
+
+**Outcome space** plots every outcome in utility space (negmas's 2D utility plot): the
+participant's role on the x axis against another role on the y axis, with the Pareto frontier, the
+Nash, Kalai, Kalai–Smorodinsky and maximum-welfare points, and shading where an outcome is worse
+than a role's no-deal value. With more than two roles, **Roles** picks the pair (the participant's
+role against each other role). Outcome spaces of more than 5000 outcomes, and continuous ones, are
+plotted from a random sample of 5000, and the frontier and solutions are those of the sample. The
+plot loads after the rest of the page.
 
 **Scenario set in use** is the default set of the chosen layer (`default` in its
 `scenario_sets.yaml`; **Inherit** removes it). `Custom` is the custom order, edited under Texts.

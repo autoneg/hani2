@@ -1,0 +1,1 @@
+import{c as a}from"./index-1LMcSnd1.js";const e={name:"user-round-exclamation-point",size:24,node:[["path",{d:"M19.99 13v4",key:"1eo7a3"}],["path",{d:"M19.99 21H20",key:"dugee0"}],["path",{d:"M4 21a8 8 0 0111.99-6.934",key:"aqys8l"}],["circle",{cx:"12",cy:"8",r:"5",key:"1hypcn"}]]};e.node;const c=a(e);export{e as __iconData,c as default};

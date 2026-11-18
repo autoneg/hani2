@@ -357,6 +357,44 @@ def test_scenario_details_builtin(admin, studies):
     assert admin.get("/api/admin/scenarios/Lease?scenario=x&generate=abc").status_code == 422
 
 
+def test_scenario_details_plot(admin, studies):
+    """The outcome space as negmas's 2D utility plot: one Plotly figure, axes named by role."""
+    d = admin.get("/api/admin/scenarios/Lease?layer=settings").json()
+    assert "plots" not in d and d["plot_token"]  # the plot is fetched apart, not to delay the page
+    pl = admin.get(f"/api/admin/scenarios/plot/{d['plot_token']}").json()
+    assert len(pl["plots"]) == 1 and pl["plot_note"] == ""
+    fig = pl["plots"][0]["figure"]
+    names = [t["name"] for t in fig["data"]]
+    assert "Outcomes" in names and "Pareto frontier" in names and "Nash Point" in names
+    roles = {r["name"] for r in d["roles"]}
+    assert not roles & set(names)  # no empty offer traces: no negotiation ran
+    outcomes = next(t for t in fig["data"] if t["name"] == "Outcomes")
+    assert len(outcomes["x"]) == d["n_outcomes"]
+    human = next(r["name"] for r in d["roles"] if r["human"])
+    assert fig["layout"]["xaxis"]["title"]["text"] == f"{human} utility"
+    assert admin.get("/api/admin/scenarios/plot/nope").status_code == 404
+
+
+def test_scenario_plots_bounded_and_per_pair():
+    from negmas import Scenario, make_issue, make_os
+    from negmas.preferences import LinearAdditiveUtilityFunction as L
+
+    from hani2.admin_scenarios import PLOT_MAX_OUTCOMES, _plots
+
+    os_ = make_os([make_issue(30, f"i{k}") for k in range(4)])  # 810000 outcomes
+    big = Scenario(outcome_space=os_, ufuns=tuple(L.random(os_, name=n, reserved_value=0.0) for n in "ab"))
+    figs, note = _plots(big, 0)
+    names = [t["name"] for t in figs[0]["figure"]["data"]]
+    pts = next(t for t in figs[0]["figure"]["data"] if t["name"] == "Outcomes")
+    assert len(pts["x"]) <= PLOT_MAX_OUTCOMES and "sample" in note and "Nash Point" in names
+    os2 = make_os([make_issue((0.0, 1.0), "price"), make_issue(5, "q")])  # continuous
+    three = Scenario(outcome_space=os2, ufuns=tuple(L.random(os2, name=n) for n in "xyz"))
+    figs, _ = _plots(three, 1)
+    assert [f["title"] for f in figs] == ["y vs x", "y vs z"]
+    one = Scenario(outcome_space=os2, ufuns=(L.random(os2, name="solo"),))
+    assert _plots(one, 0)[0] == []
+
+
 def make_zip_scenario(tmp, name="Zebra", wrap=None):
     d = make_scenario(tmp / "src" / name, name)
     return zip_dir(d, prefix=f"{wrap}/" if wrap else "")

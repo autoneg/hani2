@@ -139,7 +139,10 @@ export function SettingsShell() {
               </header>
               <div className="mx-auto max-w-[52rem] px-4 pb-10 pt-6 sm:px-8">
                 {sub ? (
-                  <div key={stack.length}>{sub.render()}</div>
+                  // the top page, and the pages under it that ask to keep their state (hidden)
+                  stack.map((s, i) =>
+                    i === stack.length - 1 || s.keep ? <div key={i} hidden={i !== stack.length - 1}>{s.render()}</div> : null,
+                  )
                 ) : (
                   <>
                     {def.subtitle && <p className="-mt-1 mb-5 text-sm text-muted">{def.subtitle}</p>}

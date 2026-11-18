@@ -1,22 +1,67 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Layers, Plus, Save, Search, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Layers, Plus, Save, Search, Trash2, TriangleAlert, X } from "lucide-react";
 import { Group } from "../Group";
 import { InfoRow, Row } from "../Row";
 import { Disclosure } from "../Disclosure";
+import { useNav } from "../Nav";
 import { TextField } from "../controls/TextField";
 import { Note } from "../schema";
 import { toast } from "../toast";
 import { shortPath, type Layer } from "../layer";
-import { choices as choicesOf, deleteGroup, describe, groupOf, isRef, saveGroup } from "./library";
+import { ItemInfo } from "./common";
+import { choices as choicesOf, deleteGroup, describe, groupOf, isRef, listItems, refName, saveGroup, toItems } from "./library";
 import type { Adapter, EntryInfo, ExGroup, ExItem } from "./types";
 
 const PAGE = 60;
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const an = (w: string) => (/^[aeiou]/i.test(w) ? `an ${w}` : `a ${w}`);
 
-/** A searchable list of entries with what each one is (read-only or editable). */
-export function EntryList({ title, entries, adapter, layer, groups, self, onRemove, onMove }: {
-  title?: string; entries: string[]; adapter: Adapter; layer: Layer; groups: ExGroup[]; self?: string; onRemove?: (e: string) => void; onMove?: (i: number, d: number) => void;
+/** What opening an entry of a set does: an item shows its full details, a set its members. */
+type OpenEntry = (entry: string, info: EntryInfo | undefined, group: ExGroup | undefined) => void;
+
+/** Opens the entries of a group: an item's page (as in the item list) or a nested group's members. */
+export function useOpenEntry(adapter: Adapter, layer: Layer, items: ExItem[], groups: ExGroup[], onReload?: () => void): OpenEntry {
+  const nav = useNav();
+  const open: OpenEntry = async (entry, info, group) => {
+    if (group) {
+      const members = group.expanded?.length ? group.expanded : group.entries;
+      nav.push({
+        title: `@${group.key}`,
+        render: () => <EntryList title={`@${group.key}: ${members.length} ${members.length === 1 ? adapter.noun : adapter.nouns}`} entries={members} adapter={adapter} layer={layer} groups={groups} self={group.key} onOpen={open} />,
+      });
+      return;
+    }
+    const name = (info?.name || refName(entry)).toLowerCase();
+    const find = (xs: ExItem[]) => xs.find((x) => x.id.toLowerCase() === name);
+    let item = find(items);
+    if (!item) {
+      try {
+        item = find(toItems(await listItems(adapter.kind, layer), adapter.subtitle, adapter.badge));
+      } catch (e: any) {
+        toast(e.message, "error");
+        return;
+      }
+    }
+    if (!item) return toast(`${entry} is not ${an(adapter.noun)} of this layer`, "error");
+    const it = item;
+    const changed = () => (nav.pop(), onReload?.());
+    nav.push({
+      title: it.id,
+      render: () => (
+        <>
+          <ItemInfo adapter={adapter} item={it} layer={layer} groups={groups} onChanged={changed} />
+          {adapter.ItemExtra && <adapter.ItemExtra item={it} layer={layer} onChanged={changed} />}
+        </>
+      ),
+    });
+  };
+  return open;
+}
+
+/** A searchable list of entries with what each one is (read-only or editable). With ``onOpen``,
+ *  each item or group entry has a button that opens it. */
+export function EntryList({ title, entries, adapter, layer, groups, self, onRemove, onMove, onOpen }: {
+  title?: string; entries: string[]; adapter: Adapter; layer: Layer; groups: ExGroup[]; self?: string; onRemove?: (e: string) => void; onMove?: (i: number, d: number) => void; onOpen?: OpenEntry;
 }) {
   const [q, setQ] = useState("");
   const [n, setN] = useState(PAGE);
@@ -45,11 +90,20 @@ export function EntryList({ title, entries, adapter, layer, groups, self, onRemo
         const g = groupOf(e, groups, self);
         const isGroup = !!g || d?.kind === "group" || (isRef(e) && d?.kind !== "unknown");
         const bad = !!d && !d.ok;
+        const openable = !!onOpen && !bad && (isGroup ? !!g : d?.kind !== "unknown");
         return (
           <Row
             key={e}
             icon={isGroup ? <Layers size={15} className="text-you" /> : bad ? <TriangleAlert size={15} className="text-bad" /> : undefined}
-            label={<code className="break-all text-[0.8rem]">{e}</code>}
+            label={
+              openable ? (
+                <button type="button" className="text-left hover:text-you hover:underline" onClick={() => onOpen!(e, d, g)}>
+                  <code className="break-all text-[0.8rem]">{e}</code>
+                </button>
+              ) : (
+                <code className="break-all text-[0.8rem]">{e}</code>
+              )
+            }
             hint={
               isGroup ? (
                 `${cap(adapter.groupNoun)}: its ${g?.expanded?.length ?? d?.n ?? "?"} ${(g?.expanded?.length ?? d?.n) === 1 ? adapter.noun : adapter.nouns}, in its order${g?.description ? ` · ${g.description}` : ""}`
@@ -71,6 +125,11 @@ export function EntryList({ title, entries, adapter, layer, groups, self, onRemo
             {onRemove && (
               <button className="btn-ghost px-1.5 text-bad" aria-label={`Remove ${e}`} onClick={() => onRemove(e)}>
                 <X size={15} />
+              </button>
+            )}
+            {openable && (
+              <button className="btn-ghost px-1" aria-label={`Open ${e}`} title={isGroup ? "Show its members" : "Show the details"} onClick={() => onOpen!(e, d, g)}>
+                <ChevronRight size={16} />
               </button>
             )}
           </Row>
@@ -112,6 +171,7 @@ export function GroupEditor({ adapter, layer, group, items, groups, onSaved, onR
       toast(e.message, "error");
     }
   };
+  const openEntry = useOpenEntry(adapter, layer, items, groups, onReload);
   const composed = (group.expanded?.length ?? 0) > 0 && JSON.stringify(group.expanded) !== JSON.stringify(group.entries);
   const listId = `choices-${adapter.kind}`;
   return (
@@ -129,7 +189,7 @@ export function GroupEditor({ adapter, layer, group, items, groups, onSaved, onR
             hint="Groups expanded in place, duplicates dropped, cycles broken"
             value={String(group.expanded!.length)}
             title={`${group.key}: members`}
-            render={() => <EntryList title={`${group.expanded!.length} ${adapter.nouns}`} entries={group.expanded!} adapter={adapter} layer={layer} groups={[]} />}
+            render={() => <EntryList title={`${group.expanded!.length} ${adapter.nouns}`} entries={group.expanded!} adapter={adapter} layer={layer} groups={[]} onOpen={openEntry} />}
           />
         )}
       </Group>
@@ -170,6 +230,7 @@ export function GroupEditor({ adapter, layer, group, items, groups, onSaved, onR
         layer={layer}
         groups={groups}
         self={group.key}
+        onOpen={openEntry}
         onRemove={canEdit ? (e) => change(entries.filter((x) => x !== e)) : undefined}
         onMove={canEdit && adapter.ordered ? (i, d) => { const n = [...entries]; [n[i], n[i + d]] = [n[i + d], n[i]]; change(n); } : undefined}
       />

@@ -46,7 +46,7 @@ export function Explorer({ adapter }: { adapter: Adapter }) {
     load();
   };
   const openGroup = (g: ExGroup, isNew = false) =>
-    nav.push({ title: g.key, render: () => <GroupEditor adapter={adapter} layer={layer} group={g} items={items ?? []} groups={gs} onSaved={after} onReload={load} isNew={isNew} /> });
+    nav.push({ title: g.key, keep: true, render: () => <GroupEditor adapter={adapter} layer={layer} group={g} items={items ?? []} groups={gs} onSaved={after} onReload={load} isNew={isNew} /> });
   const mine = gs.filter((g) => !g.builtin).length;
   return (
     <>
