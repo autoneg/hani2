@@ -1,0 +1,46 @@
+Name: HealthFund
+title: Tobacco Control Fund
+short_description: In this scenario, a donor country and a recipient country negotiate a tobacco-control fund and
+  the aid and trade terms that come with it.
+long_description: |-
+  **The Domain** There are five issues: the size of the fund, whether the donor cuts its other aid, the recipient's import tariffs, the donor's tobacco imports and the forum that follows up on other health issues.
+
+  **The Roles**
+
+  - **Donor**: the country that pays into the fund
+  - **Recipient**: the tobacco-growing country that receives the fund
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal there is no fund, and the two countries keep their current policies. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2010, the tobacco-control domain).*
+human_role: Recipient
+role_descriptions:
+  Donor: the country that pays into the fund
+  Recipient: the tobacco-growing country that receives the fund
+n_issue_columns: 3
+issue_description:
+  Fund size: Money paid into the health fund
+  Other aid: Whether the donor cuts its other aid to the recipient
+  Recipient's tariffs: The recipient's tariffs on imports from the donor
+  Donor's imports: The donor's tobacco imports from the recipient
+  Health forum: What follows up on other health issues
+issue_format:
+  Fund size: ${}B
+story: HealthFund
+hints:
+  Donor:
+    Least important issue: Recipient's tariffs
+    Most important issue: Other aid
+    Your ideal deal: 'Fund size: $10B; Other aid: Cut by the whole fund; Recipient''s tariffs: Lower tariffs; Donor''s
+      imports: Fewer tobacco imports; Health forum: A new health fund'
+    Your role: 'Donor: the country that pays into the fund'
+  Recipient:
+    Least important issue: Donor's imports
+    Most important issue: Other aid
+    Your ideal deal: 'Fund size: $100B; Other aid: No cut to other aid; Recipient''s tariffs: Higher tariffs; Donor''s
+      imports: More tobacco imports; Health forum: A committee to plan a fund'
+    Your role: 'Recipient: the tobacco-growing country that receives the fund'

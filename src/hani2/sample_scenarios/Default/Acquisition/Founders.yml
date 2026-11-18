@@ -1,0 +1,44 @@
+name: Founders
+reserved_outcome: null
+reserved_value: 0.0566
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    1.0: 0.0
+    2.5: 0.2839
+    5.0: 0.6283
+    8.0: 1.0
+  type: TableFun
+- mapping:
+    Buyer gets all IP: 0.0
+    Buyer gets patents, founders keep know-how: 0.4007
+    Founders keep IP, buyer licenses it: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    2: 0.3596
+    5: 1.0
+  type: TableFun
+- mapping:
+    Advisory roles: 0.7184
+    Leadership roles: 0.0
+    No roles: 1.0
+  type: TableFun
+- mapping:
+    15% raise: 1.0
+    Restructuring: 0.0
+    Retention bonuses: 0.6471
+    Same terms: 0.3013
+  type: TableFun
+- mapping:
+    Buyer takes all liability: 1.0
+    Founders keep past liability: 0.0
+  type: TableFun
+weights:
+- 0.427
+- 0.101
+- 0.049
+- 0.06
+- 0.096
+- 0.267

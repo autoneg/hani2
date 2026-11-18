@@ -1,0 +1,49 @@
+Name: Energy
+title: Day-Ahead Power Plan
+short_description: 'In this scenario, a bakery and its power supplier negotiate tomorrow''s power plan: how many
+  kW are reserved in each part of the day and the price per kWh.'
+long_description: |-
+  **The Domain** There are five issues: the power reserved for the night, the morning, the afternoon and the evening (0 to 100 kW each), and the price per kWh.
+
+  **The Roles**
+
+  - **Bakery**: the bakery that needs power tomorrow
+  - **Supplier**: the company that supplies the power
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the bakery buys on the spot market at a much higher price and the supplier sells less. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2011 and 2012, the energy domain; reduced to four blocks).*
+human_role: Bakery
+role_descriptions:
+  Bakery: the bakery that needs power tomorrow
+  Supplier: the company that supplies the power
+n_issue_columns: 2
+issue_description:
+  Night: Power reserved for the night
+  Morning: Power reserved for the morning
+  Afternoon: Power reserved for the afternoon
+  Evening: Power reserved for the evening
+  Price: Price per kWh for all reserved power
+issue_format:
+  Night: '{} kW'
+  Morning: '{} kW'
+  Afternoon: '{} kW'
+  Evening: '{} kW'
+  Price: ${:.2f}/kWh
+story: Energy
+hints:
+  Bakery:
+    Least important issue: Evening
+    Most important issue: Price
+    Power you need: Night 100 kW, Morning 100 kW, Afternoon 25 kW, Evening 25 kW
+    Your ideal deal: 'Night: 100 kW; Morning: 100 kW; Afternoon: 25 kW; Evening: 25 kW; Price: $0.10/kWh'
+    Your role: 'Bakery: the bakery that needs power tomorrow'
+  Supplier:
+    Least important issue: Evening
+    Most important issue: Price
+    Your ideal deal: 'Night: 25 kW; Morning: 0 kW; Afternoon: 100 kW; Evening: 50 kW; Price: $0.18/kWh'
+    Your role: 'Supplier: the company that supplies the power'

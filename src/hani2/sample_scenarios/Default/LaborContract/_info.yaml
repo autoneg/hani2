@@ -1,0 +1,47 @@
+Name: LaborContract
+title: Police Labor Contract
+short_description: 'In this scenario, a police union and a city negotiate a labor contract: pay, vacation, patrols,
+  promotions and the civilian review board.'
+long_description: |-
+  **The Domain** There are five issues: the pay raise, extra vacation days, how many officers ride in a patrol car, new sergeant positions and the civilian review board.
+
+  **The Roles**
+
+  - **City**: the city
+  - **Union**: the police officers' union
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the dispute goes to arbitration, which neither side controls. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the police-union domain shipped with the Genius platform used by the ANAC Automated Negotiation League (reduced to five issues).*
+human_role: Union
+role_descriptions:
+  City: the city
+  Union: the police officers' union
+n_issue_columns: 3
+issue_description:
+  Pay raise: Pay raise for all officers
+  Extra vacation: Extra vacation days per year
+  Patrols: How many officers ride in a patrol car
+  New sergeants: New sergeant positions
+  Review board: The civilian board that reviews complaints
+issue_format:
+  Pay raise: '{}%'
+  Extra vacation: '{} days'
+story: LaborContract
+hints:
+  City:
+    Least important issue: Patrols
+    Most important issue: Pay raise
+    Your ideal deal: 'Pay raise: 0%; Extra vacation: 0 days; Patrols: Unchanged; New sergeants: 4; Review board:
+      Keep the civilian review board'
+    Your role: 'City: the city'
+  Union:
+    Least important issue: Extra vacation
+    Most important issue: Pay raise
+    Your ideal deal: 'Pay raise: 8%; Extra vacation: 4 days; Patrols: Two-officer patrols always; New sergeants:
+      8; Review board: Disband the board'
+    Your role: 'Union: the police officers'' union'

@@ -1,0 +1,45 @@
+Name: Supply
+title: Bicycle Parts Supply
+short_description: 'In this scenario, a bicycle maker and a parts supplier negotiate a supply contract: the unit
+  price, the delivery time, the payment terms and how defects are handled.'
+long_description: |-
+  **The Domain** There are four issues: the price per part, the delivery time, when the maker pays and how defective parts are handled.
+
+  **The Roles**
+
+  - **Maker**: the company that builds bicycles and buys the parts
+  - **Supplier**: the company that makes and sells the parts
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the maker buys from another supplier at a higher price and the supplier sells its capacity elsewhere. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2010, the bicycle-parts supply domain).*
+human_role: Maker
+role_descriptions:
+  Maker: the company that builds bicycles and buys the parts
+  Supplier: the company that makes and sells the parts
+n_issue_columns: 2
+issue_description:
+  Unit price: Price per part
+  Delivery: Days from order to delivery
+  Payment: When the maker pays
+  Returns: How defective parts are handled
+issue_format:
+  Unit price: ${:.2f}
+  Delivery: '{} days'
+story: Supply
+hints:
+  Maker:
+    Least important issue: Delivery
+    Most important issue: Unit price
+    Your ideal deal: 'Unit price: $3.50; Delivery: 20 days; Payment: 60 days after delivery; Returns: Full refund
+      for defects'
+    Your role: 'Maker: the company that builds bicycles and buys the parts'
+  Supplier:
+    Least important issue: Delivery
+    Most important issue: Unit price
+    Your ideal deal: 'Unit price: $4.30; Delivery: 30 days; Payment: On delivery; Returns: 10% defects tolerated'
+    Your role: 'Supplier: the company that makes and sells the parts'

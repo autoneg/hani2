@@ -1,0 +1,38 @@
+name: Donor
+reserved_outcome: null
+reserved_value: 0.0925
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    10: 1.0
+    50: 0.5591
+    100: 0.0
+  type: TableFun
+- mapping:
+    Cut by half the fund: 0.5424
+    Cut by the whole fund: 1.0
+    No cut to other aid: 0.0
+  type: TableFun
+- mapping:
+    Higher tariffs: 0.0
+    Lower tariffs: 1.0
+    Unchanged tariffs: 0.3198
+  type: TableFun
+- mapping:
+    Fewer tobacco imports: 1.0
+    More tobacco imports: 0.0
+    Unchanged imports: 0.4824
+  type: TableFun
+- mapping:
+    A committee to plan a fund: 0.6634
+    A committee to set an agenda: 0.3315
+    A new health fund: 1.0
+    No forum: 0.0
+  type: TableFun
+weights:
+- 0.318
+- 0.356
+- 0.042
+- 0.185
+- 0.099

@@ -1,0 +1,37 @@
+name: Dealer
+reserved_outcome: null
+reserved_value: 0.0851
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    13000: 0.0
+    15000: 0.0876
+    17000: 0.2959
+    19000: 0.6033
+    21000: 1.0
+  type: TableFun
+- mapping:
+    Basic radio: 1.0
+    Touchscreen: 0.4719
+    Touchscreen with navigation: 0.0
+  type: TableFun
+- mapping:
+    Climate control: 0.0
+    Manual air conditioning: 1.0
+  type: TableFun
+- mapping:
+    No tow hitch: 1.0
+    Tow hitch fitted: 0.0
+  type: TableFun
+- mapping:
+    1 year: 0.0
+    6 months: 0.3064
+    No warranty: 1.0
+  type: TableFun
+weights:
+- 0.374
+- 0.165
+- 0.149
+- 0.073
+- 0.239

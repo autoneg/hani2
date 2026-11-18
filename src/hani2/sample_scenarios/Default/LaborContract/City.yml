@@ -1,0 +1,39 @@
+name: City
+reserved_outcome: null
+reserved_value: 0.0017
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0: 1.0
+    2: 0.6254
+    4: 0.3227
+    6: 0.1041
+    8: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    2: 0.5996
+    4: 0.0
+  type: TableFun
+- mapping:
+    Two-officer patrols always: 0.0
+    Two-officer patrols at night: 0.3305
+    Unchanged: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    4: 1.0
+    8: 0.1242
+  type: TableFun
+- mapping:
+    Add officers to the board: 0.7324
+    Disband the board: 0.0
+    Keep the civilian review board: 1.0
+  type: TableFun
+weights:
+- 0.362
+- 0.148
+- 0.131
+- 0.149
+- 0.21

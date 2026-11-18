@@ -1,0 +1,37 @@
+name: agent
+reserved_outcome: null
+reserved_value: 0.0683
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0: 1.0
+    1: 0.8333
+    2: 0.6667
+    3: 0.5
+    4: 0.3333
+    5: 0.1667
+    6: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    1: 0.6667
+    2: 0.3333
+    3: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    1: 0.5
+    2: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    1: 0.6667
+    2: 0.3333
+    3: 0.0
+  type: TableFun
+weights:
+- 0.54
+- 0.041
+- 0.207
+- 0.212

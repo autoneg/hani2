@@ -1,0 +1,44 @@
+Name: CityTrip
+title: Weekend City Trip
+short_description: 'In this scenario, a host and a visiting friend plan a weekend trip: the main activity, the start
+  day, the length of the visit, transport and food.'
+long_description: |-
+  **The Domain** There are five issues: the main activity, the day the visit starts, how long it lasts, how to get around and where to eat.
+
+  **The Roles**
+
+  - **Host**: the friend who lives in the city
+  - **Visitor**: the friend who visits
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a plan the visit is cancelled. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2011, the city-trip domain).*
+human_role: Visitor
+role_descriptions:
+  Host: the friend who lives in the city
+  Visitor: the friend who visits
+n_issue_columns: 3
+issue_description:
+  Activity: The main thing to do
+  Day: The day the visit starts
+  Length: How long the visit lasts
+  Transport: How to get around
+  Food: Where to eat
+issue_format: {}
+story: CityTrip
+hints:
+  Host:
+    Least important issue: Transport
+    Most important issue: Day
+    Your ideal deal: 'Activity: Canal tour; Day: Saturday; Length: One day; Transport: Rented bikes; Food: Street
+      food'
+    Your role: 'Host: the friend who lives in the city'
+  Visitor:
+    Least important issue: Transport
+    Most important issue: Activity
+    Your ideal deal: 'Activity: Shopping; Day: Sunday; Length: Three days; Transport: Rented bikes; Food: Fine dining'
+    Your role: 'Visitor: the friend who visits'

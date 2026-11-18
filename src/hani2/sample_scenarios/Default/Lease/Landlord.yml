@@ -1,0 +1,39 @@
+name: Landlord
+reserved_outcome: null
+reserved_value: 0.131
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    2800: 0.0
+    3000: 0.109
+    3200: 0.3302
+    3400: 0.6313
+    3600: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    1000: 0.0972
+    2000: 0.3117
+    3000: 0.6164
+    4000: 1.0
+  type: TableFun
+- mapping:
+    1 July: 0.0816
+    1 June: 1.0
+    1 May: 0.0
+    15 June: 0.502
+    15 May: 0.5096
+  type: TableFun
+- mapping:
+    1 year: 1.0
+    18 months: 0.4288
+    2 years: 0.0331
+    6 months: 0.5839
+    Month to month: 0.0
+  type: TableFun
+weights:
+- 0.421
+- 0.151
+- 0.177
+- 0.251

@@ -3,13 +3,16 @@
 The competition used a used-furniture sale (one price issue), a rental
 contract and a consulting contract (four issues each, with one issue both
 sides see the same way). The stories and numbers here are our own.
+
+The texts, issues and roles of every type are in its template folder,
+``hani2/sample_scenarios/Default/<Type>/`` (YAML, editable without code); this
+module only holds the functions that draw each role's preferences.
 """
 
 from __future__ import annotations
 
-from .story import Issue, Side, Story, down, peak, scores, up, weights
+from .story import Side, Story, down, peak, scores, up, weights
 
-SOURCE_MIT = "Adapted from the MIT AI Negotiation Competition (2025)."
 
 # --------------------------------------------------------------------------- #
 # Furniture: a used leather armchair changes hands                            #
@@ -45,24 +48,9 @@ def _furniture_seller(rng, ctx):
     )
 
 
-FURNITURE = Story(
-    type="Furniture",
-    title="Used Armchair Sale",
-    short_description='In this scenario, a buyer and a seller negotiate the sale of a used armchair: the price, who moves it and how it is paid.',
-    long_description="**The Domain** There are three issues: the price of the armchair, who moves it to the buyer's home and how the buyer pays.",
-    roles={"Buyer": _furniture_buyer, "Seller": _furniture_seller},
-    role_descriptions={"Buyer": "the person who wants to buy the armchair",
-                       "Seller": "the person selling the armchair"},
-    issues=[
-        Issue("Price", CHAIR_PRICES, "The price of the armchair", fmt="${:,}"),
-        Issue("Pickup", PICKUP, "Who moves the chair to the buyer's home"),
-        Issue("Payment", PAY, "How the buyer pays"),
-    ],
-    disagreement="Without a deal the buyer buys a chair elsewhere and the seller sells to a second-hand shop.",
-    human_role="Buyer",
-    source=SOURCE_MIT,
-    band=(0.35, 0.92),
-)
+FURNITURE = Story.from_folder("Furniture",
+                              roles={"Buyer": _furniture_buyer, "Seller": _furniture_seller},
+                              band=(0.35, 0.92))
 
 # --------------------------------------------------------------------------- #
 # Lease: a landlord and a prospective tenant                                  #
@@ -109,24 +97,7 @@ def _lease_landlord(rng, ctx):
     )
 
 
-LEASE = Story(
-    type="Lease",
-    title="Apartment Lease",
-    short_description='In this scenario, a landlord and a tenant negotiate the lease of an apartment: the rent, the deposit, the move-in date and the lease length.',
-    long_description='**The Domain** There are four issues: the monthly rent, the security deposit, the move-in date and how long the lease runs.',
-    roles={"Landlord": _lease_landlord, "Tenant": _lease_tenant},
-    role_descriptions={"Landlord": "the owner of the apartment",
-                       "Tenant": "the person who wants to rent the apartment"},
-    issues=[
-        Issue("Rent", RENTS, "Monthly rent", fmt="${:,}/month"),
-        Issue("Deposit", DEPOSITS, "Security deposit paid at signing", fmt="${:,}"),
-        Issue("Move-in date", MOVE_IN, "When the lease starts (rent is paid from this date)"),
-        Issue("Lease length", LENGTHS, "How long the lease runs"),
-    ],
-    disagreement="Without a deal the tenant keeps looking and the landlord keeps advertising the apartment.",
-    human_role="Tenant",
-    source=SOURCE_MIT + " The rental-house domain of ANAC 2012 is a similar case.",
-)
+LEASE = Story.from_folder("Lease", roles={"Landlord": _lease_landlord, "Tenant": _lease_tenant})
 
 # --------------------------------------------------------------------------- #
 # Consulting: a freelance consultant and a startup                             #
@@ -167,23 +138,6 @@ def _client(rng, ctx):
     )
 
 
-CONSULTING = Story(
-    type="Consulting",
-    title="Summer Consulting Contract",
-    short_description='In this scenario, a consultant and a client negotiate a summer consulting contract: the fee, the expense budget, the travel policy and how often the consultant invoices.',
-    long_description='**The Domain** There are four issues: the fee for the summer, the expense budget, how the consultant may travel and how often the consultant sends an invoice.',
-    roles={"Client": _client, "Consultant": _consultant},
-    role_descriptions={"Client": "the startup hiring the consultant",
-                       "Consultant": "the freelance consultant"},
-    issues=[
-        Issue("Fee", FEES, "Lump-sum fee for the summer", fmt="${:,}"),
-        Issue("Expense budget", BUDGETS, "Money the consultant may spend on research and help", fmt="${:,}"),
-        Issue("Travel", TRAVEL, "How the consultant may travel to client sites"),
-        Issue("Invoicing", INVOICING, "How often the consultant sends an invoice"),
-    ],
-    disagreement="Without a deal the startup hires another consultant and the consultant takes other work.",
-    human_role="Consultant",
-    source=SOURCE_MIT,
-)
+CONSULTING = Story.from_folder("Consulting", roles={"Client": _client, "Consultant": _consultant})
 
 STORIES = [FURNITURE, LEASE, CONSULTING]

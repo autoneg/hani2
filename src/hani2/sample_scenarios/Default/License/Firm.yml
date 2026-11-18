@@ -1,0 +1,36 @@
+name: Firm
+reserved_outcome: null
+reserved_value: 0.0203
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0.5: 1.0
+    1.0: 0.7731
+    1.5: 0.5379
+    2.0: 0.2893
+    2.5: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    2: 0.7731
+    4: 0.5378
+    6: 0.2893
+    8: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    2: 0.6926
+    4: 0.3696
+    6: 0.0
+  type: TableFun
+- mapping:
+    Exclusive in one region: 0.2963
+    Non-exclusive: 0.0
+    Worldwide exclusive: 1.0
+  type: TableFun
+weights:
+- 0.227
+- 0.309
+- 0.207
+- 0.257

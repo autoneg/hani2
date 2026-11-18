@@ -48,6 +48,17 @@
   License, HomeRepair, Supply, Acquisition, Chores, Energy, HealthFund, UsedCar, CityTrip,
   LaborContract, Resources and Estate. Each has a fixed story and draws new utility functions (and
   hints) every time, within an opposition band.
+- **Scenario templates in YAML.** Every one of the 16 new types now has a template folder in the
+  standard format (`sample_scenarios/Default/<Type>/`: `<Type>.yml`, one file per role,
+  `_info.yaml`), like Trade, Island and Grocery. The texts, issues and roles are read from it with
+  `Story.from_folder`; Python only draws the variations. `hani2 setup` copies all templates to
+  `Examples`.
+- **Writing scenarios by hand**: `hani2 scenario new TYPE DEST` copies a template (or, with
+  `--generate`, a seeded draw) to edit; `hani2 scenario check PATH` validates folders and pools,
+  proves that they load back unchanged, and `--fill-hints` adds the computed hints.
+- **Reproducible pools**: `hani2 generate --seed` now fixes every scenario (the same seed, type and
+  slot always give the same scenario). Scenarios are saved with one info file and no stale role
+  files or load paths, so saving a loaded scenario writes the same files.
 - **Your own scenario types**: write a `Story` (issues, roles, texts and one function per role that
   draws its preferences) or any `maker(index)`, and register it from `<settings>/scenario_types/*.py`
   or `hani2 --scenario-types file.py`. `hani2 --scenarios FOLDER` serves saved scenarios from a folder.

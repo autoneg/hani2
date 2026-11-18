@@ -1,0 +1,41 @@
+issues:
+- name: Price
+  type: DiscreteOrdinalIssue
+  values:
+  - 1.0
+  - 2.5
+  - 5.0
+  - 8.0
+- name: IP
+  type: CategoricalIssue
+  values:
+  - Buyer gets all IP
+  - Buyer gets patents, founders keep know-how
+  - Founders keep IP, buyer licenses it
+- name: Founders' equity
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 2
+  - 5
+- name: Founders' roles
+  type: CategoricalIssue
+  values:
+  - No roles
+  - Advisory roles
+  - Leadership roles
+- name: Staff terms
+  type: CategoricalIssue
+  values:
+  - Same terms
+  - Retention bonuses
+  - 15% raise
+  - Restructuring
+- name: Liability
+  type: CategoricalIssue
+  values:
+  - Founders keep past liability
+  - Buyer takes all liability
+name: Acquisition
+path: null
+type: EnumerableCartesianOutcomeSpace

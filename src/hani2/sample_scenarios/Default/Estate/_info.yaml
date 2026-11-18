@@ -1,0 +1,61 @@
+Name: Estate
+title: Dividing an Estate
+short_description: 'In this scenario, two heirs divide a collection: six vinyl records, three clocks, two paintings
+  and three books.'
+long_description: |-
+  **The Domain** There are four issues, one per kind of item: how many you get; your opponent gets the rest. The piles have different sizes. Each item is worth some points to you (see your hints) and different points to your opponent.
+
+  **The Roles**
+
+  - **agent**: one of the two heirs
+  - **human**: one of the two heirs
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the collection is auctioned and the money split, which neither of you wants. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the item-split games of the IAGO platform (ANAC Human-Agent League). (the piles of different sizes follow the 2017 ANAC Human-Agent League game).*
+human_role: human
+role_descriptions:
+  agent: one of the two heirs
+  human: one of the two heirs
+n_issue_columns: 2
+issue_description:
+  Records: How many of the 6 vinyl records you get
+  Clocks: How many of the 3 antique clocks you get
+  Paintings: How many of the 2 paintings you get
+  Books: How many of the 3 rare books you get
+issue_format: {}
+split:
+  totals:
+    Books: 3
+    Clocks: 3
+    Paintings: 2
+    Records: 6
+  units:
+    Books:
+    - rare book
+    - rare books
+    Clocks:
+    - antique clock
+    - antique clocks
+    Paintings:
+    - painting
+    - paintings
+    Records:
+    - vinyl record
+    - vinyl records
+story: Estate
+hints:
+  agent:
+    Least important issue: Clocks
+    Most important issue: Records
+    Points per item: Records 3.3, Clocks 0.5, Paintings 3.8, Books 2.6
+    Your role: 'agent: one of the two heirs'
+  human:
+    Least important issue: Clocks
+    Most important issue: Records
+    Points per item: Records 3.4, Clocks 0.9, Paintings 1.8, Books 2
+    Your role: 'human: one of the two heirs'

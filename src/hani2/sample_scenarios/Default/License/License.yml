@@ -1,0 +1,33 @@
+issues:
+- name: Upfront payment
+  type: DiscreteOrdinalIssue
+  values:
+  - 0.5
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+- name: Approval payment
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 2
+  - 4
+  - 6
+  - 8
+- name: Royalty
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 2
+  - 4
+  - 6
+- name: Exclusivity
+  type: CategoricalIssue
+  values:
+  - Non-exclusive
+  - Exclusive in one region
+  - Worldwide exclusive
+name: License
+path: null
+type: EnumerableCartesianOutcomeSpace

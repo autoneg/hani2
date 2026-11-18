@@ -1,0 +1,42 @@
+name: human
+reserved_outcome: null
+reserved_value: 0.1412
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    Paid help: 0.9404
+    Shared: 0.5
+    agent: 1.0
+    human: 0.0
+  type: TableFun
+- mapping:
+    Paid help: 0.9382
+    Shared: 0.5
+    agent: 1.0
+    human: 0.0
+  type: TableFun
+- mapping:
+    Paid help: 0.9535
+    Shared: 0.5
+    agent: 1.0
+    human: 0.0
+  type: TableFun
+- mapping:
+    Paid help: 0.9526
+    Shared: 0.5
+    agent: 1.0
+    human: 0.0
+  type: TableFun
+- mapping:
+    Paid help: 0.9821
+    Shared: 0.5
+    agent: 1.0
+    human: 0.0
+  type: TableFun
+weights:
+- 0.265
+- 0.146
+- 0.178
+- 0.216
+- 0.195

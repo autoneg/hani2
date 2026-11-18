@@ -1,0 +1,32 @@
+issues:
+- name: Price
+  type: DiscreteCardinalIssue
+  values:
+  - 4000
+  - 4500
+  - 5000
+  - 5500
+  - 6000
+  - 6500
+- name: Start
+  type: CategoricalIssue
+  values:
+  - This week
+  - Next week
+  - In two weeks
+  - Next month
+- name: Warranty
+  type: CategoricalIssue
+  values:
+  - No warranty
+  - 6 months
+  - 1 year
+  - 2 years
+- name: Cleanup
+  type: CategoricalIssue
+  values:
+  - Homeowner clears up
+  - Contractor clears up
+name: HomeRepair
+path: null
+type: EnumerableCartesianOutcomeSpace

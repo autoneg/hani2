@@ -1,0 +1,39 @@
+issues:
+- name: Cooking
+  type: CategoricalIssue
+  values:
+  - human
+  - agent
+  - Shared
+  - Paid help
+- name: Dishes
+  type: CategoricalIssue
+  values:
+  - human
+  - agent
+  - Shared
+  - Paid help
+- name: Laundry
+  type: CategoricalIssue
+  values:
+  - human
+  - agent
+  - Shared
+  - Paid help
+- name: Cleaning
+  type: CategoricalIssue
+  values:
+  - human
+  - agent
+  - Shared
+  - Paid help
+- name: Groceries
+  type: CategoricalIssue
+  values:
+  - human
+  - agent
+  - Shared
+  - Paid help
+name: Chores
+path: null
+type: EnumerableCartesianOutcomeSpace

@@ -186,8 +186,9 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             user_path / "logs" / f"{m.id}.csv", index=True, index_label="index"
         )
         sdir = user_path / "scenarios" / f"{m.id}"
-        sdir.mkdir(exist_ok=True, parents=True)
-        scenario.dumpas(sdir)
+        from hani2.scenario_store import save_scenario
+
+        save_scenario(scenario, sdir)  # the same files as the pool slot it came from
         (user_path / "mechanisms").mkdir(exist_ok=True, parents=True)
         dump(
             dict(

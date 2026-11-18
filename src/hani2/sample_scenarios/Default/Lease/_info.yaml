@@ -1,0 +1,44 @@
+Name: Lease
+title: Apartment Lease
+short_description: 'In this scenario, a landlord and a tenant negotiate the lease of an apartment: the rent, the
+  deposit, the move-in date and the lease length.'
+long_description: |-
+  **The Domain** There are four issues: the monthly rent, the security deposit, the move-in date and how long the lease runs.
+
+  **The Roles**
+
+  - **Landlord**: the owner of the apartment
+  - **Tenant**: the person who wants to rent the apartment
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the tenant keeps looking and the landlord keeps advertising the apartment. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MIT AI Negotiation Competition (2025). The rental-house domain of ANAC 2012 is a similar case.*
+human_role: Tenant
+role_descriptions:
+  Landlord: the owner of the apartment
+  Tenant: the person who wants to rent the apartment
+n_issue_columns: 2
+issue_description:
+  Rent: Monthly rent
+  Deposit: Security deposit paid at signing
+  Move-in date: When the lease starts (rent is paid from this date)
+  Lease length: How long the lease runs
+issue_format:
+  Rent: ${:,}/month
+  Deposit: ${:,}
+story: Lease
+hints:
+  Landlord:
+    Least important issue: Deposit
+    Most important issue: Rent
+    Your ideal deal: 'Rent: $3,600/month; Deposit: $4,000; Move-in date: 1 June; Lease length: 1 year'
+    Your role: 'Landlord: the owner of the apartment'
+  Tenant:
+    Least important issue: Lease length
+    Most important issue: Rent
+    Your ideal deal: 'Rent: $2,800/month; Deposit: $0; Move-in date: 1 June; Lease length: 1 year'
+    Your role: 'Tenant: the person who wants to rent the apartment'

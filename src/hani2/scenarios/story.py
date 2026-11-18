@@ -19,7 +19,9 @@ as the ones in a saved pool.
 from __future__ import annotations
 
 import random
+from copy import deepcopy
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from negmas import (
@@ -48,6 +50,9 @@ __all__ = [
     "taste",
     "jitter",
     "weights",
+    "DERIVED_HINTS",
+    "derived_hints",
+    "fill_hints",
 ]
 
 Rng = random.Random
@@ -113,12 +118,12 @@ class Story:
     """
 
     type: str
-    title: str
-    short_description: str
-    long_description: str
-    roles: dict[str, RoleFn]
-    role_descriptions: dict[str, str]
-    issues: Sequence[Issue]
+    title: str = ""
+    short_description: str = ""
+    long_description: str = ""
+    roles: dict[str, RoleFn] = field(default_factory=dict)
+    role_descriptions: dict[str, str] = field(default_factory=dict)
+    issues: Sequence[Issue] = ()
     disagreement: str = "Without a deal both sides walk away and take their best alternative."
     human_role: str | None = None
     role_stories: dict[str, str] = field(default_factory=dict)
@@ -128,6 +133,66 @@ class Story:
     reserved: tuple[float, float] = (0.0, 0.15)
     max_tries: int = 40
     n_issue_columns: int = 2
+    #: the template folder this story was read from (see :meth:`from_folder`)
+    folder: Path | None = None
+    #: the template's info: its texts are used as written in every generated scenario
+    base_info: dict[str, Any] | None = None
+
+    @classmethod
+    def from_folder(cls, folder: str | Path, roles: dict[str, RoleFn], **kwargs: Any) -> "Story":
+        """A story whose texts, issues and roles come from a scenario folder.
+
+        ``folder`` is a scenario in the on-disk format (``<Type>.yml``, one
+        ``<Role>.yml`` per role, ``_info.yaml``) that can be played as it is;
+        a bare name is looked up among the bundled templates
+        (``hani2/sample_scenarios/Default/<name>``). Everything a participant
+        reads (title, descriptions, issue descriptions and formats, item units,
+        role descriptions, hints that are not computed) is taken from the
+        folder, so editing the YAML changes every generated scenario without
+        touching code. ``roles`` maps every role of the folder to the function
+        that draws its preferences; the other keyword arguments (``setup``,
+        ``band``, ``reserved``, ``max_tries``, ``source``) are as for
+        :class:`Story`.
+        """
+        from negmas import Scenario as _Scenario
+
+        from hani2.config import DEFAULT_SCENARIOS
+
+        p = Path(folder).expanduser()
+        if not p.is_absolute() and not p.is_dir():
+            p = DEFAULT_SCENARIOS / str(folder)
+        if not p.is_dir():
+            raise FileNotFoundError(f"no scenario folder {folder!r}")
+        base = _Scenario.load(p, load_stats=False)
+        if base is None:
+            raise ValueError(f"{p} is not a scenario folder")
+        info = _read_info(p) or dict(base.info or {})
+        type_ = str(kwargs.pop("type", None) or p.name)  # the folder name (the generated outcome spaces get it)
+        names = sorted(str(u.name) for u in base.ufuns)
+        if sorted(roles) != names:
+            raise ValueError(f"{type_}: the folder has roles {names} but generators were given for {sorted(roles)}")
+        descs = info.get("issue_description") or {}
+        fmts = info.get("issue_format") or {}
+        units = (info.get("split") or {}).get("units") or {}
+        issues = [Issue(i.name, list(i.all), descs.get(i.name, ""), fmts.get(i.name, "{}"),
+                        tuple(units[i.name]) if i.name in units else None)  # type: ignore[arg-type]
+                  for i in base.outcome_space.issues]
+        role_desc = dict(info.get("role_descriptions") or {})
+        return cls(type=type_, title=str(info.get("title", type_)),
+                   short_description=str(info.get("short_description", "")),
+                   long_description=str(info.get("long_description", "")), roles=dict(roles),
+                   role_descriptions=role_desc, issues=issues, human_role=info.get("human_role"),
+                   n_issue_columns=int(info.get("n_issue_columns", 2)), folder=p, base_info=info, **kwargs)
+
+
+def _read_info(folder: Path) -> dict[str, Any]:
+    from negmas.helpers.inout import load
+
+    for name in ("_info.yml", "_info.yaml", "_info.yaml.yml"):
+        f = folder / name
+        if f.exists():
+            return dict(load(f) or {})
+    return {}
 
 
 # --------------------------------------------------------------------------- #
@@ -213,6 +278,10 @@ def _draw(story: Story, rng: Rng):
         tables = []
         for i in issues:
             vals = side.values[i.name]
+            unknown = [v for v in i.values if v not in vals]
+            if unknown:
+                raise ValueError(f"{story.type}/{role}: no score for {i.name} = {unknown} (the options in the "
+                                 f"scenario are {list(i.values)}, the role function scored {list(vals)})")
             tables.append(TableFun(_rescale({v: float(vals[v]) for v in i.values})))
         ufuns.append(LinearAdditiveUtilityFunction(
             tuple(tables), weights=ws, reserved_value=round(rng.uniform(*story.reserved), 4),
@@ -225,27 +294,81 @@ def _opposition(os, ufuns) -> float:
     return float(opposition_level(ufuns, outcome_space=os, max_utils=tuple(1.0 for _ in ufuns)))
 
 
-def _info(story: Story, issues: list[Issue], sides: dict[str, Side], ufuns) -> dict[str, Any]:
+#: Hints computed from a role's utility function (rewritten for every generated scenario).
+DERIVED_HINTS = ("Most important issue", "Least important issue", "Your ideal deal")
+
+
+def _derive(issues, ufun, fmts: dict[str, str], split: bool) -> dict[str, Any]:
+    """The most and least important issue and the ideal deal of a
+    linear-additive ``ufun`` (nothing for other kinds of utility function)."""
+    ws, tables = getattr(ufun, "weights", None), getattr(ufun, "values", None)
+    if ws is None or tables is None:
+        return {}
+    h: dict[str, Any] = {}
+    if len(issues) > 1:
+        ranked = sorted(zip(ws, issues), key=lambda x: -x[0])
+        h["Most important issue"] = ranked[0][1].name
+        h["Least important issue"] = ranked[-1][1].name
+    if not split:
+        best = []
+        for t, i in zip(tables, issues):
+            v = max(list(i.all), key=lambda x: float(t(x)))
+            try:
+                best.append(f"{i.name}: {fmts.get(i.name, '{}').format(v)}")
+            except (ValueError, TypeError, IndexError):
+                best.append(f"{i.name}: {v}")
+        h["Your ideal deal"] = "; ".join(best)
+    return h
+
+
+def derived_hints(scenario: Scenario) -> dict[str, dict[str, Any]]:
+    """``{role: hints}`` computed from the utility functions of any scenario
+    (uses ``issue_format`` and ``split`` from its info)."""
+    info = scenario.info or {}
+    fmts = info.get("issue_format") or {}
+    split = bool((info.get("split") or {}).get("units"))
+    return {u.name: _derive(scenario.outcome_space.issues, u, fmts, split) for u in scenario.ufuns}
+
+
+def fill_hints(scenario: Scenario, overwrite: bool = False) -> Scenario:
+    """Add the computed hints (see :data:`DERIVED_HINTS`) to the scenario's info,
+    keeping the hints written by hand (``overwrite`` replaces the computed ones too)."""
+    info = scenario.info = dict(scenario.info or {})
+    hints = info.setdefault("hints", {})
+    for role, d in derived_hints(scenario).items():
+        h = hints.setdefault(role, {})
+        for k, v in d.items():
+            if overwrite or k not in h:
+                h[k] = v
+    return scenario
+
+
+def _role_hints(base: dict[str, Any], derived: dict[str, Any], side: Side) -> dict[str, Any]:
+    h = {k: v for k, v in base.items() if k not in DERIVED_HINTS and k not in side.hints}
+    h.update({k: v for k, v in derived.items() if k != "Your ideal deal"})
+    h.update(side.hints)
+    if "Your ideal deal" in derived:
+        h["Your ideal deal"] = derived["Your ideal deal"]
+    return h
+
+
+def _info(story: Story, issues: list[Issue], sides: dict[str, Side], ufuns, os=None) -> dict[str, Any]:
+    fmts = {i.name: i.fmt for i in issues if i.fmt != "{}"}
+    split = any(i.unit for i in issues)
+    os_issues = os.issues if os is not None else ufuns[0].outcome_space.issues
+    if story.base_info is not None:
+        # a story read from a folder: its texts are used as written, only the hints change
+        info = deepcopy(story.base_info)
+        base_hints = info.get("hints") or {}
+        info["hints"] = {u.name: _role_hints(base_hints.get(u.name) or {}, _derive(os_issues, u, fmts, split),
+                                             sides[u.name]) for u in ufuns}
+        info["story"] = story.type
+        return info
     hints: dict[str, dict[str, Any]] = {}
     for u in ufuns:
-        side = sides[u.name]
-        ranked = sorted(zip(u.weights, issues), key=lambda x: -x[0])
         desc = story.role_descriptions.get(u.name, "")
-        h: dict[str, Any] = {"Your role": story.role_stories.get(u.name) or (f"{u.name}: {desc}" if desc else u.name)}
-        if len(issues) > 1:
-            h["Most important issue"] = ranked[0][1].name
-            h["Least important issue"] = ranked[-1][1].name
-        h.update(side.hints)
-        if not any(i.unit for i in issues):
-            best = []
-            for t, i in zip(u.values, issues):
-                v = max(i.values, key=lambda x: float(t(x)))
-                try:
-                    best.append(f"{i.name}: {i.fmt.format(v)}")
-                except (ValueError, TypeError, IndexError):
-                    best.append(f"{i.name}: {v}")
-            h["Your ideal deal"] = "; ".join(best)
-        hints[u.name] = h
+        base = {"Your role": story.role_stories.get(u.name) or (f"{u.name}: {desc}" if desc else u.name)}
+        hints[u.name] = _role_hints(base, _derive(os_issues, u, fmts, split), sides[u.name])
     roles = "\n".join(f"- **{r}**: {story.role_descriptions.get(r, '')}" for r in sorted(story.roles))
     long = (story.long_description.strip()
             + f"\n\n**The Roles**\n\n{roles}"
@@ -269,6 +392,7 @@ def _info(story: Story, issues: list[Issue], sides: dict[str, Side], ufuns) -> d
         "short_description": story.short_description.strip(),
         "long_description": long,
         "story": story.type,
+        "role_descriptions": {r: story.role_descriptions.get(r, "") for r in sorted(story.roles)},
     }
     if story.human_role:
         info["human_role"] = story.human_role
@@ -295,7 +419,7 @@ def make_story_scenario(story: Story, index: int = 0, rng: Rng | None = None) ->
             best = (dist, issues, os, ufuns, sides)
     assert best is not None
     _, issues, os, ufuns, sides = best
-    return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=_info(story, issues, sides, ufuns))
+    return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=_info(story, issues, sides, ufuns, os))
 
 
 # --------------------------------------------------------------------------- #

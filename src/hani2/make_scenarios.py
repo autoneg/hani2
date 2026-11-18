@@ -85,11 +85,31 @@ def set_reservation_values(scenario: Scenario, human_index: int, rng: random.Ran
     return human_r, agent_r
 
 
+def slot_seed(seed: int | str, scenario_type: str, slot: int) -> str:
+    """The seed of one pool slot: the same ``(seed, type, slot)`` always gives
+    the same scenario, whatever other slots or types are generated."""
+    return f"{seed}:{scenario_type}:{slot}"
+
+
 def make_in_band(scenario_type: str, slot: int,
-                 min_opp: float, max_opp: float, max_tries: int):
+                 min_opp: float, max_opp: float, max_tries: int, seed: int | str | None = None):
     """Draw scenarios from the (random) maker until opposition_level falls in
     [min_opp, max_opp]. Returns (scenario, opposition, tries). Raises after
-    max_tries with the closest-to-band attempt so we never write nothing."""
+    max_tries with the closest-to-band attempt so we never write nothing.
+
+    With ``seed`` the draws are reproducible: Python's random generator (which
+    every built-in maker uses) is seeded from :func:`slot_seed` first."""
+    if seed is None:
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries)
+    state = random.getstate()
+    random.seed(slot_seed(seed, scenario_type, slot))
+    try:
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries)
+    finally:
+        random.setstate(state)
+
+
+def _make_in_band(scenario_type: str, slot: int, min_opp: float, max_opp: float, max_tries: int):
     maker = MAKER_MAP[scenario_type]
     best = None  # (distance_outside_band, scenario, opp)
     for attempt in range(1, max_tries + 1):
@@ -139,7 +159,8 @@ def write_inverter(out_dir: Path, human_index: int) -> str:
 def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: int,
                  force: bool, cache_inverter: bool, rng: random.Random,
                  min_opp: float, max_opp: float, set_reservations: bool,
-                 user_max: float, agent_max: float, max_tries: int) -> tuple[bool, str]:
+                 user_max: float, agent_max: float, max_tries: int,
+                 seed: int | str | None = None) -> tuple[bool, str]:
     """Generate (or skip) one scenario directory, optionally caching its inverse.
 
     Returns (wrote, message)."""
@@ -154,8 +175,10 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
         return False, f"skip {out_dir.name} (exists)"
 
     scenario, opp, tries = make_in_band(
-        scenario_type, index, min_opp, max_opp, max_tries
+        scenario_type, index, min_opp, max_opp, max_tries, seed
     )
+    if seed is not None:
+        rng = random.Random(slot_seed(seed, scenario_type, index) + ":reserved")
     res_note = ""
     if set_reservations:
         # the participant's side under the default role rule (a role named
@@ -166,10 +189,10 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
             scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max
         )
         res_note = f" res h={human_r}/a={agent_r}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # negmas writes <Type>.yml / per-role ufuns / _info.yml here, including any
-    # reservation values we just set.
-    scenario.dumpas(out_dir)
+    # <Type>.yml / per-role ufuns / _info.yml, including the reservation values we just set
+    from hani2.scenario_store import save_scenario
+
+    save_scenario(scenario, out_dir)
 
     # Cache the inverse for every role: the role-assignment rule decides at
     # serve time which one the participant plays.
@@ -237,7 +260,7 @@ def generate(
     max_tries: Annotated[int, typer.Option(
         help="Max maker draws per slot to hit the opposition band")] = DEFAULT_MAX_TRIES,
     seed: Annotated[int, typer.Option(
-        help="RNG seed for reservation sampling / reproducibility")] = 0,
+        help="Seed: the same seed, type and slot always give the same scenario (default 0)")] = 0,
     force: Annotated[bool, typer.Option(
         "--force", help="Regenerate even if the scenario dir already exists")] = False,
     scenario_set: Annotated[Optional[str], typer.Option(
@@ -299,7 +322,7 @@ def generate(
                 did_write, msg = generate_one(
                     scenario_type, i, type_dir, human_index, force, cache_inverter,
                     rng, min_opposition, max_opposition, set_reservations,
-                    user_reserved_max, agent_reserved_max, max_tries,
+                    user_reserved_max, agent_reserved_max, max_tries, seed,
                 )
             except Exception as e:
                 total_err += 1

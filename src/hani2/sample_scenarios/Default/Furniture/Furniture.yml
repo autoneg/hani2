@@ -1,0 +1,26 @@
+issues:
+- name: Price
+  type: DiscreteCardinalIssue
+  values:
+  - 50
+  - 65
+  - 80
+  - 95
+  - 110
+  - 125
+  - 140
+  - 155
+- name: Pickup
+  type: CategoricalIssue
+  values:
+  - Buyer collects
+  - Seller delivers
+- name: Payment
+  type: CategoricalIssue
+  values:
+  - Cash on pickup
+  - Transfer this week
+  - Two instalments
+name: Furniture
+path: null
+type: EnumerableCartesianOutcomeSpace

@@ -1,0 +1,42 @@
+name: agent
+reserved_outcome: null
+reserved_value: 0.1092
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    Paid help: 0.0
+    Shared: 0.6018
+    agent: 0.2036
+    human: 1.0
+  type: TableFun
+- mapping:
+    Paid help: 0.4918
+    Shared: 0.5
+    agent: 0.0
+    human: 1.0
+  type: TableFun
+- mapping:
+    Paid help: 0.0
+    Shared: 0.5609
+    agent: 0.1218
+    human: 1.0
+  type: TableFun
+- mapping:
+    Paid help: 0.2527
+    Shared: 0.5
+    agent: 0.0
+    human: 1.0
+  type: TableFun
+- mapping:
+    Paid help: 0.3821
+    Shared: 0.5
+    agent: 0.0
+    human: 1.0
+  type: TableFun
+weights:
+- 0.196
+- 0.29
+- 0.154
+- 0.223
+- 0.137

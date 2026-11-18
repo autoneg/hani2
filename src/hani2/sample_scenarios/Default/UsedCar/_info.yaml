@@ -1,0 +1,46 @@
+Name: UsedCar
+title: Used Car Purchase
+short_description: 'In this scenario, a buyer and a dealer negotiate the purchase of a used car: the price and the
+  extras that come with it.'
+long_description: |-
+  **The Domain** There are five issues: the price, the infotainment system, the air conditioning, a tow hitch and the warranty.
+
+  **The Roles**
+
+  - **Buyer**: the person who wants to buy the car
+  - **Dealer**: the dealer selling the car
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the buyer looks at other dealers and the dealer waits for another buyer. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2011, the car domain).*
+human_role: Buyer
+role_descriptions:
+  Buyer: the person who wants to buy the car
+  Dealer: the dealer selling the car
+n_issue_columns: 3
+issue_description:
+  Price: Price of the car
+  Infotainment: The audio and navigation system
+  Air conditioning: The air conditioning
+  Tow hitch: Whether a tow hitch is fitted
+  Warranty: How long the dealer guarantees the car
+issue_format:
+  Price: ${:,}
+story: UsedCar
+hints:
+  Buyer:
+    Least important issue: Air conditioning
+    Most important issue: Price
+    Your ideal deal: 'Price: $13,000; Infotainment: Touchscreen with navigation; Air conditioning: Climate control;
+      Tow hitch: Tow hitch fitted; Warranty: 1 year'
+    Your role: 'Buyer: the person who wants to buy the car'
+  Dealer:
+    Least important issue: Tow hitch
+    Most important issue: Price
+    Your ideal deal: 'Price: $21,000; Infotainment: Basic radio; Air conditioning: Manual air conditioning; Tow
+      hitch: No tow hitch; Warranty: No warranty'
+    Your role: 'Dealer: the dealer selling the car'

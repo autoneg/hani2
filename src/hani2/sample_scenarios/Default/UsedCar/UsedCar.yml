@@ -1,0 +1,34 @@
+issues:
+- name: Price
+  type: DiscreteCardinalIssue
+  values:
+  - 13000
+  - 15000
+  - 17000
+  - 19000
+  - 21000
+- name: Infotainment
+  type: CategoricalIssue
+  values:
+  - Basic radio
+  - Touchscreen
+  - Touchscreen with navigation
+- name: Air conditioning
+  type: CategoricalIssue
+  values:
+  - Manual air conditioning
+  - Climate control
+- name: Tow hitch
+  type: CategoricalIssue
+  values:
+  - No tow hitch
+  - Tow hitch fitted
+- name: Warranty
+  type: CategoricalIssue
+  values:
+  - No warranty
+  - 6 months
+  - 1 year
+name: UsedCar
+path: null
+type: EnumerableCartesianOutcomeSpace

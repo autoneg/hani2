@@ -1,0 +1,43 @@
+name: human
+reserved_outcome: null
+reserved_value: 0.0686
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0: 0.0
+    1: 0.2
+    2: 0.4
+    3: 0.6
+    4: 0.8
+    5: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    1: 0.2
+    2: 0.4
+    3: 0.6
+    4: 0.8
+    5: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    1: 0.2
+    2: 0.4
+    3: 0.6
+    4: 0.8
+    5: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    1: 0.2
+    2: 0.4
+    3: 0.6
+    4: 0.8
+    5: 1.0
+  type: TableFun
+weights:
+- 0.3
+- 0.1
+- 0.2
+- 0.4

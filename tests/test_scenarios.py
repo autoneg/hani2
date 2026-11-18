@@ -19,7 +19,8 @@ def test_setup_copies_samples_and_they_load(hani2_home):
 
     run_setup(quiet=True)
     assert (hani2_home / "settings" / "env.json").exists()
-    assert set(store.list_scenarios("Examples")) == {"Trade", "Island", "Grocery"}
+    # every bundled template (the three classic samples and one per story type)
+    assert {"Trade", "Island", "Grocery", "License", "Estate"} <= set(store.list_scenarios("Examples"))
     assert "Examples" in store.available_types()
     s, info, sdir = store.load_scenario("Examples", 0, name="Trade")
     assert not info["generated"] and sdir and sdir.endswith("Trade")

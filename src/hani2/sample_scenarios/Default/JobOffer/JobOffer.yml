@@ -1,0 +1,40 @@
+issues:
+- name: Salary
+  type: DiscreteCardinalIssue
+  values:
+  - 90000
+  - 97500
+  - 105000
+  - 112500
+  - 120000
+- name: Signing bonus
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 5000
+  - 10000
+  - 15000
+  - 20000
+- name: Start date
+  type: CategoricalIssue
+  values:
+  - In 2 weeks
+  - In 1 month
+  - In 2 months
+  - In 3 months
+- name: Location
+  type: CategoricalIssue
+  values:
+  - Headquarters
+  - Regional office
+  - Mostly remote
+- name: Vacation days
+  type: DiscreteCardinalIssue
+  values:
+  - 15
+  - 20
+  - 25
+  - 30
+name: JobOffer
+path: null
+type: EnumerableCartesianOutcomeSpace

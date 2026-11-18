@@ -1,0 +1,37 @@
+name: Client
+reserved_outcome: null
+reserved_value: 0.0147
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    25000: 1.0
+    30000: 0.6744
+    35000: 0.3871
+    40000: 0.1498
+    45000: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    5000: 0.8301
+    10000: 0.6384
+    15000: 0.4076
+    20000: 0.0
+  type: TableFun
+- mapping:
+    Business class: 0.0
+    Economy flights: 0.5162
+    Premium economy: 0.1666
+    Train or bus only: 1.0
+  type: TableFun
+- mapping:
+    At the end: 0.0
+    Every two weeks: 0.542
+    Monthly: 0.1902
+    Weekly: 1.0
+  type: TableFun
+weights:
+- 0.543
+- 0.178
+- 0.167
+- 0.112

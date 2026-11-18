@@ -1,0 +1,36 @@
+name: Inventor
+reserved_outcome: null
+reserved_value: 0.0122
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0.5: 0.0
+    1.0: 0.2188
+    1.5: 0.4678
+    2.0: 0.7295
+    2.5: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    2: 0.2072
+    4: 0.4552
+    6: 0.7213
+    8: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    2: 0.2386
+    4: 0.5893
+    6: 1.0
+  type: TableFun
+- mapping:
+    Exclusive in one region: 0.6648
+    Non-exclusive: 1.0
+    Worldwide exclusive: 0.0
+  type: TableFun
+weights:
+- 0.209
+- 0.452
+- 0.13
+- 0.209

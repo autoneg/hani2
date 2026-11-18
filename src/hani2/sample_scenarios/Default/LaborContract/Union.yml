@@ -1,0 +1,39 @@
+name: Union
+reserved_outcome: null
+reserved_value: 0.008
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0: 0.0
+    2: 0.087
+    4: 0.2949
+    6: 0.6024
+    8: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    2: 0.4798
+    4: 1.0
+  type: TableFun
+- mapping:
+    Two-officer patrols always: 1.0
+    Two-officer patrols at night: 0.4189
+    Unchanged: 0.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    4: 0.3716
+    8: 1.0
+  type: TableFun
+- mapping:
+    Add officers to the board: 0.5313
+    Disband the board: 1.0
+    Keep the civilian review board: 0.0
+  type: TableFun
+weights:
+- 0.473
+- 0.107
+- 0.116
+- 0.159
+- 0.145

@@ -6,13 +6,16 @@ housework, a day-ahead energy plan, a health fund between two countries, a
 used car, a city trip, and a police-union contract shipped with the
 platform). These stories rework those domains with our own names, wording
 and numbers.
+
+The texts, issues and roles of every type are in its template folder,
+``hani2/sample_scenarios/Default/<Type>/`` (YAML, editable without code); this
+module only holds the functions that draw each role's preferences.
 """
 
 from __future__ import annotations
 
-from .story import Issue, Side, Story, down, peak, scores, taste, up, weights
+from .story import Side, Story, down, peak, scores, taste, up, weights
 
-SOURCE_ANL = "Adapted from a domain of the ANAC Automated Negotiation League"
 
 # --------------------------------------------------------------------------- #
 # Supply: a parts supplier and a bicycle maker (ANAC 2010)                    #
@@ -53,24 +56,7 @@ def _supplier(rng, ctx):
     )
 
 
-SUPPLY = Story(
-    type="Supply",
-    title="Bicycle Parts Supply",
-    short_description='In this scenario, a bicycle maker and a parts supplier negotiate a supply contract: the unit price, the delivery time, the payment terms and how defects are handled.',
-    long_description='**The Domain** There are four issues: the price per part, the delivery time, when the maker pays and how defective parts are handled.',
-    roles={"Maker": _maker, "Supplier": _supplier},
-    role_descriptions={"Maker": "the company that builds bicycles and buys the parts", "Supplier": "the company that makes and sells the parts"},
-    issues=[
-        Issue("Unit price", UNIT_PRICES, "Price per part", fmt="${:.2f}"),
-        Issue("Delivery", DELIVERY, "Days from order to delivery", fmt="{} days"),
-        Issue("Payment", PAYMENT, "When the maker pays"),
-        Issue("Returns", RETURNS, "How defective parts are handled"),
-    ],
-    disagreement="Without a deal the maker buys from another supplier at a higher price and the supplier sells "
-                 "its capacity elsewhere.",
-    human_role="Maker",
-    source=SOURCE_ANL + " (ANAC 2010, the bicycle-parts supply domain).",
-)
+SUPPLY = Story.from_folder("Supply", roles={"Maker": _maker, "Supplier": _supplier})
 
 # --------------------------------------------------------------------------- #
 # Acquisition: a large company buys a biotech startup (ANAC 2011/2012)         #
@@ -123,28 +109,7 @@ def _founders(rng, ctx):
     )
 
 
-ACQUISITION = Story(
-    type="Acquisition",
-    title="Startup Acquisition",
-    short_description="In this scenario, a company and the founders of a startup negotiate the sale of the startup: the price, the intellectual property, the founders' equity and roles, the staff's terms and past liability.",
-    long_description="**The Domain** There are six issues: the price, who owns the intellectual property, the founders' shares in the buyer, the founders' jobs after the sale, the terms for the startup's staff and who answers for claims from before the sale.",
-    roles={"Acquirer": _acquirer, "Founders": _founders},
-    role_descriptions={"Acquirer": "the company buying the startup",
-                       "Founders": "the founders selling the startup"},
-    issues=[
-        Issue("Price", PRICE_M, "Price paid for the company", fmt="${:g}M"),
-        Issue("IP", IP, "Who owns the intellectual property"),
-        Issue("Founders' equity", EQUITY, "Shares of the buyer given to the founders", fmt="{}%"),
-        Issue("Founders' roles", ROLES, "Jobs for the founders after the deal"),
-        Issue("Staff terms", STAFF, "What happens to the startup's employees"),
-        Issue("Liability", LIABILITY, "Who answers for claims from before the sale"),
-    ],
-    disagreement="Without a deal the buyer develops the technology itself and the founders raise money from "
-                 "investors.",
-    human_role="Founders",
-    source=SOURCE_ANL + " (ANAC 2011 and 2012, the company-acquisition domain).",
-    n_issue_columns=3,
-)
+ACQUISITION = Story.from_folder("Acquisition", roles={"Acquirer": _acquirer, "Founders": _founders})
 
 # --------------------------------------------------------------------------- #
 # Chores: two flatmates share the housework (ANAC 2012)                       #
@@ -180,19 +145,7 @@ def _flatmate(me: str):
     return draw
 
 
-CHORES_STORY = Story(
-    type="Chores",
-    title="Sharing the Housework",
-    short_description='In this scenario, two flatmates negotiate who does each of five chores: one of them, both taking turns, or paid help whose cost they split.',
-    long_description='**The Domain** There are five issues, one per chore. Each chore can be done by you, by your opponent, by both taking turns (*Shared*) or by paid help whose cost you split. The options *human* and *agent* mean you and your opponent.',
-    roles={"agent": _flatmate("agent"), "human": _flatmate("human")},
-    role_descriptions={"agent": "one of the two flatmates", "human": "one of the two flatmates"},
-    issues=[Issue(c, WHO, f"Who does the {c.lower()}") for c in CHORES],
-    disagreement="Without a deal the chores keep piling up and the two of you keep arguing.",
-    human_role="human",
-    source=SOURCE_ANL + " (ANAC 2012, the housekeeping domain).",
-    n_issue_columns=3,
-)
+CHORES_STORY = Story.from_folder("Chores", roles={"agent": _flatmate("agent"), "human": _flatmate("human")})
 
 # --------------------------------------------------------------------------- #
 # Energy: a day-ahead power plan (ANAC 2011/2012)                              #
@@ -230,21 +183,7 @@ def _energy_supplier(rng, ctx):
     return Side(values=values, weights=ws)
 
 
-ENERGY = Story(
-    type="Energy",
-    title="Day-Ahead Power Plan",
-    short_description="In this scenario, a bakery and its power supplier negotiate tomorrow's power plan: how many kW are reserved in each part of the day and the price per kWh.",
-    long_description='**The Domain** There are five issues: the power reserved for the night, the morning, the afternoon and the evening (0 to 100 kW each), and the price per kWh.',
-    roles={"Bakery": _consumer, "Supplier": _energy_supplier},
-    role_descriptions={"Bakery": "the bakery that needs power tomorrow",
-                       "Supplier": "the company that supplies the power"},
-    issues=[*(Issue(b, KW, f"Power reserved for the {b.lower()}", fmt="{} kW") for b in BLOCKS),
-            Issue("Price", TARIFF, "Price per kWh for all reserved power", fmt="${:.2f}/kWh")],
-    disagreement="Without a deal the bakery buys on the spot market at a much higher price and the supplier sells "
-                 "less.",
-    human_role="Bakery",
-    source=SOURCE_ANL + " (ANAC 2011 and 2012, the energy domain; reduced to four blocks).",
-)
+ENERGY = Story.from_folder("Energy", roles={"Bakery": _consumer, "Supplier": _energy_supplier})
 
 # --------------------------------------------------------------------------- #
 # HealthFund: two countries agree on a tobacco-control fund (ANAC 2010)       #
@@ -289,26 +228,7 @@ def _recipient(rng, ctx):
     )
 
 
-HEALTH_FUND = Story(
-    type="HealthFund",
-    title="Tobacco Control Fund",
-    short_description='In this scenario, a donor country and a recipient country negotiate a tobacco-control fund and the aid and trade terms that come with it.',
-    long_description="**The Domain** There are five issues: the size of the fund, whether the donor cuts its other aid, the recipient's import tariffs, the donor's tobacco imports and the forum that follows up on other health issues.",
-    roles={"Donor": _donor, "Recipient": _recipient},
-    role_descriptions={"Donor": "the country that pays into the fund",
-                       "Recipient": "the tobacco-growing country that receives the fund"},
-    issues=[
-        Issue("Fund size", FUND, "Money paid into the health fund", fmt="${}B"),
-        Issue("Other aid", AID, "Whether the donor cuts its other aid to the recipient"),
-        Issue("Recipient's tariffs", TARIFFS, "The recipient's tariffs on imports from the donor"),
-        Issue("Donor's imports", IMPORTS, "The donor's tobacco imports from the recipient"),
-        Issue("Health forum", FORUM, "What follows up on other health issues"),
-    ],
-    disagreement="Without a deal there is no fund, and the two countries keep their current policies.",
-    human_role="Recipient",
-    source=SOURCE_ANL + " (ANAC 2010, the tobacco-control domain).",
-    n_issue_columns=3,
-)
+HEALTH_FUND = Story.from_folder("HealthFund", roles={"Donor": _donor, "Recipient": _recipient})
 
 # --------------------------------------------------------------------------- #
 # UsedCar: a dealer and a buyer (ANAC 2011 car domain)                        #
@@ -353,25 +273,7 @@ def _dealer(rng, ctx):
     )
 
 
-USED_CAR = Story(
-    type="UsedCar",
-    title="Used Car Purchase",
-    short_description='In this scenario, a buyer and a dealer negotiate the purchase of a used car: the price and the extras that come with it.',
-    long_description='**The Domain** There are five issues: the price, the infotainment system, the air conditioning, a tow hitch and the warranty.',
-    roles={"Buyer": _car_buyer, "Dealer": _dealer},
-    role_descriptions={"Buyer": "the person who wants to buy the car", "Dealer": "the dealer selling the car"},
-    issues=[
-        Issue("Price", CAR_PRICES, "Price of the car", fmt="${:,}"),
-        Issue("Infotainment", MEDIA, "The audio and navigation system"),
-        Issue("Air conditioning", CLIMATE, "The air conditioning"),
-        Issue("Tow hitch", HITCH, "Whether a tow hitch is fitted"),
-        Issue("Warranty", CAR_WARRANTY, "How long the dealer guarantees the car"),
-    ],
-    disagreement="Without a deal the buyer looks at other dealers and the dealer waits for another buyer.",
-    human_role="Buyer",
-    source=SOURCE_ANL + " (ANAC 2011, the car domain).",
-    n_issue_columns=3,
-)
+USED_CAR = Story.from_folder("UsedCar", roles={"Buyer": _car_buyer, "Dealer": _dealer})
 
 # --------------------------------------------------------------------------- #
 # CityTrip: a host and a visiting friend plan a weekend (ANAC 2011)           #
@@ -413,25 +315,7 @@ def _visitor(rng, ctx):
     )
 
 
-CITY_TRIP = Story(
-    type="CityTrip",
-    title="Weekend City Trip",
-    short_description='In this scenario, a host and a visiting friend plan a weekend trip: the main activity, the start day, the length of the visit, transport and food.',
-    long_description='**The Domain** There are five issues: the main activity, the day the visit starts, how long it lasts, how to get around and where to eat.',
-    roles={"Host": _host, "Visitor": _visitor},
-    role_descriptions={"Host": "the friend who lives in the city", "Visitor": "the friend who visits"},
-    issues=[
-        Issue("Activity", ACTIVITY, "The main thing to do"),
-        Issue("Day", DAY, "The day the visit starts"),
-        Issue("Length", LENGTH, "How long the visit lasts"),
-        Issue("Transport", TRANSPORT, "How to get around"),
-        Issue("Food", FOOD, "Where to eat"),
-    ],
-    disagreement="Without a plan the visit is cancelled.",
-    human_role="Visitor",
-    source=SOURCE_ANL + " (ANAC 2011, the city-trip domain).",
-    n_issue_columns=3,
-)
+CITY_TRIP = Story.from_folder("CityTrip", roles={"Host": _host, "Visitor": _visitor})
 
 # --------------------------------------------------------------------------- #
 # LaborContract: a police union and the city (Genius police-union domain)     #
@@ -475,25 +359,6 @@ def _city(rng, ctx):
     )
 
 
-LABOR_CONTRACT = Story(
-    type="LaborContract",
-    title="Police Labor Contract",
-    short_description='In this scenario, a police union and a city negotiate a labor contract: pay, vacation, patrols, promotions and the civilian review board.',
-    long_description='**The Domain** There are five issues: the pay raise, extra vacation days, how many officers ride in a patrol car, new sergeant positions and the civilian review board.',
-    roles={"City": _city, "Union": _union},
-    role_descriptions={"City": "the city", "Union": "the police officers' union"},
-    issues=[
-        Issue("Pay raise", RAISE, "Pay raise for all officers", fmt="{}%"),
-        Issue("Extra vacation", VACATION, "Extra vacation days per year", fmt="{} days"),
-        Issue("Patrols", PATROLS, "How many officers ride in a patrol car"),
-        Issue("New sergeants", SERGEANTS, "New sergeant positions"),
-        Issue("Review board", REVIEW, "The civilian board that reviews complaints"),
-    ],
-    disagreement="Without a deal the dispute goes to arbitration, which neither side controls.",
-    human_role="Union",
-    source="Adapted from the police-union domain shipped with the Genius platform used by the ANAC "
-           "Automated Negotiation League (reduced to five issues).",
-    n_issue_columns=3,
-)
+LABOR_CONTRACT = Story.from_folder("LaborContract", roles={"City": _city, "Union": _union})
 
 STORIES = [SUPPLY, ACQUISITION, CHORES_STORY, ENERGY, HEALTH_FUND, USED_CAR, CITY_TRIP, LABOR_CONTRACT]

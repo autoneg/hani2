@@ -1,0 +1,48 @@
+Name: JobOffer
+title: Job Offer
+short_description: 'In this scenario, a recruiter and a candidate negotiate a job offer: salary, signing bonus,
+  start date, work location and vacation days.'
+long_description: |-
+  **The Domain** There are five issues: the yearly salary, a signing bonus, the start date, where the candidate works and the number of vacation days.
+
+  **The Roles**
+
+  - **Candidate**: the person the company wants to hire
+  - **Recruiter**: the person hiring for the company
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the company hires its second choice and the candidate keeps looking. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MBA negotiation cases of the PieArena benchmark (2026). Job offers also appear in ANAC 2025 (job hunt) and the MIT competition.*
+human_role: Candidate
+role_descriptions:
+  Candidate: the person the company wants to hire
+  Recruiter: the person hiring for the company
+n_issue_columns: 3
+issue_description:
+  Salary: Yearly base salary
+  Signing bonus: One-time bonus paid when the candidate starts
+  Start date: When the candidate starts
+  Location: Where the candidate works
+  Vacation days: Paid vacation days per year
+issue_format:
+  Salary: ${:,}
+  Signing bonus: ${:,}
+  Vacation days: '{} days'
+story: JobOffer
+hints:
+  Candidate:
+    Least important issue: Vacation days
+    Most important issue: Salary
+    Your ideal deal: 'Salary: $120,000; Signing bonus: $20,000; Start date: In 3 months; Location: Regional office;
+      Vacation days: 30 days'
+    Your role: 'Candidate: the person the company wants to hire'
+  Recruiter:
+    Least important issue: Vacation days
+    Most important issue: Salary
+    Your ideal deal: 'Salary: $90,000; Signing bonus: $0; Start date: In 2 weeks; Location: Headquarters; Vacation
+      days: 15 days'
+    Your role: 'Recruiter: the person hiring for the company'

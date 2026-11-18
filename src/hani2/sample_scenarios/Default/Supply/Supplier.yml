@@ -1,0 +1,34 @@
+name: Supplier
+reserved_outcome: null
+reserved_value: 0.0879
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    3.5: 0.0
+    3.7: 0.1726
+    3.9: 0.4155
+    4.1: 0.6945
+    4.3: 1.0
+  type: TableFun
+- mapping:
+    20: 0.2464
+    30: 1.0
+    45: 0.5822
+    60: 0.0
+  type: TableFun
+- mapping:
+    30 days after delivery: 0.4171
+    60 days after delivery: 0.0
+    On delivery: 1.0
+  type: TableFun
+- mapping:
+    10% defects tolerated: 1.0
+    5% defects tolerated: 0.4311
+    Full refund for defects: 0.0
+  type: TableFun
+weights:
+- 0.483
+- 0.049
+- 0.342
+- 0.126

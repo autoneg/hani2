@@ -1,0 +1,47 @@
+Name: License
+title: Medical Device License
+short_description: 'In this scenario, an inventor and a firm negotiate a license for a medical device: an upfront
+  payment, a payment if regulators approve the device, a royalty and exclusivity.'
+long_description: |-
+  **The Domain** There are four issues: the payment at signing, a payment made only if regulators approve the device, the royalty on sales and how exclusive the license is. The two sides may estimate the chance of approval differently (see your hints).
+
+  **The Roles**
+
+  - **Firm**: the firm that wants to develop and sell the device
+  - **Inventor**: the inventor who owns the patent
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the inventor keeps looking for another firm and the firm drops the project. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MBA negotiation cases of the PieArena benchmark (2026).*
+human_role: Inventor
+role_descriptions:
+  Firm: the firm that wants to develop and sell the device
+  Inventor: the inventor who owns the patent
+n_issue_columns: 2
+issue_description:
+  Upfront payment: Paid at signing
+  Approval payment: Paid only if regulators approve the device
+  Royalty: Share of sales paid to the inventor
+  Exclusivity: Whether the inventor may license the device to others
+issue_format:
+  Upfront payment: ${}M
+  Approval payment: ${}M
+  Royalty: '{}%'
+story: License
+hints:
+  Firm:
+    Least important issue: Royalty
+    Most important issue: Approval payment
+    Your estimate of approval: 34%
+    Your ideal deal: 'Upfront payment: $0.5M; Approval payment: $0M; Royalty: 0%; Exclusivity: Worldwide exclusive'
+    Your role: 'Firm: the firm that wants to develop and sell the device'
+  Inventor:
+    Least important issue: Royalty
+    Most important issue: Approval payment
+    Your estimate of approval: 54%
+    Your ideal deal: 'Upfront payment: $2.5M; Approval payment: $8M; Royalty: 6%; Exclusivity: Non-exclusive'
+    Your role: 'Inventor: the inventor who owns the patent'

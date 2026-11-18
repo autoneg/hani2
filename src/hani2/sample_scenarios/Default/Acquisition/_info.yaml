@@ -1,0 +1,48 @@
+Name: Acquisition
+title: Startup Acquisition
+short_description: 'In this scenario, a company and the founders of a startup negotiate the sale of the startup:
+  the price, the intellectual property, the founders'' equity and roles, the staff''s terms and past liability.'
+long_description: |-
+  **The Domain** There are six issues: the price, who owns the intellectual property, the founders' shares in the buyer, the founders' jobs after the sale, the terms for the startup's staff and who answers for claims from before the sale.
+
+  **The Roles**
+
+  - **Acquirer**: the company buying the startup
+  - **Founders**: the founders selling the startup
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the buyer develops the technology itself and the founders raise money from investors. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2011 and 2012, the company-acquisition domain).*
+human_role: Founders
+role_descriptions:
+  Acquirer: the company buying the startup
+  Founders: the founders selling the startup
+n_issue_columns: 3
+issue_description:
+  Price: Price paid for the company
+  IP: Who owns the intellectual property
+  Founders' equity: Shares of the buyer given to the founders
+  Founders' roles: Jobs for the founders after the deal
+  Staff terms: What happens to the startup's employees
+  Liability: Who answers for claims from before the sale
+issue_format:
+  Price: ${:g}M
+  Founders' equity: '{}%'
+story: Acquisition
+hints:
+  Acquirer:
+    Least important issue: Founders' equity
+    Most important issue: Price
+    Your ideal deal: 'Price: $1M; IP: Buyer gets all IP; Founders'' equity: 0%; Founders'' roles: No roles; Staff
+      terms: Restructuring; Liability: Founders keep past liability'
+    Your role: 'Acquirer: the company buying the startup'
+  Founders:
+    Least important issue: Founders' equity
+    Most important issue: Price
+    Your ideal deal: 'Price: $8M; IP: Founders keep IP, buyer licenses it; Founders'' equity: 5%; Founders'' roles:
+      No roles; Staff terms: 15% raise; Liability: Buyer takes all liability'
+    Your role: 'Founders: the founders selling the startup'

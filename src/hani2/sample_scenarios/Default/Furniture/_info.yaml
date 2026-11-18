@@ -1,0 +1,42 @@
+Name: Furniture
+title: Used Armchair Sale
+short_description: 'In this scenario, a buyer and a seller negotiate the sale of a used armchair: the price, who
+  moves it and how it is paid.'
+long_description: |-
+  **The Domain** There are three issues: the price of the armchair, who moves it to the buyer's home and how the buyer pays.
+
+  **The Roles**
+
+  - **Buyer**: the person who wants to buy the armchair
+  - **Seller**: the person selling the armchair
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the buyer buys a chair elsewhere and the seller sells to a second-hand shop. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MIT AI Negotiation Competition (2025).*
+human_role: Buyer
+role_descriptions:
+  Buyer: the person who wants to buy the armchair
+  Seller: the person selling the armchair
+n_issue_columns: 2
+issue_description:
+  Price: The price of the armchair
+  Pickup: Who moves the chair to the buyer's home
+  Payment: How the buyer pays
+issue_format:
+  Price: ${:,}
+story: Furniture
+hints:
+  Buyer:
+    Least important issue: Pickup
+    Most important issue: Price
+    Your ideal deal: 'Price: $50; Pickup: Seller delivers; Payment: Transfer this week'
+    Your role: 'Buyer: the person who wants to buy the armchair'
+  Seller:
+    Least important issue: Payment
+    Most important issue: Price
+    Your ideal deal: 'Price: $155; Pickup: Buyer collects; Payment: Transfer this week'
+    Your role: 'Seller: the person selling the armchair'

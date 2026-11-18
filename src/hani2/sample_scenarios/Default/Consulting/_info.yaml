@@ -1,0 +1,44 @@
+Name: Consulting
+title: Summer Consulting Contract
+short_description: 'In this scenario, a consultant and a client negotiate a summer consulting contract: the fee,
+  the expense budget, the travel policy and how often the consultant invoices.'
+long_description: |-
+  **The Domain** There are four issues: the fee for the summer, the expense budget, how the consultant may travel and how often the consultant sends an invoice.
+
+  **The Roles**
+
+  - **Client**: the startup hiring the consultant
+  - **Consultant**: the freelance consultant
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the startup hires another consultant and the consultant takes other work. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MIT AI Negotiation Competition (2025).*
+human_role: Consultant
+role_descriptions:
+  Client: the startup hiring the consultant
+  Consultant: the freelance consultant
+n_issue_columns: 2
+issue_description:
+  Fee: Lump-sum fee for the summer
+  Expense budget: Money the consultant may spend on research and help
+  Travel: How the consultant may travel to client sites
+  Invoicing: How often the consultant sends an invoice
+issue_format:
+  Fee: ${:,}
+  Expense budget: ${:,}
+story: Consulting
+hints:
+  Client:
+    Least important issue: Invoicing
+    Most important issue: Fee
+    Your ideal deal: 'Fee: $25,000; Expense budget: $0; Travel: Train or bus only; Invoicing: Weekly'
+    Your role: 'Client: the startup hiring the consultant'
+  Consultant:
+    Least important issue: Invoicing
+    Most important issue: Fee
+    Your ideal deal: 'Fee: $45,000; Expense budget: $20,000; Travel: Business class; Invoicing: Monthly'
+    Your role: 'Consultant: the freelance consultant'

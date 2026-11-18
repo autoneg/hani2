@@ -1,0 +1,47 @@
+name: Supplier
+reserved_outcome: null
+reserved_value: 0.0321
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    0: 0.6024
+    25: 1.0
+    50: 0.7362
+    75: 0.3593
+    100: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    25: 0.786
+    50: 0.5598
+    75: 0.3134
+    100: 0.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    25: 0.2411
+    50: 0.491
+    75: 0.7444
+    100: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    25: 0.5101
+    50: 1.0
+    75: 0.7121
+    100: 0.2246
+  type: TableFun
+- mapping:
+    0.1: 0.0
+    0.12: 0.1654
+    0.14: 0.4067
+    0.16: 0.6884
+    0.18: 1.0
+  type: TableFun
+weights:
+- 0.167
+- 0.26
+- 0.172
+- 0.044
+- 0.357

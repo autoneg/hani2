@@ -1,0 +1,39 @@
+name: Tenant
+reserved_outcome: null
+reserved_value: 0.0203
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    2800: 1.0
+    3000: 0.7492
+    3200: 0.4987
+    3400: 0.2487
+    3600: 0.0
+  type: TableFun
+- mapping:
+    0: 1.0
+    1000: 0.6953
+    2000: 0.4167
+    3000: 0.1736
+    4000: 0.0
+  type: TableFun
+- mapping:
+    1 July: 0.0
+    1 June: 1.0
+    1 May: 0.0994
+    15 June: 0.5211
+    15 May: 0.4681
+  type: TableFun
+- mapping:
+    1 year: 1.0
+    18 months: 0.6572
+    2 years: 0.015
+    6 months: 0.599
+    Month to month: 0.0
+  type: TableFun
+weights:
+- 0.434
+- 0.21
+- 0.248
+- 0.108

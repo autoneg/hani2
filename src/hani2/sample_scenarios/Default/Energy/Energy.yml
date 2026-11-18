@@ -1,0 +1,44 @@
+issues:
+- name: Night
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 25
+  - 50
+  - 75
+  - 100
+- name: Morning
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 25
+  - 50
+  - 75
+  - 100
+- name: Afternoon
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 25
+  - 50
+  - 75
+  - 100
+- name: Evening
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 25
+  - 50
+  - 75
+  - 100
+- name: Price
+  type: DiscreteOrdinalIssue
+  values:
+  - 0.1
+  - 0.12
+  - 0.14
+  - 0.16
+  - 0.18
+name: Energy
+path: null
+type: EnumerableCartesianOutcomeSpace

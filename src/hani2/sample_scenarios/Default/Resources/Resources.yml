@@ -1,0 +1,40 @@
+issues:
+- name: Gold
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+- name: Iron
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+- name: Bananas
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+- name: Spices
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+name: Resources
+path: null
+type: EnumerableCartesianOutcomeSpace

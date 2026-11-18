@@ -119,9 +119,18 @@ Generates a pool of scenarios with the registered generators, keeping only scena
 | `--force` | off | Overwrite existing scenarios. |
 
 ```bash
-hani2 generate -t Trade -t Grocery -n 20 --seed 7
+hani2 generate -t Trade -t Grocery -n 20 --seed 7   # the same seed always gives the same pool
 hani2 generate --set ANAC2027 -n 20
 ```
+
+## `hani2 scenario`
+
+```bash
+hani2 scenario new TYPE DEST [--generate] [--seed N] [--force]
+hani2 scenario check PATH... [--fill-hints]
+```
+
+`new` copies the template folder of a scenario type to `DEST` so you can edit it by hand; with `--generate` it writes a draw of the type's generator instead (seeded, within the default opposition band). `check` validates scenario folders, categories or whole scenario directories: each scenario must load, show an offer and load back unchanged after saving; missing texts and hints are reported as warnings, and `--fill-hints` adds the computed hints. It exits with code 1 when a scenario has errors. See [Writing a scenario by hand](../guide/scenarios.md#writing-a-scenario-by-hand).
 
 ## `hani2 sets`
 

@@ -1,0 +1,31 @@
+issues:
+- name: Unit price
+  type: DiscreteOrdinalIssue
+  values:
+  - 3.5
+  - 3.7
+  - 3.9
+  - 4.1
+  - 4.3
+- name: Delivery
+  type: DiscreteCardinalIssue
+  values:
+  - 20
+  - 30
+  - 45
+  - 60
+- name: Payment
+  type: CategoricalIssue
+  values:
+  - On delivery
+  - 30 days after delivery
+  - 60 days after delivery
+- name: Returns
+  type: CategoricalIssue
+  values:
+  - Full refund for defects
+  - 5% defects tolerated
+  - 10% defects tolerated
+name: Supply
+path: null
+type: EnumerableCartesianOutcomeSpace

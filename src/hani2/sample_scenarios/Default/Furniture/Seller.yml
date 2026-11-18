@@ -1,0 +1,29 @@
+name: Seller
+reserved_outcome: null
+reserved_value: 0.0779
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    50: 0.0
+    65: 0.047
+    80: 0.1396
+    95: 0.264
+    110: 0.4149
+    125: 0.5893
+    140: 0.7848
+    155: 1.0
+  type: TableFun
+- mapping:
+    Buyer collects: 1.0
+    Seller delivers: 0.0
+  type: TableFun
+- mapping:
+    Cash on pickup: 0.6568
+    Transfer this week: 1.0
+    Two instalments: 0.0
+  type: TableFun
+weights:
+- 0.757
+- 0.148
+- 0.095

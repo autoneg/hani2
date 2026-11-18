@@ -1,0 +1,35 @@
+issues:
+- name: Fund size
+  type: DiscreteCardinalIssue
+  values:
+  - 10
+  - 50
+  - 100
+- name: Other aid
+  type: CategoricalIssue
+  values:
+  - No cut to other aid
+  - Cut by half the fund
+  - Cut by the whole fund
+- name: Recipient's tariffs
+  type: CategoricalIssue
+  values:
+  - Lower tariffs
+  - Unchanged tariffs
+  - Higher tariffs
+- name: Donor's imports
+  type: CategoricalIssue
+  values:
+  - Fewer tobacco imports
+  - Unchanged imports
+  - More tobacco imports
+- name: Health forum
+  type: CategoricalIssue
+  values:
+  - A new health fund
+  - A committee to plan a fund
+  - A committee to set an agenda
+  - No forum
+name: HealthFund
+path: null
+type: EnumerableCartesianOutcomeSpace

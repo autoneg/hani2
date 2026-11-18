@@ -1,0 +1,61 @@
+Name: Resources
+title: Resource Exchange
+short_description: In this scenario, two traders split a shipment of gold, iron, bananas and spices (five items
+  of each).
+long_description: |-
+  **The Domain** There are four issues, one per good: how many of its five items you get; your opponent gets the rest. Each item is worth some points to you (see your hints) and different points to your opponent.
+
+  **The Roles**
+
+  - **agent**: one of the two traders
+  - **human**: one of the two traders
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the shipment is sold off at a loss. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the item-split games of the IAGO platform (ANAC Human-Agent League). (the resource-exchange demonstration game).*
+human_role: human
+role_descriptions:
+  agent: one of the two traders
+  human: one of the two traders
+n_issue_columns: 2
+issue_description:
+  Gold: How many of the 5 gold bars you get
+  Iron: How many of the 5 iron bars you get
+  Bananas: How many of the 5 crates of bananas you get
+  Spices: How many of the 5 sacks of spices you get
+issue_format: {}
+split:
+  totals:
+    Bananas: 5
+    Gold: 5
+    Iron: 5
+    Spices: 5
+  units:
+    Bananas:
+    - crate of bananas
+    - crates of bananas
+    Gold:
+    - gold bar
+    - gold bars
+    Iron:
+    - iron bar
+    - iron bars
+    Spices:
+    - sack of spices
+    - sacks of spices
+story: Resources
+hints:
+  agent:
+    Least important issue: Bananas
+    Most important issue: Gold
+    Points per item: Gold 4, Iron 2, Bananas 1, Spices 3
+    Your role: 'agent: one of the two traders'
+  human:
+    Least important issue: Iron
+    Most important issue: Spices
+    Points per item: Gold 3, Iron 1, Bananas 2, Spices 4
+    Your role: 'human: one of the two traders'

@@ -1,0 +1,49 @@
+Name: Chores
+title: Sharing the Housework
+short_description: 'In this scenario, two flatmates negotiate who does each of five chores: one of them, both taking
+  turns, or paid help whose cost they split.'
+long_description: |-
+  **The Domain** There are five issues, one per chore. Each chore can be done by you, by your opponent, by both taking turns (*Shared*) or by paid help whose cost you split. The options *human* and *agent* mean you and your opponent.
+
+  **The Roles**
+
+  - **agent**: one of the two flatmates
+  - **human**: one of the two flatmates
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the chores keep piling up and the two of you keep arguing. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from a domain of the ANAC Automated Negotiation League (ANAC 2012, the housekeeping domain).*
+human_role: human
+role_descriptions:
+  agent: one of the two flatmates
+  human: one of the two flatmates
+n_issue_columns: 3
+issue_description:
+  Cooking: Who does the cooking
+  Dishes: Who does the dishes
+  Laundry: Who does the laundry
+  Cleaning: Who does the cleaning
+  Groceries: Who does the groceries
+issue_format: {}
+story: Chores
+hints:
+  agent:
+    Chore you hate most: Dishes
+    Chore you mind least: Laundry
+    Least important issue: Groceries
+    Most important issue: Dishes
+    Paying for help: a last resort
+    Your ideal deal: 'Cooking: human; Dishes: human; Laundry: human; Cleaning: human; Groceries: human'
+    Your role: 'agent: one of the two flatmates'
+  human:
+    Chore you hate most: Groceries
+    Chore you mind least: Dishes
+    Least important issue: Dishes
+    Most important issue: Cooking
+    Paying for help: fine for chores you hate
+    Your ideal deal: 'Cooking: agent; Dishes: agent; Laundry: agent; Cleaning: agent; Groceries: agent'
+    Your role: 'human: one of the two flatmates'

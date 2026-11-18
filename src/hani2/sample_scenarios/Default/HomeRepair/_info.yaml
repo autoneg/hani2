@@ -1,0 +1,43 @@
+Name: HomeRepair
+title: Roof Repair Quote
+short_description: 'In this scenario, a homeowner and a contractor negotiate a roof repair: the price, the start,
+  the warranty and who clears up.'
+long_description: |-
+  **The Domain** There are four issues: the price of the job, when the work starts, how long the work is guaranteed and who removes the debris.
+
+  **The Roles**
+
+  - **Contractor**: the roofer who does the job
+  - **Homeowner**: the owner of the house
+
+  **Utility Function** Every option of every issue has a value for you, and some issues matter more to you than others. You can see your preferences in the *Preferences* pane, and the hints tell you your most and least important issues.
+
+  **Opponent Utility Function** Your opponent has their own values and priorities, which you do not know. Their role, described above, tells you which way they probably lean.
+
+  **Value on Disagreement (Reservation Value)** Without a deal the homeowner hires another contractor and the contractor takes other jobs. Your reservation value is the utility you get in that case; your opponent has one too, which you do not know.
+
+  *Adapted from the MBA negotiation cases of the PieArena benchmark (2026). (the service-quote case).*
+human_role: Homeowner
+role_descriptions:
+  Contractor: the roofer who does the job
+  Homeowner: the owner of the house
+n_issue_columns: 2
+issue_description:
+  Price: Total price of the job
+  Start: When the work starts
+  Warranty: How long the contractor guarantees the work
+  Cleanup: Who removes the old roofing and debris
+issue_format:
+  Price: ${:,}
+story: HomeRepair
+hints:
+  Contractor:
+    Least important issue: Cleanup
+    Most important issue: Price
+    Your ideal deal: 'Price: $6,500; Start: This week; Warranty: No warranty; Cleanup: Homeowner clears up'
+    Your role: 'Contractor: the roofer who does the job'
+  Homeowner:
+    Least important issue: Cleanup
+    Most important issue: Price
+    Your ideal deal: 'Price: $4,000; Start: This week; Warranty: 2 years; Cleanup: Contractor clears up'
+    Your role: 'Homeowner: the owner of the house'

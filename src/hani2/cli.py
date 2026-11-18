@@ -19,10 +19,12 @@ experiment_app = typer.Typer(help="Create and inspect experiments (self-containe
 users_app = typer.Typer(help="Manage user accounts.")
 replay_app = typer.Typer(help="Explore, replay and evaluate recorded negotiations (.hrec files).")
 tools_app = typer.Typer(help="List, locate and create tools.")
+scenario_app = typer.Typer(help="Write scenarios by hand: start from a template, check a folder.")
 app.add_typer(experiment_app, name="experiment")
 app.add_typer(users_app, name="users")
 app.add_typer(replay_app, name="replay")
 app.add_typer(tools_app, name="tools")
+app.add_typer(scenario_app, name="scenario")
 
 
 def _open_when_ready(url: str) -> None:
@@ -256,7 +258,7 @@ def generate(
     user_reserved_max: Annotated[float, typer.Option()] = 0.10,
     agent_reserved_max: Annotated[float, typer.Option()] = 0.20,
     max_tries: Annotated[int, typer.Option()] = 60,
-    seed: Annotated[int, typer.Option()] = 0,
+    seed: Annotated[int, typer.Option(help="The same seed, type and slot always give the same scenario.")] = 0,
     force: Annotated[bool, typer.Option("--force")] = False,
     scenario_set: Annotated[Optional[str], typer.Option("--set", help="Generate the types of this scenario set (default: the active set).")] = None,
 ):
@@ -303,6 +305,92 @@ def sets(
             else:
                 title = "MISSING: no generator or folder with this name"
             typer.echo(f"  {t:16s} {title}")
+
+
+@scenario_app.command("new")
+def scenario_new(
+    type_: Annotated[str, typer.Argument(metavar="TYPE", help="Scenario type to start from (see hani2 sets).")],
+    dest: Annotated[Path, typer.Argument(help="Folder to write (for a category: <scenarios>/<Name>/<scenario>).")],
+    generate: Annotated[bool, typer.Option("--generate", help="Write a fresh draw of the type's generator "
+                                           "instead of its template.")] = False,
+    seed: Annotated[int, typer.Option(help="Seed of the draw (with --generate).")] = 0,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite DEST.")] = False,
+):
+    """Write a scenario of TYPE as YAML files to edit by hand."""
+    from hani2.config import DEFAULT_SCENARIOS
+    from hani2.scenario_store import save_scenario
+    from hani2.scenarios import registry
+
+    registry.load_plugins()
+    dest = dest.expanduser()
+    if dest.exists() and any(dest.iterdir()) and not force:
+        typer.echo(f"{dest} exists and is not empty (use --force to overwrite)")
+        raise typer.Exit(code=1)
+    t = registry.get(type_)
+    template = t.story.folder if t and t.story and t.story.folder else DEFAULT_SCENARIOS / type_
+    if not generate and template.is_dir():
+        shutil.copytree(template, dest, dirs_exist_ok=True)
+        typer.echo(f"Copied the {type_} template to {dest}")
+    elif t is not None:
+        from hani2.make_scenarios import (DEFAULT_MAX_OPPOSITION, DEFAULT_MAX_TRIES, DEFAULT_MIN_OPPOSITION,
+                                          make_in_band)
+
+        try:
+            s, opp, _ = make_in_band(type_, 0, DEFAULT_MIN_OPPOSITION, DEFAULT_MAX_OPPOSITION, DEFAULT_MAX_TRIES,
+                                     seed=seed)
+        except RuntimeError:  # no draw in the band: take any
+            s, opp, _ = make_in_band(type_, 0, 0.0, 10.0, 1, seed=seed)
+        save_scenario(s, dest, info_name="_info.yaml")
+        typer.echo(f"Wrote a {type_} scenario (seed {seed}, opposition {opp:.2f}) to {dest}")
+    else:
+        typer.echo(f"Unknown scenario type {type_!r}. Available: {', '.join(registry.names())}")
+        raise typer.Exit(code=2)
+    typer.echo("Edit the YAML files, then run: hani2 scenario check " + str(dest))
+
+
+@scenario_app.command("check")
+def scenario_check(
+    paths: Annotated[list[Path], typer.Argument(help="Scenario folders, categories or whole scenario directories.")],
+    fill_hints: Annotated[bool, typer.Option("--fill-hints", help="Add the computed hints (most and least "
+                                             "important issue, ideal deal) that are missing and save.")] = False,
+):
+    """Check that scenario folders load, can be shown and save back without loss."""
+    from hani2 import scenario_store as store
+    from hani2.make_scenarios import scenario_opposition
+    from hani2.scenarios import registry
+    from hani2.scenarios.story import fill_hints as _fill
+
+    registry.load_plugins()
+    n_err = n = 0
+    for root in paths:
+        folders = store.scenario_folders(root)
+        if not folders:
+            typer.echo(f"{root}: no scenario folders found")
+            n_err += 1
+        for f in folders:
+            n += 1
+            s, errors, warnings = store.check_scenario(f)
+            if s is not None and fill_hints and not errors:
+                _fill(s)
+                info_name = next((x for x in store.INFO_FILES if (f / x).exists()), "_info.yaml")
+                store.write_info(s.info, f / info_name)
+                s, errors, warnings = store.check_scenario(f)
+            extra = ""
+            if s is not None and not errors:
+                try:
+                    extra = f" roles={','.join(store.role_names(s))} outcomes={s.outcome_space.cardinality}" \
+                            f" opposition={scenario_opposition(s):.2f}"
+                except Exception:  # noqa: BLE001
+                    pass
+            typer.echo(f"{'ERROR' if errors else 'ok   '} {f}{extra}")
+            for e in errors:
+                typer.echo(f"    error: {e}")
+            for w in warnings:
+                typer.echo(f"    warning: {w}")
+            n_err += bool(errors)
+    typer.echo(f"{n} scenario(s), {n_err} with errors")
+    if n_err:
+        raise typer.Exit(code=1)
 
 
 @experiment_app.command("create")

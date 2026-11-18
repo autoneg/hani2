@@ -1,0 +1,36 @@
+issues:
+- name: Pay raise
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 2
+  - 4
+  - 6
+  - 8
+- name: Extra vacation
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 2
+  - 4
+- name: Patrols
+  type: CategoricalIssue
+  values:
+  - Unchanged
+  - Two-officer patrols at night
+  - Two-officer patrols always
+- name: New sergeants
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 4
+  - 8
+- name: Review board
+  type: CategoricalIssue
+  values:
+  - Keep the civilian review board
+  - Add officers to the board
+  - Disband the board
+name: LaborContract
+path: null
+type: EnumerableCartesianOutcomeSpace

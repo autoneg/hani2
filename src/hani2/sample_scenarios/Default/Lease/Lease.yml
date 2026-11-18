@@ -1,0 +1,36 @@
+issues:
+- name: Rent
+  type: DiscreteCardinalIssue
+  values:
+  - 2800
+  - 3000
+  - 3200
+  - 3400
+  - 3600
+- name: Deposit
+  type: DiscreteCardinalIssue
+  values:
+  - 0
+  - 1000
+  - 2000
+  - 3000
+  - 4000
+- name: Move-in date
+  type: CategoricalIssue
+  values:
+  - 1 May
+  - 15 May
+  - 1 June
+  - 15 June
+  - 1 July
+- name: Lease length
+  type: CategoricalIssue
+  values:
+  - Month to month
+  - 6 months
+  - 1 year
+  - 18 months
+  - 2 years
+name: Lease
+path: null
+type: EnumerableCartesianOutcomeSpace

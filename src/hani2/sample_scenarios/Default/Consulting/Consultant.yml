@@ -1,0 +1,37 @@
+name: Consultant
+reserved_outcome: null
+reserved_value: 0.1333
+stability: 2047
+type: LinearAdditiveUtilityFunction
+values:
+- mapping:
+    25000: 0.0
+    30000: 0.2318
+    35000: 0.4814
+    40000: 0.7383
+    45000: 1.0
+  type: TableFun
+- mapping:
+    0: 0.0
+    5000: 0.1026
+    10000: 0.3203
+    15000: 0.6234
+    20000: 1.0
+  type: TableFun
+- mapping:
+    Business class: 1.0
+    Economy flights: 0.1745
+    Premium economy: 0.525
+    Train or bus only: 0.0
+  type: TableFun
+- mapping:
+    At the end: 0.1717
+    Every two weeks: 0.466
+    Monthly: 1.0
+    Weekly: 0.0
+  type: TableFun
+weights:
+- 0.418
+- 0.314
+- 0.195
+- 0.073

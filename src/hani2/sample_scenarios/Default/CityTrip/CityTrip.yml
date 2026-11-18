@@ -1,0 +1,35 @@
+issues:
+- name: Activity
+  type: CategoricalIssue
+  values:
+  - Museums
+  - Shopping
+  - Canal tour
+  - Live music
+- name: Day
+  type: CategoricalIssue
+  values:
+  - Friday
+  - Saturday
+  - Sunday
+- name: Length
+  type: CategoricalIssue
+  values:
+  - One day
+  - Two days
+  - Three days
+- name: Transport
+  type: CategoricalIssue
+  values:
+  - Public transport
+  - Rented bikes
+  - Car
+- name: Food
+  type: CategoricalIssue
+  values:
+  - Street food
+  - Local restaurants
+  - Fine dining
+name: CityTrip
+path: null
+type: EnumerableCartesianOutcomeSpace
