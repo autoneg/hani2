@@ -235,9 +235,34 @@ def test_timing_examples():
             {"t": 14.5, "k": "act", "actor": "human", "type": "offer", "offer": ["B"]}]
     rec = _example(extra=[{"t": 10, "k": "out", "m": "state", "seq": 1, "full": state}, *acts])
     assert evaluate_recording(rec, ["timing"])["details"]["timing"]["decision_times"] == [2, 4.5]
-    # without screen states (as documented): every decision but the last is 0
+    # without a browser: the session's turn events (a message does not start a new turn)
     acts = [{"t": t, "k": "act", "actor": "human", "type": "offer", "offer": ["B"]} for t in (5, 9, 14)]
-    assert evaluate_recording(_example(extra=acts), ["timing"])["details"]["timing"]["decision_times"] == [0, 0, 5]
+    turns = [{"t": t, "k": "turn"} for t in (1, 7, 12)]
+    msg = [{"t": 8, "k": "act", "actor": "human", "type": "text", "text": "hi"}]
+    rec = _example(extra=sorted(acts + turns + msg, key=lambda e: e["t"]))
+    assert evaluate_recording(rec, ["timing"])["details"]["timing"]["decision_times"] == [4, 1, 2, 2]
+    # older recordings with neither: from the start or the previous move, never 0 by construction
+    rec = _example(extra=sorted(acts + msg, key=lambda e: e["t"]))
+    assert evaluate_recording(rec, ["timing"])["details"]["timing"]["decision_times"] == [5, 3, 4, 5]
+
+
+def test_headless_sessions_record_turns(hani2_home):
+    import time
+
+    from hani2.testing import make_session
+
+    s = make_session(assistant_settings={"mode": "off"})
+    s.start()
+    for _ in range(2):
+        s.wait_for_turn()
+        time.sleep(0.3)
+        s.send_counter()
+    s.wait_for_turn()
+    time.sleep(0.3)
+    s.end()
+    assert s.wait(lambda: Recording.load(s.recorder.path).of("trace"), 10)
+    times = evaluate_recording(Recording.load(s.recorder.path), ["timing"])["details"]["timing"]["decision_times"]
+    assert len(times) == 3 and all(0.25 < t < 2 for t in times), times
 
 
 def test_system_use_example():

@@ -1079,11 +1079,11 @@ Actions of the Assistant or the autopilot are not decisions of the Human and are
 **Example.** The turn starts at $10$ s; the Human sends a message at $12$ s and then offers at
 $14.5$ s. The two decisions take $2$ s and $4.5$ s (both from the same turn start).
 
-**Caveat: recordings without a browser.** They have no screen states. The turn starts are then the
-start of the negotiation and the times of the Human's actions $a_1, \dots, a_{n-1}$; because a start
-at the action's own time counts ($s \leq t_a$), every decision but the last is 0 s and the last is
-$t_{a_n} - t_{a_{n-1}}$. Use the decision times (and `click_through`, which uses their median) only
-for recordings made with a browser.
+**Recordings without a browser.** They have no screen states; the turn starts are then the `turn`
+events the session writes when the Opponent has answered and it is the Human's turn again. Older
+recordings have neither: a turn then starts with the negotiation or with the Human's previous move
+(an offer, acceptance or ending; messages do not end a turn), so the Opponent's thinking time is
+counted as part of the decision.
 
 #### `decision_time_mean` — Decision time (s)
 

@@ -34,6 +34,8 @@ Every other line is an event with ``t`` (seconds since ``t0``) and ``k`` (kind):
 ``fn``   a function the Assistant called (``name``, ``args``, ``result``).
 ``scenario`` the scenario (issues, every ufun as a utility table, reserved
          values) — metrics are computed from the file alone.
+``turn``  the human's turn began (the opponent has answered; written by the session, so it
+         exists with and without a browser).
 ``start`` / ``trace`` / ``result`` / ``questionnaire`` / ``end``.
 ======== ===================================================================
 

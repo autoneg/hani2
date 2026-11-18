@@ -335,6 +335,10 @@ class SessionRecorder:
     # ------------------------------------------------------------------ #
     # What happened                                                       #
     # ------------------------------------------------------------------ #
+    def turn(self) -> None:
+        """The human's turn began (the opponent has answered)."""
+        self._write("turn")
+
     def event(self, event_type: str, **fields: Any) -> None:
         self._write("ev", type=event_type, **{k: _clean(v) for k, v in fields.items() if v is not None})
 

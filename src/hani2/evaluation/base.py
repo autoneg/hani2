@@ -355,8 +355,9 @@ class EvalContext:
 
     @cached_property
     def turn_starts(self) -> list[float]:
-        """Times the participant's turn began (from the screen states when a
-        browser was connected, else the opponent's offers)."""
+        """Times the participant's turn began: from the screen states when a
+        browser was connected, else from the session's ``turn`` events (empty
+        for older recordings without a browser)."""
         out, prev = [], False
         for t, _, st in self.rec.states():
             neg = (st or {}).get("negotiation") or {}
@@ -364,7 +365,7 @@ class EvalContext:
             if mine and not prev:
                 out.append(t)
             prev = mine
-        return out
+        return out or [float(e["t"]) for e in self.rec.of("turn")]
 
 
 def _key(o: Any) -> tuple:

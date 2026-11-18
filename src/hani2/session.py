@@ -1050,6 +1050,8 @@ class NegotiationSession:
     def _on_human_turn(self) -> None:
         with self.lock:
             self._init_draft()
+        if self.recorder is not None:
+            self.recorder.turn()
         self._tools_hook("action_requested")
         self.push_state()
         self._agent_event("action_requested")
