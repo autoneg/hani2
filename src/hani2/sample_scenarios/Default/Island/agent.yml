@@ -1,45 +1,47 @@
-name: alice
-reserved_value: 0.0
+name: agent
+reserved_outcome: null
+reserved_value: 0.13489971384075392
+stability: 2047
 type: LinearAdditiveUtilityFunction
 values:
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 1
+    human: 0
   type: TableFun
 weights:
-- 13
-- 22
-- 17
-- 6
-- 5
-- 20
-- 7
-- 10
+- 0.24390243902439024
+- 0.09756097560975609
+- 0.24390243902439024
+- 0.048780487804878044
+- 0.048780487804878044
+- 0.19512195121951217
+- 0.09756097560975609
+- 0.024390243902439022

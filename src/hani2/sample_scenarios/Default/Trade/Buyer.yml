@@ -1,4 +1,4 @@
-name: buyer
+name: Buyer
 reserved_value: 0.0
 type: LinearAdditiveUtilityFunction
 values:
@@ -22,4 +22,4 @@ values:
   type: TableFun
 weights:
 - 0.25
-- 0.752
+- 0.75

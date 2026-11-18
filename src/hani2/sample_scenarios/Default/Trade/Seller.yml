@@ -1,4 +1,4 @@
-name: seller
+name: Seller
 reserved_value: 0.0
 type: LinearAdditiveUtilityFunction
 values:

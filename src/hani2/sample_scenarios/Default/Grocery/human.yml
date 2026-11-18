@@ -1,5 +1,7 @@
-name: bob
-reserved_value: 0.0
+name: human
+reserved_outcome: null
+reserved_value: 0.14099165360999547
+stability: 2047
 type: LinearAdditiveUtilityFunction
 values:
 - slope: 0.25
@@ -11,7 +13,7 @@ values:
 - slope: 0.25
   type: LinearFun
 weights:
-- 0.16
-- 0.04
-- 0.48
-- 0.32
+- 0.17500000000000002
+- 0.47500000000000003
+- 0.25
+- 0.1

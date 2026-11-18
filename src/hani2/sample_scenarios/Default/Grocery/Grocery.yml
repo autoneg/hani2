@@ -1,23 +1,24 @@
 issues:
-- name: Apple
+- name: "apple \U0001F34E"
   type: ContiguousIssue
   values:
   - 0
   - 4
-- name: Banana
+- name: "banana \U0001F34C"
   type: ContiguousIssue
   values:
   - 0
   - 4
-- name: Orange
+- name: "orange \U0001F7E0"
   type: ContiguousIssue
   values:
   - 0
   - 4
-- name: Watermelon
+- name: "watermelon \U0001F349"
   type: ContiguousIssue
   values:
   - 0
   - 4
 name: Grocery
+path: null
 type: EnumerableCartesianOutcomeSpace

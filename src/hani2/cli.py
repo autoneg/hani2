@@ -383,6 +383,9 @@ def sets(
     raw, _ = scenario_sets.raw_sets()
     set_lower = {k.lower() for k in raw}
     active = scenario_sets.active_set()
+    strict = store.strict_scenarios()
+    if strict:
+        typer.echo("Strict scenarios are on: only saved scenarios are served.")
     folders = set(store.available_types())
     for set_name, types in all_sets.items():
         if name and set_name.lower() != name.lower():
@@ -401,7 +404,9 @@ def sets(
                 title = "saved scenarios"
             else:
                 title = "MISSING: no generator or folder with this name"
-            typer.echo(f"  {t:16s} {title}")
+            n_saved = len(store.list_scenarios(t))
+            saved = f"{n_saved} saved" if n_saved else "no saved scenarios" + (" (STRICT: cannot serve)" if strict else "")
+            typer.echo(f"  {t:16s} {title}  [{saved}]")
 
 
 @scenario_app.command("new")

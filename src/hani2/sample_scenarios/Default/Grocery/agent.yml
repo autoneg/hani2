@@ -1,21 +1,23 @@
-name: alice
-reserved_value: 0.0
+name: agent
+reserved_outcome: null
+reserved_value: 0.1646324196766486
+stability: 2047
 type: LinearAdditiveUtilityFunction
 values:
-- slope: -0.25
-  bias: 1.0
+- bias: 1.0
+  slope: -0.25
   type: AffineFun
-- slope: -0.25
-  bias: 1.0
+- bias: 1.0
+  slope: -0.25
   type: AffineFun
-- slope: -0.25
-  bias: 1.0
+- bias: 1.0
+  slope: -0.25
   type: AffineFun
-- slope: -0.25
-  bias: 1.0
+- bias: 1.0
+  slope: -0.25
   type: AffineFun
 weights:
-- 0.48
-- 0.32
-- 0.16
-- 0.04
+- 0.2112676056338028
+- 0.323943661971831
+- 0.23943661971830985
+- 0.22535211267605634

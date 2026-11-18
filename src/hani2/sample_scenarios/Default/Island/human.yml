@@ -1,45 +1,47 @@
-name: bob
-reserved_value: 0.0
+name: human
+reserved_outcome: null
+reserved_value: 0.10340038404382408
+stability: 2047
 type: LinearAdditiveUtilityFunction
 values:
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 - mapping:
-    alice: 1.0
-    bob: 0.0
+    agent: 0
+    human: 1
   type: TableFun
 weights:
-- 5
-- 20
-- 7
-- 13
-- 10
-- 22
-- 6
-- 17
+- 0.14606741573033707
+- 0.06741573033707865
+- 0.21348314606741572
+- 0.16853932584269662
+- 0.11235955056179775
+- 0.056179775280898875
+- 0.0898876404494382
+- 0.14606741573033707

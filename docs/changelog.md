@@ -217,6 +217,15 @@
 - **Reproducible pools**: `hani2 generate --seed` now fixes every scenario (the same seed, type and
   slot always give the same scenario). Scenarios are saved with one info file and no stale role
   files or load paths, so saving a loaded scenario writes the same files.
+- **Strict scenarios** (opt in per project or study: `strict_scenarios: true` in `project.yaml` or
+  `study.yaml`, or *Strict scenarios* under *Projects* in the console): only saved scenarios are
+  served; a missing pool, a missing named scenario or a broken scenario folder is an error instead of
+  a generated scenario or a bundled sample. `hani2 sets` shows how many saved scenarios each type has
+  and flags the types a strict study cannot serve.
+- **Sample scenarios fixed**: the Trade, Island and Grocery samples now match their generators (role
+  names `Buyer`/`Seller` and `agent`/`human`, the generators' issue names, normalized utilities, issue
+  descriptions that show), and their `display.py` files use the built-in displays (the Grocery one
+  printed every offer to the console and used an undefined name).
 - **Your own scenario types**: write a `Story` (issues, roles, texts and one function per role that
   draws its preferences) or any `maker(index)`, and register it from `<settings>/scenario_types/*.py`
   or `hani2 --scenario-types file.py`. `hani2 --scenarios FOLDER` serves saved scenarios from a folder.

@@ -61,6 +61,22 @@ With *Use saved scenario pools* off, HANI2 ignores the pool and generates a fres
 
 If a pool scenario fails to load, HANI2 generates one instead when the type has a generator (the admin setting `generate_on_failure`, on by default). A type with no pool and no generator falls back to the bundled sample of the same name, if there is one.
 
+### Strict scenarios
+
+In a competition or a study whose results are compared, every participant should meet one of the same saved scenarios. Turn on `strict_scenarios` for the project (in `project.yaml`, for all its studies) or for one study (in `study.yaml`):
+
+```yaml title="projects/ANAC2027/project.yaml"
+defaults:
+  strict_scenarios: true
+```
+
+In a strict study HANI2 serves saved scenarios only:
+
+- the pool is always used, whatever the *Use saved scenario pools* setting says;
+- a type with no saved scenarios, a named scenario that does not exist and a scenario folder that cannot be loaded are errors: the admin and the participant see "Could not load a scenario: strict scenarios: …" and nothing is served. HANI2 never falls back to a generated scenario or a bundled sample.
+
+It is off by default. A study can turn it off again for itself (`strict_scenarios: false` in `study.yaml`, for example in a practice study), and admins set it in the console under *Projects* (*Strict scenarios*: inherit, yes or no). It is a project and study setting only: the per-session admin settings cannot switch it off. Before you open a strict study, run `hani2 sets` (inside the study, `HANI2_STUDY=project/study hani2 sets`): it prints how many saved scenarios each type has and flags the types a strict study cannot serve. `hani2 scenario check` then checks that each of them loads.
+
 The [Prolific](prolific.md) study has its own rules for the type and slot.
 
 ## Scenario sets
@@ -157,7 +173,7 @@ type: EnumerableCartesianOutcomeSpace
 ```
 
 ```yaml title="Buyer.yml"
-name: buyer
+name: Buyer
 reserved_value: 0.0
 type: LinearAdditiveUtilityFunction
 values:
@@ -551,6 +567,8 @@ hani2 generate --set ANAC2027 -n 30 --seed 2027 --base ./anac2027-pool
 hani2 scenario check ./anac2027-pool        # loads, shows and round-trips every slot
 hani2 --scenarios ./anac2027-pool --scenario-set ANAC2027
 ```
+
+and turn on [strict scenarios](#strict-scenarios) for the project, so a missing or broken slot stops the study instead of quietly serving a generated scenario.
 
 The saved folder is the reference: keep it (or ship it to the participants) rather than relying on the seed, which gives the same pool only with the same versions of hani2, negmas and Python. Without `--seed` the seed is `0`, so two runs give the same pool; pass another seed for a different one. Hand-written scenarios can sit next to the generated categories in the same folder. HANI2 also saves the scenario of every negotiation next to its results (`<user>/scenarios/<negotiation id>/`) in the same files as the pool slot, so you can check later which scenario each negotiation used.
 

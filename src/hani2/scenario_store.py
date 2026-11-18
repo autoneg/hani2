@@ -195,6 +195,35 @@ def write_info(info: dict, path: Path | str) -> Path:
     return path
 
 
+class StrictScenarioError(ValueError):
+    """A saved scenario is required (strict scenarios) but none can be served."""
+
+
+def strict_scenarios(ref: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study serves saved scenarios only: the
+    ``strict_scenarios`` setting of its ``study.yaml``, else of its project's
+    ``project.yaml``; off by default."""
+    from hani2 import projects
+
+    kw = {} if ref is None else {"ref": ref}
+    return bool(projects.setting("strict_scenarios", False, cast=bool, **kw))
+
+
+def pool_problems(types: list[str]) -> dict[str, str]:
+    """``{type: problem}`` for the types strict scenarios could not serve (no saved
+    scenarios, or saved scenarios that do not load)."""
+    out: dict[str, str] = {}
+    for t in types:
+        pool = _pool(t)
+        if not pool:
+            out[t] = f"no saved scenarios in {base_dir() / t}"
+            continue
+        bad = [p.name for p in pool if _load_dir(p) is None]
+        if bad:
+            out[t] = f"{len(bad)} of {len(pool)} saved scenarios do not load: {', '.join(bad[:5])}"
+    return out
+
+
 def save_scenario(scenario: Scenario, folder: Path | str, info_name: str | None = None) -> Path:
     """Write ``scenario`` to ``folder`` in the on-disk format (``<Type>.yml``, one
     file per role, one info file) so that :func:`load_scenario` gives it back
@@ -239,15 +268,28 @@ def load_scenario(
     load_existing: bool = True,
     generate_on_failure: bool = True,
     name: str | None = None,
+    strict: bool = False,
 ) -> tuple[Scenario, dict[str, Any], str | None]:
     """Return ``(scenario, basic_info, scenario_dir)`` for slot ``index`` of ``type_``.
 
     With ``load_existing`` the pool is used (index wraps around); otherwise —
     or when the pool is empty — a scenario is generated on the fly.
+
+    ``strict`` (the project/study setting ``strict_scenarios``) serves saved
+    scenarios only, so every participant meets one of a fixed set: the pool is
+    always used, and a missing pool, a missing named scenario or a folder that
+    cannot be loaded raises :class:`StrictScenarioError` instead of falling back
+    to a generated scenario or a bundled sample.
     """
+    if strict:
+        load_existing, generate_on_failure = True, False
     pool = _pool(type_) if load_existing else []
+    if strict and not pool:
+        raise StrictScenarioError(f"strict scenarios: no saved scenarios of type {type_!r} in {base_dir() / type_}")
     if name:
         named = [p for p in pool if p.name == name]
+        if strict and not named:
+            raise StrictScenarioError(f"strict scenarios: no saved scenario {name!r} of type {type_!r}")
         pool = named or pool
     if pool:
         path = pool[0] if name and pool[0].name == name else pool[index % len(pool)]
@@ -255,6 +297,8 @@ def load_scenario(
         if s is not None:
             return s, dict(index=index, load_index=index % len(pool), load_path=str(path),
                            scenario_name=path.name, generated=False, scenario_type=type_), str(path)
+        if strict:
+            raise StrictScenarioError(f"strict scenarios: cannot load the saved scenario {path}")
         if not generate_on_failure or type_ not in MAKER_MAP:
             raise ValueError(f"Cannot load scenario from {path}")
     registry.load_plugins()

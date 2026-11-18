@@ -716,6 +716,7 @@ class NegotiationSession:
                     load_existing=bool(plan.get("load_existing", self.admin_prefs.get("load_existing", True))),
                     generate_on_failure=bool(self.admin_prefs.get("generate_on_failure", True)),
                     name=plan.get("name"),
+                    strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
                 )
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
