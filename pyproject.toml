@@ -69,3 +69,8 @@ filterwarnings = ["ignore::DeprecationWarning", "ignore::SyntaxWarning"]
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+
+[tool.uv.sources]
+# the HAN league agents (the `han` extra) track GitHub main, where finalists and
+# winners are flagged as they are announced; `pip install hani2[han]` uses PyPI
+han-agents = { git = "https://github.com/autoneg/han-agents", branch = "main" }

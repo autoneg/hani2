@@ -1124,15 +1124,11 @@ wheels = [
 [[package]]
 name = "han-agents"
 version = "0.0.2"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/autoneg/han-agents?branch=main#745ef8868c06d891f661baf8bbb7284820f96653" }
 dependencies = [
     { name = "negmas" },
     { name = "negmas-llm" },
     { name = "torch" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/df/3b/4e66dd5db4a896e4c5e01188522805400bceab7b295f256e7e19c94b734e/han_agents-0.0.2.tar.gz", hash = "sha256:b8d40c335d92f26afc2cbaca3775cdfbef2afc20fa9c12e4b5ca7eea950b61f7", size = 591720, upload-time = "2026-07-19T04:00:28.383Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/41/ee489dda0cee072c2cf4a8a842874cca625b87eb03f1212753bd252a2cd6/han_agents-0.0.2-py3-none-any.whl", hash = "sha256:c76168aed8f1dddc173ac1b3b16594537bdfa0a7de4df107d3c8397d7f8e3cd3", size = 618956, upload-time = "2026-07-19T04:00:26.966Z" },
 ]
 
 [[package]]
@@ -1174,7 +1170,7 @@ han = [
 requires-dist = [
     { name = "attrs", specifier = ">=23.0" },
     { name = "fastapi", specifier = ">=0.110" },
-    { name = "han-agents", marker = "extra == 'han'", specifier = ">=0.0.2" },
+    { name = "han-agents", marker = "extra == 'han'", git = "https://github.com/autoneg/han-agents?branch=main" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "itsdangerous", specifier = ">=2.1" },
     { name = "litellm", specifier = ">=1.0.0" },
@@ -2421,15 +2417,11 @@ wheels = [
 [[package]]
 name = "negmas-llm"
 version = "0.4.3"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/autoneg/negmas-llm?branch=main#67f940cfda4eee904e6b905b3cbdecca720b811c" }
 dependencies = [
     { name = "litellm" },
     { name = "negmas" },
     { name = "rich" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/74/a4/b5168e9c43a6f9f0c430c8e022a22f75de267450d5ed1be90393e1664c31/negmas_llm-0.4.3.tar.gz", hash = "sha256:5fe0824eacfe884a483a9bf32f328cf033bd13d40321f1c8b82e1a28dea1f8f5", size = 53558, upload-time = "2026-05-14T07:10:01.458Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/be/add9901dd8d8f0e40831c53933e06a3d9848d1aed74d0a117ad41c1ece66/negmas_llm-0.4.3-py3-none-any.whl", hash = "sha256:377ec9caea2be6330d217361da2a8c5b4ddd4793684e87f6897cf4c95d886b1c", size = 56786, upload-time = "2026-05-14T07:09:59.871Z" },
 ]
 
 [[package]]
