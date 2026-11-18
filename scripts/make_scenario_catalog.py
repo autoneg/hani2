@@ -55,6 +55,24 @@ for name, types in sets.items():
             roles = sorted(s.roles, key=lambda r: r != s.human_role)
             out.append(f"| [`{t}`](#{t.lower()}) | {s.title} | {', '.join(roles)} |")
     out.append("")
+
+
+def _parts(s):
+    """``(domain, no deal, source)`` of a story. A story read from a template folder keeps them in
+    its full ``long_description`` (domain, standard paragraphs, then an optional ``*source*`` line)."""
+    if s.base_info is None:
+        return s.long_description.strip(), s.disagreement, s.source
+    text = s.long_description.strip()
+    domain, _, rest = text.partition("\n\n**The Roles**")
+    if not rest:
+        return text, "", ""
+    _, _, tail = rest.partition("**Value on Disagreement (Reservation Value)** ")
+    no_deal = tail.split(" Your reservation value is", 1)[0].strip()
+    last = rest.rstrip().rsplit("\n\n", 1)[-1].strip()
+    source = last[1:-1] if last.startswith("*") and last.endswith("*") and not last.startswith("**") else ""
+    return domain.strip(), no_deal, source
+
+
 out += ["## The scenarios", ""]
 seen = []
 for name, types in sets.items():
@@ -68,7 +86,8 @@ for name, types in sets.items():
             out += [BUILTIN[t], "", "See the generator's own description in the *Scenario Info* tool.", ""]
             continue
         s = st.story
-        out += [f"**{s.title}.** {s.short_description}", "", s.long_description.strip(), ""]
+        domain, no_deal, source = _parts(s)
+        out += [f"**{s.title}.** {s.short_description}", "", domain, ""]
         out += ["| Role | Description |", "|------|-------------|"]
         for r in sorted(s.roles):
             mark = " (participant by default)" if r == s.human_role else ""
@@ -82,9 +101,11 @@ for name, types in sets.items():
                 except Exception:
                     vals.append(str(v))
             out.append(f"| {i.name} | {', '.join(vals)} | {i.description} |")
-        out += ["", f"*No deal:* {s.disagreement}", ""]
-        if s.source:
-            out += [f"*Source:* {s.source}", ""]
+        if no_deal:
+            out += ["", f"*No deal:* {no_deal}"]
+        out += [""]
+        if source:
+            out += [f"*Source:* {source}", ""]
 target = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "docs" / "guide" / "scenario-sets.md"
 target.write_text("\n".join(out).rstrip() + "\n")
 print(f"wrote {target}")
