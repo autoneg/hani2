@@ -32,6 +32,8 @@ app.add_typer(scenario_app, name="scenario")
 groups_app = typer.Typer(help="List opponent and Assistant groups (named pools).")
 app.add_typer(groups_app, name="groups")
 app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
+app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
+app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
 
 
 def _open_when_ready(url: str) -> None:
@@ -246,6 +248,7 @@ def main(
     page: Annotated[str, typer.Option(help="Page to open: app, play or admin.")] = "app",
     verbose: Annotated[bool, typer.Option(help="Ask negotiators to print what they do.")] = False,
     dev: Annotated[bool, typer.Option(help="Auto-reload the server when Python files change.")] = False,
+    models: Annotated[Optional[str], typer.Option("--models", help="Language models to try in order for every session, as provider:model (or connection:model) entries, e.g. anthropic:claude-sonnet-5-5,ollama:qwen3:4b. Replaces the admin's global model chain; a study's or project's own chain still wins (see `hani2 models`).")] = None,
     version: Annotated[bool, typer.Option("--version", help="Show the version and exit.")] = False,
 ):
     """Start the HANI2 server (app, playground, admin and API on one port)."""
@@ -255,7 +258,7 @@ def main(
     _refuse_confusing(
         cli=dict(assistant=assistant, support_agent=support_agent, assistants=assistants, no_assistant=no_assistant,
                  no_support_agent=no_support_agent, study=study, experiment=experiment, opponents=opponents,
-                 agents=agents, scenario_set=scenario_set, set_alias=set_alias),
+                 agents=agents, scenario_set=scenario_set, set_alias=set_alias, models=models),
         # the environment is checked when the server is started (the server checks it again)
         env=None if ctx.invoked_subcommand is not None else _planned_env(
             experiment=experiment, study=study, opponents=opponents or agents, assistants=assistants,
@@ -298,6 +301,8 @@ def main(
         os.environ["HANI2_ASSISTANTS"] = _check_assistants(assistants)
     if tools:
         os.environ["HANI2_TOOLS"] = _check_tools(tools)
+    if models:
+        os.environ["HANI2_MODELS"] = models.strip()
     if ctx.invoked_subcommand is not None:
         return
     if verbose:

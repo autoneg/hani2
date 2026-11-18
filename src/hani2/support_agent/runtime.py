@@ -666,43 +666,75 @@ class SupportAgent:
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             if not force_action:
-                self.post(f"⚠️ Assistant error: {e}")
+                from hani2.connections import redact
+
+                self.post(f"⚠️ Assistant error: {redact(e)}")
             return executed
         finally:
             self._busy.release()
             self._set_busy_state()
 
-    def _complete(self, tools: list[dict], force_action: bool = False) -> dict:
-        """One LLM completion via litellm; returns ``{"role", "content", "tool_calls"?}``."""
-        import os
+    def model(self):
+        """The language model this Assistant uses (a :class:`hani2.model_chain.Resolution`): the
+        ``assistant`` chain's first available entry, chosen once per session."""
+        from hani2 import model_chain
 
-        import litellm
-        from negmas_llm.common import apply_max_tokens, litellm_model_string
+        models = model_chain.models_of(self.session_state)
+        return models.get("assistant") if models is not None else model_chain.resolve("assistant")
+
+    def _own_model(self, res):
+        """When no model chain is set (``res`` comes from the old settings files) but this
+        Assistant's own settings (a group file, ``make_session(assistant_settings=...)``) name a
+        different provider/model, that model (one entry, unchecked)."""
+        from hani2 import model_chain
+
+        s = self.settings or {}
+        if not res.implicit or not (s.get("provider") or s.get("model")):
+            return None
+        if res.entry is not None and str(s.get("model")) == res.model and \
+                str(s.get("provider") or "").lower() in (res.entry.provider, res.provider):
+            return None
+        entries = model_chain.legacy_entries(s, "assistant", "assistant")
+        if not entries:
+            return None
+        return model_chain.resolve("assistant", chain=entries,
+                                   source=model_chain.Source("assistant settings", {}, implicit=True))
+
+    def _complete(self, tools: list[dict], force_action: bool = False) -> dict:
+        """One LLM completion via litellm; returns ``{"role", "content", "tool_calls"?}``.
+
+        The model comes from the ``assistant`` model chain (see :mod:`hani2.model_chain`); a hard
+        failure moves the session to the next available entry."""
+        from hani2 import model_chain
 
         s = self.settings
-        messages = flatten_tool_messages(self.messages) if str(s["provider"]).lower() == "ollama" else self.messages
-        kwargs: dict[str, Any] = {
-            "model": litellm_model_string(s["provider"], s["model"]),
-            "messages": messages,
-            "temperature": s.get("temperature", 0.3),
-        }
+        models = model_chain.models_of(self.session_state)
+        used: list = []
+
+        def _messages(res):
+            used[:] = [res]
+            return flatten_tool_messages(self.messages) if res.is_ollama else self.messages
+
+        extra: dict[str, Any] = {}
         if tools:
-            kwargs["tools"] = tools
-            kwargs["tool_choice"] = "required" if force_action else "auto"
-        apply_max_tokens(kwargs, s["provider"], s["model"], s.get("max_tokens"))
-        api_key = os.getenv(s.get("api_key_env", "") or "")
-        if api_key:
-            kwargs["api_key"] = api_key
-        if s.get("api_base"):
-            kwargs["api_base"] = s["api_base"]
+            extra["tools"] = tools
+            extra["tool_choice"] = "required" if force_action else "auto"
+        # the session's own settings may still tune the call (old keys; a chain entry's params win)
+        params = {k: s.get(k) for k in ("temperature", "max_tokens") if s.get(k) is not None}
         from hani2.recording.recorder import current_actor, llm_role
 
         with llm_role("autopilot" if current_actor() == "autopilot" else "support"):
-            response = litellm.completion(**kwargs)
+            res0 = models.get("assistant") if models is not None else model_chain.resolve("assistant")
+            own = self._own_model(res0)
+            if own is not None:  # this Assistant's own settings name a model and no chain is set
+                res0, models = own, None
+            params = {k: v for k, v in params.items() if k not in (res0.entry.params if res0.entry else {})}
+            response = model_chain.completion("assistant", _messages, models=models,
+                                              resolution=None if models is not None else res0, params=params, **extra)
         msg = response.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
         tool_calls = getattr(msg, "tool_calls", None)
-        if not tool_calls and str(s["provider"]).lower() == "ollama":
+        if not tool_calls and used and used[0].is_ollama:
             parsed = parse_text_tool_calls(out["content"])
             if parsed:
                 out["content"] = ""

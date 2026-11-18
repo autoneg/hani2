@@ -25,6 +25,9 @@ SETTINGS_KINDS: dict[str, tuple[str, Any]] = {
     "autopilot": ("autopilot_settings.json",
                   lambda: __import__("hani2.support_agent.autopilot", fromlist=["x"]).load_autopilot_settings()),
 }
+#: the model chains of a layer; "effective" is what each purpose uses there (hani2.model_chain)
+SETTINGS_KINDS["models"] = ("models.json",
+                            lambda: __import__("hani2.model_chain", fromlist=["x"]).effective_chains())
 SETTINGS_KINDS["support_agent"] = SETTINGS_KINDS["assistant"]  # old name of the kind
 TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt",
               "scenario_sets": "scenario_sets.yaml"}

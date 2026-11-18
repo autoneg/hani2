@@ -306,7 +306,14 @@ class NegotiationSession:
         self.assistant_choice: Any = None
         self.assistant_error: str | None = None
         ev.start_session_record(sid, user, mode, user_agent=user_agent)
+        from hani2.model_chain import SessionModels
+
+        #: the language models this session uses, one per purpose, chosen once (see hani2.model_chain)
+        self.models = SessionModels(self)
+        self.model_error: str | None = None
         self.support_agent = create_support_agent_for(self)
+        if self.support_agent is not None:
+            self.models.get("assistant")  # chosen at session start; a missing model shows a banner
         ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution()})
 
     # ------------------------------------------------------------------ #
@@ -991,6 +998,7 @@ class NegotiationSession:
             {"name": agent_name, "id": agent_name},
             practice=bool(self.ss.get("is_practice_round")),
             verbose=os.environ.get("HANI2_VERBOSE") == "1",
+            models=self.models,
         )
         from hani2.support_agent import autopilot as ap
 
@@ -1379,6 +1387,7 @@ class NegotiationSession:
             ufun=self.human_ufun,
             history=hist or None,
             current_offer=self.partner_offer(),
+            models=self.models,
         )
 
     def extract_offer_from_text(self) -> dict:
@@ -1994,6 +2003,7 @@ class NegotiationSession:
                 "autopilot": self._autopilot_state(),
                 "notice": self.notice,
                 "assistant_error": self.assistant_error,
+                "model_error": self.__dict__.get("model_error"),
                 "questionnaire": self.questionnaire,
                 "finish_url": self.finish_url,
                 "finish_text": self.finish_text,

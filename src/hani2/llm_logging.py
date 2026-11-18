@@ -73,8 +73,8 @@ def install(force: bool = False) -> None:
                 resp = original(*args, **kwargs)
             except Exception as exc:  # noqa: BLE001
                 if target:
-                    _write(target, kwargs, None, time.perf_counter() - t0, error=repr(exc))
-                _record(kwargs, None, time.perf_counter() - t0, repr(exc))
+                    _write(target, kwargs, None, time.perf_counter() - t0, error=_redact(repr(exc)))
+                _record(kwargs, None, time.perf_counter() - t0, _redact(repr(exc)))
                 raise
             if target:
                 _write(target, kwargs, resp, time.perf_counter() - t0)
@@ -83,6 +83,16 @@ def install(force: bool = False) -> None:
 
         litellm.completion = _logged_completion
         _installed = True
+
+
+def _redact(text: str) -> str:
+    """``text`` without any stored key or token (see :func:`hani2.connections.redact`)."""
+    try:
+        from hani2.connections import redact
+
+        return redact(text)
+    except Exception:  # noqa: BLE001
+        return text
 
 
 def _record(kwargs: dict, resp, dt: float, error: str | None = None) -> None:

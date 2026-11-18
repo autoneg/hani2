@@ -36,6 +36,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--scenario-set`, `--set` | the default set | The [scenario set](../guide/scenario-sets.md) to use, e.g. `HAN2026` or `ANAC2027` (any case). Sets `HANI2_SCENARIO_SET`. Admins can still change it per session. |
 | `--scenario-types` | none | Python files or modules that register extra scenario types, comma separated. Sets `HANI2_SCENARIO_TYPES`. See [Writing your own scenario type](../guide/scenarios.md#writing-your-own-scenario-type). |
 | `--scenarios` | the settings' scenarios folder | A folder of saved scenarios to serve. Sets `HANI2_SCENARIOS_BASE`. |
+| `--models` | none | Language models to try in order, as a comma-separated `provider:model` (or `connection:model`) list, e.g. `anthropic:claude-sonnet-5-5,ollama:qwen3:4b`. Replaces the settings folder's model chains for every purpose; a project's or study's own chain still wins. Sets `HANI2_MODELS`. See [Models and connections](../guide/models.md). |
 | `--browser` / `--no-browser` | `--browser` | Open the browser once the server answers. |
 | `--page` | `app` | Page to open in the browser: `app`, `play` or `admin`. |
 | `--verbose` / `--no-verbose` | off | Ask negotiators to print what they do (sets `HANI2_VERBOSE=1`). Opponents whose constructor accepts `verbose` get `verbose=True`. |
@@ -49,7 +50,8 @@ The old names `--support-agent`, `--no-support-agent`, `--agents`, `--experiment
 - `--assistant <class>` together with `--assistants` (use `--assistants` alone, a pool may hold one class, or `--assistant <class>` alone; `--assistant on|auto` may be combined with `--assistants`);
 - `--assistant off`, `--no-assistant` or `--no-support-agent` (its old name) together with `--assistants`, or `--no-assistant` together with `--assistant on|auto|<class>`;
 - a new name together with its old name: `--assistant` and `--support-agent`, `--study` and `--experiment`, `--opponents` and `--agents`, `--scenario-set` and `--set`;
-- an option that contradicts the environment, for example `--assistant <class>` while `HANI2_ASSISTANTS` is set.
+- an option that contradicts the environment, for example `--assistant <class>` while `HANI2_ASSISTANTS` is set, or `--models` while `HANI2_MODELS` holds a different list;
+- a `--models` list that cannot be read.
 
 The same environment pairs are refused when the server starts without the command line (see [Confusing combinations](../guide/configuration.md#confusing-combinations)).
 
@@ -206,6 +208,34 @@ $ hani2 library add opponents my_team.py --group qualified --layer project:HAN20
 added MyAgent (uploaded, project:HAN2027): file:/home/me/negmas/hani2/projects/HAN2027/library/opponents/my_team/my_team.MyAgent
 Uploaded code runs inside the HANI2 server with its permissions.
 ```
+
+## `hani2 connections` and `hani2 models`
+
+Connections to language-model providers and the model chains (see
+[Models and connections](../guide/models.md)).
+
+```bash
+hani2 connections providers                       # providers and their sign-in methods
+hani2 connections list [--all]                    # connections (keys masked); --all adds the implicit ones
+hani2 connections add NAME --provider P [--auth api_key|api_key_env|subscription|none] [--key]
+                       [--api-key-env VAR] [--base-url URL] [--litellm-provider NAME] [--replace]
+hani2 connections test NAME [--model M]           # check the credentials (and a model) now
+hani2 connections login NAME                      # device-code sign-in of a subscription connection
+hani2 connections logout NAME
+hani2 connections remove NAME
+hani2 models list [--study P/S] [--json]          # the chain of every purpose and its source
+hani2 models resolve [--study P/S] [--purpose X] [--json]   # the entry each purpose would use now
+```
+
+```text
+$ hani2 models resolve --study HAN2027/pilot
+assistant  ollama-cloud:gpt-oss:120b  (#2 of study:HAN2027/pilot, ok)
+            skipped #1 claude:claude-sonnet-5-5: the environment variable ANTHROPIC_API_KEY is not set
+...
+```
+
+`--key` asks for the key without echoing it. `resolve` exits with status 1 when a purpose has no
+available entry.
 
 ## `hani2 project` and `hani2 study`
 

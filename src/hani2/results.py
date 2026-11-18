@@ -69,14 +69,29 @@ SCHEDULING_COLUMNS = ["opponent_scheduling", "assistant_scheduling", "scenario_s
 
 
 def _attribution(ss: dict[str, Any]) -> dict[str, str]:
-    """The Assistant (spec, group, class, error), the opponent's group and the scheduling methods."""
+    """The Assistant (spec, group, class, error), the opponent's group, the scheduling methods and
+    the language models the session used (see :mod:`hani2.model_chain`)."""
     a = dict(ss.get("assistant_attribution") or {})
     out = {k: str(a.get(k) or "") for k in ATTRIBUTION_COLUMNS if k != "opponent_group"}
     out["opponent_group"] = str(ss.get("opponent_group") or "")
     out["opponent_scheduling"] = str(ss.get("opponent_scheduling") or "")
     out["assistant_scheduling"] = str(a.get("assistant_scheduling") or "")
     out["scenario_scheduling"] = str(ss.get("scenario_scheduling") or "")
+    from hani2.model_chain import MODEL_COLUMNS, models_of
+
+    models = models_of(ss)
+    out.update(models.attribution() if models is not None else {k: "" for k in MODEL_COLUMNS})
     return out
+
+
+def _state_record(state: Any) -> dict[str, Any]:
+    """The mechanism state as columns, with any stored key or token masked in its error texts."""
+    d = asdict(state)
+    if d.get("error_details"):
+        from hani2.connections import redact
+
+        d["error_details"] = redact(d["error_details"])
+    return d
 
 
 def get_status(state: SAOState) -> str:
@@ -112,7 +127,9 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
     )
     agent_error = ""
     if agent_failed:
-        agent_error = str(getattr(m.state, "error_details", "")) or "agent raised an exception"
+        from hani2.connections import redact
+
+        agent_error = redact(str(getattr(m.state, "error_details", "")) or "agent raised an exception")
         try:
             agent_utility = float(ufuns[1 - human_index].minmax()[0])
         except Exception:
@@ -200,7 +217,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         )
         | _attribution(ss)
         | _stamp(ss)
-        | asdict(m.state)
+        | _state_record(m.state)
         | {k: v for k, v in asdict(m.nmi).items() if not k.startswith("_") and not k.startswith("outcome_space")}
         | optimality,
         python_class_identifier="type",

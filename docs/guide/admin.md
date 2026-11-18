@@ -36,6 +36,8 @@ See [Authentication](authentication.md). The `?admin=1` query parameter on the n
 | | Language model | `llm_settings.json`. |
 | | Assistant settings | `assistant_settings.json`. |
 | | Autopilot | `autopilot_settings.json`. |
+| Language models | Connections | Sign-ins to model providers (API keys, subscriptions, local servers): status, test, sign in, remove; the providers and their sign-in methods. Settings folder only. |
+| | Models | The model chains per purpose, per layer: reorder, duplicate, parameters, test an entry, test the chains. |
 | Accounts | Users | Add users, make admins, set passwords, delete. |
 
 The sidebar ends with **Replay recordings** and **Back to negotiating**. The page is kept in the URL fragment, so `/admin#results` opens the results directly; a fragment may also name a row (`/admin#opponents/opponent-pool`). The fragments of earlier versions still work (`#server` opens General, `#agent` Assistant settings, `#tools` Tool settings).
@@ -259,7 +261,28 @@ A provider is used when it has both a key and a secret and is not explicitly dis
 
 ## Language model
 
-`llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM opponents. A banner shows whether the model is configured ("Ready: provider / model") or which API key variable is missing. Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`), temperature, max tokens, and the extraction, generation and instruction prompts. See [Language models](llms.md).
+`llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM opponents. Its provider and model are the old single-model settings, used only when no model chain is set (see [Models](#models)); its prompts always apply. A banner shows whether the model is configured ("Ready: provider / model") or which API key variable is missing. Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`), temperature, max tokens, and the extraction, generation and instruction prompts. See [Language models](llms.md).
+
+## Connections
+
+The connections model chains use, kept in the settings folder for every project and study. Each
+row shows a status dot, the provider, the sign-in method, the masked key or the environment
+variable, and the address. **Test** checks the connection and lists the provider's models when it
+can. **Sign in** starts a device-code sign-in for a subscription connection: the page shows the
+code and the address where you enter it, and waits until you confirm. **Show implicit** lists the
+connections that exist without being added. **Add a connection** offers only the sign-in methods
+the chosen provider supports, and says why when a provider has no subscription sign-in. See
+[Models and connections](models.md#connections).
+
+## Models
+
+The model chains of the chosen layer, one group per purpose (`default`, the Assistant, LLM
+opponents, tools, offer extraction and message writing, the judge). A purpose without a chain
+in the layer shows the chain in effect and where it comes from; **Set a chain here** gives the layer
+its own chain. Each entry has a connection (or "the provider's first connection"), a model,
+parameters (`temperature=0.2, max_tokens=800`) and a label. You can test, move, duplicate and remove
+an entry. **Test chains** shows which entry each purpose resolves to now, and why each earlier entry
+was skipped; with unsaved changes it tests those. See [Models and connections](models.md#model-chains).
 
 ## Assistant settings
 

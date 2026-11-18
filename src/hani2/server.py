@@ -111,12 +111,7 @@ async def lifespan(app: FastAPI):
         _prime_group_syspaths()
     except Exception:
         pass
-    try:
-        from hani2.ollama_fallback import install_ollama_local_fallback
-
-        install_ollama_local_fallback()
-    except Exception:
-        pass
+    # the old local-ollama fallback is an entry of the model chain now (hani2.model_chain)
 
     async def _gc():
         while True:

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- **Model chains and connections.** Language models are now chosen from an ordered list of
+  entries (`{connection, model, params, label}`) tried until one is available, so a session falls
+  back to the next model when a provider is down, a key is missing or a model is not offered. One
+  model may appear several times with different parameters. Chains are kept per purpose
+  (`default`, `assistant`, `opponent`, `tools`, `text`, `judge`) in a layer's `models.json`.
+  Precedence: the study's > the project's > the start-time list (`hani2 --models
+  "anthropic:claude-sonnet-5-5,ollama:qwen3:4b"` / `HANI2_MODELS`) > the settings folder's > the
+  old `provider`/`model` settings, which keep working as a one-entry chain. **Connections** sign in
+  to providers with an API key (stored 0600 in the settings folder, always masked), a key in an
+  environment variable, a subscription (device-code sign-in for GitHub Copilot and for OpenAI with
+  a ChatGPT plan) or nothing (local Ollama, including cloud models after `ollama signin`). There
+  are presets for Anthropic (API keys only: Anthropic does not permit Claude plan sign-in in
+  third-party apps), OpenAI, Ollama Cloud, local Ollama, GitHub Copilot, Gemini, OpenRouter, Groq,
+  Mistral, DeepSeek, Azure, Bedrock and OpenAI-compatible servers, and any other litellm provider
+  can be used too. Every model call (the Assistant, LLM opponents, tools, offer extraction and
+  message writing, the evaluation judge) uses the session's resolved entry. It is checked once with
+  a short time-out and a cache, kept for the session, and moved to the next entry after a hard
+  failure (`model_fallback` event). When nothing is available the session shows a banner and logs
+  `model_unavailable`. The old local-Ollama fallback is now an entry of the chain. Results rows gain
+  `assistant_llm`, `assistant_llm_entry`, `opponent_llm`, `opponent_llm_entry` and `llm_models`;
+  recordings gain `models`. New admin pages **Connections** and **Models**, new commands
+  `hani2 connections …` and `hani2 models list|resolve`, and new endpoints
+  `/api/admin/connections`, `/api/admin/providers` and `/api/admin/models`. See
+  [Models and connections](guide/models.md).
 - **Scheduling methods.** A study (`study.yaml`) or a project (`project.yaml`, for all its
   studies) chooses how HANI2 schedules each dimension, merged per dimension:
   `scheduling: {opponents: ..., assistants: ..., scenarios: ...}`. Opponents: `latin_square`

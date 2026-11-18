@@ -44,21 +44,34 @@ DEFAULT_ASSERTIONS = [
 # The judge                                                                    #
 # --------------------------------------------------------------------------- #
 def judge_settings() -> dict:
-    from hani2.config import get_env, load_llm_settings
+    """Settings for the judge's calls: the ``judge`` model chain (see :mod:`hani2.model_chain`; the
+    old ``evaluation.llm`` block of env.json is its single-model fallback), at temperature
+    ``judge_temperature`` (default 0)."""
+    from hani2.config import get_env
+    from hani2.llm_service import chain_settings
 
-    s = dict(load_llm_settings())
-    s.update(get_env("evaluation.llm", {}) or {})
-    s.setdefault("max_tokens", 2000)
-    s["temperature"] = s.get("judge_temperature", 0.0)
+    over = get_env("evaluation.llm", {}) or {}
+    temp = over.get("judge_temperature", 0.0)
+    s = chain_settings("judge", None, temperature=temp, max_tokens=over.get("max_tokens"))
+    res = judge_model()
+    s["provider"], s["model"] = res.provider, res.model
+    s["temperature"] = temp
     return s
+
+
+def judge_model():
+    """The judge's resolved chain entry (a :class:`hani2.model_chain.Resolution`)."""
+    from hani2 import model_chain
+
+    return model_chain.resolve("judge")
 
 
 def llm_judge_status() -> dict:
     try:
-        from hani2.llm_service import is_llm_configured
-
-        s = judge_settings()
-        return {"configured": bool(is_llm_configured()), "provider": s.get("provider"), "model": s.get("model")}
+        res = judge_model()
+        return {"configured": res.ok, "provider": res.provider, "model": res.model,
+                "connection": res.connection.name if res.connection else "", "source": res.source,
+                "error": res.error}
     except Exception as e:  # pragma: no cover
         return {"configured": False, "error": str(e)}
 
@@ -512,9 +525,18 @@ def error_review(ctx: EvalContext, options: dict) -> dict:
 
 
 def cache_key(name: str, version: str, options: dict, complete: bool = True) -> str:
+    """The cache key of a judged metric: the metric, the judge's resolved entry (connection,
+    model and a hash of its parameters) and the assertions."""
+    import hashlib
+
     s = judge_settings()
+    res = judge_model()
+    params = {**(res.entry.params if res.entry else {}), **{k: v for k, v in (s.get("_params") or {}).items()
+                                                             if v is not None}}
+    ph = hashlib.sha1(json.dumps(params, sort_keys=True, default=str).encode()).hexdigest()[:10]
+    who = f"{res.connection.name if res.connection else ''}:{s.get('provider')}/{s.get('model')}#{ph}"
     opt = json.dumps({k: v for k, v in (options or {}).items() if k == "assertions"}, sort_keys=True)
-    return f"{name}|v{version}|{s.get('provider')}/{s.get('model')}|{opt}" + ("" if complete else "|partial")
+    return f"{name}|v{version}|{who}|{opt}" + ("" if complete else "|partial")
 
 
 def stamp() -> str:

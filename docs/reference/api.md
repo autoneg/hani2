@@ -53,3 +53,11 @@ This page is generated from the docstrings in the source. It covers the modules 
 ::: hani2.evaluation
 
 ::: hani2.evaluation.base
+
+## Models and connections
+
+::: hani2.model_chain
+
+::: hani2.connections
+
+::: hani2.providers

@@ -1,4 +1,4 @@
-import { Activity, Bot, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
+import { Activity, Bot, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
 import type { PageDef } from "../types";
 import { entriesOf } from "../schema";
 import { Analytics, Overview, Results } from "./Activity";
@@ -6,6 +6,8 @@ import { Users } from "./Users";
 import { ASSISTANT_GROUPS, AUTOPILOT, AssistantSettings, Autopilot, GENERAL, General, LLM, LLM_GROUPS, NEGOTIATION, Negotiation, TOOLS_BASE, Tools, abilityEntries, toolEntries } from "./SettingsPages";
 import { Texts, TEXT_KINDS } from "./Texts";
 import { PROJECT_ENTRIES, Projects } from "./Projects";
+import { CONNECTION_ENTRIES, Connections } from "./Connections";
+import { MODEL_ENTRIES, Models } from "./Models";
 import { Explorer } from "../explorer/Explorer";
 import { scenariosAdapter } from "../explorer/scenarios";
 import { agentsAdapter } from "../explorer/agents";
@@ -37,6 +39,8 @@ export const PAGES: PageDef[] = [
   { id: "general", title: "General", icon: Settings, color: "bg-muted", group: "Server", aliases: ["server"], entries: entriesOf(GENERAL), Component: General },
   { id: "negotiation", title: "Negotiation", icon: Handshake, color: "bg-good", group: "Server", entries: entriesOf(NEGOTIATION), Component: Negotiation },
   { id: "tools", title: "Tool settings", icon: Wrench, color: "bg-muted", group: "Server", entries: entriesOf(TOOLS_BASE), dynamicEntries: toolEntries, Component: Tools },
+  { id: "connections", title: "Connections", icon: Plug, color: "bg-[#0f766e]", group: "Language models", subtitle: "Sign in to model providers: API keys, subscriptions and local servers. Shared by every project and study.", entries: CONNECTION_ENTRIES, aliases: ["providers"], Component: Connections },
+  { id: "models", title: "Models", icon: ListOrdered, color: "bg-[#8b5cf6]", group: "Language models", subtitle: "The models to try, in order, for each purpose; per layer, so a project or study can use its own.", entries: MODEL_ENTRIES, aliases: ["model-chain", "chain"], Component: Models },
   { id: "llm", title: "Language model", icon: Sparkles, color: "bg-[#8b5cf6]", group: "Server", entries: entriesOf(LLM_GROUPS), Component: LLM },
   { id: "assistant", title: "Assistant settings", icon: BotMessageSquare, color: "bg-you", group: "Server", aliases: ["agent"], entries: entriesOf(ASSISTANT_GROUPS), dynamicEntries: abilityEntries, Component: AssistantSettings },
   { id: "autopilot", title: "Autopilot", icon: Plane, color: "bg-[#0ea5e9]", group: "Server", entries: entriesOf(AUTOPILOT), Component: Autopilot },

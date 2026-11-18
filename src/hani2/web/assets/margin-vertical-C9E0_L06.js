@@ -1,0 +1,1 @@
+import{c as t}from"./index-CpXqbVls.js";const e={name:"margin-vertical",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M3 21h18",key:"itz85i"}],["path",{d:"M3 3h18",key:"o7r712"}]]};e.node;const i=t(e);export{e as __iconData,i as default};

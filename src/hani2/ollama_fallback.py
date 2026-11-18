@@ -1,4 +1,9 @@
-"""Local-ollama fallback for LLM calls.
+"""Local-ollama fallback for LLM calls (superseded).
+
+The server no longer installs this: the fallback is an entry of the model chain now — old
+single-model settings with a remote Ollama endpoint read as ``[that endpoint, the local
+Ollama server]`` and the first available one is used (see :mod:`hani2.model_chain`). The
+function stays for scripts that call it.
 
 On the deployment server the default ollama endpoint litellm talks to is the
 hosted cloud (``ollama.com``), which only serves a curated set of models. An

@@ -1,0 +1,223 @@
+"""Admin API for language models: connections (settings folder only) and model chains (per layer).
+
+Connections hold secrets, so they live only in the settings folder and every answer masks them.
+Model chains are a settings kind (``models.json``) of every layer; writes name the layer
+explicitly (a console opened in a study without ``?layer=`` gets 409, as for every setting).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
+
+from hani2 import connections as conns
+from hani2 import model_chain
+from hani2 import providers as prov
+from hani2.admin_common import admin_dep, get_layer
+from hani2.layers import binding, write_json_own
+
+router = APIRouter(dependencies=[Depends(admin_dep)])
+
+
+def _only_settings(layer: str | None) -> None:
+    if layer and layer != "settings":
+        raise HTTPException(400, "connections hold secrets and live only in the settings folder (layer=settings)")
+
+
+# --------------------------------------------------------------------------- #
+# Providers and connections                                                    #
+# --------------------------------------------------------------------------- #
+@router.get("/api/admin/providers")
+def admin_providers():
+    return {"providers": prov.table(), "purposes": model_chain.PURPOSE_LABELS}
+
+
+@router.get("/api/admin/connections")
+def admin_connections(implicit: bool = True):
+    return {"connections": [conns.public(c) for c in conns.all_connections(include_implicit=implicit)]}
+
+
+def _body_to_conn(body: dict) -> tuple[dict, str | None, dict | None]:
+    data = {k: body.get(k) for k in ("name", "provider", "auth", "base_url", "api_key_env", "litellm_provider", "label")
+            if body.get(k)}
+    key = body.get("api_key") or None
+    headers = body.get("headers")
+    if headers is not None and not isinstance(headers, dict):
+        raise HTTPException(400, "headers must be a mapping of header names to values")
+    return data, key, headers
+
+
+@router.post("/api/admin/connections")
+def admin_add_connection(body: dict = Body(...), layer: str | None = None):
+    _only_settings(layer)
+    data, key, headers = _body_to_conn(body)
+    try:
+        c = conns.add(data, api_key=key, headers=headers)
+    except conns.ConnectionError_ as e:
+        raise HTTPException(400, str(e)) from None
+    return conns.public(c)
+
+
+@router.put("/api/admin/connections/{name}")
+def admin_change_connection(name: str, body: dict = Body(...), layer: str | None = None):
+    _only_settings(layer)
+    data, key, headers = _body_to_conn({**body, "name": name})
+    if not any(c.name == name for c in conns.configured()):
+        raise HTTPException(404, f"no connection named {name!r}")
+    if headers is not None:  # "…" (masked) keeps a stored value
+        old = conns._header_values(conns.get(name))  # type: ignore[arg-type]
+        headers = {k: (old.get(k, "") if v in ("…", "***") else v) for k, v in headers.items()}
+    try:
+        c = conns.add(data, api_key=key, headers=headers, replace=True)
+    except conns.ConnectionError_ as e:
+        raise HTTPException(400, str(e)) from None
+    return conns.public(c)
+
+
+@router.delete("/api/admin/connections/{name}")
+def admin_remove_connection(name: str, layer: str | None = None):
+    _only_settings(layer)
+    if not conns.remove(name):
+        raise HTTPException(404, f"no connection named {name!r}")
+    return {"ok": True}
+
+
+@router.post("/api/admin/connections/{name}/test")
+async def admin_test_connection(name: str, body: dict = Body(default={})):
+    c = conns.get(name)
+    if c is None:
+        raise HTTPException(404, f"no connection named {name!r}")
+
+    def _run() -> dict[str, Any]:
+        conns.forget_probes(name)
+        model = str(body.get("model") or "").strip()
+        ok, why = conns.has_credentials(c)
+        out: dict[str, Any] = {"name": name, "credentials": ok, "reason": why}
+        if not ok:
+            return {**out, "ok": False}
+        if model:
+            p = conns.probe(c, model, fresh=True)
+            return {**out, "ok": p.ok, "model": model, "reason": conns.redact(p.reason), "verified": p.verified,
+                    "models": (p.models or [])[:200]}
+        p = conns._probe_now(c, "")
+        return {**out, "ok": p.ok, "reason": conns.redact(p.reason), "verified": p.verified,
+                "models": (p.models or [])[:200]}
+
+    return await run_in_threadpool(_run)
+
+
+@router.post("/api/admin/connections/{name}/login")
+async def admin_start_login(name: str):
+    try:
+        return await run_in_threadpool(conns.start_login, name)
+    except conns.ConnectionError_ as e:
+        raise HTTPException(400, str(e)) from None
+    except Exception as e:  # noqa: BLE001 - the provider's own error
+        raise HTTPException(502, f"the sign-in could not start: {conns.redact(e)}") from None
+
+
+@router.get("/api/admin/connections/{name}/login")
+async def admin_poll_login(name: str):
+    try:
+        return await run_in_threadpool(conns.poll_login, name)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"the sign-in failed: {conns.redact(e)}") from None
+
+
+@router.delete("/api/admin/connections/{name}/login")
+def admin_logout(name: str):
+    conns.logout(name)
+    return {"ok": True}
+
+
+# --------------------------------------------------------------------------- #
+# Model chains                                                                 #
+# --------------------------------------------------------------------------- #
+def check_body(body: Any) -> None:
+    problems = model_chain.check_chains(body)
+    if problems:
+        raise HTTPException(400, "; ".join(problems))
+
+
+@router.get("/api/admin/models")
+def admin_models(layer: str | None = None):
+    lay = get_layer(layer)
+    assert lay is not None
+    own = model_chain.read_layer_file(lay.dir / model_chain.FILE)
+    with binding(lay):
+        eff = model_chain.effective_chains()
+    with binding(lay, skip_own=True):
+        inh = model_chain.effective_chains()
+    return {"layer": lay.id, "own": own, "effective": eff, "inherited": inh,
+            "start": (__import__("os").environ.get(model_chain.ENV) or ""), "purposes": model_chain.PURPOSE_LABELS}
+
+
+@router.put("/api/admin/models")
+def admin_put_models(request: Request, body: dict = Body(...), layer: str | None = None):
+    from hani2.admin_api import write_target
+
+    check_body(body)
+    lay = write_target(request, layer, None, None)
+    clean = {k: v for k, v in body.items() if v not in (None, [], "")}
+    f = lay.dir / model_chain.FILE
+    if clean:
+        write_json_own(f, clean)
+    elif f.exists():
+        f.unlink()
+    return {"ok": True, "layer": lay.id}
+
+
+@router.post("/api/admin/models/resolve")
+async def admin_resolve_models(body: dict = Body(default={}), layer: str | None = None):
+    """Which entry each purpose resolves to at a layer (``chains`` in the body: try an unsaved chain)."""
+    lay = get_layer(layer)
+    assert lay is not None
+    draft = body.get("chains")
+    if draft is not None:
+        check_body(draft)
+    only = body.get("purpose")
+
+    def _run() -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        conns.forget_probes()
+        with binding(lay):
+            parsed = model_chain.parse_chains(draft) if draft is not None else None
+            for p in model_chain.PURPOSES:
+                if only and p != only:
+                    continue
+                if parsed is not None and (parsed.get(p) or parsed.get("default")):
+                    ch = parsed.get(p) or parsed["default"]
+                    res = model_chain.resolve(p, chain=ch, source=model_chain.Source(f"{lay.id} (unsaved)", {}),
+                                              fresh=True)
+                else:
+                    res = model_chain.resolve(p, fresh=True)
+                out[p] = res.record()
+        return {"layer": lay.id, "purposes": out}
+
+    return await run_in_threadpool(_run)
+
+
+@router.post("/api/admin/models/test-entry")
+async def admin_test_entry(body: dict = Body(...)):
+    """Check one entry; with ``call: true`` also send a one-word request."""
+    try:
+        e = model_chain.parse_entry(body.get("entry"))
+    except model_chain.ChainError as err:
+        raise HTTPException(400, str(err)) from None
+
+    def _run() -> dict[str, Any]:
+        res = model_chain.resolve_entry(e)
+        out = res.record()
+        if res.ok and body.get("call"):
+            try:
+                r = model_chain.completion("test", [{"role": "user", "content": "Reply with the word ok."}],
+                                           resolution=res, params={"max_tokens": 16})
+                out["reply"] = (r.choices[0].message.content or "")[:200]
+            except Exception as err:  # noqa: BLE001
+                out["status"] = "none"
+                out["error"] = conns.redact(f"{type(err).__name__}: {err}")[:300]
+        return out
+
+    return await run_in_threadpool(_run)

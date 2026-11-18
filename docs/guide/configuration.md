@@ -11,6 +11,9 @@ $HANI2_HOME/                      default ~/negmas/hani2
 │   ├── llm_settings.json         LLM opponents and message helpers
 │   ├── assistant_settings.json
 │   ├── autopilot_settings.json
+│   ├── models.json               model chains per purpose (a project or study may have its own)
+│   ├── connections.json          connections to model providers (no secrets)
+│   ├── secrets/                  keys (connections.json, 0600) and sign-in tokens (<name>/)
 │   ├── consent.md                consent form (Markdown)
 │   ├── announcements.md          welcome text (Markdown)
 │   ├── scenario_order.txt        order of scenario categories
@@ -243,11 +246,13 @@ See [Library and groups](library.md#tool-groups).
 
 ## `llm_settings.json`
 
-The language model for LLM opponents and for the message helpers.
+The language model for LLM opponents and for the message helpers. `provider` and `model` (with
+`api_key_env`, `ollama_base_url`, `api_base`) are the old single-model settings: they are used only
+when no [model chain](models.md) is set for the purpose. The prompts always apply.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `provider` | `"ollama"` | Opponents: any litellm provider. Message helpers: `ollama`, `openai` or `anthropic`. |
+| `provider` | `"ollama"` | Any litellm provider. |
 | `model` | `"qwen3:4b-instruct"` | Model name. |
 | `api_key_env` | `"OPENAI_API_KEY"` | Name of the environment variable holding the key (message helpers). |
 | `ollama_base_url` | `"http://localhost:11434/v1"` | OpenAI-compatible endpoint used by the message helpers with `provider: ollama`. |
@@ -260,6 +265,10 @@ The language model for LLM opponents and for the message helpers.
 See [Language models](llms.md) for the prompt placeholders.
 
 ## `assistant_settings.json`
+
+`provider`, `model`, `api_key_env` and `api_base` are the old single-model settings of the
+Assistant, used only when no [model chain](models.md) gives the `assistant` purpose a chain;
+`temperature` and `max_tokens` also tune a chain entry that does not set them.
 
 The old name of this file, `support_agent_settings.json`, is still read; where both exist, `assistant_settings.json` is merged over it (see [Old names](assistant.md#old-names)).
 
@@ -333,7 +342,10 @@ See [Autopilot](autopilot.md).
 | `HANI2_RECORD` | `1` | `0`, `false`, `no` or `off` disables [recordings](recordings.md). |
 | `HANI2_REPLAY_DIRS` | none | Extra folders of recordings shown in the replay tool (`os.pathsep`-separated). Set by `hani2 replay open PATHS`. |
 | `HANI2_LLM_LOG` | off | `1`, `true`, `yes` or `on` logs every LLM call opponents make. |
-| `HANI2_OLLAMA_LOCAL_BASE` | `http://localhost:11434` | Local Ollama daemon for the missing-model fallback. |
+| `HANI2_OLLAMA_LOCAL_BASE` | `http://localhost:11434` | The local Ollama daemon: the `ollama-local` connection, and the fallback entry after a remote Ollama in old settings. |
+| `HANI2_MODELS` | none | The start-time model list (`provider:model` or `connection:model`, comma separated); replaces the settings folder's model chains, loses to a project's or study's own. Set by `--models`. See [Models and connections](models.md). |
+| `HANI2_MODEL_PROBE` | `on` | `off` checks only a connection's credentials before using an entry (no network check). |
+| `HANI2_MODEL_PROBE_TIMEOUT` | `3` | Seconds a provider check may take. |
 | `HANI2_WORKERS` | `32` | Size of the worker thread pool. |
 | `HANI2_CODE_BASE` | none | First folder searched for `pan.py`, the module behind the `:pan` group. |
 | `SCMLWEB_CODE_BASE` | `~/scmlweb` | `$SCMLWEB_CODE_BASE/python` is also searched for `pan.py`. |
@@ -371,6 +383,9 @@ refused with a message that says which one to keep. Each old name alone keeps wo
 | Environment (at startup) | different values in `HANI2_ASSISTANT` / `HANI2_SUPPORT_AGENT`, `HANI2_ASSISTANT_CLASS` / `HANI2_SUPPORT_AGENT_CLASS`, `HANI2_OPPONENTS` / `HANI2_AGENTS`, `PROLIFIC_PRACTICE_OPPONENTS` / `PROLIFIC_PRACTICE_AGENTS`, `HANI2_PER_NEG_YAML` / `PROLIFIC_PER_NEG_YAML` | the first (new) name |
 | Environment (at startup) | `HANI2_STUDY` and `HANI2_EXPERIMENT` naming different studies | `HANI2_STUDY` |
 | `env.json` (at startup) | `opponents` and its old name `agents` with different values | `opponents` |
+| Command line | `--models` while `HANI2_MODELS` is set to a different list; a list that cannot be read | one of them; `provider:model` entries |
+| Environment (at startup) | a `HANI2_MODELS` list that cannot be read (not `provider:model`, an unknown provider or connection) | a valid list |
+| `models.json` (at startup and when saved) | the settings folder's `models.json` with an unknown purpose, an entry without a model, or a key, token, header or address among an entry's `params` | purposes `default`, `assistant`, `opponent`, `tools`, `text`, `judge`; secrets on a connection |
 | `study.yaml` / `project.yaml` | a setting at the top level and under `overrides:` / `defaults:` with different values; an unknown scheduling method | one place; a method from `hani2 scheduling list` |
 | Group files | `assistant` and its old name `support_agent` naming different Assistants; members under both `assistants` and `agents` (Assistant groups) with different lists | `assistant`; `assistants` |
 

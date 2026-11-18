@@ -1,1 +1,0 @@
-import{c as a}from"./index-B-BbFIES.js";const e={name:"whistle",size:24,node:[["path",{d:"M10 6v4",key:"1sdd75"}],["path",{d:"M21 6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-5.675A7 7 0 1 1 9 6z",key:"kuzxl1"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

@@ -221,14 +221,15 @@ class Tool:
     def ask_llm(self, prompt: str, *, system: str | None = None, **settings: Any) -> str:
         """Send ``prompt`` to the configured language model and return its reply.
 
-        Uses the model configured for HANI2 (``llm_settings.json``); keyword
-        arguments (``model``, ``temperature``, ``max_tokens`` ...) override
-        single settings. Raises on failure. The call blocks, so make it from a
+        Uses the session's ``tools`` model (the first available entry of the ``tools`` model
+        chain, kept for the session; see :mod:`hani2.model_chain`); keyword arguments
+        (``temperature``, ``max_tokens`` ...) tune the call, and ``provider`` / ``model`` call that
+        model instead. Raises on failure. The call blocks, so make it from a
         background job (``self.session.submit``) or subclass :class:`LLMTool`.
         """
         from hani2.llm_service import complete
 
-        return complete(prompt, system=system, **settings)
+        return complete(prompt, system=system, session=getattr(self, "session", None), **settings)
 
     def describe_for_agent(self, max_chars: int = 4000) -> str:
         """What this tool shows, as text for the Assistant: its help text

@@ -661,29 +661,86 @@ def short_name(spec: Any) -> str:
 
 
 def make_agent(spec: Any, params: dict[str, Any] | None = None, practice: bool = False,
-               verbose: bool = False):
+               verbose: bool = False, models: Any = None, purpose: str = "opponent"):
     """Instantiate an opponent from a spec, applying the safety wrappers
-    and LLM model injection."""
+    and LLM model injection.
+
+    An LLM opponent (a negmas-llm negotiator) gets the ``opponent`` model chain's entry (see
+    :mod:`hani2.model_chain`; ``models`` is the session's :class:`~hani2.model_chain.SessionModels`,
+    ``purpose`` another chain, e.g. ``assistant`` for an autopilot driver):
+    its provider, model, sign-in and parameters. It keeps that entry for the negotiation."""
     params = dict(params or {})
     agent_class = get_agent_type(spec)
     is_llm_string = isinstance(spec, str) and spec.startswith("LLM")
-    if is_llm_string or _is_llm_negotiator_class(agent_class):
-        llm = load_llm_settings()
-        params["model"] = llm.get("model", "qwen3:4b-instruct")
-        if is_llm_string:
-            params["provider"] = llm.get("provider", "ollama")
-    elif _is_llm_meta_negotiator_class(agent_class):
-        llm = load_llm_settings()
-        if _ctor_accepts(agent_class, "model"):
-            params["model"] = llm.get("model", "qwen3:4b-instruct")
-        if _ctor_accepts(agent_class, "provider"):
-            params["provider"] = llm.get("provider", "ollama")
+    llm_res = None
+    if is_llm_string or _is_llm_negotiator_class(agent_class) or _is_llm_meta_negotiator_class(agent_class):
+        from hani2 import model_chain
+
+        llm_res = models.get(purpose) if models is not None else model_chain.resolve(purpose)
+        model = llm_res.model if llm_res.ok else load_llm_settings().get("model", "qwen3:4b-instruct")
+        provider = llm_res.litellm_provider if llm_res.ok else load_llm_settings().get("provider", "ollama")
+        if is_llm_string or _is_llm_negotiator_class(agent_class):
+            params["model"] = model
+            if is_llm_string or _ctor_accepts(agent_class, "provider"):
+                params["provider"] = provider
+        else:
+            if _ctor_accepts(agent_class, "model"):
+                params["model"] = model
+            if _ctor_accepts(agent_class, "provider"):
+                params["provider"] = provider
     agent_class = no_accept_none_class(agent_class)  # type: ignore
     if practice:
         agent_class = no_end_class(agent_class)
+    agent = None
     if verbose:
         try:
-            return agent_class(**params, verbose=True)
+            agent = agent_class(**params, verbose=True)
         except TypeError:
-            pass
-    return agent_class(**params)
+            agent = None
+    if agent is None:
+        agent = agent_class(**params)
+    if llm_res is not None and llm_res.ok:
+        apply_model(agent, llm_res)
+    return agent
+
+
+def apply_model(agent: Any, res: Any) -> None:
+    """Point a negmas-llm negotiator (and any LLM layer it wraps) at a resolved chain entry:
+    provider, model, sign-in (key, address, headers) and the entry's parameters."""
+    from hani2 import model_chain
+
+    try:
+        kw = model_chain.litellm_kwargs(res)
+    except Exception as e:  # noqa: BLE001
+        print(f"[hani2] could not configure the opponent's model: {e}")
+        return
+    kw.pop("model", None)
+    seen: set[int] = set()
+
+    def _set(obj: Any, depth: int = 0) -> None:
+        if obj is None or id(obj) in seen or depth > 3:
+            return
+        seen.add(id(obj))
+        if hasattr(obj, "llm_kwargs") and hasattr(obj, "provider") and hasattr(obj, "model"):
+            obj.provider = res.litellm_provider
+            obj.model = res.model
+            extra = dict(kw)
+            if "api_key" in extra and hasattr(obj, "api_key"):
+                obj.api_key = extra.pop("api_key")
+            if "api_base" in extra and hasattr(obj, "api_base"):
+                obj.api_base = extra.pop("api_base")
+            if extra.get("temperature") is not None and hasattr(obj, "temperature"):
+                obj.temperature = extra.pop("temperature")
+            for k in ("max_tokens", "num_predict", "max_completion_tokens"):
+                if k in extra and hasattr(obj, "max_tokens"):
+                    obj.max_tokens = extra.pop(k)
+            if res.connection is not None:
+                for k in model_chain._drop_for(res.connection, res.model):
+                    extra[k] = None  # litellm leaves out parameters given as None
+            obj.llm_kwargs = {**(obj.llm_kwargs or {}), **extra}
+        for name in ("_llm", "llm", "_inner", "inner", "_base", "base_negotiator", "_negotiator"):
+            child = getattr(obj, name, None)
+            if child is not None and not isinstance(child, (str, int, float, dict, list)):
+                _set(child, depth + 1)
+
+    _set(agent)

@@ -114,7 +114,7 @@ class LLMTool(Tool):
         from hani2.llm_service import get_llm_status
 
         comps: list[ui.Component] = []
-        st = get_llm_status()
+        st = get_llm_status("tools")
         if not st.get("configured"):
             comps.append(ui.alert(f"No language model is configured (provider `{st.get('provider')}`).", "warning"))
         comps += self.controls_view()

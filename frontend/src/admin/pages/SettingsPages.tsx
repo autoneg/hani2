@@ -112,8 +112,8 @@ export const Tools = ({ meta }: { meta: any }) => <SettingsPage kind="env" group
 /* ---------------- Language model ---------------- */
 export const LLM_GROUPS: FieldGroup[] = [
   {
-    title: "Model",
-    footer: "Used by the LLM offer tool, message writing, offer extraction and LLM opponents.",
+    title: "Model (old single-model settings)",
+    footer: "Used by the LLM offer tool, message writing, offer extraction and LLM opponents only when no model chain is set (Models page).",
     fields: [
       { id: "llm-provider", path: "provider", label: "Provider", type: "select", options: PROVIDERS },
       { id: "llm-model", path: "model", label: "Model", type: "text", placeholder: "qwen3:4b-instruct" },
@@ -156,6 +156,7 @@ export const ASSISTANT_GROUPS: FieldGroup[] = [
   },
   {
     title: "Language model",
+    footer: "Old single-model settings: used only when no model chain is set for the Assistant (Models page). Temperature and max tokens also tune a chain entry that does not set them.",
     fields: [
       { id: "assistant-provider", path: "provider", label: "Provider", type: "select", options: PROVIDERS },
       { id: "assistant-model", path: "model", label: "Model", type: "text" },

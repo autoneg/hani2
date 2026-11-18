@@ -8,7 +8,10 @@ with a message that says which one to use. Old names alone keep working.
   the settings folder's ``env.json`` (``hani2`` checks them before starting, and the
   server again when it starts, so a process launched without the command line is
   checked too);
-* :func:`cli_problems` checks the options of ``hani2`` and ``hani2 experiment create``;
+* :func:`cli_problems` checks the options of ``hani2`` and ``hani2 experiment create`` (and
+  ``--models`` against ``HANI2_MODELS``);
+* :func:`models_problems` checks a start-time model list; :func:`settings_problems` also checks the
+  settings folder's ``models.json``;
 * :func:`hani2.projects.file_problems` checks project.yaml / study.yaml and
   :func:`hani2.groups.group_problems` checks group files.
 """
@@ -54,11 +57,26 @@ def env_problems(env: Mapping[str, str] | None = None) -> list[str]:
     if pool and mode in _OFF:
         out.append(f"HANI2_ASSISTANT={mode!r} switches the Assistant off but HANI2_ASSISTANTS={pool!r} names "
                    "an Assistant pool; unset one of them")
+    models = _get(env, "HANI2_MODELS")
+    if models:
+        out += models_problems(models, "HANI2_MODELS")
     study, exp = _get(env, "HANI2_STUDY"), _get(env, "HANI2_EXPERIMENT")
     if study and exp and study not in (exp, f"default/{exp}"):
         out.append(f"HANI2_STUDY={study!r} and HANI2_EXPERIMENT={exp!r} (its old name, a study of the default "
                    "project) are both set; set only HANI2_STUDY (project/study)")
     return out
+
+
+def models_problems(value: str, where: str = "--models") -> list[str]:
+    """What is wrong with a start-time model list (``provider:model,…``)."""
+    from hani2 import model_chain
+
+    try:
+        if not model_chain.parse_chain(value):
+            return [f"{where} is empty; give provider:model entries, e.g. anthropic:claude-sonnet-5-5,ollama:qwen3:4b"]
+    except model_chain.ChainError as e:
+        return [f"{where}: {e}"]
+    return []
 
 
 def settings_problems() -> list[str]:
@@ -70,10 +88,27 @@ def settings_problems() -> list[str]:
         new, old = get_env("opponents", None) or [], get_env("agents", None) or []
     except Exception:  # noqa: BLE001 - a broken file is reported where it is read
         return []
+    out: list[str] = []
     if new and old and list(new) != list(old):
-        return [f"env.json gives 'opponents' ({new!r}) and its old name 'agents' ({old!r}) with different "
-                "values; keep only 'opponents'"]
-    return []
+        out.append(f"env.json gives 'opponents' ({new!r}) and its old name 'agents' ({old!r}) with different "
+                   "values; keep only 'opponents'")
+    try:
+        import json
+
+        from hani2.config import settings_dir
+        from hani2.model_chain import FILE, check_chains
+
+        f = settings_dir() / FILE
+        if f.exists():
+            try:
+                data = json.loads(f.read_text())
+            except json.JSONDecodeError as e:
+                out.append(f"{f} is not valid JSON ({e})")
+            else:
+                out += [f"{f}: {p}" for p in check_chains(data)]
+    except Exception:  # noqa: BLE001 - reported where it is read
+        pass
+    return out
 
 
 def startup_problems(env: Mapping[str, str] | None = None) -> list[str]:
@@ -91,9 +126,16 @@ def check_environment(env: Mapping[str, str] | None = None) -> None:
 def cli_problems(*, assistant: str | None = None, support_agent: str | None = None, assistants: str | None = None,
                  no_assistant: bool = False, no_support_agent: bool = False, study: str | None = None,
                  experiment: str | None = None, opponents: str | None = None, agents: str | None = None,
-                 scenario_set: str | None = None, set_alias: str | None = None) -> list[str]:
+                 scenario_set: str | None = None, set_alias: str | None = None, models: str | None = None,
+                 env: Mapping[str, str] | None = None) -> list[str]:
     """What is confusing in a set of command-line options (``[]``: nothing)."""
     out: list[str] = []
+    if models:
+        out += models_problems(models)
+        env_models = _get(os.environ if env is None else env, "HANI2_MODELS")
+        if env_models and env_models != models.strip():
+            out.append(f"--models {models} and HANI2_MODELS={env_models!r} disagree; give only one (--models "
+                       "sets HANI2_MODELS for the server)")
     if assistant and support_agent:
         out.append("--support-agent is the old name of --assistant; give only --assistant")
     value = (assistant or support_agent or "").strip()

@@ -367,6 +367,7 @@ class SessionRecorder:
             practice=bool(s.ss.get("is_practice_round")), deadline=s.deadline,
             n_steps=getattr(nmi, "n_steps", None), time_limit=getattr(nmi, "time_limit", None),
             support_agent=_support_info(s), autopilot=bool(s.autopilot_active),
+            models=_models_info(s),
             settings=_clean(dict(s.admin_prefs)), prefs=_clean(dict(s.prefs)),
         )
 
@@ -452,14 +453,31 @@ class SessionRecorder:
         self._write(_kind, **{k: _clean(v) for k, v in fields.items()})
 
 
+def _models_info(s: Any) -> dict:
+    """The model chain entries the session uses (no secrets)."""
+    try:
+        from hani2.model_chain import models_of
+
+        m = models_of(s)
+        return m.records() if m is not None else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _support_info(s: Any) -> dict | None:
     sa = s.support_agent
     if sa is None:
         return None
     try:
+        from hani2.model_chain import models_of
+
+        m = models_of(s)
+        res = m.peek("assistant") if m is not None else None
         st = sa.settings or {}
+        provider, model = (res.provider, res.model) if res is not None and res.ok else (st.get("provider"), st.get("model"))
         return dict(cls=f"{type(sa).__module__}.{type(sa).__qualname__}", name=getattr(sa, "name", None),
-                    enabled=bool(getattr(sa, "user_enabled", True)), provider=st.get("provider"), model=st.get("model"))
+                    enabled=bool(getattr(sa, "user_enabled", True)), provider=provider, model=model,
+                    connection=res.connection.name if res is not None and res.connection else "")
     except Exception:
         return {"cls": type(sa).__name__}
 

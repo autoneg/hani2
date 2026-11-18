@@ -39,11 +39,17 @@ function Center({ withSide = false, dockMax, prefix = "" }: { withSide?: boolean
   const share = (el: HTMLElement | null, of: HTMLElement | null, h: boolean) =>
     el && of ? (h ? el.offsetHeight / Math.max(1, of.offsetHeight) : el.offsetWidth / Math.max(1, of.offsetWidth)) : 0.4;
   const assistantError = useStore((s) => s.state?.assistant_error);
+  const modelError = useStore((s) => s.state?.model_error);
   return (
     <div ref={centerRef} className="flex min-h-0 min-w-0 flex-1 flex-col bg-paper">
       {assistantError && (
         <div role="alert" className="mx-3 mt-3 shrink-0 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">
           The Assistant could not be started, so this session runs without it. {assistantError}
+        </div>
+      )}
+      {modelError && !assistantError && (
+        <div role="alert" className="mx-3 mt-3 shrink-0 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">
+          {modelError}
         </div>
       )}
       <FloatingPanels />

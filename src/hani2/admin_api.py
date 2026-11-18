@@ -56,7 +56,7 @@ def settings_get(kind: str, layer: Layer) -> dict:
     _check_kind(kind)
     if kind in SETTINGS_KINDS:
         fname, loader = SETTINGS_KINDS[kind]
-        own = guard(read_json_own, layer.dir / fname)
+        own = _read_own(kind, layer.dir / fname)
         with binding(layer):
             eff = loader()
         with binding(layer, skip_own=True):
@@ -71,8 +71,24 @@ def settings_get(kind: str, layer: Layer) -> dict:
             "source": layer_of_path(src) if src.exists() else "bundled", "source_path": str(src)}
 
 
+def _read_own(kind: str, path: Path) -> dict:
+    if kind == "models":  # a bare list is the default chain
+        from hani2.model_chain import read_layer_file
+
+        return read_layer_file(path)
+    return guard(read_json_own, path)
+
+
+def _check_models(kind: str, data: dict) -> None:
+    if kind == "models":
+        from hani2.admin_models import check_body
+
+        check_body(data)
+
+
 def settings_put(kind: str, layer: Layer, body: dict) -> dict:
     _check_kind(kind)
+    _check_models(kind, body)
     if kind in SETTINGS_KINDS:
         write_json_own(layer.dir / SETTINGS_KINDS[kind][0], body)
         return {"ok": True}
@@ -87,7 +103,8 @@ def settings_patch(kind: str, layer: Layer, body: dict) -> dict:
     if kind not in SETTINGS_KINDS:
         raise HTTPException(400, "PATCH is for JSON settings; use PUT for texts")
     f = layer.dir / SETTINGS_KINDS[kind][0]
-    own = _deep_merge(guard(read_json_own, f), body)
+    own = _deep_merge(_read_own(kind, f), body)
+    _check_models(kind, own)
     write_json_own(f, own)
     return {"ok": True, "own": own}
 
@@ -314,3 +331,7 @@ def admin_balance(project: str, study: str):
 from hani2 import admin_scenarios  # noqa: E402
 
 router.include_router(admin_scenarios.router)
+
+from hani2 import admin_models  # noqa: E402
+
+router.include_router(admin_models.router)

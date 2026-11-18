@@ -166,6 +166,8 @@ export interface SessionState {
   notice: null | { text: string; level: string };
   /** why an assigned Assistant could not be started (the session runs without one) */
   assistant_error?: string | null;
+  /** no language model of the session's model chain is available */
+  model_error?: string | null;
   questionnaire: Questionnaire | null;
   finish_url: string | null;
   finish_text?: string | null;

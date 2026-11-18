@@ -42,6 +42,8 @@ class NegotiationContext:
     ufun: UtilityFunction | None = None
     history: list[dict] | None = None
     current_offer: Outcome | None = None  # Opponent's offer we're responding to
+    #: the session's language models (:class:`hani2.model_chain.SessionModels`)
+    models: Any = None
 
     def get_outcome_space_json(self) -> str:
         """Serialize outcome space to JSON for LLM context."""
@@ -356,127 +358,41 @@ def _build_full_context(ctx: NegotiationContext | None) -> dict[str, str]:
     }
 
 
-def _call_openai(prompt: str, settings: dict) -> str | None:
-    """Call OpenAI API."""
-    try:
-        import openai
-    except ImportError:
-        raise ImportError("openai package not installed. Run: pip install openai")
-
-    api_key = _get_api_key(settings)
-    if not api_key:
-        raise ValueError(
-            f"API key not found in environment variable: {settings.get('api_key_env', 'OPENAI_API_KEY')}"
-        )
-
-    client = openai.OpenAI(api_key=api_key)
-
-    response = client.chat.completions.create(
-        model=settings.get("model", "gpt-4o-mini"),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=settings.get("temperature", 0.3),
-        max_tokens=settings.get("max_tokens", 500),
-    )
-
-    return response.choices[0].message.content
+def chain_settings(purpose: str = "text", models: Any = None, **params: Any) -> dict:
+    """Settings for :func:`_call_llm` that use the ``purpose`` model chain (prompts from
+    ``llm_settings.json``; ``models``: the session's :class:`~hani2.model_chain.SessionModels`)."""
+    return {**load_llm_settings(), "_purpose": purpose, "_models": models, "_params": params}
 
 
-def _call_ollama(prompt: str, settings: dict) -> str | None:
-    """Call Ollama API (OpenAI-compatible)."""
-    try:
-        import openai
-    except ImportError:
-        raise ImportError("openai package not installed. Run: pip install openai")
+def _one_off_entry(settings: dict):
+    """An entry for explicit old-style ``provider``/``model`` settings (not from a chain)."""
+    from hani2 import model_chain
 
-    base_url = settings.get("ollama_base_url", "http://localhost:11434/v1")
-
-    # Ollama doesn't require an API key, but openai client needs one
-    client = openai.OpenAI(
-        api_key="ollama",  # Dummy key, Ollama doesn't check it
-        base_url=base_url,
-    )
-
-    import time as _time
-
-    kwargs = dict(
-        model=settings.get("model", "qwen2.5:1.5b"),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=settings.get("temperature", 0.3),
-        max_tokens=settings.get("max_tokens", 2000),
-    )
-    t0 = _time.perf_counter()
-    response = client.chat.completions.create(**kwargs)
-    try:
-        from hani2.recording.recorder import record_llm_call
-
-        record_llm_call({**kwargs, "model": f"ollama/{kwargs['model']}"}, response, _time.perf_counter() - t0)
-    except Exception:  # noqa: BLE001
-        pass
-
-    return response.choices[0].message.content
-
-
-def _call_anthropic(prompt: str, settings: dict) -> str | None:
-    """Call Anthropic API."""
-    try:
-        import anthropic
-    except ImportError:
-        raise ImportError("anthropic package not installed. Run: pip install anthropic")
-
-    api_key = _get_api_key(settings)
-    if not api_key:
-        raise ValueError(
-            f"API key not found in environment variable: {settings.get('api_key_env', 'ANTHROPIC_API_KEY')}"
-        )
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    response = client.messages.create(
-        model=settings.get("model", "claude-3-haiku-20240307"),
-        max_tokens=settings.get("max_tokens", 500),
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    return response.content[0].text
-
-
-def _call_litellm(prompt: str, settings: dict) -> str | None:
-    """Any litellm provider (openai, anthropic, gemini, azure, groq, mistral, …)."""
-    import litellm
-    from negmas_llm.common import apply_max_tokens, litellm_model_string
-
-    provider = str(settings.get("provider", "openai"))
-    model = str(settings.get("model", ""))
-    kwargs: dict = {
-        "model": litellm_model_string(provider, model),
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": settings.get("temperature", 0.3),
-    }
-    apply_max_tokens(kwargs, provider, model, settings.get("max_tokens", 2000))
-    api_key = _get_api_key(settings)
-    if api_key:
-        kwargs["api_key"] = api_key
-    if settings.get("api_base"):
-        kwargs["api_base"] = settings["api_base"]
-    response = litellm.completion(**kwargs)
-    return response.choices[0].message.content
+    entries = model_chain.legacy_entries(settings, "llm", "text")
+    if not entries:
+        raise ValueError("no model given")
+    return model_chain.resolve("text", chain=entries, source=model_chain.Source("call", {}, implicit=True))
 
 
 def _call_llm(prompt: str, settings: dict | None = None) -> str:
-    """Call the configured LLM provider."""
-    if settings is None:
-        settings = load_llm_settings()
+    """Send ``prompt`` to the language model and return the reply text.
 
-    provider = settings.get("provider", "ollama").lower()
+    With ``settings`` from :func:`chain_settings` (or none) the model comes from the model chain
+    (:mod:`hani2.model_chain`); explicit ``provider``/``model`` settings call that model directly."""
+    from hani2 import model_chain
 
-    if provider == "ollama":
-        result = _call_ollama(prompt, settings)
+    settings = chain_settings() if settings is None else settings
+    messages = [{"role": "user", "content": prompt}]
+    if "_purpose" in settings:
+        params = {k: v for k, v in (settings.get("_params") or {}).items() if v is not None}
+        response = model_chain.completion(settings["_purpose"], messages, models=settings.get("_models"),
+                                          params=params)
     else:
-        result = _call_litellm(prompt, settings)
-
+        res = _one_off_entry(settings)
+        response = model_chain.completion("text", messages, resolution=res)
+    result = response.choices[0].message.content
     if result is None:
         raise ValueError("LLM returned empty response")
-
     return result
 
 
@@ -580,7 +496,7 @@ def extract_outcome_from_text(
         )
 
     if settings is None:
-        settings = load_llm_settings()
+        settings = chain_settings("text", getattr(context, "models", None))
 
     # Build full context
     full_context = _build_full_context(context)
@@ -640,7 +556,7 @@ def generate_text_from_outcome(
         return GenerationResult(text="", error="No outcome provided")
 
     if settings is None:
-        settings = load_llm_settings()
+        settings = chain_settings("text", getattr(context, "models", None))
 
     # Use rejected_outcome from parameter or context
     actual_rejected = (
@@ -706,17 +622,16 @@ def generate_text_from_outcome(
         return GenerationResult(text="", error=str(e))
 
 
-def is_llm_configured() -> bool:
-    """Check if LLM is properly configured and available."""
-    settings = load_llm_settings()
-    provider = settings.get("provider", "ollama").lower()
+def is_llm_configured(purpose: str = "text") -> bool:
+    """Whether the ``purpose`` model chain has an entry with credentials (no network check)."""
+    from hani2 import model_chain
 
-    # Ollama doesn't require an API key
-    if provider == "ollama":
-        return True
-
-    api_key = _get_api_key(settings)
-    return bool(api_key)
+    ch, _src = model_chain.chain_for(purpose)
+    for e in ch:
+        c, _why = model_chain.connection_of(e)
+        if c is not None and __import__("hani2.connections", fromlist=["x"]).has_credentials(c)[0]:
+            return True
+    return False
 
 
 @dataclass
@@ -760,7 +675,7 @@ def generate_from_instruction(
         )
 
     if settings is None:
-        settings = load_llm_settings()
+        settings = chain_settings("text", getattr(context, "models", None))
 
     # Build full context
     full_context = _build_full_context(context)
@@ -917,34 +832,49 @@ def _parse_instruction_response(
     )
 
 
-def get_llm_status() -> dict[str, Any]:
-    """Get current LLM configuration status."""
-    settings = load_llm_settings()
-    provider = settings.get("provider", "ollama")
-    api_key = _get_api_key(settings)
+def get_llm_status(purpose: str = "text") -> dict[str, Any]:
+    """The ``purpose`` chain's first entry with credentials (no network check), for status lines."""
+    from hani2 import connections as conns
+    from hani2 import model_chain
 
-    # Ollama doesn't require an API key
-    is_configured = provider.lower() == "ollama" or bool(api_key)
+    ch, src = model_chain.chain_for(purpose)
+    first = None
+    for e in ch:
+        c, _why = model_chain.connection_of(e)
+        if c is None:
+            continue
+        ok, why = conns.has_credentials(c)
+        if first is None or ok:
+            first = (e, c, ok, why)
+        if ok:
+            break
+    if first is None:
+        return {"configured": False, "provider": "", "model": "", "connection": "", "source": src.id if src else "",
+                "reason": "no model chain"}
+    e, c, ok, why = first
+    return {"configured": ok, "provider": c.provider, "model": e.model, "connection": c.name,
+            "source": src.id if src else "", "reason": why,
+            # old keys
+            "api_key_env": c.api_key_env or c.preset.env, "api_key_set": bool(conns.api_key(c)),
+            "ollama_base_url": c.base if c.provider in ("ollama", "ollama_cloud") else ""}
 
-    return {
-        "configured": is_configured,
-        "provider": provider,
-        "model": settings.get("model", "qwen2.5:1.5b"),
-        "api_key_env": settings.get("api_key_env", "OPENAI_API_KEY"),
-        "api_key_set": bool(api_key),
-        "ollama_base_url": settings.get("ollama_base_url", "http://localhost:11434/v1"),
-    }
 
+def complete(prompt: str, *, system: str | None = None, session: Any = None, purpose: str = "tools",
+             **overrides: Any) -> str:
+    """Send one prompt to the language model and return its reply as text.
 
-def complete(prompt: str, *, system: str | None = None, **overrides: Any) -> str:
-    """Send one prompt to the configured LLM and return its reply as text.
-
-    This is the simplest way for a tool (or any other code) to use the language
-    model configured in ``llm_settings.json``. ``system`` is put before the
-    prompt as instructions; keyword arguments (``model``, ``temperature``,
-    ``max_tokens``, ``provider`` ...) override single settings for this call.
+    This is the simplest way for a tool (or any other code) to use the language model: the
+    ``tools`` model chain (see :mod:`hani2.model_chain`), pinned for ``session`` when given.
+    ``system`` is put before the prompt as instructions; ``temperature``, ``max_tokens`` and other
+    keyword arguments tune this call; ``provider`` and ``model`` (with ``api_key_env``,
+    ``api_base``) call that model directly instead of the chain.
     Raises an exception when the model cannot be reached or returns nothing.
     """
-    settings = {**load_llm_settings(), **overrides}
+    from hani2 import model_chain
+
     text = f"{system.strip()}\n\n{prompt}" if system else prompt
-    return _call_llm(text, settings).strip()
+    if overrides.get("provider") or overrides.get("model"):
+        settings = {**load_llm_settings(), **overrides}
+        return _call_llm(text, settings).strip()
+    models = model_chain.models_of(session)
+    return _call_llm(text, chain_settings(purpose, models, **overrides)).strip()

@@ -6,6 +6,13 @@ HANI2 does not need a language model to run a negotiation. You need one for thre
 - **LLM opponents**, the opponents from negmas-llm that negotiate in natural language,
 - the **message helpers**: writing a message for an offer, reading an offer out of a message, and the admin-only `LLM` tool that turns a plain-language instruction into an offer and a message.
 
+!!! tip "Which model is used"
+    The models to use are set as **model chains**: ordered lists of models HANI2 tries until one
+    is available, per purpose, per project or study, with **connections** to any provider (API
+    keys, subscriptions, local servers). See [Models and connections](models.md). The two files
+    below are the old single-model settings: they are used when no chain is set, and their
+    prompts and other keys always apply.
+
 There are two independent configurations, so the assistant can use a different model from the opponents.
 
 | File | Used by | Client |
@@ -62,13 +69,16 @@ To use an Ollama server on another machine, set `ollama_base_url` in `llm_settin
 
 ### Local fallback for missing models
 
-When an Ollama call made through litellm (by an LLM opponent or the Assistant) fails because the model is not found, and the call did not name a local `api_base` (no `api_base` at all also counts), HANI2 retries it once against the local Ollama daemon. The local address is `http://localhost:11434` unless you set `HANI2_OLLAMA_LOCAL_BASE`:
+When the old settings point Ollama at a remote server (`api_base`, or `OLLAMA_API_BASE`, for example
+`https://ollama.com`), they read as a two-entry model chain: the remote server first, then the
+local Ollama daemon. A model the remote server does not have is used from the local daemon. The
+local address is `http://localhost:11434` unless you set `HANI2_OLLAMA_LOCAL_BASE`:
 
 ```bash
 export HANI2_OLLAMA_LOCAL_BASE=http://127.0.0.1:11500
 ```
 
-Calls that already target `localhost` or `127.0.0.1` are not retried.
+See [Choosing an entry](models.md#choosing-an-entry).
 
 ## Hosted providers
 
@@ -118,7 +128,7 @@ The assistant uses function calling, so pick a model that supports tools. See th
 
 ### LLM opponents
 
-When an opponent is an LLM negotiator (its spec starts with `LLM`, or its class derives from negmas-llm's `LLMNegotiator` or `LLMMetaNegotiator`), HANI2 passes `model` from `llm_settings.json`. It also passes `provider` when the spec is a string starting with `LLM`, and to meta negotiators whose constructor declares a `provider` parameter. negmas-llm calls litellm, so any litellm provider works. HANI2 passes no API key or endpoint to opponents, so `api_key_env` and `ollama_base_url` do not apply to them; provide credentials the way negmas-llm and litellm expect, usually the provider's standard environment variable (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` and so on).
+When an opponent is an LLM negotiator (its spec starts with `LLM`, or its class derives from negmas-llm's `LLMNegotiator` or `LLMMetaNegotiator`), HANI2 gives it the `opponent` model chain's entry: the provider, the model, the connection's key, address and headers, and the entry's parameters. This also applies to the LLM layer a meta negotiator wraps. Without a chain, that entry comes from `llm_settings.json`. negmas-llm calls litellm, so any litellm provider works.
 
 ```json title="llm_settings.json"
 {"provider": "openai", "model": "gpt-4o-mini", "api_key_env": "OPENAI_API_KEY"}
@@ -132,15 +142,17 @@ The message helpers accept any litellm provider:
 
 | `provider` | How it is called | Key |
 | --- | --- | --- |
-| `ollama` | OpenAI-compatible client at `ollama_base_url`. Any OpenAI-compatible server works here. | none |
-| anything else (`openai`, `anthropic`, `gemini`, `groq`, `mistral`, `azure`, `openrouter`, …) | litellm, with the model string built from `provider` and `model`; set `api_base` for a custom endpoint | the variable named in `api_key_env` |
+| `ollama` | litellm's Ollama chat API at `ollama_base_url` (a trailing `/v1` is ignored). | none |
+| anything else (`openai`, `anthropic`, `gemini`, `groq`, `mistral`, `azure`, `openrouter`, …) | litellm, with the model string built from `provider` and `model`; set `api_base` for a custom endpoint | the variable named in `api_key_env` (else the provider's usual variable) |
+
+With a model chain, the helpers use the `text` chain and tools use the `tools` chain.
 
 The helpers are used by:
 
 - the **Write message** and **Offer from message** buttons that admins see under the action panel,
 - the admin settings **Write a message when none is given** (`auto_generate`) and the automatic extraction of an offer from the human's message (`auto_extract`),
 - the admin-only `LLM` tool (see [Tools](tools.md)),
-- tools built on `LLMTool` or calling `Tool.ask_llm()`, such as the Summary and Ask the AI example tools (see [Build a tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model)). Your own code can call the same model with `hani2.llm_service.complete(prompt, system=None, **settings)`.
+- tools built on `LLMTool` or calling `Tool.ask_llm()`, such as the Summary and Ask the AI example tools (see [Build a tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model)). Your own code can call the same model with `hani2.llm_service.complete(prompt, system=None, session=None, **settings)`.
 
 The **Language model** page of the admin console shows whether the configuration is usable: the provider, the model and whether the API key variable is set.
 
@@ -211,4 +223,6 @@ Only calls made while the negotiation is being stepped are logged, so concurrent
 
 **LLM opponents send empty or invalid offers.** Use a larger model and turn on `HANI2_LLM_LOG` to see the exact prompts and answers.
 
-**The admin console says the LLM is not configured.** The provider is not `ollama` and the variable named in `api_key_env` is not set.
+**The admin console says the LLM is not configured.** No entry of the chain has credentials: the provider is not `ollama` and the key variable is not set, or a subscription connection is not signed in. **Test chains** on the Models page says why each entry was skipped.
+
+**A banner says no language model is available.** Every entry of the chain was skipped; the `model_unavailable` event lists why. Run `hani2 models resolve` to check from the command line.
