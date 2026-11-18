@@ -31,7 +31,16 @@ def _only_settings(layer: str | None) -> None:
 # --------------------------------------------------------------------------- #
 @router.get("/api/admin/providers")
 def admin_providers():
-    return {"providers": prov.table(), "purposes": model_chain.PURPOSE_LABELS}
+    from hani2 import harness
+
+    hs = []
+    for h in harness.capability_table():
+        try:
+            st = harness.adapter(h["id"]).status()
+        except Exception as e:  # noqa: BLE001
+            st = {"found": False, "error": conns.redact(e)}
+        hs.append({**h, "status": st})
+    return {"providers": prov.table(), "purposes": model_chain.PURPOSE_LABELS, "harnesses": hs}
 
 
 @router.get("/api/admin/connections")
@@ -40,7 +49,8 @@ def admin_connections(implicit: bool = True):
 
 
 def _body_to_conn(body: dict) -> tuple[dict, str | None, dict | None]:
-    data = {k: body.get(k) for k in ("name", "provider", "auth", "base_url", "api_key_env", "litellm_provider", "label")
+    data = {k: body.get(k) for k in ("name", "provider", "auth", "base_url", "api_key_env", "litellm_provider", "label",
+                                     "upstream")
             if body.get(k)}
     key = body.get("api_key") or None
     headers = body.get("headers")
@@ -97,6 +107,17 @@ async def admin_test_connection(name: str, body: dict = Body(default={})):
         out: dict[str, Any] = {"name": name, "credentials": ok, "reason": why}
         if not ok:
             return {**out, "ok": False}
+        if c.preset.harness:  # a tiny completion through the harness (a check sends nothing)
+            from hani2 import harness
+
+            model = model or harness.default_model(c)
+            try:
+                r = harness.complete(c, model, [{"role": "user", "content": "Reply with the word ok."}],
+                                     {"timeout": 90})
+            except Exception as e:  # noqa: BLE001
+                return {**out, "ok": False, "model": model, "reason": conns.redact(f"{type(e).__name__}: {e}")[:300]}
+            return {**out, "ok": True, "model": model, "verified": True, "reply": r.text[:200],
+                    "reason": "", "models": []}
         if model:
             p = conns.probe(c, model, fresh=True)
             return {**out, "ok": p.ok, "model": model, "reason": conns.redact(p.reason), "verified": p.verified,
@@ -108,26 +129,9 @@ async def admin_test_connection(name: str, body: dict = Body(default={})):
     return await run_in_threadpool(_run)
 
 
-@router.post("/api/admin/connections/{name}/login")
-async def admin_start_login(name: str):
-    try:
-        return await run_in_threadpool(conns.start_login, name)
-    except conns.ConnectionError_ as e:
-        raise HTTPException(400, str(e)) from None
-    except Exception as e:  # noqa: BLE001 - the provider's own error
-        raise HTTPException(502, f"the sign-in could not start: {conns.redact(e)}") from None
-
-
-@router.get("/api/admin/connections/{name}/login")
-async def admin_poll_login(name: str):
-    try:
-        return await run_in_threadpool(conns.poll_login, name)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"the sign-in failed: {conns.redact(e)}") from None
-
-
 @router.delete("/api/admin/connections/{name}/login")
 def admin_logout(name: str):
+    """Delete a connection's stored tokens (subscription sign-ins are no longer offered)."""
     conns.logout(name)
     return {"ok": True}
 

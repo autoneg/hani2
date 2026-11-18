@@ -9,7 +9,7 @@ HANI2 does not need a language model to run a negotiation. You need one for thre
 !!! tip "Which model is used"
     The models to use are set as **model chains**: ordered lists of models HANI2 tries until one
     is available, per purpose, per project or study, with **connections** to any provider (API
-    keys, subscriptions, local servers). See [Models and connections](models.md). The two files
+    keys, local servers, agent harnesses). See [Models and connections](models.md). The two files
     below are the old single-model settings: they are used when no chain is set, and their
     prompts and other keys always apply.
 
@@ -223,6 +223,6 @@ Only calls made while the negotiation is being stepped are logged, so concurrent
 
 **LLM opponents send empty or invalid offers.** Use a larger model and turn on `HANI2_LLM_LOG` to see the exact prompts and answers.
 
-**The admin console says the LLM is not configured.** No entry of the chain has credentials: the provider is not `ollama` and the key variable is not set, or a subscription connection is not signed in. **Test chains** on the Models page says why each entry was skipped.
+**The admin console says the LLM is not configured.** No entry of the chain has credentials: the provider is not `ollama` and the key variable is not set, or a harness is not installed. **Test chains** on the Models page says why each entry was skipped.
 
 **A banner says no language model is available.** Every entry of the chain was skipped; the `model_unavailable` event lists why. Run `hani2 models resolve` to check from the command line.

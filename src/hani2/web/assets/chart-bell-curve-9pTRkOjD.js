@@ -1,1 +1,0 @@
-import{c as a}from"./index-1LMcSnd1.js";const e={name:"chart-bell-curve",size:24,node:[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"M7 16c3.5 0 2.5-10 6-10s2.5 10 6 10",key:"5h6g7j"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

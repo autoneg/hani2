@@ -36,7 +36,7 @@ See [Authentication](authentication.md). The `?admin=1` query parameter on the n
 | | Language model | `llm_settings.json`. |
 | | Assistant settings | `assistant_settings.json`. |
 | | Autopilot | `autopilot_settings.json`. |
-| Language models | Connections | Sign-ins to model providers (API keys, subscriptions, local servers): status, test, sign in, remove; the providers and their sign-in methods. Settings folder only. |
+| Language models | Connections | Connections to model providers and agent harnesses (API keys, local servers): status, test, remove; the harnesses, the providers and their sign-in methods. Settings folder only. |
 | | Models | The model chains per purpose, per layer: reorder, duplicate, parameters, test an entry, test the chains. |
 | Accounts | Users | Add users, make admins, set passwords, delete. |
 
@@ -278,11 +278,13 @@ A provider is used when it has both a key and a secret and is not explicitly dis
 The connections model chains use, kept in the settings folder for every project and study. Each
 row shows a status dot, the provider, the sign-in method, the masked key or the environment
 variable, and the address. **Test** checks the connection and lists the provider's models when it
-can. **Sign in** starts a device-code sign-in for a subscription connection: the page shows the
-code and the address where you enter it, and waits until you confirm. **Show implicit** lists the
-connections that exist without being added. **Add a connection** offers only the sign-in methods
-the chosen provider supports, and says why when a provider has no subscription sign-in. See
-[Models and connections](models.md#connections).
+can; for a harness connection it sends a tiny request through the harness. **Show implicit** lists
+the connections that exist without being added. **Add a connection** offers only the sign-in
+methods the chosen provider supports, and says why when a provider has no subscription sign-in.
+**Harnesses** shows, for Claude Code, Codex and pi, whether the harness is installed and its
+version, the allowed sign-in (API keys only) and why, and which purposes it can serve. A stored
+subscription connection from an earlier version shows as disabled with the reason. See
+[Models and connections](models.md#connections) and [Harnesses](models.md#harnesses).
 
 ## Models
 

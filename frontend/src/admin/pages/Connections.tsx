@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, FlaskConical, LogIn, LogOut, Plug, Plus, Trash2 } from "lucide-react";
+import { Bot, FlaskConical, Plug, Plus, Trash2 } from "lucide-react";
 import { api } from "../../api";
 import { Group } from "../Group";
 import { Row, Tile } from "../Row";
@@ -7,7 +7,7 @@ import { Select } from "../controls/Select";
 import { TextField } from "../controls/TextField";
 import { Toggle } from "../controls/Toggle";
 import { Note, Spinner } from "../schema";
-import { copyText, toast } from "../toast";
+import { toast } from "../toast";
 
 export interface ProviderInfo {
   id: string;
@@ -22,6 +22,25 @@ export interface ProviderInfo {
   examples: string[];
   needs_base_url: boolean;
   featured: boolean;
+  offered: boolean;
+  not_offered: string;
+  harness: string;
+}
+
+export interface HarnessInfo {
+  id: string;
+  label: string;
+  completion: boolean;
+  assistant_tools: boolean;
+  function_calling: boolean;
+  purposes: string[] | null;
+  auth: string[];
+  auth_reason: string;
+  upstreams: Record<string, string>;
+  default_upstream: string;
+  extra: string;
+  sources: string[];
+  status: { found: boolean; path?: string; version?: string; error?: string };
 }
 
 export interface ConnectionInfo {
@@ -36,111 +55,52 @@ export interface ConnectionInfo {
   api_key?: string;
   api_key_env?: string;
   api_key_env_set?: boolean;
-  signed_in?: boolean;
   label?: string;
   auth_methods: string[];
+  upstream?: string;
+  disabled?: string;
+  harness?: { id: string; status: HarnessInfo["status"]; assistant_tools: boolean; purposes: string[] | null; upstream: string; default_model: string; auth_reason: string };
 }
 
 export const AUTH_LABELS: Record<string, string> = {
   api_key: "API key (stored here)",
   api_key_env: "API key in an environment variable",
-  subscription: "Subscription sign-in",
+  subscription: "Subscription sign-in (not offered)",
   none: "No sign-in",
 };
 
 export const CONNECTION_ENTRIES = [
-  { id: "connections-list", label: "Connections", hint: "Status, test, sign in, remove", keywords: "provider api key login subscription" },
-  { id: "connection-add", label: "Add a connection", hint: "Anthropic, OpenAI, Ollama, GitHub Copilot, …", keywords: "new provider key ollama copilot chatgpt" },
-  { id: "providers-table", label: "Providers and sign-in methods", hint: "Which provider supports API keys or subscriptions", keywords: "auth oauth device" },
+  { id: "connections-list", label: "Connections", hint: "Status, test, remove", keywords: "provider api key harness" },
+  { id: "connection-add", label: "Add a connection", hint: "Anthropic, OpenAI, Ollama, a harness, …", keywords: "new provider key ollama harness claude code codex pi" },
+  { id: "harnesses", label: "Harnesses", hint: "Claude Code, Codex and pi: installed, sign-in, purposes", keywords: "harness claude code codex pi agent sdk cli" },
+  { id: "providers-table", label: "Providers and sign-in methods", hint: "Which provider supports which sign-in, and which are not offered", keywords: "auth oauth subscription copilot chatgpt" },
 ];
 
 export function useConnections() {
   const [list, setList] = useState<ConnectionInfo[] | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [harnesses, setHarnesses] = useState<HarnessInfo[]>([]);
   const load = () =>
     Promise.all([api("/api/admin/connections"), api("/api/admin/providers")])
       .then(([c, p]) => {
         setList(c.connections);
         setProviders(p.providers);
+        setHarnesses(p.harnesses ?? []);
       })
       .catch((e) => toast(e.message, "error"));
   useEffect(() => {
     load();
   }, []);
-  return { list, providers, reload: load };
+  return { list, providers, harnesses, reload: load };
 }
 
 function Dot({ ok, warn }: { ok: boolean; warn?: boolean }) {
   return <span aria-hidden className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${ok ? "bg-good" : warn ? "bg-warn" : "bg-bad"}`} />;
 }
 
-/** The device-code sign-in: shows the code and the address, polls until it is done. */
-function DeviceLogin({ name, onDone }: { name: string; onDone: () => void }) {
-  const [st, setSt] = useState<any>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const timer = useRef<number | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const poll = (ms: number) => {
-      timer.current = window.setTimeout(async () => {
-        try {
-          const r = await api(`/api/admin/connections/${encodeURIComponent(name)}/login`);
-          if (!alive) return;
-          if (r.status === "connected") {
-            toast(`Signed in: ${name}`);
-            onDone();
-            return;
-          }
-          if (r.status !== "pending") {
-            setErr(`The sign-in ${r.status === "none" ? "was not started" : r.status === "denied" ? "was declined" : "expired"}.`);
-            return;
-          }
-          poll((r.interval ?? 5) * 1000);
-        } catch (e: any) {
-          if (alive) setErr(e.message);
-        }
-      }, ms);
-    };
-    api(`/api/admin/connections/${encodeURIComponent(name)}/login`, { method: "POST" })
-      .then((r) => {
-        if (!alive) return;
-        setSt(r);
-        poll((r.interval ?? 5) * 1000);
-      })
-      .catch((e) => alive && setErr(e.message));
-    return () => {
-      alive = false;
-      if (timer.current) window.clearTimeout(timer.current);
-    };
-  }, [name]);
-  if (err)
-    return (
-      <div className="flex items-center gap-2 text-sm text-bad">
-        {err}
-        <button className="btn-ghost text-xs" onClick={onDone}>Close</button>
-      </div>
-    );
-  if (!st) return <span className="text-xs text-muted">Starting the sign-in…</span>;
-  return (
-    <div className="w-full rounded-lg border border-you/30 bg-you/[0.06] p-3 text-sm">
-      <div className="mb-2 text-muted">
-        Open <a className="font-medium text-you underline" href={st.verification_uri} target="_blank" rel="noreferrer">{st.verification_uri} <ExternalLink size={12} className="inline" /></a> and enter this code:
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="rounded-md border border-line bg-surface px-3 py-1.5 font-mono text-lg tracking-widest text-ink" title="Copy" onClick={() => copyText(st.user_code)}>
-          {st.user_code}
-        </button>
-        <span className="text-xs text-muted">Waiting for you to confirm… Never share this code.</span>
-        <button className="btn-ghost ml-auto text-xs" onClick={onDone}>Cancel</button>
-      </div>
-    </div>
-  );
-}
-
 function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void }) {
   const [test, setTest] = useState<any>(null);
   const [busy, setBusy] = useState(false);
-  const [login, setLogin] = useState(false);
   const run = async () => {
     setBusy(true);
     try {
@@ -151,7 +111,8 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
     setBusy(false);
   };
   const how =
-    c.auth === "api_key" ? `key ${c.api_key || "missing"}` : c.auth === "api_key_env" ? `key from $${c.api_key_env}${c.api_key_env_set ? "" : " (not set)"}` : c.auth === "subscription" ? (c.signed_in ? "signed in" : "not signed in") : "no sign-in";
+    c.disabled ? "disabled" : c.auth === "api_key" ? `key ${c.api_key || "missing"}` : c.auth === "api_key_env" ? `key from $${c.api_key_env}${c.api_key_env_set ? "" : " (not set)"}` : "no sign-in";
+  const h = c.harness;
   const ok = test ? test.ok : c.credentials;
   return (
     <Row
@@ -159,7 +120,7 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
         <span className="relative">
           <Tile icon={Plug} color={c.implicit ? "bg-muted" : "bg-you"} />
           <span className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-surface">
-            <Dot ok={ok} warn={!test && c.auth === "subscription"} />
+            <Dot ok={ok} />
           </span>
         </span>
       }
@@ -172,17 +133,12 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
       }
       hint={
         <>
-          {[AUTH_LABELS[c.auth] ?? c.auth, how, c.base].filter(Boolean).join(" · ")}
+          {[AUTH_LABELS[c.auth] ?? c.auth, how, h ? `calls ${h.upstream}` : "", h ? (h.status.found ? h.status.version : "not installed") : "", h ? (h.assistant_tools ? "completion + Assistant functions" : "completion only") : "", h?.purposes ? `only: ${h.purposes.join(", ")}` : "", c.base].filter(Boolean).join(" · ")}
           {!c.credentials && c.credentials_reason && <span className="text-bad"> · {c.credentials_reason}</span>}
           {test && (
             <span className={test.ok ? "text-good" : "text-bad"}>
-              {" "}· {test.ok ? `works${test.models?.length ? `: ${test.models.length} models (${test.models.slice(0, 4).join(", ")}${test.models.length > 4 ? ", …" : ""})` : test.verified === false ? " (credentials present)" : ""}` : test.reason}
+              {" "}· {test.ok ? test.reply !== undefined ? `works: ${test.model} replied "${test.reply}"` : `works${test.models?.length ? `: ${test.models.length} models (${test.models.slice(0, 4).join(", ")}${test.models.length > 4 ? ", …" : ""})` : test.verified === false ? " (credentials present)" : ""}` : test.reason}
             </span>
-          )}
-          {login && (
-            <div className="mt-2">
-              <DeviceLogin name={c.name} onDone={() => { setLogin(false); reload(); }} />
-            </div>
           )}
         </>
       }
@@ -190,17 +146,6 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
       <button className="btn-ghost text-xs" onClick={run} disabled={busy}>
         <FlaskConical size={13} /> {busy ? "Testing…" : "Test"}
       </button>
-      {c.auth === "subscription" && !c.implicit && (
-        c.signed_in ? (
-          <button className="btn-ghost text-xs" onClick={async () => { await api(`/api/admin/connections/${encodeURIComponent(c.name)}/login`, { method: "DELETE" }); reload(); }}>
-            <LogOut size={13} /> Sign out
-          </button>
-        ) : (
-          <button className="btn-ghost text-xs" onClick={() => setLogin(true)} disabled={login}>
-            <LogIn size={13} /> Sign in
-          </button>
-        )
-      )}
       {!c.implicit && (
         <button
           className="btn-ghost px-2 text-bad"
@@ -219,45 +164,61 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
   );
 }
 
-function AddConnection({ providers, names, onAdded }: { providers: ProviderInfo[]; names: string[]; onAdded: (name: string, subscription: boolean) => void }) {
+function AddConnection({ providers, harnesses, names, onAdded }: { providers: ProviderInfo[]; harnesses: HarnessInfo[]; names: string[]; onAdded: (name: string) => void }) {
+  const offered = providers.filter((x) => x.offered);
   const [pid, setPid] = useState("anthropic");
-  const p = providers.find((x) => x.id === pid);
+  const p = offered.find((x) => x.id === pid);
+  const h = harnesses.find((x) => x.id === p?.harness);
   const [auth, setAuth] = useState("");
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [env, setEnv] = useState("");
   const [base, setBase] = useState("");
   const [lp, setLp] = useState("");
+  const [up, setUp] = useState("");
   useEffect(() => {
     if (!p) return;
     setAuth(p.auth[0]);
     setEnv(p.env);
     setBase("");
+    setUp(h?.default_upstream ?? "");
     let n = pid.replace(/_/g, "-");
     for (let i = 2; names.includes(n); i++) n = `${pid.replace(/_/g, "-")}-${i}`;
     setName(n);
-  }, [pid, providers.length]);
+  }, [pid, providers.length, harnesses.length]);
+  useEffect(() => {
+    if (!h) return;
+    if (up === "ollama") setAuth("none");
+    else if (auth === "none") setAuth("api_key");
+  }, [up]);
   if (!p) return null;
+  const authOptions = h ? (up === "ollama" ? ["none"] : ["api_key", "api_key_env"]) : p.auth;
   const add = async () => {
     try {
       await api("/api/admin/connections", {
-        body: { name, provider: pid, auth, api_key: auth === "api_key" ? key : undefined, api_key_env: auth === "api_key_env" ? env : undefined, base_url: base || undefined, litellm_provider: lp || undefined },
+        body: { name, provider: pid, auth, api_key: auth === "api_key" ? key : undefined, api_key_env: auth === "api_key_env" ? env : undefined, base_url: base || undefined, litellm_provider: lp || undefined, upstream: h ? up : undefined },
       });
       toast(`Added ${name}`);
       setKey("");
-      onAdded(name, auth === "subscription");
+      onAdded(name);
     } catch (e: any) {
       toast(e.message, "error");
     }
   };
   const ready = name && (auth !== "api_key" || key) && (!p.needs_base_url || base) && (pid !== "litellm" || lp);
+  const local = h && up === "ollama";
   return (
     <Group title="Add a connection" id="setting-connection-add" footer="Keys are stored only in the settings folder (readable by the server's user only) and are never shown again, sent to the browser, or written to results and recordings.">
       <Row label="Provider" hint={p.help}>
-        <Select label="Provider" value={pid} onChange={setPid} options={providers.map((x) => ({ value: x.id, label: x.label }))} />
+        <Select label="Provider" value={pid} onChange={setPid} options={offered.map((x) => ({ value: x.id, label: x.harness ? `Harness: ${x.label}` : x.label }))} />
       </Row>
-      <Row label="Sign-in" hint={!p.auth.includes("subscription") && p.no_subscription ? `No subscription sign-in: ${p.no_subscription}` : auth === "subscription" ? "Sign in with a device code after adding. Serving study participants from a personal subscription may breach the provider's terms." : undefined}>
-        <Select label="Sign-in method" value={auth} onChange={setAuth} options={p.auth.map((a) => ({ value: a, label: AUTH_LABELS[a] ?? a }))} />
+      {h && (
+        <Row label="Calls" hint={`The model provider ${h.label} calls. ${h.auth_reason}`}>
+          <Select label="Upstream provider" value={up} onChange={setUp} options={Object.entries(h.upstreams).map(([v, l]) => ({ value: v, label: l }))} />
+        </Row>
+      )}
+      <Row label="Sign-in" hint={h ? (local ? "A local server needs no key." : "API key only.") : p.no_subscription ? `No subscription sign-in: ${p.no_subscription}` : undefined}>
+        <Select label="Sign-in method" value={auth} onChange={setAuth} options={authOptions.map((a) => ({ value: a, label: AUTH_LABELS[a] ?? a }))} />
       </Row>
       <Row label="Name" hint="Model chains refer to the connection by this name">
         <TextField label="Connection name" value={name} onChange={setName} className="w-56" mono />
@@ -277,25 +238,62 @@ function AddConnection({ providers, names, onAdded }: { providers: ProviderInfo[
           <TextField label="litellm provider" value={lp} onChange={setLp} className="w-56" mono />
         </Row>
       )}
-      {auth !== "subscription" && (
-        <Row label="Address" hint={p.needs_base_url ? "Required" : `Optional; default ${p.base_url || "the provider's"}`}>
-          <TextField label="Base URL" value={base} onChange={setBase} className="w-72" mono placeholder={p.base_url || "https://…"} />
+      {(!h || local) && (
+        <Row label="Address" hint={p.needs_base_url ? "Required" : `Optional; default ${local ? "http://localhost:11434" : p.base_url || "the provider's"}`}>
+          <TextField label="Base URL" value={base} onChange={setBase} className="w-72" mono placeholder={local ? "http://localhost:11434" : p.base_url || "https://…"} />
         </Row>
       )}
       {p.notes && <Row label="Note" hint={p.notes} />}
       <Row label="">
         <button className="btn-primary" disabled={!ready} onClick={add}>
-          <Plus size={15} /> {auth === "subscription" ? "Add and sign in" : "Add connection"}
+          <Plus size={15} /> Add connection
         </button>
       </Row>
     </Group>
   );
 }
 
+function Harnesses({ harnesses }: { harnesses: HarnessInfo[] }) {
+  if (!harnesses.length) return null;
+  return (
+    <Group
+      title="Harnesses"
+      id="setting-harnesses"
+      footer="A harness connection calls the model through an installed agent harness instead of the API. It signs in with an API key only, runs with its own empty configuration and working folder, and has every built-in tool turned off: only HANI2's own functions are offered."
+    >
+      {harnesses.map((h) => (
+        <Row
+          key={h.id}
+          icon={<Tile icon={Bot} color={h.status.found ? "bg-you" : "bg-muted"} />}
+          label={
+            <>
+              {h.label} <span className="ml-1 font-mono text-xs text-muted">{h.id}</span>
+            </>
+          }
+          hint={
+            <>
+              <span className={h.status.found ? "text-good" : "text-bad"}>{h.status.found ? `Found: ${h.status.version || h.status.path}` : `Not available: ${h.status.error || "not installed"}`}</span>
+              <span className="block">Sign-in: API key only. {h.auth_reason}</span>
+              <span className="block">Calls: {Object.values(h.upstreams).join(", ")}</span>
+              <span className="block">Purposes: {h.purposes ? `${h.purposes.join(", ")} only (never participant-facing)` : "every purpose"}{h.function_calling && !h.assistant_tools ? "; can call functions, but not for the Assistant" : ""}</span>
+              {h.sources.length > 0 && <span className="block opacity-80">Checked against: {h.sources.join("; ")}</span>}
+            </>
+          }
+        >
+          <div className="flex flex-wrap justify-end gap-1">
+            <span className="rounded bg-sunken px-1.5 py-0.5 text-[0.7rem] text-muted">completion</span>
+            <span className={`rounded px-1.5 py-0.5 text-[0.7rem] ${h.assistant_tools ? "bg-sunken text-muted" : "bg-bad/10 text-bad"}`}>{h.assistant_tools ? "Assistant functions" : "no Assistant functions"}</span>
+          </div>
+        </Row>
+      ))}
+    </Group>
+  );
+}
+
 function ProvidersTable({ providers }: { providers: ProviderInfo[] }) {
   return (
-    <Group title="Providers and sign-in methods" id="setting-providers-table" footer="Any provider litellm supports can be used through 'Other litellm provider'.">
-      {providers.map((p) => (
+    <Group title="Providers and sign-in methods" id="setting-providers-table" footer="Any provider litellm supports can be used through 'Other litellm provider'. Subscription sign-ins (ChatGPT plans, GitHub Copilot) are not offered: the providers' terms do not clearly allow a third-party application to use them to serve other people.">
+      {providers.filter((p) => !p.harness).map((p) => (
         <Row
           key={p.id}
           label={
@@ -305,14 +303,15 @@ function ProvidersTable({ providers }: { providers: ProviderInfo[] }) {
           }
           hint={
             <>
-              {p.notes || p.help}
-              {!p.auth.includes("subscription") && p.no_subscription && <span className="block">Subscription: {p.no_subscription}</span>}
+              {p.offered ? p.notes || p.help : p.not_offered}
+              {p.offered && p.no_subscription && <span className="block">Subscription: {p.no_subscription}</span>}
               {p.sources.length > 0 && <span className="block opacity-80">Checked against: {p.sources.join("; ")}</span>}
             </>
           }
         >
           <div className="flex flex-wrap justify-end gap-1">
-            {["api_key_env", "api_key", "subscription", "none"].filter((a) => p.auth.includes(a)).map((a) => (
+            {!p.offered && <span className="rounded bg-bad/10 px-1.5 py-0.5 text-[0.7rem] text-bad">not offered</span>}
+            {["api_key_env", "api_key", "none"].filter((a) => p.auth.includes(a)).map((a) => (
               <span key={a} className="rounded bg-sunken px-1.5 py-0.5 text-[0.7rem] text-muted">{a === "api_key_env" ? "key (env)" : a === "api_key" ? "key" : a}</span>
             ))}
           </div>
@@ -323,19 +322,13 @@ function ProvidersTable({ providers }: { providers: ProviderInfo[] }) {
 }
 
 export function Connections() {
-  const { list, providers, reload } = useConnections();
+  const { list, providers, harnesses, reload } = useConnections();
   const [implicit, setImplicit] = useState(false);
-  const [login, setLogin] = useState<string | null>(null);
   const shown = useMemo(() => (list ?? []).filter((c) => implicit || !c.implicit), [list, implicit]);
   if (!list) return <Spinner />;
   return (
     <>
       <Note>Connections live in the shared settings folder for every project and study. Model chains (Models page) pick connections by name.</Note>
-      {login && (
-        <div className="mb-6">
-          <DeviceLogin name={login} onDone={() => { setLogin(null); reload(); }} />
-        </div>
-      )}
       <Group
         title={`Connections (${shown.length})`}
         id="setting-connections-list"
@@ -344,14 +337,15 @@ export function Connections() {
             Show implicit <Toggle label="Show implicit connections" value={implicit} onChange={setImplicit} />
           </label>
         }
-        footer="Implicit connections exist without being added: one per provider, reading the provider's usual environment variable (and the local Ollama server)."
+        footer="Implicit connections exist without being added: one per provider, reading the provider's usual environment variable (and the local Ollama server). Harness connections are never implicit."
       >
         {shown.length === 0 && <Row label="No connections yet" hint="Add one below, or show the implicit ones." />}
         {shown.map((c) => (
           <ConnectionRow key={c.name} c={c} reload={reload} />
         ))}
       </Group>
-      <AddConnection providers={providers} names={list.map((c) => c.name)} onAdded={(n, sub) => { reload(); if (sub) setLogin(n); }} />
+      <AddConnection providers={providers} harnesses={harnesses} names={list.map((c) => c.name)} onAdded={() => reload()} />
+      <Harnesses harnesses={harnesses} />
       <ProvidersTable providers={providers} />
     </>
   );

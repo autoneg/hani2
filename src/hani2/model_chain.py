@@ -213,9 +213,10 @@ def connection_of(e: Entry) -> tuple[conns.Connection | None, str]:
     p = prov.get(e.provider)
     if p is None:
         return None, f"unknown provider {e.provider!r}"
-    if e.provider.lower() == "chatgpt":
-        c = conns.first_of("openai", "subscription")
-        return (c, "") if c else (None, "no OpenAI connection signed in with ChatGPT")
+    if e.provider.lower() in ("chatgpt", "copilot", "github-copilot", "github_copilot"):
+        return None, f"{e.provider}: subscription sign-in is {prov.NOT_OFFERED}"
+    if not p.offered:
+        return None, f"{p.label}: {p.not_offered}"
     c = conns.first_of(p.id)
     if c is None:
         return None, f"no {p.label} connection (add one on the Connections page)"
@@ -471,6 +472,11 @@ class Resolution:
     def is_ollama(self) -> bool:
         return self.litellm_provider == "ollama"
 
+    @property
+    def is_harness(self) -> bool:
+        """The entry runs through an agent harness (see :mod:`hani2.harness`)."""
+        return bool(self.connection is not None and self.connection.preset.harness)
+
     def short(self) -> str:
         return f"{self.connection.name}:{self.model}" if self.ok else ""
 
@@ -517,6 +523,17 @@ def resolve(purpose: str, *, start: int = 0, chain: list[Entry] | None = None, s
         if c is None:
             res.skipped.append({"position": i + 1, "entry": e.title, "reason": why})
             continue
+        if c.preset.harness:
+            from hani2 import harness
+
+            why = harness.refused_for(c, purpose)
+            if why:
+                res.skipped.append({"position": i + 1, "entry": e.title, "reason": why})
+                continue
+        bad = conns.refusal(c, e.model)
+        if bad:
+            res.skipped.append({"position": i + 1, "entry": e.title, "reason": bad})
+            continue
         if first_usable is None:
             first_usable = (i, e, c)
         pr = conns.probe(c, e.model, fresh=fresh)
@@ -553,6 +570,13 @@ def litellm_kwargs(res: Resolution, **overrides: Any) -> dict[str, Any]:
     if not res.ok:
         raise NoModelAvailable(res.error or f"no model for {res.purpose}")
     assert res.connection is not None and res.entry is not None
+    bad = conns.refusal(res.connection, res.model)
+    if bad:
+        raise NoModelAvailable(f"{res.short()}: {bad}")
+    if res.connection.preset.harness:
+        from hani2 import harness
+
+        harness.install_litellm_provider()
     params = {**res.entry.params, **{k: v for k, v in overrides.items() if v is not None}}
     for k in _drop_for(res.connection, res.model):
         params.pop(k, None)
@@ -564,10 +588,14 @@ def litellm_kwargs(res: Resolution, **overrides: Any) -> dict[str, Any]:
         kw["reasoning_effort"] = effort
     kw.update(params)
     apply_max_tokens(kw, res.litellm_provider or "openai", res.model, max_tokens)
+    if res.connection.preset.harness:
+        # litellm would refuse these for a custom provider; the harness adapter reads what it can use
+        kw["allowed_openai_params"] = [k for k in ("reasoning_effort", "temperature", "top_p", "max_tokens",
+                                                   "max_completion_tokens") if k in kw]
     return kw
 
 
-_HARD = ("AuthenticationError", "NotFoundError", "APIConnectionError", "ServiceUnavailableError",
+_HARD = ("HarnessError", "HarnessUnavailable", "HarnessTimeout", "AuthenticationError", "NotFoundError", "APIConnectionError", "ServiceUnavailableError",
          "PermissionDeniedError", "RateLimitError", "Timeout", "InternalServerError", "BadGatewayError")
 
 

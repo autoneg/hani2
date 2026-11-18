@@ -217,11 +217,11 @@ Connections to language-model providers and the model chains (see
 ```bash
 hani2 connections providers                       # providers and their sign-in methods
 hani2 connections list [--all]                    # connections (keys masked); --all adds the implicit ones
-hani2 connections add NAME --provider P [--auth api_key|api_key_env|subscription|none] [--key]
-                       [--api-key-env VAR] [--base-url URL] [--litellm-provider NAME] [--replace]
-hani2 connections test NAME [--model M]           # check the credentials (and a model) now
-hani2 connections login NAME                      # device-code sign-in of a subscription connection
-hani2 connections logout NAME
+hani2 connections add NAME --provider P [--auth api_key|api_key_env|none] [--key]
+                       [--api-key-env VAR] [--base-url URL] [--litellm-provider NAME]
+                       [--upstream PROVIDER] [--replace]   # P may be a harness: claude-code, codex, pi
+hani2 connections test NAME [--model M]           # check the credentials (and a model); a harness answers a tiny request
+hani2 connections logout NAME                     # delete a connection's stored tokens and private folder
 hani2 connections remove NAME
 hani2 models list [--study P/S] [--json]          # the chain of every purpose and its source
 hani2 models resolve [--study P/S] [--purpose X] [--json]   # the entry each purpose would use now

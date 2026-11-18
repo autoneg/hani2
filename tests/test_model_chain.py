@@ -516,56 +516,12 @@ def test_admin_models_layers(admin, study):
 
 
 # --------------------------------------------------------------------------- #
-# Device sign-in (mocked)                                                      #
+# Subscription sign-ins are not offered (see tests/test_harness.py)            #
 # --------------------------------------------------------------------------- #
-def test_copilot_device_login(hani2_home, monkeypatch):
-    from litellm.llms.github_copilot import per_user_auth as pua
+def test_subscription_presets_are_gone(hani2_home):
+    from hani2 import providers as prov
 
-    conns.add({"name": "gh", "provider": "github_copilot", "auth": "subscription"})
-    assert not conns.has_credentials(conns.get("gh"))[0]
-
-    async def start(endpoints):
-        return pua.GithubCopilotDeviceFlowStart(device_code="dev-123", user_code="ABCD-1234",
-                                                verification_uri="https://github.com/login/device",
-                                                expires_in=900, interval=1)
-
-    states = iter(["pending", "connected"])
-
-    async def poll(code, endpoints):
-        assert code == "dev-123"
-        st = next(states)
-        return pua.GithubCopilotDeviceFlowPoll(status=st, access_token="gho_token_abcdef" if st == "connected" else None)
-
-    monkeypatch.setattr(pua, "astart_device_flow", start)
-    monkeypatch.setattr(pua, "apoll_device_flow", poll)
-    st = conns.start_login("gh")
-    assert st["user_code"] == "ABCD-1234" and "dev-123" not in json.dumps(st)
-    assert conns.poll_login("gh")["status"] == "pending"
-    conns._PENDING["gh"]["next"] = 0
-    assert conns.poll_login("gh")["status"] == "connected"
-    f = hani2_home / "settings/secrets/gh/github-access-token"
-    assert f.read_text() == "gho_token_abcdef" and stat.S_IMODE(f.stat().st_mode) == 0o600
-    assert conns.has_credentials(conns.get("gh"))[0]
-
-    monkeypatch.setattr(conns, "_copilot_session", lambda c: ("cop-token-xyz123", "https://api.githubcopilot.com"))
-    write(hani2_home, "settings/models.json", ["gh:gpt-5"])
-    kw = mc.litellm_kwargs(mc.resolve("assistant"))
-    assert kw["model"] == "openai/gpt-5" and kw["api_base"] == "https://api.githubcopilot.com"
-    assert kw["api_key"] == "cop-token-xyz123" and "copilot-integration-id" in kw["extra_headers"]
-    conns.logout("gh")
-    assert not conns.has_credentials(conns.get("gh"))[0]
-
-
-def test_chatgpt_subscription_connection(hani2_home):
-    conns.add({"name": "cg", "provider": "openai", "auth": "subscription"})
-    c = conns.get("cg")
-    assert c.litellm == "chatgpt" and not conns.has_credentials(c)[0]
-    conns._write_private(conns.token_dir("cg") / "chatgpt-auth.json", json.dumps({"refresh_token": "r", "access_token": "a"}))
-    assert conns.has_credentials(c)[0]
-    write(hani2_home, "settings/models.json", ["cg:gpt-5.5"])
-    kw = mc.litellm_kwargs(mc.resolve("assistant"))
-    assert kw["model"] == "chatgpt/gpt-5.5" and kw["chatgpt_auth_file"].endswith("chatgpt-auth.json")
-    assert "api_key" not in kw
+    assert not prov.PROVIDERS["github_copilot"].offered and "subscription" not in prov.PROVIDERS["openai"].auth
 
 
 # --------------------------------------------------------------------------- #

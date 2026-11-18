@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Harness connections: Claude Code, Codex and pi.** A connection can run an installed agent
+  harness instead of calling the API (`--provider claude-code|codex|pi`; `pip install
+  'hani2[harness]'` for the Claude Agent SDK). Harness entries sit in model chains like any other,
+  with a check and the same fallback. Plain completion works for every purpose that a harness may
+  serve, including LLM opponents (through a litellm custom provider); the Assistant's functions run
+  through Claude Code (in-process MCP) and pi (an RPC bridge), and every call goes through the
+  Assistant's dispatcher, so capabilities and recordings apply. Usage rules are enforced in code:
+  API keys only, an isolated config folder and `HOME` per connection, an allowlisted environment,
+  no built-in tools, no user settings, memory files, hooks, plugins or MCP servers, an empty working
+  folder, and caps on time and turns. Following Anthropic's and OpenAI's terms, Claude Code and
+  Codex serve only the judge and the console's Test (never participants), and Codex runs without
+  any tools. The Connections page gains a **Harnesses** group (installed?, version, sign-in,
+  purposes). See [Harnesses](guide/models.md#harnesses).
+- **Subscription sign-ins are not offered.** The ChatGPT-plan and GitHub Copilot device sign-ins
+  are removed (from the presets, the console, `hani2 connections login` and the API): their
+  providers' terms do not clearly allow a third-party application to use them to serve others.
+  Stored connections of that kind load disabled and say why; `chatgpt:` and `copilot:` entries are
+  skipped. Ollama cloud models through a signed-in local server (`-cloud`) are refused for the same
+  reason; use an Ollama Cloud API key. See
+  [Subscription sign-ins](guide/models.md#subscription-sign-ins-are-not-offered).
 - **Model chains and connections.** Language models are now chosen from an ordered list of
   entries (`{connection, model, params, label}`) tried until one is available, so a session falls
   back to the next model when a provider is down, a key is missing or a model is not offered. One
@@ -11,10 +31,9 @@
   "anthropic:claude-sonnet-5-5,ollama:qwen3:4b"` / `HANI2_MODELS`) > the settings folder's > the
   old `provider`/`model` settings, which keep working as a one-entry chain. **Connections** sign in
   to providers with an API key (stored 0600 in the settings folder, always masked), a key in an
-  environment variable, a subscription (device-code sign-in for GitHub Copilot and for OpenAI with
-  a ChatGPT plan) or nothing (local Ollama, including cloud models after `ollama signin`). There
+  environment variable or nothing (a local Ollama server). There
   are presets for Anthropic (API keys only: Anthropic does not permit Claude plan sign-in in
-  third-party apps), OpenAI, Ollama Cloud, local Ollama, GitHub Copilot, Gemini, OpenRouter, Groq,
+  third-party apps), OpenAI, Ollama Cloud, local Ollama, Gemini, OpenRouter, Groq,
   Mistral, DeepSeek, Azure, Bedrock and OpenAI-compatible servers, and any other litellm provider
   can be used too. Every model call (the Assistant, LLM opponents, tools, offer extraction and
   message writing, the evaluation judge) uses the session's resolved entry. It is checked once with

@@ -61,3 +61,7 @@ This page is generated from the docstrings in the source. It covers the modules 
 ::: hani2.connections
 
 ::: hani2.providers
+
+::: hani2.harness
+    options:
+      members: [complete, run_tools, capabilities, refused_for, HarnessReply, Limits, HarnessError, HarnessUnavailable, HarnessTimeout]

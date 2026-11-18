@@ -721,6 +721,9 @@ def apply_model(agent: Any, res: Any) -> None:
         if obj is None or id(obj) in seen or depth > 3:
             return
         seen.add(id(obj))
+        if getattr(res, "is_harness", False) and hasattr(obj, "use_ufun_tools"):
+            # a harness takes no function schemas through litellm: the opponent reasons in text
+            obj.use_ufun_tools = False
         if hasattr(obj, "llm_kwargs") and hasattr(obj, "provider") and hasattr(obj, "model"):
             obj.provider = res.litellm_provider
             obj.model = res.model

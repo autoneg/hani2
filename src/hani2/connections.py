@@ -1,6 +1,6 @@
 """Connections: named sign-ins to language-model providers.
 
-A connection is ``{name, provider, auth, base_url?, api_key_env?, litellm_provider?, headers?}``.
+A connection is ``{name, provider, auth, base_url?, api_key_env?, litellm_provider?, upstream?, headers?}``.
 Entries of a model chain (:mod:`hani2.model_chain`) name a connection, so two connections of
 one provider can live side by side (``ollama-local`` and ``ollama-cloud``, two OpenAI keys).
 
@@ -8,7 +8,12 @@ Storage (the settings folder only; never a project or study folder):
 
 * ``$HANI2_HOME/settings/connections.json`` — the connections, without secrets;
 * ``$HANI2_HOME/settings/secrets/connections.json`` (0600) — pasted keys and header values;
-* ``$HANI2_HOME/settings/secrets/<name>/`` (0700) — subscription tokens.
+* ``$HANI2_HOME/settings/secrets/<name>/`` (0700) — a harness connection's isolated config folder
+  (see :mod:`hani2.harness`; old subscription tokens were kept here too).
+
+Subscription sign-ins (ChatGPT plans, GitHub Copilot) are not offered: their providers' terms do
+not clearly allow a third-party application to use them to serve other people. A stored
+connection of that kind loads *disabled*: it never resolves and says why.
 
 Secrets never leave this module except as the arguments of a model call: every listing is
 masked (:func:`public`), and :func:`redact` removes any secret from a text (errors, logs).
@@ -23,7 +28,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
 import threading
 import time
 from dataclasses import dataclass, field
@@ -58,6 +62,10 @@ class Connection:
     header_names: list[str] = field(default_factory=list)
     label: str = ""
     implicit: bool = False
+    #: for a harness connection (``claude-code``, ``codex``, ``pi``): the model provider the harness calls
+    upstream: str = ""
+    #: why this stored connection cannot be used any more (e.g. a subscription sign-in that is not offered)
+    disabled: str = ""
 
     @property
     def preset(self) -> prov.Provider:
@@ -71,8 +79,6 @@ class Connection:
         p = self.preset
         if self.provider == "litellm":
             return self.litellm_provider
-        if self.auth == "subscription" and p.subscription_litellm:
-            return p.subscription_litellm
         return p.litellm
 
     @property
@@ -81,7 +87,7 @@ class Connection:
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"name": self.name, "provider": self.provider, "auth": self.auth}
-        for k in ("base_url", "api_key_env", "litellm_provider", "label"):
+        for k in ("base_url", "api_key_env", "litellm_provider", "label", "upstream"):
             if getattr(self, k):
                 d[k] = getattr(self, k)
         if self.header_names:
@@ -95,11 +101,20 @@ def check_name(name: Any) -> str:
     return name
 
 
-def _from_dict(d: dict[str, Any], implicit: bool = False) -> Connection:
+def _from_dict(d: dict[str, Any], implicit: bool = False, stored: bool = False) -> Connection:
+    """A connection from its stored or submitted form. ``stored``: a connection read back from the
+    settings folder whose sign-in is no longer offered loads *disabled* (it never resolves, and says
+    why) instead of disappearing; a new one is refused."""
     p = prov.get(str(d.get("provider", "")))
     if p is None:
         raise ConnectionError_(f"unknown provider {d.get('provider')!r}; known: {', '.join(prov.PROVIDERS)}")
     auth = str(d.get("auth") or (p.auth[0] if p.auth else "none"))
+    if not p.offered or auth == "subscription":
+        why = p.not_offered if not p.offered else p.no_subscription or f"subscription sign-in is {prov.NOT_OFFERED}"
+        if not stored:
+            raise ConnectionError_(f"{p.label}: {why}")
+        return Connection(name=check_name(str(d.get("name", ""))), provider=p.id, auth=auth,
+                          label=str(d.get("label") or ""), disabled=f"{p.label} {auth} sign-in: {why}")
     if auth not in p.auth:
         why = f" ({p.no_subscription})" if auth == "subscription" and p.no_subscription else ""
         raise ConnectionError_(f"{p.label} does not support sign-in by {auth!r}; use one of "
@@ -110,7 +125,12 @@ def _from_dict(d: dict[str, Any], implicit: bool = False) -> Connection:
     c = Connection(name=check_name(str(d.get("name", ""))), provider=p.id, auth=auth,
                    base_url=str(d.get("base_url") or ""), api_key_env=str(d.get("api_key_env") or ""),
                    litellm_provider=str(d.get("litellm_provider") or ""), header_names=[str(h) for h in headers],
-                   label=str(d.get("label") or ""), implicit=implicit)
+                   label=str(d.get("label") or ""), implicit=implicit,
+                   upstream=str(d.get("upstream") or "").strip().lower())
+    if p.harness:
+        from hani2 import harness
+
+        harness.check_connection(c)  # raises ConnectionError_ for a sign-in or upstream that is not allowed
     if p.needs_base_url and not c.base_url:
         raise ConnectionError_(f"{p.label} needs a base URL")
     if p.id == "litellm" and not c.litellm_provider:
@@ -200,7 +220,7 @@ def configured() -> list[Connection]:
     out = []
     for d in _stored():
         try:
-            out.append(_from_dict(d))
+            out.append(_from_dict(d, stored=True))
         except ConnectionError_ as e:
             print(f"[hani2] ignoring connection {d.get('name')!r} in {_file()}: {e}")
     return out
@@ -208,8 +228,8 @@ def configured() -> list[Connection]:
 
 def _implicit(provider_id: str) -> Connection | None:
     p = prov.get(provider_id)
-    if p is None or p.id == "litellm":
-        return None
+    if p is None or p.id == "litellm" or p.harness or not p.offered:
+        return None  # a harness is used only when an admin adds it
     if p.id == "ollama":
         base = (os.environ.get("OLLAMA_API_BASE") or "").strip() or p.base_url
         return Connection(name="ollama", provider="ollama", auth="none", base_url=base, implicit=True)
@@ -259,7 +279,7 @@ def first_of(provider_id: str, auth: str | None = None) -> Connection | None:
     if p is None:
         return None
     for c in configured():
-        if c.provider == p.id and (auth is None or c.auth == auth):
+        if c.provider == p.id and not c.disabled and (auth is None or c.auth == auth):
             return c
     return _implicit(p.id) if auth in (None, "api_key_env", "none") else None
 
@@ -317,18 +337,12 @@ def remove(name: str) -> bool:
 
 
 def logout(name: str) -> None:
-    """Forget a connection's subscription tokens."""
+    """Delete a connection's private folder (old subscription tokens, a harness's isolated config)."""
+    import shutil
+
     d = secrets_dir() / name
     if d.is_dir() and _NAME.match(name):
-        for f in d.iterdir():
-            try:
-                f.unlink()
-            except OSError:  # pragma: no cover
-                pass
-        try:
-            d.rmdir()
-        except OSError:  # pragma: no cover
-            pass
+        shutil.rmtree(d, ignore_errors=True)
     _PENDING.pop(name, None)
 
 
@@ -347,74 +361,43 @@ def _header_values(c: Connection) -> dict[str, str]:
     return dict((_secrets().get(c.name) or {}).get("headers") or {})
 
 
-def _copilot_file(c: Connection) -> Path:
-    return secrets_dir() / c.name / "github-access-token"
-
-
-def _chatgpt_file(c: Connection) -> Path:
-    return secrets_dir() / c.name / "chatgpt-auth.json"
-
-
 def has_credentials(c: Connection) -> tuple[bool, str]:
     """Whether the connection can be tried at all (no network); ``(ok, reason)``."""
+    if c.disabled:
+        return False, c.disabled
+    if c.preset.harness:
+        from hani2 import harness
+
+        return harness.has_credentials(c)
     if c.auth in ("api_key", "api_key_env"):
         if api_key(c):
             return True, ""
         if c.auth == "api_key_env":
             return False, f"the environment variable {c.api_key_env or c.preset.env} is not set"
         return False, "no API key stored"
-    if c.auth == "subscription":
-        if c.provider == "github_copilot":
-            return (_copilot_file(c).exists(), "" if _copilot_file(c).exists() else "not signed in")
-        if c.provider == "openai":
-            try:
-                data = json.loads(_chatgpt_file(c).read_text())
-            except (OSError, json.JSONDecodeError):
-                return False, "not signed in"
-            return (bool(data.get("refresh_token") or data.get("access_token")),
-                    "" if data.get("refresh_token") or data.get("access_token") else "not signed in")
-        return False, "this provider has no subscription sign-in"
     if c.provider == "bedrock" and not (os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE")
                                         or os.environ.get("AWS_BEARER_TOKEN_BEDROCK")):
         return False, "no AWS credentials in the environment"
     return True, ""
 
 
-def _copilot_session(c: Connection) -> tuple[str, str]:
-    """``(token, api_base)`` of a Copilot connection (litellm's token exchange; cached until it expires)."""
-    from litellm.llms.github_copilot.github_host import github_host_endpoints
-    from litellm.llms.github_copilot.per_user_auth import exchange_github_token
-
-    gh = _copilot_file(c).read_text().strip()
-    sess = exchange_github_token(c.name, gh, c.name, github_host_endpoints("github.com"))
-    return sess.token, sess.api_base
-
-
-def _copilot_headers() -> dict[str, str]:
-    from litellm.llms.github_copilot.common_utils import get_copilot_default_headers
-
-    h = get_copilot_default_headers("x")
-    for k in ("Authorization", "content-type", "x-request-id"):
-        h.pop(k, None)
-    return h
-
-
 def call_kwargs(c: Connection) -> dict[str, Any]:
     """The litellm arguments that sign a call in with this connection (secrets included: use them
     only for the call itself)."""
+    if c.disabled:
+        raise ConnectionError_(c.disabled)
+    if c.preset.harness:
+        from hani2 import harness
+
+        # only the connection's name: the harness adapter reads the key itself, into the child's environment
+        return {"api_base": harness.api_base_for(c)}
     kw: dict[str, Any] = {}
     key = api_key(c)
-    if c.provider == "github_copilot":
-        token, base = _copilot_session(c)
-        kw.update(api_key=token, api_base=base, extra_headers=_copilot_headers())
-    elif c.provider == "openai" and c.auth == "subscription":
-        kw["chatgpt_auth_file"] = str(_chatgpt_file(c))
-    else:
-        if key:
-            kw["api_key"] = key
-        base = c.base_url or (c.preset.base_url if c.provider in ("ollama", "ollama_cloud") else "")
-        if base:
-            kw["api_base"] = base.rstrip("/")
+    if key:
+        kw["api_key"] = key
+    base = c.base_url or (c.preset.base_url if c.provider in ("ollama", "ollama_cloud") else "")
+    if base:
+        kw["api_base"] = base.rstrip("/")
     hv = _header_values(c)
     if hv:
         kw["extra_headers"] = {**kw.get("extra_headers", {}), **hv}
@@ -470,9 +453,12 @@ def public(c: Connection) -> dict[str, Any]:
         d["api_key_env_set"] = bool(api_key(c))
     if c.header_names:
         d["headers"] = {h: "…" for h in c.header_names}
-    if c.auth == "subscription":
-        d["signed_in"] = ok
-        d["login_pending"] = c.name in _PENDING
+    if c.disabled:
+        d["disabled"] = c.disabled
+    if p.harness:
+        from hani2 import harness
+
+        d["harness"] = harness.public_info(c)
     return d
 
 
@@ -541,9 +527,11 @@ def _probe_now(c: Connection, model: str) -> Probe:
     if not ok:
         return Probe(False, why)
     kind = c.preset.probe
-    if c.auth == "subscription" and c.provider == "openai":
-        kind = "chatgpt"
     try:
+        if kind == "harness":
+            from hani2 import harness
+
+            return harness.probe(c, model)
         if kind == "ollama_tags":
             key = api_key(c)
             data = _http_get(f"{c.base}/api/tags", {"Authorization": f"Bearer {key}"} if key else None)
@@ -573,16 +561,6 @@ def _probe_now(c: Connection, model: str) -> Probe:
             if not _model_listed(model, ids):
                 return Probe(False, f"model {model!r} is not offered to this key", models=ids)
             return Probe(True, models=ids)
-        if kind == "copilot":
-            token, base = _copilot_session(c)
-            data = _http_get(f"{base}/models", {"Authorization": f"Bearer {token}", **_copilot_headers()})
-            ids = _ids(data)
-            if not _model_listed(model, ids):
-                return Probe(False, f"model {model!r} is not in this Copilot plan", models=ids)
-            return Probe(True, models=ids)
-        if kind == "chatgpt":
-            _chatgpt_fresh_token(c)
-            return Probe(True, verified=False)
     except Exception as e:  # noqa: BLE001 - any failure means "not available"
         return Probe(False, _short_error(e))
     return Probe(True, verified=False)
@@ -602,10 +580,30 @@ def _short_error(e: Exception) -> str:
     return redact(f"{name}: {e}")[:200]
 
 
+#: why an Ollama cloud model through a local server is refused
+OLLAMA_CLOUD_REFUSED = ("cloud models (names ending in -cloud) through a local Ollama server use the server's "
+                        "Ollama account sign-in, and Ollama's terms (one account per person; shared use through "
+                        "the Team plan) do not clearly allow an application to serve others with it. Use an "
+                        "Ollama Cloud connection with an API key (provider ollama_cloud) instead.")
+
+
+def refusal(c: Connection, model: str) -> str:
+    """Why ``model`` may never be used through ``c`` (``""``: no rule against it). Unlike a failed
+    check, a refusal is final: not even the old single-model settings use the entry unchecked."""
+    if c.disabled:
+        return c.disabled
+    if c.provider == "ollama" and (model or "").strip().endswith("-cloud"):
+        return OLLAMA_CLOUD_REFUSED
+    return ""
+
+
 def probe(c: Connection, model: str, *, fresh: bool = False) -> Probe:
     """Whether ``model`` can be used through ``c`` now (cached: 5 min when it works, 30 s when not).
 
     With ``HANI2_MODEL_PROBE=off`` only the credentials are checked (no network)."""
+    bad = refusal(c, model)
+    if bad:
+        return Probe(False, bad)
     if not probing_enabled():
         ok, why = has_credentials(c)
         return Probe(ok, why, verified=False)
@@ -625,127 +623,18 @@ def list_models(c: Connection) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Subscription sign-in (device codes)                                          #
+# Subscription sign-in: not offered                                            #
 # --------------------------------------------------------------------------- #
-#: name -> the flow in progress (the device code stays on the server)
+#: name -> a sign-in in progress (none can be started any more; kept for :func:`logout`)
 _PENDING: dict[str, dict[str, Any]] = {}
 
 
-def _run(coro):
-    import asyncio
-
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    # called from a running loop (should not happen: the API runs this in a worker thread)
-    import concurrent.futures
-
-    with concurrent.futures.ThreadPoolExecutor(1) as ex:
-        return ex.submit(asyncio.run, coro).result()
-
-
-def _chatgpt_authenticator(c: Connection):
-    from litellm.llms.chatgpt.authenticator import Authenticator
-
-    token_dir(c.name)
-    return Authenticator(auth_file=str(_chatgpt_file(c)))
-
-
-def _chatgpt_fresh_token(c: Connection) -> str:
-    """A valid ChatGPT access token, refreshed when it has expired (never starts a sign-in)."""
-    auth = _chatgpt_authenticator(c)
-    data = auth._read_auth_file() or {}
-    tok = data.get("access_token")
-    if tok and not auth._is_token_expired(data, tok):
-        return tok
-    if not data.get("refresh_token"):
-        raise ConnectionError_("not signed in")
-    return auth._refresh_tokens(data["refresh_token"])["access_token"]
-
-
 def start_login(name: str) -> dict[str, Any]:
-    """Start a device-code sign-in; returns ``{user_code, verification_uri, interval, expires_in}``."""
-    c = get(name)
-    if c is None or c.implicit:
-        raise ConnectionError_(f"unknown connection {name!r}")
-    if c.auth != "subscription":
-        raise ConnectionError_(f"{name} signs in with {c.auth}, not a subscription")
-    if c.provider == "github_copilot":
-        from litellm.llms.github_copilot.github_host import github_host_endpoints
-        from litellm.llms.github_copilot.per_user_auth import astart_device_flow
-
-        st = _run(astart_device_flow(github_host_endpoints("github.com")))
-        flow = {"kind": "copilot", "device_code": st.device_code, "interval": max(int(st.interval or 5), 1),
-                "expires": time.time() + float(st.expires_in or 900), "user_code": st.user_code,
-                "verification_uri": st.verification_uri}
-    elif c.provider == "openai":
-        from litellm.llms.chatgpt.common_utils import CHATGPT_DEVICE_VERIFY_URL
-
-        auth = _chatgpt_authenticator(c)
-        dc = auth._request_device_code()
-        flow = {"kind": "chatgpt", "device_code": dc, "interval": max(int(dc.get("interval") or 5), 1),
-                "expires": time.time() + 900, "user_code": dc["user_code"],
-                "verification_uri": CHATGPT_DEVICE_VERIFY_URL}
-    else:  # pragma: no cover - guarded by the provider table
-        raise ConnectionError_(f"{c.provider} has no device sign-in")
-    flow["next"] = time.time()
-    _PENDING[name] = flow
-    return {"status": "pending", "user_code": flow["user_code"], "verification_uri": flow["verification_uri"],
-            "interval": flow["interval"], "expires_in": int(flow["expires"] - time.time())}
+    """Subscription sign-ins are not offered (see :data:`hani2.providers.NOT_OFFERED`)."""
+    raise ConnectionError_(f"{name}: subscription sign-in is {prov.NOT_OFFERED}. Use an API key connection.")
 
 
 def poll_login(name: str) -> dict[str, Any]:
-    """One poll of a sign-in in progress: ``{status: pending|connected|expired|denied|none, …}``."""
-    flow = _PENDING.get(name)
+    """No sign-in can be in progress: ``{status: connected|none}``."""
     c = get(name)
-    if flow is None or c is None:
-        return {"status": "connected" if c is not None and has_credentials(c)[0] else "none"}
-    if time.time() > flow["expires"]:
-        _PENDING.pop(name, None)
-        return {"status": "expired"}
-    base = {"user_code": flow["user_code"], "verification_uri": flow["verification_uri"], "interval": flow["interval"]}
-    if time.time() < flow["next"]:
-        return {"status": "pending", **base}
-    flow["next"] = time.time() + flow["interval"]
-    if flow["kind"] == "copilot":
-        from litellm.llms.github_copilot.github_host import github_host_endpoints
-        from litellm.llms.github_copilot.per_user_auth import apoll_device_flow
-
-        res = _run(apoll_device_flow(flow["device_code"], github_host_endpoints("github.com")))
-        if res.status == "connected" and res.access_token:
-            _write_private(token_dir(name) / "github-access-token", res.access_token)
-            _PENDING.pop(name, None)
-            forget_probes(name)
-            return {"status": "connected"}
-        if res.status == "slow_down":
-            flow["interval"] = int(res.interval or flow["interval"] + 5)
-        if res.status in ("expired", "denied"):
-            _PENDING.pop(name, None)
-            return {"status": res.status}
-        return {"status": "pending", **base}
-    # chatgpt: one request of litellm's poll loop, then its token exchange
-    import httpx
-    from litellm.llms.chatgpt.common_utils import CHATGPT_DEVICE_TOKEN_URL
-
-    dc = flow["device_code"]
-    r = httpx.post(CHATGPT_DEVICE_TOKEN_URL, json={"device_auth_id": dc["device_auth_id"], "user_code": dc["user_code"]},
-                   timeout=15)
-    if r.status_code in (403, 404):
-        return {"status": "pending", **base}
-    r.raise_for_status()
-    data = r.json()
-    if not (data.get("authorization_code") and data.get("code_verifier")):
-        return {"status": "pending", **base}
-    auth = _chatgpt_authenticator(c)
-    tokens = auth._exchange_code_for_tokens({"authorization_code": data["authorization_code"],
-                                             "code_challenge": data.get("code_challenge", ""),
-                                             "code_verifier": data["code_verifier"]})
-    auth._write_auth_file(auth._build_auth_record(tokens))
-    try:
-        os.chmod(_chatgpt_file(c), stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:  # pragma: no cover
-        pass
-    _PENDING.pop(name, None)
-    forget_probes(name)
-    return {"status": "connected"}
+    return {"status": "connected" if c is not None and has_credentials(c)[0] else "none"}

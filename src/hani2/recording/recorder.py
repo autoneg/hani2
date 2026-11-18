@@ -560,12 +560,16 @@ def record_llm_call(kwargs: dict, resp: Any, latency: float, error: str | None =
                     v = getattr(u, k, None) if not isinstance(u, dict) else u.get(k)
                     if v is not None:
                         usage[k] = int(v)
-            try:
-                import litellm
+            hidden = getattr(resp, "_hidden_params", None) or {}
+            if isinstance(hidden, dict) and isinstance(hidden.get("response_cost"), (int, float)):
+                cost = float(hidden["response_cost"])  # e.g. what a harness reported
+            else:
+                try:
+                    import litellm
 
-                cost = float(litellm.completion_cost(completion_response=resp))
-            except Exception:
-                cost = None
+                    cost = float(litellm.completion_cost(completion_response=resp))
+                except Exception:
+                    cost = None
         response = {"content": _trunc(content)}
         if tool_calls:
             response["tool_calls"] = tool_calls

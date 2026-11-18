@@ -125,8 +125,8 @@ export function Models() {
     if (list) load();
   }, [load, list]);
   const connOpts = [
-    ...(list ?? []).map((c) => ({ value: c.name, label: `${c.name}${c.implicit ? " (implicit)" : ""}${c.credentials ? "" : " — not ready"}` })),
-    ...providers.map((p) => ({ value: `provider:${p.id}`, label: `first ${p.label} connection` })),
+    ...(list ?? []).map((c) => ({ value: c.name, label: `${c.name}${c.implicit ? " (implicit)" : ""}${c.harness ? ` (harness${c.harness.assistant_tools ? "" : ", completion only"})` : ""}${c.disabled ? " — disabled" : c.credentials ? "" : " — not ready"}` })),
+    ...providers.filter((p) => p.offered).map((p) => ({ value: `provider:${p.id}`, label: `first ${p.label} connection` })),
   ];
   const change = (p: string, entries: Entry[] | null) => {
     setDraft((d) => {

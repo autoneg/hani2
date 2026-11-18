@@ -4,12 +4,11 @@ which model each purpose resolves to (see :mod:`hani2.connections`, :mod:`hani2.
 from __future__ import annotations
 
 import json
-import time
 from typing import Annotated, Optional
 
 import typer
 
-connections_app = typer.Typer(help="Connections to language-model providers: list, add, test, sign in, remove.")
+connections_app = typer.Typer(help="Connections to language-model providers and agent harnesses: list, add, test, remove.")
 models_app = typer.Typer(help="Model chains: list them per purpose and see which entry a study resolves to.")
 
 
@@ -37,6 +36,9 @@ def connections_providers():
     from hani2 import providers as prov
 
     for p in prov.table():
+        if not p["offered"]:
+            typer.echo(f"{p['id']:<18} {'not offered':<36} {p['label']}: {p['not_offered']}")
+            continue
         typer.echo(f"{p['id']:<18} {', '.join(p['auth']):<36} {p['label']}")
         if p["no_subscription"] and "subscription" not in p["auth"]:
             typer.echo(f"{'':<18} no subscription: {p['no_subscription']}")
@@ -45,12 +47,13 @@ def connections_providers():
 @connections_app.command("add")
 def connections_add(
     name: str,
-    provider: Annotated[str, typer.Option("--provider", "-p", help="anthropic, openai, ollama_cloud, ollama, github_copilot, … (see `hani2 connections providers`).")],
-    auth: Annotated[Optional[str], typer.Option("--auth", help="api_key, api_key_env, subscription or none (default: the provider's first).")] = None,
+    provider: Annotated[str, typer.Option("--provider", "-p", help="anthropic, openai, ollama_cloud, ollama, … or a harness: claude-code, codex, pi (see `hani2 connections providers`).")],
+    auth: Annotated[Optional[str], typer.Option("--auth", help="api_key, api_key_env or none (default: the provider's first).")] = None,
     api_key_env: Annotated[Optional[str], typer.Option("--api-key-env", help="Environment variable that holds the key (auth api_key_env).")] = None,
     key: Annotated[bool, typer.Option("--key", help="Ask for an API key and store it (auth api_key).")] = False,
     base_url: Annotated[Optional[str], typer.Option("--base-url", help="Address of the provider's API.")] = None,
     litellm_provider: Annotated[Optional[str], typer.Option("--litellm-provider", help="For provider litellm: litellm's provider name.")] = None,
+    upstream: Annotated[Optional[str], typer.Option("--upstream", help="For a harness (pi): the model provider it calls, e.g. anthropic, openai, ollama.")] = None,
     replace: Annotated[bool, typer.Option("--replace", help="Change an existing connection.")] = False,
 ):
     """Add a connection. Keys are stored only in the settings folder (0600)."""
@@ -60,15 +63,13 @@ def connections_add(
         auth = "api_key"
     secret = typer.prompt("API key", hide_input=True) if auth == "api_key" else None
     data = {"name": name, "provider": provider, "auth": auth, "base_url": base_url, "api_key_env": api_key_env,
-            "litellm_provider": litellm_provider}
+            "litellm_provider": litellm_provider, "upstream": upstream}
     try:
         c = conns.add({k: v for k, v in data.items() if v}, api_key=secret, replace=replace)
     except conns.ConnectionError_ as e:
         _fail(str(e))
         return
     typer.echo(f"added {c.name} ({c.provider}, {c.auth})")
-    if c.auth == "subscription":
-        typer.echo(f"sign in with: hani2 connections login {c.name}")
 
 
 @connections_app.command("remove")
@@ -91,6 +92,20 @@ def connections_test(name: str, model: Annotated[Optional[str], typer.Option("--
         _fail(f"no connection named {name!r}")
         return
     conns.forget_probes(name)
+    if c.preset.harness:  # a tiny completion through the harness
+        from hani2 import harness
+
+        ok, why = conns.has_credentials(c)
+        if not ok:
+            _fail(why)
+        m = model or harness.default_model(c)
+        try:
+            r = harness.complete(c, m, [{"role": "user", "content": "Reply with the word ok."}], {"timeout": 90})
+        except Exception as e:  # noqa: BLE001
+            _fail(conns.redact(f"{type(e).__name__}: {e}"))
+            return
+        typer.echo(f"{name}:{m}: works ({harness.adapter(c).status().get('version')}): {r.text[:80]!r}")
+        return
     if model:
         p = conns.probe(c, model, fresh=True)
         typer.echo(f"{name}:{model}: {'available' if p.ok else 'not available: ' + p.reason}"
@@ -103,33 +118,9 @@ def connections_test(name: str, model: Annotated[Optional[str], typer.Option("--
     typer.echo(f"{name}: credentials present" + (f"; {len(models)} models: {', '.join(models[:20])}" if models else ""))
 
 
-@connections_app.command("login")
-def connections_login(name: str, timeout: Annotated[int, typer.Option(help="Seconds to wait.")] = 900):
-    """Sign in to a subscription connection with a device code."""
-    from hani2 import connections as conns
-
-    try:
-        st = conns.start_login(name)
-    except Exception as e:  # noqa: BLE001
-        _fail(conns.redact(str(e)))
-        return
-    typer.echo(f"Open {st['verification_uri']} and enter the code {st['user_code']}")
-    typer.echo("Device codes are a common phishing target: never share this code.")
-    end = time.time() + timeout
-    while time.time() < end:
-        time.sleep(st.get("interval", 5))
-        r = conns.poll_login(name)
-        if r["status"] == "connected":
-            typer.echo(f"signed in: {name}")
-            return
-        if r["status"] in ("expired", "denied", "none"):
-            _fail(f"sign-in {r['status']}")
-    _fail("timed out")
-
-
 @connections_app.command("logout")
 def connections_logout(name: str):
-    """Forget a subscription connection's tokens."""
+    """Delete a connection's stored tokens and private folder (subscription sign-ins are not offered)."""
     from hani2 import connections as conns
 
     conns.logout(name)

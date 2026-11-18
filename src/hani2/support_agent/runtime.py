@@ -648,6 +648,8 @@ class SupportAgent:
                 self.messages.append({"role": "user", "content": system_note})
             tools = self.dispatcher.schemas()
             max_iter = int(self.settings.get("max_tool_iterations", 10))
+            if self._harness_turn(tools, executed, output_channel, force_action=force_action):
+                return executed
             for _ in range(max_iter):
                 message = self._complete(tools, force_action=force_action and not executed)
                 self.messages.append(message)
@@ -748,6 +750,71 @@ class SupportAgent:
             ]
         return out
 
+    def _harness_turn(self, tools: list[dict], executed: set[str], output_channel: str = "chat",
+                      force_action: bool = False) -> bool:
+        """When the ``assistant`` entry is an agent harness (see :mod:`hani2.harness`), run the whole
+        turn through it: every HANI2 function it calls is executed here, by this Assistant's
+        dispatcher (capabilities, events and recordings apply), and appended to the conversation as
+        an ordinary tool call and result. Returns ``False`` when the entry is not a harness (or a
+        hard failure moved the session to an entry that is not), so the usual loop runs instead."""
+        import time as _time
+
+        from hani2 import harness, model_chain
+        from hani2.recording.recorder import current_actor, llm_role, record_llm_call
+
+        models = model_chain.models_of(self.session_state)
+        res = models.get("assistant") if models is not None else model_chain.resolve("assistant")
+        own = self._own_model(res)
+        if own is not None:
+            res, models = own, None
+        n = 0
+
+        def execute(name: str, args: dict) -> Any:
+            nonlocal n
+            if force_action and executed & self._ACTION_TOOLS:
+                # the autopilot's turn ends with its first action (as in the usual loop)
+                return {"ok": False, "error": "this turn already acted; stop now"}
+            n += 1
+            call_id = f"harness-{n}"
+            self.messages.append({"role": "assistant", "content": "", "tool_calls": [
+                {"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}]})
+            executed.add(name)
+            try:
+                result = self.dispatcher.execute(name, args)
+            except Exception as e:  # noqa: BLE001
+                result = {"ok": False, "error": str(e)}
+            self.messages.append({"role": "tool", "tool_call_id": call_id, "name": name,
+                                  "content": json.dumps(result, default=str)})
+            return result
+
+        params = {k: self.settings.get(k) for k in ("max_tokens",) if self.settings.get(k) is not None}
+        while res.ok and res.is_harness:
+            assert res.connection is not None
+            sent = list(self.messages)
+            t0 = _time.perf_counter()
+            kw = {"model": f"{harness.LITELLM_PROVIDER}/{res.model}", "messages": sent, "tools": tools}
+            with llm_role("autopilot" if current_actor() == "autopilot" else "support"):
+                try:
+                    reply = harness.run_tools(res.connection, res.model, sent, tools, execute,
+                                              {**params, **(res.entry.params if res.entry else {})})
+                except Exception as e:  # noqa: BLE001
+                    from hani2.connections import redact
+
+                    reason = redact(f"{type(e).__name__}: {e}")[:300]
+                    record_llm_call(kw, None, _time.perf_counter() - t0, reason)
+                    if n or not model_chain.hard_failure(e) or models is None:
+                        raise  # functions already ran: do not repeat the turn on another model
+                    res = models.advance("assistant", reason)
+                    if not res.ok:
+                        raise
+                    continue
+                record_llm_call(kw, _harness_response(reply), _time.perf_counter() - t0)
+            self.messages.append({"role": "assistant", "content": reply.text or ""})
+            if reply.text:
+                self._deliver_assistant_message(reply.text, channel=output_channel)
+            return True
+        return False
+
     def _execute_tool_call(self, tc: dict) -> str:
         name = tc["function"]["name"]
         try:
@@ -761,6 +828,19 @@ class SupportAgent:
         self.messages.append({"role": "tool", "tool_call_id": tc.get("id", name), "name": name,
                               "content": json.dumps(result, default=str)})
         return name
+
+
+def _harness_response(reply: Any) -> Any:
+    """A harness reply in the shape the recorder reads (``choices[0].message``, ``usage``)."""
+    from types import SimpleNamespace
+
+    u = reply.usage or {}
+    usage = SimpleNamespace(prompt_tokens=int(u.get("input_tokens", 0)), completion_tokens=int(u.get("output_tokens", 0)),
+                            total_tokens=int(u.get("input_tokens", 0)) + int(u.get("output_tokens", 0)))
+    calls = [SimpleNamespace(function=SimpleNamespace(name=c.name, arguments=json.dumps(c.arguments, default=str)))
+             for c in reply.calls]
+    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=reply.text, tool_calls=calls or None))],
+                           usage=usage, _hidden_params={"response_cost": reply.cost_usd})
 
 
 def _coerce_input(component: dict, value: Any) -> Any:
