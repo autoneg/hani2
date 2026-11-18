@@ -18,6 +18,7 @@ questionnaire answers).
 
 from __future__ import annotations
 
+import inspect
 import math
 import re
 from dataclasses import dataclass, field
@@ -125,7 +126,7 @@ def metric(name: str, *, kind: str, title: str, columns: list[Column], descripti
         raise ValueError(f"unknown metric kind {kind!r}")
 
     def deco(fn):
-        REGISTRY[name] = Metric(name, kind, title, description or (fn.__doc__ or "").strip(), columns, fn,
+        REGISTRY[name] = Metric(name, kind, title, description or inspect.cleandoc(fn.__doc__ or ""), columns, fn,
                                 needs_llm=needs_llm, default=default, version=version, formula=formula,
                                 details=details.strip(), patterns=list(patterns or []),
                                 figures=list(figures or []), options=dict(options or {}))
