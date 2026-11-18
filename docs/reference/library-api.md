@@ -23,7 +23,7 @@ Errors are JSON `{"detail": "<message>"}` with these codes:
 |---|---|
 | 400 | Invalid kind, layer, name or body; unsafe archive (absolute path, `..`, symbolic link, too large) |
 | 404 | Unknown project, study, item or group (at this layer) |
-| 409 | Name clash (an item or group of that name exists, a name that clashes with or starts like a registered scenario type, a package module that clashes with an installed one); deleting a built-in group, `Custom`, or a group defined at another layer |
+| 409 | Name clash (an item or group of that name exists, a name that clashes with or starts like a registered scenario type, a package module that clashes with an installed one); deleting a built-in group, `Custom`, or a group defined at another layer; a layer file the request would rewrite (`library.yaml`, `scenario_links.yaml`, `scenario_sets.yaml`, `tools.yaml`) is not valid YAML (fix it by hand: it is never replaced) |
 | 413 | Upload larger than 100 MB |
 | 422 | The item cannot be used: no class found, the class does not load (`import` error, wrong base class), invalid scenario, scenarios that bring Python files without `allow_code` |
 
@@ -111,10 +111,31 @@ Response as for `upload`.
 
 ### `DELETE /api/admin/library/{kind}/items/{name}?layer=`
 
-Removes an item added at this layer: an upload is deleted with its files (when no other item
-uses them), a link is removed and its target left alone. Built-in and registered items cannot be
-removed (`404` / `409`). Groups that list the item are not changed.
-`{"ok": true, "removed": "LibBoulware", "how": "deleted" | "removed" | "unlinked", "layer": "…"}`.
+Removes an item added at this layer: an upload's files (when no other item uses them) are moved
+to the layer's `.trash` folder (`scenarios/.trash/<name>-<time>`, `library/<kind>/.trash/<name>-<time>`),
+a link is removed and its target left alone. A replaced upload (`replace`) is moved there too.
+Built-in and registered items cannot be removed (`404` / `409`). Groups that list the item are
+not changed.
+`{"ok": true, "removed": "LibBoulware", "how": "deleted" | "removed" | "unlinked", "layer": "…", "trash": "/…/.trash/mine-20261118-101500"}`
+(`trash` when files were moved).
+
+### `POST /api/admin/library/{kind}/describe?layer=`
+
+Body: a list of group entries (or `{"entries": [...]}`, at most 2000). What each one is, for
+showing the members of a group or pool:
+
+```json
+{"kind": "opponents", "entries": [
+  {"entry": "@qualified", "kind": "group", "name": "qualified", "title": "qualified", "description": "", "n": 3, "ok": true, "error": ""},
+  {"entry": "LibBoulware", "kind": "item", "name": "LibBoulware", "title": "LibBoulware", "description": "A Boulware opponent", "ok": true, "error": ""},
+  {"entry": "no.such.Class", "kind": "unknown", "name": "no.such.Class", "title": "no.such.Class", "description": "", "ok": false,
+   "error": "cannot load 'no.such.Class': ModuleNotFoundError: …"}
+]}
+```
+
+`kind` is `group` (with `n`, its expanded size), `item` or `unknown`. Opponent and Assistant
+classes that are no listed item, or have no description, are loaded (as when they are used, once
+per server process) to give their docstring or the import error.
 
 ## Groups
 
@@ -159,16 +180,31 @@ Body: a list of raw entries, or
 ```
 
 Creates or replaces the group at this layer (a group of a lower layer is shadowed, not changed).
+The group is saved even when its entries look wrong; `warnings` says what: a reference to an
+unknown group, an entry that is no known scenario type or tool (or, for opponents and
+Assistants, a class that does not load), a cycle through other groups.
 `rename_from` renames a group of this layer. Opponent and Assistant group files keep their other
 fields (`syspath`, `assistant`, `description`); a library item's name in `entries` is stored as
 its spec, and its `syspath` is added, so the file works on its own. Built-in tool groups and the
 scenario set `Custom` cannot be written (`409`).
-Response: `{"ok": true, "name", "entries", "expanded", "layer", "path"}`.
+Response: `{"ok": true, "name", "entries", "expanded", "layer", "path", "warnings"}`.
 
 ### `DELETE /api/admin/library/{kind}/groups/{name}?layer=`
 
 Deletes a group defined at this layer. `409` for a built-in group, `Custom`, or a group defined
 at another layer.
+
+## Scenarios
+
+### `GET /api/admin/library/scenarios/default?layer=` / `PUT`
+
+The default scenario set (`scenario_sets.yaml` → `default`).
+
+- `GET` → `{"layer", "here": "<set>" | null, "effective": "<set>", "sets": [...]}`: this layer's
+  own default (`null`: not set here), the default its sessions get, and every set name.
+- `PUT` body: `{"default": "<set>"}` (matched case-insensitively, `404` for an unknown set) or
+  `{"default": null}` (remove this layer's default). Returns the same as `GET`. An admin's
+  session choice, `HANI2_SCENARIO_SET` and a study's `scenario_set` still win over it.
 
 ## Tools
 
@@ -179,7 +215,7 @@ The tools sessions get: `tools.yaml` → `offer`, from the most specific layer t
 
 - `GET` → `{"layer", "here": [...] | null, "effective": [...] | null, "tools": ["Preferences", …]}`
 - `PUT` body: a list (`["@information", "Utility-based Selector"]`), `null` (remove this layer's
-  choice) or `{"offer": …}`. Returns the same as `GET`.
+  choice) or `{"offer": …}`. An empty list offers no tool. Returns the same as `GET`.
 
 ### `GET /api/admin/library/tools/placement?layer=` / `PUT`
 
@@ -198,8 +234,8 @@ Where each tool goes in each view (`full`, `simple`, `focus`).
 `effective` is the placement sessions of this layer get; `here` is this layer's `tools.yaml`
 entry (`null`: none).
 
-`PUT` body: `{"<tool>": <placement> | null}` (or `{"tools": {...}}`), merged into this layer's
-entries (`?replace=true` replaces them all; `null` removes a tool's entry). A placement has
+`PUT` body: `{"<tool>": <placement> | null}` (or `{"tools": {...}}`); each tool's placement
+replaces that tool's entry at this layer, and the other tools' entries are kept (`?replace=true` replaces them all; `null` removes a tool's entry). A placement has
 `pane` (`upper`, `lower`, `side`), `visible` (bool) and `order` (number) for every view, and/or a
 mapping per view: `{"pane": "side", "simple": {"visible": false}}`. Returns the same as `GET`.
 
@@ -207,6 +243,6 @@ mapping per view: `{"pane": "side", "simple": {"visible": false}}`. Returns the 
 
 | Layer folder | File |
 |---|---|
-| settings: `$HANI2_HOME/settings/` | `library.yaml`, `library/<kind>/…`, `scenarios/<name>/`, `scenario_links.yaml`, `scenario_sets.yaml`, `tools.yaml`, `groups/`, `assistant_groups/` |
+| settings: `$HANI2_HOME/settings/` | `library.yaml`, `library/<kind>/…` (removed uploads: `library/<kind>/.trash/`), `scenarios/<name>/` (`scenarios/.trash/`), `scenario_links.yaml`, `scenario_sets.yaml`, `tools.yaml`, `groups/`, `assistant_groups/` |
 | project: `projects/<P>/` | the same |
 | study: `projects/<P>/studies/<S>/` (default project: the study folder) | the same |

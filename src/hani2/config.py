@@ -69,11 +69,37 @@ def experiment_dir() -> Path | None:
 current_study_dir = experiment_dir
 
 
+#: An admin view of one settings layer: ``(project, skip_settings)``. ``project`` replaces the
+#: current study's project as the project layer; ``skip_settings`` hides the settings folder
+#: (to see what the bundled defaults give). ``None``: no view (the normal resolution).
+_VIEW: "contextvars.ContextVar[tuple[str | None, bool] | None]" = contextvars.ContextVar("hani2_layer_view", default=None)
+
+
+def view_project() -> str | None:
+    """The project of the active layer view (``None``: no view or no project)."""
+    v = _VIEW.get()
+    return v[0] if v else None
+
+
+@contextlib.contextmanager
+def layer_view(project: str | None = None, skip_settings: bool = False):
+    """Resolve settings as if only ``project``'s folder (and the settings folder unless
+    ``skip_settings``) applied; use together with ``projects.use_study(None)``."""
+    tok = _VIEW.set((project, skip_settings))
+    try:
+        yield
+    finally:
+        _VIEW.reset(tok)
+
+
 def project_dir() -> Path | None:
     """The current study's project folder (``None`` for the default project, whose layer is the settings folder)."""
     from hani2.projects import current_study, project_layer_dir
 
     ref = current_study()
+    v = _VIEW.get()
+    if v is not None and ref is None:
+        return project_layer_dir(v[0])
     return project_layer_dir(ref.project if ref else None)
 
 
@@ -120,7 +146,8 @@ def get_settings_file(filename: str) -> Path:
         if (layer / filename).exists():
             return layer / filename
     user = settings_dir() / filename
-    if user.exists():
+    v = _VIEW.get()
+    if user.exists() and not (v and v[1]):
         return user
     default = DEFAULT_SETTINGS_DIR / filename
     if default.exists():
@@ -159,7 +186,8 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
         except json.JSONDecodeError:
             pass
     names = [*old_names, filename]
-    layers = [settings_dir() / n for n in names]
+    skip = _VIEW.get()
+    layers = [] if skip and skip[1] else [settings_dir() / n for n in names]
     for folder in reversed(settings_layers()):
         layers += [folder / n for n in names]
     for layer in layers:

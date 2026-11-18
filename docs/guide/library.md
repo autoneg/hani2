@@ -118,8 +118,15 @@ assistants:
 hani2 library remove opponents LibBoulware --layer project:HAN2027
 ```
 
-An uploaded item is deleted with its files (when no other item uses them); a linked item is
-forgotten and its target left alone. Groups that list the item keep their entries.
+An uploaded item's files (when no other item uses them) are moved to the layer's `.trash` folder
+(`scenarios/.trash/<name>-<time>` or `library/<kind>/.trash/<name>-<time>`), so a removal can be
+undone by hand; folders whose names start with `.` are never served. A replaced upload
+(`--replace`) goes there too. A linked item is forgotten and its target left alone. Groups that
+list the item keep their entries.
+
+The library never rewrites a file it cannot read: when `library.yaml`, `scenario_links.yaml` or
+`scenario_sets.yaml` of the layer is not valid YAML, adding, removing or editing is refused
+(HTTP 409) until the file is fixed by hand, instead of replacing what is in it.
 
 ## Groups and composition
 
@@ -172,6 +179,10 @@ hani2 library group-set scenarios Course2 @Basics --rename-from Course
 hani2 library group-delete tools core
 ```
 
+Saving a group checks its entries and returns warnings (the group is saved anyway): a reference
+to an unknown group, an entry that is no known item (scenario types, tools) or no class that
+loads (opponents, Assistants), and a cycle through other groups.
+
 Built-in groups (opponents `:llm`, `:template`, …; Assistants `:default`, `:tutorial`; the
 built-in tool groups; the scenario sets bundled with HANI2) cannot be changed or deleted, but a
 group of the same name at a layer replaces them there. The scenario set `Custom` is
@@ -201,7 +212,8 @@ class OfferCounter(Tool):
 ### Choosing the tools a study offers
 
 `tools.yaml` → `offer` lists the tools sessions get, as tools and groups. The most specific layer
-that sets it wins; without it every tool is offered, as before. Admin-only and guest rules still
+that sets it wins; without it every tool is offered, as before. An empty list (`offer: []`)
+offers no tool. Admin-only and guest rules still
 apply to the offered tools, and the Assistant can only add offered tools.
 
 ```yaml title="projects/HI2027/studies/hi-01/tools.yaml"
@@ -255,3 +267,11 @@ When the participant (or the Assistant) switches the view, every tool moves to i
 new view. Where the participant moved or hid a tool is remembered per view, so going back to the
 full view restores the full view's arrangement. Tools without a placement do not move, so
 nothing changes until you configure one.
+
+## In the admin console
+
+The **Scenarios**, **Opponents**, **Assistants** and **Tools** pages of the
+[admin console](admin.md#the-library-pages-scenarios-opponents-assistants-and-tools) do all of
+the above for a chosen layer: list items with their source and groups, upload and link, remove,
+edit groups with their composition, choose the default scenario set, the tools offered and where
+each tool goes in each view.

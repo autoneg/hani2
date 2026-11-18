@@ -55,7 +55,7 @@ Every tool has a help text that says what it does and how it works. Participants
 
 ### Opening admin-only tools to participants
 
-Every admin-only tool can be given to all participants: in the admin console under **Server & studies → Tools**, untick **Admins only** next to the tool (this writes `tools.overrides.<name>.admin_only = false` in `env.json`). Tick **Participants see opponent utilities** (`tools.show_opponent_utility`) to let everyone show the opponent's utility in the Utility Plot and Trace. Both apply to sessions started after saving. Keep in mind that Opponent Preferences, Negotiation Plot and the opponent-utility options reveal the opponent's private preferences, and All Results shows other participants' results.
+Every admin-only tool can be given to all participants: in the admin console under **Tools**, untick **Admins only** next to the tool (this writes `tools.overrides.<name>.admin_only = false` in `env.json`). Tick **Participants see opponent utilities** (`tools.show_opponent_utility`) to let everyone show the opponent's utility in the Utility Plot and Trace. Both apply to sessions started after saving. Keep in mind that Opponent Preferences, Negotiation Plot and the opponent-utility options reveal the opponent's private preferences, and All Results shows other participants' results.
 
 The Utility-based Selector needs the inverse of your utility function. When the scenario folder contains a cached inverter (`inverter_h<index>.pkl`, created by `hani2 generate`; see [Scenarios](scenarios.md)) and it matches the utility function, the tool uses it; otherwise it computes one when the negotiation starts.
 

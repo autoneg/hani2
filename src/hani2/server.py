@@ -675,17 +675,7 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
 # --------------------------------------------------------------------------- #
 # Admin API                                                                    #
 # --------------------------------------------------------------------------- #
-SETTINGS_KINDS = {
-    "env": ("env.json", lambda: load_env()),
-    "llm": ("llm_settings.json", lambda: __import__("hani2.config", fromlist=["x"]).load_llm_settings()),
-    "assistant": ("assistant_settings.json",
-                  lambda: __import__("hani2.support_agent.settings", fromlist=["x"]).load_assistant_settings()),
-    "autopilot": ("autopilot_settings.json",
-                  lambda: __import__("hani2.support_agent.autopilot", fromlist=["x"]).load_autopilot_settings()),
-}
-SETTINGS_KINDS["support_agent"] = SETTINGS_KINDS["assistant"]  # old name of the kind
-TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt",
-              "scenario_sets": "scenario_sets.yaml"}
+from hani2.layers import SETTINGS_KINDS, TEXT_FILES  # noqa: E402
 
 
 def _layer_dir(study: str | None, project: str | None) -> Path | None:
@@ -709,12 +699,17 @@ def _layer_dir(study: str | None, project: str | None) -> Path | None:
 
 
 @app.get("/api/admin/settings/{kind}")
-def admin_get_settings(kind: str, study: str | None = None, project: str | None = None,
+def admin_get_settings(kind: str, layer: str | None = None, study: str | None = None, project: str | None = None,
                        _: str = Depends(require_admin)):
-    """A settings file. Without ``study``/``project``: the effective settings (all layers).
-    With ``?study=P/S`` or ``?project=P``: that layer's own file (raw: ``{}`` / empty when it has none)."""
+    """A settings file. Without ``layer``/``study``/``project``: the effective settings (all layers).
+    With ``?study=P/S`` or ``?project=P``: that layer's own file (raw: ``{}`` / empty when it has none).
+    With ``?layer=settings|project:P|study:P/S``: the layer's own file, what is in effect there and what it inherits."""
+    from hani2 import admin_api
+
     if kind not in SETTINGS_KINDS and kind not in TEXT_FILES:
         raise HTTPException(404)
+    if layer:
+        return admin_api.settings_get(kind, admin_api.need_layer(layer))
     if not study and not project:
         if kind in SETTINGS_KINDS:
             return SETTINGS_KINDS[kind][1]()
@@ -732,33 +727,58 @@ def admin_get_settings(kind: str, study: str | None = None, project: str | None 
 
 
 @app.put("/api/admin/settings/{kind}")
-def admin_put_settings(kind: str, body: dict = Body(...), study: str | None = None, project: str | None = None,
-                       _: str = Depends(require_admin)):
-    """Write a settings file to the settings folder, or with ``?study=P/S`` / ``?project=P`` to that layer."""
+def admin_put_settings(kind: str, request: Request, body: dict = Body(...), layer: str | None = None,
+                       study: str | None = None, project: str | None = None, _: str = Depends(require_admin)):
+    """Replace a layer's own settings file (``?layer=``, ``?study=P/S``, ``?project=P``). Without any of
+    them the settings folder is written, except in a console opened under ``/s/P/S/`` (409)."""
+    from hani2 import admin_api
+
     if kind not in SETTINGS_KINDS and kind not in TEXT_FILES:
         raise HTTPException(404)
-    folder = _layer_dir(study, project)
-    if kind in SETTINGS_KINDS:
-        if folder is None:
-            save_json_settings(SETTINGS_KINDS[kind][0], body)
-        else:
-            (folder / SETTINGS_KINDS[kind][0]).write_text(json.dumps(body, indent=2))
-        return {"ok": True}
-    p = (folder or settings_dir()) / TEXT_FILES[kind]
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(str(body.get("text", "")))
-    return {"ok": True}
+    return admin_api.settings_put(kind, admin_api.write_target(request, layer, study, project), body)
+
+
+@app.patch("/api/admin/settings/{kind}")
+def admin_patch_settings(kind: str, request: Request, body: dict = Body(...), layer: str | None = None,
+                         study: str | None = None, project: str | None = None, _: str = Depends(require_admin)):
+    """Deep-merge a partial dict into a layer's own JSON settings file."""
+    from hani2 import admin_api
+
+    return admin_api.settings_patch(kind, admin_api.write_target(request, layer, study, project), body)
+
+
+@app.delete("/api/admin/settings/{kind}")
+def admin_delete_settings(kind: str, request: Request, layer: str | None = None, study: str | None = None,
+                          project: str | None = None, key: str | None = None, _: str = Depends(require_admin)):
+    """Remove one dotted ``key`` from a layer's own JSON file, or the whole file (back to inherited)."""
+    from hani2 import admin_api
+
+    return admin_api.settings_delete(kind, admin_api.write_target(request, layer, study, project), key)
 
 
 # -- projects and studies ------------------------------------------------------
+def _count_rows(files: list[Path]) -> int:
+    import csv
+
+    n = 0
+    for f in files:
+        try:
+            with open(f, newline="", encoding="utf-8", errors="replace") as fh:
+                n += max(0, sum(1 for _ in csv.reader(fh)) - 1)
+        except OSError:
+            pass
+    return n
+
+
 def _study_info(ref: "projects.StudyRef") -> dict:
     from hani2 import scheduling
 
     st = projects.load_study(ref)
     results = projects.study_dir(ref) / "results"
-    n = len(list(results.glob("*/results.csv"))) if results.is_dir() else 0
+    files = list(results.glob("*/results.csv")) if results.is_dir() else []
     effective, _, sched_errors = scheduling.resolve(ref)
-    return {**st.to_dict(), "path": str(st.path), "legacy": st.legacy, "participants": n,
+    return {**st.to_dict(), "path": str(st.path), "legacy": st.legacy, "participants": len(files),
+            "results_rows": _count_rows(files),
             "default": ref == projects.default_study(),
             # the study's own choice (as in study.yaml), and what it uses (study, then project, then defaults)
             "scheduling": dict(st.overrides.get("scheduling") or {}) if isinstance(st.overrides.get("scheduling"), dict) else {},
@@ -824,19 +844,22 @@ def _yaml_body(body: dict) -> dict:
 
 #: keys the GET endpoints add that are not part of project.yaml / study.yaml (dropped on PUT, so a
 #: client may send back what it read)
-_READ_ONLY_KEYS = ("path", "legacy", "participants", "default", "links", "yaml", "studies",
+_READ_ONLY_KEYS = ("path", "legacy", "participants", "results_rows", "default", "links", "yaml", "studies",
                    "scheduling_effective", "errors")
 
 
 def _writable(data: dict, nested: str) -> dict:
     """``data`` as sent back by a client: without the read-only keys, and with a top-level
-    ``scheduling`` winning over the copy the GET endpoints show under ``overrides`` / ``defaults``."""
+    ``scheduling`` winning over the copy the GET endpoints show under ``overrides`` / ``defaults``
+    (an empty one removes the choice: every dimension is inherited)."""
     out = {k: v for k, v in data.items() if k not in _READ_ONLY_KEYS}
     inner = out.get(nested)
     if "scheduling" in out and isinstance(inner, dict) and "scheduling" in inner:
         out[nested] = {k: v for k, v in inner.items() if k != "scheduling"}
         if not out[nested]:
             out.pop(nested)
+    if "scheduling" in out and not out["scheduling"]:
+        out.pop("scheduling")  # ``scheduling: {}`` (or null): inherit every dimension
     return out
 
 
@@ -977,28 +1000,40 @@ def admin_study_assignments(project: str, study: str, _: str = Depends(require_a
 
 @app.post("/api/admin/templates/preview")
 def admin_template_preview(body: dict = Body(...), _: str = Depends(require_admin)):
-    """Render a text for a study: ``{"text": "...", "study": "P/S"}`` or ``{"kind": "consent", "study": "P/S"}``
-    (``kind`` reads that study's effective file). Returns the rendered text, the unknown
-    placeholders and every variable with its value."""
-    from hani2.templates import VARIABLES, render_report, study_variables
+    """Render a text for a layer: ``{"text": "...", "study": "P/S"}`` or ``{"kind": "consent", "study": "P/S"}``
+    (``kind`` reads the effective file). ``"layer"`` (``settings`` | ``project:P`` | ``study:P/S``) previews
+    as that layer: a study with its variables, a project with the project's only, settings with none.
+    Returns the rendered text, the unknown placeholders and every variable with its value."""
+    from hani2.admin_api import get_layer
+    from hani2.layers import binding
+    from hani2.templates import VARIABLES, project_variables, render_report, study_variables
 
+    lay = get_layer(body.get("layer"), default=None) if body.get("layer") else None
     try:
         ref = projects.parse_ref(body["study"]) if body.get("study") else projects.current_study()
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
-    if ref is not None and not _study_allowed(ref):
+    if lay is None and ref is not None and not _study_allowed(ref):
         raise HTTPException(404, "Unknown study")
-    with projects.use_study(ref):
+    if lay is not None:
+        ref = lay.ref
+    ctx = binding(lay) if lay is not None else projects.use_study(ref)
+    with ctx:
         if "text" in body:
             text = str(body["text"])
         elif body.get("kind") in TEXT_FILES:
             text = read_settings_text(TEXT_FILES[body["kind"]], "")
         else:
             raise HTTPException(400, "give text or kind")
-        vals = study_variables(ref)
+        if lay is not None and lay.kind == "project":
+            vals = project_variables(lay.project)
+        elif lay is not None and lay.kind == "settings":
+            vals = study_variables(None)
+        else:
+            vals = study_variables(ref)
         rendered, unknown = render_report(text, vals)
     return {"rendered": rendered, "unknown": unknown, "variables": vals,
-            "descriptions": VARIABLES, "study": str(ref) if ref else None}
+            "descriptions": VARIABLES, "study": str(ref) if ref else None, "layer": lay.id if lay else None}
 
 
 @app.get("/api/admin/meta")
@@ -1348,6 +1383,11 @@ def _index_html(text: str, study_prefix: str = "") -> str:
         return text
     text = text.replace('"/assets/', f'"{base}/assets/').replace('"/favicon.svg"', f'"{base}/favicon.svg"')
     return text.replace("<head>", f'<head>\n    <meta name="hani2-base" content="{app_base}" />', 1)
+
+
+from hani2.admin_api import router as _admin_router  # noqa: E402
+
+app.include_router(_admin_router)  # before the catch-all page route below
 
 
 @app.get("/{path:path}", include_in_schema=False)

@@ -294,7 +294,7 @@ def _items(raw: Any) -> list[str]:
 
 def _group_of(items: list[str]) -> str:
     """The group name when a level names exactly one group token."""
-    if len(items) == 1 and items[0].startswith(":"):
+    if len(items) == 1 and items[0].startswith((":", "@")):
         return items[0][1:]
     return ""
 

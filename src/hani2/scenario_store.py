@@ -129,7 +129,12 @@ def _pool(type_: str) -> list[Path]:
     """Scenario folders of a category: numbered pool slots or named scenarios.
     A category folder that is itself a scenario counts as a one-scenario pool."""
     d = category_dir(type_)
-    if d is None:
+    return [] if d is None else pool_of(d)
+
+
+def pool_of(d: Path) -> list[Path]:
+    """The scenario folders in category folder ``d`` (itself, when it is one scenario)."""
+    if not d.is_dir():
         return []
     subs = sorted(p for p in d.iterdir() if p.is_dir() and not p.name.startswith((".", "_")) and _is_scenario_dir(p))
     if subs:

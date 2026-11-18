@@ -106,6 +106,8 @@ def _register_builtins() -> None:
 # Plugins                                                                     #
 # --------------------------------------------------------------------------- #
 _LOADED: set[str] = set()
+#: ``{type: plugin spec}`` of the types a plugin file registered
+ORIGINS: dict[str, str] = {}
 
 
 def _import(spec: str):
@@ -152,7 +154,10 @@ def load_plugins(force: bool = False) -> list[str]:
         except Exception as e:  # noqa: BLE001 - a bad plugin must not stop the server
             print(f"[hani2] could not load scenario types from {spec}: {e!r}")
             continue
-        added += [n for n in _TYPES if n not in before]
+        new = [n for n in _TYPES if n not in before]
+        for n in new:
+            ORIGINS[n] = spec
+        added += new
     return added
 
 

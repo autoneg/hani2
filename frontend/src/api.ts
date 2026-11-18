@@ -45,6 +45,22 @@ export async function apiRaw<T = any>(path: string, body: Blob | ArrayBuffer): P
   return res.json();
 }
 
+/** POST a multipart form (a file and its fields) and read the JSON answer. */
+export async function apiForm<T = any>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(withBase(path), { method: "POST", body: form, credentials: "same-origin" });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try {
+      const j = await res.json();
+      msg = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail ?? j);
+    } catch {
+      /* not json */
+    }
+    throw new ApiError(res.status, msg);
+  }
+  return res.json();
+}
+
 export interface AppConfig {
   title: string;
   subtitle: string;

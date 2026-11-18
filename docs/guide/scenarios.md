@@ -4,7 +4,7 @@ A scenario defines what is negotiated (the issues and their values) and what eac
 
 ## Where scenarios live
 
-HANI2 looks for scenarios in the *scenarios directory*, chosen in this order:
+HANI2 looks for the folder of a scenario category (see below) in these places, in order, and uses the first that has scenarios for it:
 
 1. `<study>/scenarios` when a study (or experiment) is active and has that folder.
 2. The directory in the `HANI2_SCENARIOS_BASE` environment variable.
@@ -27,6 +27,8 @@ links:
 
 A new type's name must not equal or start like a registered scenario type (`TradeExtra`), which
 would show it with that type's display.
+
+The [admin console](admin.md#scenarios) uploads and links scenario folders for you.
 
 `hani2 setup` copies the three bundled sample scenarios into an `Examples` category: `settings/scenarios/Examples/Trade`, `.../Island` and `.../Grocery`. They do not shadow the `Trade`, `Island` and `Grocery` types, which are generated fresh for every round until you create a pool for them with `hani2 generate`. To present the samples, pick the `Examples` category in the scenario picker or add `Examples` to a scenario set. `hani2 info` prints the scenarios directory in use.
 
@@ -97,7 +99,7 @@ Set names are matched without regard to case (`anac2027` works). `hani2 sets` li
 
 ### `scenario_sets.yaml`
 
-Sets are defined in `scenario_sets.yaml`. It is looked up like every other settings file: the bundled default, then the settings folder, then the active experiment. Sets in a later file are added, and a set with the same name as an earlier one replaces it. Admins can edit the file under *Texts* → *Scenario sets* in the admin console. A file that does not parse is ignored with a warning.
+Sets are defined in `scenario_sets.yaml`. It is looked up like every other settings file: the bundled default, then the settings folder, then the active experiment. Sets in a later file are added, and a set with the same name as an earlier one replaces it. Admins can edit the sets on the *Scenarios* page of the admin console (or the file itself under *Texts* → *Scenario sets*), per layer. A file that does not parse is ignored with a warning.
 
 ```yaml title="scenario_sets.yaml"
 default: HAN2026

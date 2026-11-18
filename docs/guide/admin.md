@@ -1,8 +1,8 @@
 # Admin console
 
-The admin console at `/admin` lets administrators watch live sessions, read results and event logs, manage users, and edit the settings files from the browser. Administrators also get extra controls on the negotiation page itself, described at the end of this page.
+The admin console at `/admin` is laid out like a system settings window: a sidebar on the left with a search field and the pages in groups, and the chosen page on the right. Every page is a list of rounded groups; each row has a label and a short hint on the left and its control (a switch, a pop-up menu, a number with − / + buttons, a text field) on the right. Rows with a `›` open a sub-page, with a back button and a path ("Projects & Studies › HI2027 › hi-2027-01") in the title bar. Administrators also get extra controls on the negotiation page itself, described at the end of this page.
 
-![The admin console](../assets/screens/admin.png)
+![The admin console: the sidebar and the Opponents page](../assets/screens/admin.png)
 
 ## Access
 
@@ -11,26 +11,64 @@ Open `http://localhost:5006/admin`, or choose **Administration** in the account 
 A user is an administrator when any of these is true:
 
 - the username is `admin`;
-- the account has the role `admin` (`hani2 users add --admin`, the **Admin** box when adding a user, or **Make admin** in the Users section);
+- the account has the role `admin` (`hani2 users add --admin`, the **Administrator** switch when adding a user, or **Make admin** on the Users page);
 - the account's email is listed in `admin.emails` in `env.json` (useful for OAuth sign-in).
 
 See [Authentication](authentication.md). The `?admin=1` query parameter on the negotiation page does not open the console; see [the interface](interface.md).
 
-The console has a navigation column on the left (a scrolling bar at the top on narrow screens), a theme button and a **Back to negotiating** link. The current section is kept in the URL fragment, so `/admin#results` opens the results directly. Section fragments are `overview`, `results`, `analytics`, `users`, `server`, `llm`, `agent`, `autopilot` and `texts`.
+## Pages
 
-## How saving works
+| Group | Page | What it holds |
+|---|---|---|
+| Activity | Live sessions | The sessions on this server, refreshed every five seconds. |
+| | Results | Every negotiation, the leaderboard and the results CSV. |
+| | Event analytics | Charts and a filterable event log, recorded sessions, the events CSV. |
+| | Replay | Opens [Replay](recordings.md). |
+| Studies | Projects & Studies | Projects, their studies, `project.yaml` and `study.yaml`, the links to give participants, results counts and the Assistant balance. |
+| | Texts | The welcome text, the consent form, the scenario sets and the custom order, per layer, with a live preview. |
+| Library | Scenarios | Every scenario type, its details, new ones by upload or link, and the scenario sets. |
+| | Opponents | Opponent groups and their members, your own opponent classes, and the pool participants face. |
+| | Assistants | Assistant groups, your own Assistant classes, the pool participants get, and the balance per study. |
+| | Tools | Tool groups, the tools sessions are offered, where each tool goes in each view, and your own tools. |
+| Server | General | Title, public address, sign-in and OAuth (`env.json`). |
+| | Negotiation | Negotiation defaults (`env.json` → `negotiation`). |
+| | Tool settings | Which tools exist and to whom they go (`env.json` → `tools`). |
+| | Language model | `llm_settings.json`. |
+| | Assistant settings | `assistant_settings.json`. |
+| | Autopilot | `autopilot_settings.json`. |
+| Accounts | Users | Add users, make admins, set passwords, delete. |
 
-The settings sections (Server and studies, Language model, Assistant, Autopilot, Texts) load the current effective settings, let you edit them, and save with the **Save** button at the bottom. "Unsaved changes" appears next to it while you have edits.
+The sidebar ends with **Replay recordings** and **Back to negotiating**. The page is kept in the URL fragment, so `/admin#results` opens the results directly; a fragment may also name a row (`/admin#opponents/opponent-pool`). The fragments of earlier versions still work (`#server` opens General, `#agent` Assistant settings, `#tools` Tool settings).
 
-Saving writes the file in the settings folder (`$HANI2_HOME/settings`, default `~/negmas/hani2/settings`). It always writes there, even while a study or experiment is running. If the active study (or its project) has its own copy of the same file, that copy takes precedence and your saved change has no visible effect until you edit that copy or remove it. See [Configuration reference](configuration.md) for the lookup order. The [admin API](projects.md#admin-api) reads and writes a study's or project's own copy (`?study=project/study`, `?project=name`), manages `project.yaml` and `study.yaml`, and previews texts with their variables filled in.
+On a narrow screen (a phone) the sidebar is a page of its own: pick a page to open it, and the back button at the top left returns to the list.
 
-The console shows the server's default study (results, events, recordings and the effective settings). Open it at `/s/<project>/<study>/admin` to see another study's results, events and recordings. Do not save settings there: the editors then show that study's effective settings, but **Save** still writes them to the shared settings folder, where they would apply to every study.
+### Search
+
+Type in the search field at the top of the sidebar (or press ⌘F / Ctrl+F). The sidebar then lists every setting whose label, hint or file key contains all the words you typed, across all pages, with the page each one is on: "temperature" finds the temperature of the language model and of the Assistant, "consent" the consent switch and the consent form. Press Enter for the first result, or the arrow keys to move through them. Choosing a result opens its page, scrolls to the row, highlights it briefly and puts the keyboard focus on its control. The search also covers the tools and the Assistant's abilities, which come from the server.
+
+The whole console works with the keyboard: Tab moves between controls, the arrow keys move through the sidebar, Space toggles a switch, and Escape clears the search.
+
+## Layers: where a setting is saved
+
+A setting can live in three places, called layers:
+
+- **All projects (settings folder)**: `$HANI2_HOME/settings` (default `~/negmas/hani2/settings`), shared by every project and study;
+- **a project**: `projects/<project>/`, for every study of that project;
+- **a study**: the study's folder, for that study only.
+
+A session reads each file from its study first, then its project, then the settings folder, then the bundled defaults (see [Configuration reference](configuration.md)).
+
+Pages whose settings can live in a layer start with an **Edit and save in** bar. Pick the layer there; it stays chosen while you move between pages. The page then shows the values in effect *at that layer*, and **Save** writes only the values you changed, and only into that layer's own file. A row whose value is set in the chosen project or study layer is marked **set here**; its ↺ button removes it from that layer, so the inherited value applies again. The bar at the bottom always says where the next save goes.
+
+When the console is opened inside a study (`/s/<project>/<study>/admin`), it starts with that study's layer chosen, and the bar names the study. It never saves to another layer behind your back: every read and write names its layer explicitly. (The API refuses a settings write that names no layer from inside a study; see the [admin API](projects.md#admin-api).)
+
+General is the exception: sign-in and identity apply to the whole server and are always saved in the settings folder.
 
 Saved settings apply to sessions created after saving. Sessions already open keep their settings.
 
 ## Live sessions
 
-A table of every session the server holds in memory, refreshed every five seconds. Above it, four figures: open sessions, sessions negotiating now, sessions recorded in the event log, and logged events.
+Four figures (open sessions, sessions negotiating now, sessions recorded in the event log, logged events) and a searchable table of every session the server holds in memory:
 
 | Column | Meaning |
 | --- | --- |
@@ -40,121 +78,226 @@ A table of every session the server holds in memory, refreshed every five second
 | `round` | Negotiations started in this session |
 | `scenario` | The loaded scenario |
 | `opponent` | The opponent type of the latest negotiation |
+| `support_agent` | The Assistant of the session |
 | `connections` | Open browser tabs |
 | `idle` | Seconds since the last message from the browser |
 
-The table is searchable. The server removes sessions that have no open tab, are not negotiating, and have been idle for more than six hours (it checks every ten minutes).
+The server removes sessions that have no open tab, are not negotiating, and have been idle for more than six hours (it checks every ten minutes).
 
 ## Results
 
-Every finished negotiation from every participant, newest first, with:
-
-- a **Download CSV** button (`/api/admin/results.csv`, saved as `hani2_results.csv`);
-- a **Leaderboard** with `user`, `score`, `negotiations` and `mean_utility`, when there is anything to rank;
-- **Choose columns**: a collapsible picker of the columns to show. It starts with the default columns plus `user`;
-- a searchable table. Utilities and the human advantage are shown as percentages.
-
-[Studies and results](studies.md) describes the results files and their columns.
+**Download CSV** (`/api/admin/results.csv`, saved as `hani2_results.csv`), the **Leaderboard** (`user`, `score`, `negotiations`, `mean_utility`) when there is anything to rank, and a searchable table of every negotiation, newest first. **Choose columns** picks the columns to show; it starts with the default columns plus `user`. Utilities and the human advantage are shown as percentages. The console shows the results of the server's default study; open it at `/s/<project>/<study>/admin` (or use **Open in this study** on a study's page) for another study. [Studies and results](studies.md) describes the files and their columns.
 
 ## Event analytics
 
-Charts and a filterable log of the events the server records:
-
-- **Events by type**: a bar chart of event counts.
-- **Activity over time (per hour)**.
-- A filter row: user, event type, from date, until date, and **Apply**.
+- **Events by type** and **Activity over time (per hour)** charts.
+- **Filter events**: user, event type, from date, until date, and **Apply**.
 - A searchable event table (up to 2000 rows) with `timestamp`, `user`, `event_type`, `component`, `action`, `value`, `scenario_id` and `utility_value`.
-- **Recorded sessions**: start and end time, user, mode, experiment, project, study and browser of the latest 200 sessions.
+- **Recorded sessions**: start and end time, user, mode, project, study and browser of the latest 200 sessions.
 - **Export CSV** downloads every event (`/api/admin/events.csv`, saved as `hani2_events.csv`).
 
-See [Studies and results](studies.md) for the event log and its event types.
+## Projects & Studies
 
-## Users
+The list shows every project with its full name, kind, year and number of studies, and **New project** creates one. Open a project to edit `project.yaml`:
 
-- **Add user**: username, password, optional email, and an **Admin** box. Users created here are marked as having consented.
-- For every account: the name, an `admin` badge, the full name, email, OAuth provider and consent status, and the buttons **Make admin** / **Remove admin**, **Set password**, and delete. Deleting asks for confirmation and keeps the user's results.
+- **Project**: full name, short description, link, year, kind (research, opponents evaluated, Assistants evaluated), organizer and contact. The hint of each row names the [text variable](projects.md#texts-with-variables) it fills.
+- **Defaults for its studies**: scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles. An empty field keeps the default.
+- **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
+- **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for.
+- **Studies**, with **New study** (a name and a type).
 
-The `admin` account cannot be demoted or deleted, and you cannot delete your own account. The same operations are available on the command line with `hani2 users` (see [Command line](../getting-started/cli.md)).
+Open a study to see and edit:
 
-## Server and studies
+- **Participant links** with copy buttons: the Prolific study URL (with Prolific's `{{%PROLIFIC_PID%}}` placeholders), the participant link of an online study, the session link of a lab study, and the play and app links. The address comes from **Public address** on the General page (or `HANI2_PUBLIC_URL`).
+- **Results**: the number of participants and of recorded negotiations, and **Open in this study**.
+- **Assistant balance**: how many counted humans each Assistant of the pool has, and every assignment.
+- **Study**: type, title, link, year, start and end dates, organizer, contact; **Completion**: Prolific study id, completion code, completion URL and the end text.
+- **Overrides of the project's defaults**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default) and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
 
-Edits `env.json`.
+**Save** writes `project.yaml` or `study.yaml`. See [Projects and studies](projects.md).
+
+## Texts
+
+Pick the layer and one of **Welcome text** (`announcements.md`), **Consent form** (`consent.md`), **Scenario sets** (`scenario_sets.yaml`) and **Custom order** (`scenario_order.txt`, one scenario type per line: the `Custom` set).
+
+- **Source** says which layer the text in effect comes from and whether the chosen layer has its own file. Without one, the editor starts with the inherited text, and **Save** creates the layer's own copy; **Use the inherited text** deletes the layer's copy again.
+- **Preview** (welcome text and consent form) renders the text as Markdown with the [text variables](projects.md#texts-with-variables) filled in, as a participant of the chosen study would see it; at the settings or project layer, pick the study to preview with. Unknown `{{variables}}` are listed above the preview and left as written.
+- **Available variables** lists every variable with its value for the preview, with a copy button.
+- **In effect for a study** shows, for any study, which layer each of the four texts comes from.
+
+Consent is recorded per study (see [Consent per study](projects.md#consent-per-study)).
+
+## The library pages: Scenarios, Opponents, Assistants and Tools
+
+The four library pages share one explorer and the [library](library.md) behind it (the admin API
+under `/api/admin/library`, see the [Library API](../reference/library-api.md)). Each page has,
+for the layer picked at the top:
+
+- **Groups** (scenario sets on the Scenarios page): your groups first, then those inherited from a
+  less specific layer, then the built-in ones, each with what it is, where it is defined and how
+  many items it holds after composition. Open a group to edit it: add an item or another group
+  (`@name`, which includes everything in it, in place; `:name` still works), remove entries, and
+  (scenario sets) move them up or down. **Members after composition** lists what the group
+  expands to, with duplicates dropped and cycles broken. **Save** writes the group at the chosen
+  layer only; a group of the same name at a less specific layer is shadowed, not changed. A group
+  of another layer is read-only here, and **Copy into** saves it at the chosen layer, where it
+  then replaces the other one. Built-in groups cannot be changed. When a saved group names an
+  unknown group or item, a class that does not load, or forms a cycle, it is saved anyway and the
+  console lists the warnings. **New group** creates one.
+- The page's own sections: the default scenario set, the pools, the tools offered and their
+  placement (below).
+- **Add**: upload a file or link a path, at the chosen layer.
+    - **Upload** a `.zip` (scenarios: one scenario folder, `<Type>.yml` plus one file per role, or a
+      category of them) or a `.py` file (opponents, Assistants, tools). HANI2 checks it before it
+      keeps anything: only plain files with safe relative paths (no `..`, absolute paths or
+      symbolic links), at most 5000 entries and 200 MB unpacked, at most 100 MB uploaded; every scenario must pass `hani2 scenario check`, and every class must load
+      the way HANI2 will load it. A scenario type's name must not equal or start like a registered
+      type, because a scenario finds its display by that name.
+    - **Link** an absolute path on the server (a scenario folder or category; a `.py` file or a
+      package folder) or a class spec (`pkg.module:Class`), read in place. **Import path** adds
+      folders to Python's import path for a class spec.
+    - **Name** names the new item (scenarios: the type), **Classes** takes only some classes of a
+      file, **Also add to group** adds what was added to a group (created when missing; a group of
+      a less specific layer is copied into the chosen one), and **Replace** replaces an item of the
+      same name added at this layer.
+    - The answer lists what was added and the warnings (for example a scenario without
+      `_info.yaml`).
+- **Items**: every item with its source (built in, registered, uploaded, linked) and groups,
+  searchable. Open one for its details, to add it to a group, or (when it was uploaded or linked at
+  the chosen layer) to **Remove** it: an upload's files are moved to the layer's `.trash` folder
+  (`scenarios/.trash/`, `library/<kind>/.trash/`), a link is removed and what it points to is left
+  alone. Groups that list the item are not changed.
+
+Uploads go to the layer's `scenarios/<name>/` (scenarios) or `library/<kind>/<name>/` folder and
+are listed in its `library.yaml`; scenario links are kept in its `scenario_links.yaml`. The same
+files are written by `hani2 library` on the command line.
+
+!!! warning "Uploaded code runs on the server"
+    Opponents, Assistants and tools are Python code, and a scenario may bring a `display.py`. They
+    run inside the HANI2 server, with its permissions, when they are checked and whenever they are
+    used. The console asks you to confirm that you trust the code (scenarios: to allow Python
+    files) before uploading or linking.
+
+### Scenarios
+
+Items are the scenario types: registered generators and category folders, uploaded or linked.
+Open one for its title and descriptions, its roles (with the participant's role and the no-deal
+values), its issues and options and a table of sample utilities (the best outcome for each role
+and a few others); pick a saved scenario of its pool, or **Generate** a fresh example from a
+generator. Scenarios with a `display.py` are marked.
+
+**Scenario set in use** is the default set of the chosen layer (`default` in its
+`scenario_sets.yaml`; **Inherit** removes it). `Custom` is the custom order, edited under Texts.
+See [Scenarios](scenarios.md) and [Scenario sets](scenario-sets.md).
+
+### Opponents
+
+Groups are the built-in groups (`@llm`, `@template`, `@notext`, `@negmas`, `@classic`, `@genius`,
+`@pan`, `@custom`) and the group files (`groups/<key>.json` of the settings folder, a project or a
+study, and those an outside system put in a study's `results/`). Open a group to see every member
+with a one-line description, searchable (useful for `@genius` with its 196 agents); members whose
+class does not load are marked.
+
+**Opponents participants face** is the pool of the chosen layer, as a list of groups and single
+classes to tick. It is stored in `env.json` (`opponents`) for the settings layer, in
+`project.yaml` (`defaults.opponents`) for a project and in `study.yaml` (`overrides.opponents`)
+for a study. A URL's `?opponents=` or `?group=`, `HANI2_OPPONENTS` and an outside system's
+schedule still win. See [Opponents](opponents.md#group-files).
+
+### Assistants
+
+The same for Assistants: the built-in groups `@default` and `@tutorial` and the
+`assistant_groups/` files; **Assistants participants get** (the pool: `assistants` in
+`project.yaml` / `study.yaml`; at the settings layer it is the Assistant class of Assistant
+settings); and the **Assistant balance** of a study (how many humans each Assistant has).
+Assistant classes are written `module:Class`. See [Assistant](assistant.md).
+
+### Tools
+
+Items are the tools (built in, from `env.json`, or added here), each with its default pane, when
+it appears, who gets it and its built-in groups (`information`, `visualization`,
+`recommendation`, `admin`, `assistant`, `all`). Tool groups are the built-in ones and those of
+`tools.yaml`. See [Tool groups](library.md#tool-groups).
+
+- **Tools offered to sessions**: **Inherit**, or **Choose here** the tools and tool groups sessions
+  of the chosen layer get (`tools.yaml` → `offer`). **Offered now** lists the tools that gives;
+  choosing nothing offers no tool. Tool settings (`env.json`) can still switch a tool off.
+- **Placement in each view**: a table of every tool with its pane and order, or *hidden*, in the
+  full, simple and focus views. Tools placed at the chosen layer are in bold. Open a tool (or
+  **Change the placement** on its page) for the **placement editor**: for each view, **Shown**,
+  **Pane** (upper, lower, side) and **Order** (smaller first). Values set at the chosen layer are
+  marked *set here*, with a button to inherit that value again; **Save** writes the tool's entry
+  in the layer's `tools.yaml` → `placement`, and **Inherit** removes it. Sessions move the tools
+  when the view changes, and a participant's own arrangement is kept per view. See
+  [Where tools go in each view](library.md#where-tools-go-in-each-view).
+
+## General
+
+Edits `env.json` in the settings folder.
 
 | Field | Key |
 | --- | --- |
 | Title, Subtitle | `title`, `subtitle` |
+| Public address (used in participant links) | `public_url` |
 | Sign-in: username and password, OAuth only, password and OAuth, or no sign-in | `auth.mode` (`password`, `oauth`, `dual`, `none`) |
 | People can create accounts | `auth.allow_registration` |
 | Require consent | `auth.enforce_consent` |
 | Playground | `playground.enabled` |
 | Admin emails | `admin.emails` |
 | OAuth redirect base | `oauth.redirect_uri` |
-| GitHub OAuth, Google OAuth: client id and secret | `oauth.providers.github.key` / `.secret`, `oauth.providers.google.key` / `.secret` |
+| GitHub and Google client id and secret | `oauth.providers.github.key` / `.secret`, `oauth.providers.google.key` / `.secret` |
 
-**Negotiation defaults**:
+A provider is used when it has both a key and a secret and is not explicitly disabled.
 
-| Field | Key |
-| --- | --- |
-| Rounds | `negotiation.n_steps` |
-| Time limit (seconds), empty for none | `negotiation.time_limit` |
-| Opponent agents, comma separated | `opponents` |
+## Negotiation
 
-Under the opponent pool, **Available groups** lists the opponent groups and how many negotiators each contains. See [Opponents](opponents.md).
+`env.json` → `negotiation`, per layer: rounds (`n_steps`), time limit in seconds (`time_limit`, empty for none), the participant's role rule (`role_rule`), **Show the opponent's type** (`show_opponent_type`) and **Participants may choose the scenario** (`allow_scenario_selection`). The opponent pool and the scenario set have their own pages (links at the bottom).
 
-**Tools**: one row per registered tool with its description, its pane, when it appears, and whether it is admin-only. Untick **Offered** to add the tool to `tools.disabled`; untick **Admins only** to give an admin-only tool to every participant (`tools.overrides.<name>.admin_only`). **Participants see opponent utilities** sets `tools.show_opponent_utility`. **Extra tools** edits `tools.extra` (class paths such as `my_pkg.tools:MyTool`). **Enlarged tools open as** chooses whether a tool's enlarge button opens it in a large window, fills the screen, or is not offered (`tools.maximize`: `window`, `fullscreen` or `off`; see [The interface](interface.md#enlarge-and-put-back)). See [Tools](tools.md).
+## Tool settings
 
-The OAuth rows edit the key and secret only. The `enabled` flag of a provider is not shown; a provider is used when it has both a key and a secret and is not explicitly disabled.
+`env.json` → `tools`, per layer. **Enlarged tools open as** a large window, the full screen, or not at all (`tools.maximize`: `window`, `fullscreen`, `off`; see [The interface](interface.md#enlarge-and-put-back)). **Participants see opponent utilities** (`tools.show_opponent_utility`). **Extra tools** (`tools.extra`, class paths such as `my_pkg.tools:MyTool`). Then one row per registered tool with its description, pane and timing, and two switches: **Offered** (off adds it to `tools.disabled`) and **Admins only** (`tools.overrides.<name>.admin_only`). See [Tools](tools.md).
 
 ## Language model
 
-Edits `llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM opponents. A banner at the top shows whether the model is configured ("Ready: provider / model") or which API key variable is missing.
+`llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM opponents. A banner shows whether the model is configured ("Ready: provider / model") or which API key variable is missing. Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`), temperature, max tokens, and the extraction, generation and instruction prompts. See [Language models](llms.md).
 
-Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`, the name of the environment variable that holds the key), temperature and max tokens. When the settings contain `extraction_prompt`, `generation_prompt` or `instruction_prompt`, each is shown in a text area. See [Language models](llms.md).
+## Assistant settings
 
-## Assistant
-
-Edits `assistant_settings.json`.
+`assistant_settings.json`.
 
 | Field | Key |
 | --- | --- |
-| Who gets the assistant: everyone, admins only, nobody | `mode` (`on`, `auto`, `off`) |
-| Agent class (`module:Class`, empty for the built-in agent) | `agent_class` |
-| Provider and model | `provider`, `model` |
-| API base | `api_base` |
-| API key variable | `api_key_env` |
-| Temperature, max tokens, tool steps | `temperature`, `max_tokens`, `max_tool_iterations` |
+| Who gets the Assistant: everyone, admins only, nobody | `mode` (`on`, `auto`, `off`) |
+| Assistant class (`module:Class`, empty for the built-in one) | `agent_class` |
 | Highest autonomy: Suggest, Semi, Full | `autonomy` |
-| Abilities granted | `capabilities.<name>` |
+| Abilities granted (one switch each) | `capabilities.<name>` |
+| Provider, model, API base, API key variable | `provider`, `model`, `api_base`, `api_key_env` |
+| Temperature, max tokens, tool steps per turn | `temperature`, `max_tokens`, `max_tool_iterations` |
 | Speaks up unprompted when a negotiation starts, it is the participant's turn, a negotiation ends | `proactive.on_negotiation_started`, `proactive.on_action_requested`, `proactive.on_negotiation_ended` |
 | System prompt | `system_prompt` |
 
-Participants can narrow these permissions in their assistant settings but never widen them. See [Assistant](assistant.md).
+Participants can narrow these permissions in their Assistant settings but never widen them. See [Assistant](assistant.md).
 
-![The Assistant section of the admin console](../assets/screens/admin-agent.png)
+![The Assistant settings page](../assets/screens/admin-agent.png)
 
 ## Autopilot
 
-Edits `autopilot_settings.json`.
+`autopilot_settings.json`.
 
 | Field | Key |
 | --- | --- |
 | Autopilot allowed | `allowed` |
 | Default driver | `driver` |
 | Participants choose the driver: playground only, yes, no | `user_can_choose` (`null`, `true`, `false`) |
-| Drivers offered (none ticked offers all) | `allowed_drivers` |
 | Pause between steps (s) | `step_delay` |
+| Drivers offered (none ticked offers all) | `allowed_drivers` |
 
+## Users
 
-## Texts
+- **Add a user**: username, password, optional email, and an **Administrator** switch. Users created here count as having consented.
+- **Accounts**, with a filter: for every account the name, an `admin` badge, the full name, email, OAuth provider and consent status, and **Make admin** / **Remove admin**, **Set password**, and delete. Deleting asks for confirmation and keeps the user's results.
 
-Plain-text editors for these files, each with its own **Save** button. The welcome text and the consent form may use [text variables](projects.md#texts-with-variables); the editors show them as written.
-
-- **Welcome text**: `announcements.md`, shown before the first negotiation.
-- **Consent form**: `consent.md`, shown on registration and on the consent page. Consent is recorded per study (see [Consent per study](projects.md#consent-per-study)).
-- **Scenario sets**: `scenario_sets.yaml`, the named lists of scenario types (see [Scenario sets](scenario-sets.md)).
-- **Custom order**: `scenario_order.txt`, one scenario type per line (the `Custom` set).
-
-See [Scenarios](scenarios.md) for the scenario order.
+The `admin` account cannot be demoted or deleted, and you cannot delete your own account. The same operations are available on the command line with `hani2 users` (see [Command line](../getting-started/cli.md)).
 
 ## Admin controls on the negotiation page
 

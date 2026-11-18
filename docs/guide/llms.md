@@ -13,7 +13,7 @@ There are two independent configurations, so the assistant can use a different m
 | `assistant_settings.json` | The Assistant and its autopilot driver. | [litellm](https://docs.litellm.ai/docs/providers), so any provider litellm supports. |
 | `llm_settings.json` | LLM opponents (`model` and `provider` are passed to them) and the message helpers. | Any litellm provider, for both the opponents (through negmas-llm) and the message helpers. |
 
-Both files live in the settings folder and can be edited in the admin console, under **Language model** and **Assistant**. The [configuration reference](configuration.md) lists every key.
+Both files live in the settings folder and can be edited in the admin console, under **Language model** and **Assistant settings**. The [configuration reference](configuration.md) lists every key.
 
 ## The default: a local model with Ollama
 
@@ -142,7 +142,7 @@ The helpers are used by:
 - the admin-only `LLM` tool (see [Tools](tools.md)),
 - tools built on `LLMTool` or calling `Tool.ask_llm()`, such as the Summary and Ask the AI example tools (see [Build a tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model)). Your own code can call the same model with `hani2.llm_service.complete(prompt, system=None, **settings)`.
 
-The **Language model** section of the admin console shows whether the configuration is usable: the provider, the model and whether the API key variable is set.
+The **Language model** page of the admin console shows whether the configuration is usable: the provider, the model and whether the API key variable is set.
 
 ## Prompt templates
 

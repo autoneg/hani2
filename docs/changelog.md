@@ -64,6 +64,48 @@
   when the view changes and remember the participant's arrangement per view. Nothing moves
   unless a placement is configured.
 - New dependency: `python-multipart` (uploads).
+- **A new admin console, laid out like system settings.** A sidebar with a search field and the
+  pages in groups (Activity, Studies, Library, Server, Accounts); each page is a list of rounded
+  groups of rows with switches, pop-up menus, steppers and text fields, and rows that open
+  sub-pages with a back button. Search finds any setting by its label, hint or key across all
+  pages and jumps to it. Light and dark themes, phone layout (the sidebar becomes a list page),
+  keyboard navigation. Every earlier section is kept; old URL fragments still work.
+- **Layer-explicit saving.** Settings pages, texts, scenario sets and pools say where they save:
+  the settings folder (all projects), a project or a study, picked at the top of the page. Values
+  are shown as in effect at that layer, and saving writes only the changed values to that layer's
+  own file (a "set here" mark with a reset button shows overrides). A console opened under
+  `/s/<project>/<study>/admin` starts on that study's layer, and the API refuses a settings write
+  from inside a study that names no layer (409), so the shared settings are never written by
+  accident. New: `GET /api/admin/layers`, `?layer=` on the settings endpoints, `PATCH` and
+  `DELETE` (with `key`) of settings files.
+- **Projects & Studies page**: edit `project.yaml` and `study.yaml` with form fields (defaults,
+  overrides, scheduling, custom variables kept on save), the participant links with copy buttons,
+  results counts and the Assistant balance (`GET .../studies/{study}/balance`).
+- **Texts page**: welcome text, consent, scenario sets and custom order per layer, with the
+  layer each text comes from, a live preview with the text variables filled in, the unknown
+  variables, and the list of variables.
+- **Scenarios, Opponents, Assistants and Tools explorers** (one shared explorer on the
+  [library API](reference/library-api.md)): the groups (scenario sets; opponent, Assistant and
+  tool groups) with where each is defined, its raw entries and its members after composition
+  (`@name`), editing per layer with warnings for unknown entries, classes that do not load and
+  cycles; uploading (`.zip`, `.py`) and linking items with their notice and warnings; the items
+  with their source and groups, removing what was added at a layer; the default scenario set, the
+  opponent and Assistant pools (`GET`/`PUT /api/admin/pools/{kind}`) and the Assistant balance.
+  The **Tools** page also chooses the tools sessions are offered and has a **placement editor**:
+  per tool and view (full, simple, focus) shown or hidden, pane and order, written to the
+  layer's `tools.yaml`. A scenario type's page shows its roles, issues, sample utilities and a
+  generated example (`GET /api/admin/scenarios/{name}`). The Server page *Tools* is now *Tool
+  settings*.
+- **Library additions.** Removed and replaced uploads are moved to the layer's `.trash` folder
+  instead of being deleted; a broken `library.yaml`, `scenario_links.yaml` or
+  `scenario_sets.yaml` is refused (409) instead of being overwritten; archive bytes are also counted
+  while unpacking; saving a group returns `warnings`; an empty `offer` (`[]`) is kept and offers no tool (it used to
+  be dropped, so the layer inherited); new `GET`/`PUT /api/admin/library/scenarios/default` and
+  `POST /api/admin/library/{kind}/describe`.
+- **Scheduling in the console.** The Scheduling groups of a project and a study use
+  `GET /api/admin/scheduling-methods`, show the method in effect, and **About these methods**
+  renders the formulas. A `PUT` of a study or project with `scheduling: {}` inherits every
+  dimension again.
 
 - **Groups and assignment.** Opponent groups (`groups/<key>.json`) and the new Assistant groups
   (`assistant_groups/<key>.json`, members under `assistants`) can live in a project, shared by its

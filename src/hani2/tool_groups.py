@@ -147,7 +147,8 @@ def _rw(layer_dir: Path) -> tuple[Path, dict[str, Any]]:
 
 def _save(f: Path, raw: dict[str, Any]) -> Path:
     f.parent.mkdir(parents=True, exist_ok=True)
-    clean = {k: v for k, v in raw.items() if v not in (None, {}, [])}
+    # an empty ``offer`` is kept: it means "no tool", while no ``offer`` means "every tool"
+    clean = {k: v for k, v in raw.items() if v not in (None, {}, []) or (k == "offer" and v == [])}
     tmp = f.with_suffix(".yaml.tmp")
     tmp.write_text(yaml.safe_dump(clean, sort_keys=False, allow_unicode=True))
     tmp.replace(f)

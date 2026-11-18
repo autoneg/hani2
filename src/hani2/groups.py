@@ -122,7 +122,10 @@ def search_dirs(kind: str, ref: Any = None) -> list[tuple[Path, str]]:
             pass
     else:
         out.append((home() / "db" / sub, "results"))
-    proj = r.project if r is not None else projects.DEFAULT_PROJECT
+    from hani2.config import view_project
+
+    # an admin view of a project's layer (no study): that project's group files
+    proj = r.project if r is not None else (view_project() or projects.DEFAULT_PROJECT)
     try:
         out.append((project_group_dir(proj, kind), "project"))
     except ValueError:

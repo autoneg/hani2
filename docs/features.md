@@ -76,7 +76,7 @@ participant. Options, settings and admin screens use these two names throughout.
 | Evaluation questionnaire | UEQ, TAM, intention to use, feeling heard, and how the opponent came across, after every negotiation: `HANI2_PER_NEG_YAML=evaluation`. | [Subjective metrics](guide/evaluation.md#subjective-metrics) |
 | Results and events | A results CSV per participant (including the layout used: `device` and `orientation`) and an SQLite event log of every action, with analytics in the admin console. | [Results](guide/studies.md#results) |
 | Prolific | A no-login flow keyed by the Prolific ID, with practice and counted rounds and the completion link. | [Prolific](guide/prolific.md) |
-| Admin console | Live sessions (with each one's opponent and Assistant), results, events, users and every setting, in the browser. | [Admin console](guide/admin.md) |
+| Admin console | A settings window with search: live sessions, results, events, users, every setting per layer (all projects, a project, a study), projects and studies with their participant links, texts with a live preview, and explorers to browse, upload, link and group scenarios, opponents and Assistants. | [Admin console](guide/admin.md) |
 | Opening admin-only tools | Give any admin-only tool, or opponent utilities, to all participants. | [Opening admin-only tools](guide/tools.md#opening-admin-only-tools-to-participants) |
 | Enlarged tools | Choose whether tools enlarge into a window, fill the screen, or not at all. | [Enlarge and put back](guide/interface.md#enlarge-and-put-back) |
 | Accounts | Password, GitHub and Google login, or none; `hani2 users`. | [Authentication](guide/authentication.md) |

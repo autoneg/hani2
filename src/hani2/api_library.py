@@ -142,3 +142,26 @@ def put_offer(body: Any = Body(...), layer: str = "settings") -> dict[str, Any]:
     (every tool), or ``{"offer": ...}``."""
     entries = body.get("offer") if isinstance(body, dict) else body
     return _call(library.put_offer, entries, layer)
+
+
+@router.post("/{kind}/describe")
+def describe(kind: str, body: Any = Body(...), layer: str = "settings") -> dict[str, Any]:
+    """Body: a list of entries (or ``{"entries": [...]}``): what each one is (item, group or unknown),
+    its description and, for opponents and Assistants, whether its class loads."""
+    k = _kind(kind)
+    entries = body.get("entries") if isinstance(body, dict) else body
+    return {"kind": k, "entries": _call(library.describe, k, entries, layer)}
+
+
+@router.get("/scenarios/default")
+def get_default_set(layer: str = "settings") -> dict[str, Any]:
+    return _call(library.get_default_set, layer)
+
+
+@router.put("/scenarios/default")
+def put_default_set(body: Any = Body(None), layer: str = "settings") -> dict[str, Any]:
+    """Body: ``{"default": "<set>" | null}`` (or the name, or ``null``: inherit)."""
+    name = body.get("default") if isinstance(body, dict) else body
+    if name is not None and not isinstance(name, str):
+        raise HTTPException(400, "default must be a set name or null")
+    return _call(library.put_default_set, name, layer)

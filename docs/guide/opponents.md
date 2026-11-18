@@ -105,7 +105,7 @@ Upload or link your own negotiators with the [library](library.md)
 groups with `hani2 library group-set opponents …`; the group files it writes hold the class specs
 and their `syspath`, so they work without the library.
 
-`hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can list, read and write a project's group files through the [admin API](projects.md#admin-api).
+`hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can browse every group and its members, edit groups and upload or link their own opponent classes on the *Opponents* page of the [admin console](admin.md#opponents), or through the [admin API](projects.md#admin-api).
 
 ## Choosing the pool
 
@@ -114,7 +114,7 @@ When a negotiation starts, HANI2 builds the pool from the first source in this l
 1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
 2. The `--opponents` option of `hani2` (stored in the `HANI2_OPPONENTS` environment variable).
 3. The per-session *Opponent agents* setting in the admin settings drawer.
-4. The `opponents` list in `env.json`, also editable as *Opponent agents* in the admin console.
+4. The `opponents` list in `env.json`, also editable as *Opponents participants face* on the *Opponents* page of the admin console (which also writes a project's or study's `opponents`).
 5. The default pool: the four template-based talking negotiators (`:template`).
 
 The default needs no language model, so a casual visitor never causes LLM costs.

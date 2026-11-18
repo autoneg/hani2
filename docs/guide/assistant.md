@@ -83,7 +83,7 @@ For studies or competitions where participants must negotiate on their own (for 
 Human-Agent Negotiation competition), switch the agent off for everyone. Any of these works:
 
 - start the server with `hani2 --no-assistant` (the same as `--assistant off` or `HANI2_ASSISTANT=off`);
-- set **Who gets the assistant** to *Nobody* in the admin console (`"mode": "off"`);
+- set **Who gets the Assistant** to *Nobody* under *Assistant settings* in the admin console (`"mode": "off"`);
 - create a dedicated experiment with `hani2 experiment create han --no-assistant`, which
   writes `{"mode": "off"}` to the experiment's `assistant_settings.json` and turns the
   autopilot off, then run it with `hani2 --experiment han`.
@@ -225,7 +225,9 @@ with their participant index (0, 1, … in order of arrival, also used for the
 
 The file is read and written under a lock (a thread lock and a file lock) and replaced atomically,
 so humans arriving at the same moment never get the same slot twice. Admins can read it at
-`GET /api/admin/projects/{project}/studies/{study}/assignments`.
+`GET /api/admin/projects/{project}/studies/{study}/assignments`, and see the balance (how many humans each
+Assistant has) on the study's page and on the *Assistants* page of the [admin console](admin.md#assistants), where
+they can also manage Assistant groups, upload or link Assistant classes and choose the pool.
 
 ### When an Assistant does not load
 
@@ -250,7 +252,7 @@ schedule, else the pool.
 
 ## Settings
 
-The agent reads `assistant_settings.json` from the settings folder (`~/negmas/hani2/settings` by default, or the active experiment folder). Your file is merged over the bundled defaults, so it only needs the keys you change. You can also edit these settings in the admin console under **Assistant**. See the [configuration reference](configuration.md) for how settings files are found.
+The agent reads `assistant_settings.json` from the settings folder (`~/negmas/hani2/settings` by default, or the active experiment folder). Your file is merged over the bundled defaults, so it only needs the keys you change. You can also edit these settings in the admin console under **Assistant settings**, for the settings folder, a project or a study. See the [configuration reference](configuration.md) for how settings files are found.
 
 | Key | Default | Meaning |
 |-----|---------|---------|

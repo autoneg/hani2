@@ -1,1 +1,0 @@
-import{c as o}from"./index-DdbCSu2a.js";const e={name:"margin-horizontal",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M21 3v18",key:"fnf4zc"}],["path",{d:"M3 3v18",key:"k760nc"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

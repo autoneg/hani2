@@ -52,7 +52,7 @@ The JSON files are merged in layers: the bundled defaults, then the settings fol
 
 Text files (`consent.md`, `announcements.md`, `scenario_order.txt`) are taken from the first location that has them.
 
-The admin console always saves to the settings folder. While a study with its own copy of a file is active, edits to that file in the console have no effect; edit the study's copy instead (the admin API writes to a study's or project's folder with `?study=` / `?project=`).
+The admin console saves each setting in the layer chosen at the top of its page: the settings folder, a project or a study (see [Layers](admin.md#layers-where-a-setting-is-saved)).
 
 Texts shown to participants (consent, welcome text, title and subtitle, questionnaire texts) may use `{{variables}}` such as `{{project_full_name}}` and `{{n_required}}`; see [Texts with variables](projects.md#texts-with-variables).
 

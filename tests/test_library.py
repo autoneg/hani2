@@ -550,6 +550,139 @@ def test_tool_groups_compose_and_builtins_are_read_only(hani2_home):
 # --------------------------------------------------------------------------- #
 # API                                                                          #
 # --------------------------------------------------------------------------- #
+def test_removed_and_replaced_uploads_go_to_trash(study, hani2_home, tmp_path):
+    from hani2.config import settings_dir
+
+    folder = _scenario_files(tmp_path, "Rent")
+    library.add_upload("scenarios", "Rent.zip", _zip_folder(folder))
+    library.add_upload("scenarios", "Rent.zip", _zip_folder(folder), replace=True)
+    trash = settings_dir() / "scenarios" / library.TRASH
+    assert [p.name.startswith("Rent-") for p in trash.iterdir()] == [True]
+    r = library.remove_item("scenarios", "Rent")
+    assert r["how"] == "deleted" and Path(r["trash"]).parent == trash and len(list(trash.iterdir())) == 2
+    # a .trash folder is never served as a category
+    from hani2 import scenario_store
+
+    assert library.TRASH not in scenario_store.available_types()
+    library.add_upload("opponents", "mine.py", OPPONENT_PY.encode(), "project:P1")
+    r = library.remove_item("opponents", "LibBoulware", "project:P1")
+    assert r["how"] == "deleted" and (Path(r["trash"]) / "mine.py").is_file()
+    assert not (projects.project_dir("P1") / "library/opponents/mine").exists()
+
+
+def test_broken_files_are_not_overwritten(hani2_home, tmp_path):
+    from hani2.config import settings_dir
+
+    sd = settings_dir()
+    sd.mkdir(parents=True, exist_ok=True)
+    folder = _scenario_files(tmp_path, "Rent")
+    (sd / "scenario_links.yaml").write_text("links: [unclosed\n")
+    with pytest.raises(LibraryError) as e:
+        library.add_link("scenarios", str(folder), name="Rent")
+    assert e.value.status == 409 and "scenario_links.yaml" in str(e.value)
+    assert (sd / "scenario_links.yaml").read_text() == "links: [unclosed\n"
+    (sd / "scenario_links.yaml").unlink()
+    (sd / "library.yaml").write_text("opponents: {a: [1, 2\n")
+    with pytest.raises(LibraryError) as e:
+        library.add_upload("opponents", "mine.py", OPPONENT_PY.encode())
+    assert e.value.status == 409 and (sd / "library.yaml").read_text().startswith("opponents: {a")
+    assert not (sd / "library/opponents/mine").exists()
+    (sd / "scenario_sets.yaml").write_text("- not\n- a mapping\n")
+    with pytest.raises(LibraryError) as e:
+        library.put_group("scenarios", "Mine", ["Trade"])
+    assert e.value.status == 409
+    with pytest.raises(LibraryError):
+        library.put_default_set("HAN2026")
+
+
+def test_archive_size_limit(hani2_home, tmp_path, monkeypatch):
+    monkeypatch.setattr(library, "MAX_ZIP_BYTES", 1000)
+    z = tmp_path / "a.zip"
+    z.write_bytes(_zip({"a/x.txt": "x" * 600, "a/y.txt": "y" * 600}))
+    with pytest.raises(LibraryError, match="more than"):
+        library.safe_extract(z, tmp_path / "out")
+    z.write_bytes(_zip({"a/x.txt": "x" * 600}))
+    assert (library.safe_extract(z, tmp_path / "ok") / "x.txt").read_text() == "x" * 600
+
+
+def test_group_warnings_unknown_entries_and_cycles(study, hani2_home):
+    r = library.put_group("scenarios", "Wide", ["Trade", "Nonexistent", "@Ghost", "@HAN2026"])
+    w = " ".join(r["warnings"])
+    assert "Nonexistent" in w and "Ghost" in w and "Trade" not in w and "HAN2026" not in w
+    library.put_group("scenarios", "A", ["@B"])
+    r = library.put_group("scenarios", "B", ["@A", "Island"])
+    assert any("cycle" in x for x in r["warnings"])
+    r = library.put_group("tools", "mine", ["Preferences", "Nope tool", "@visualization"])
+    assert r["warnings"] == ["mine: 'Nope tool' is no known tool or group"]
+    r = library.put_group("opponents", "odd", ["BoulwareTBNegotiator", "no.such.Class", ":llm"], "project:P1")
+    assert len(r["warnings"]) == 1 and "no.such.Class" in r["warnings"][0]
+
+
+def test_default_set_per_layer(study, hani2_home):
+    library.put_group("scenarios", "Pilot", ["Trade"], "project:P1")
+    d = library.put_default_set("pilot", "project:P1")
+    assert d["here"] == "Pilot" and d["effective"] == "Pilot"
+    with projects.use_study(study):
+        assert scenario_sets.active_set() == "Pilot"
+    assert library.get_default_set("settings")["here"] is None
+    assert library.get_default_set("study:P1/s1")["effective"] == "Pilot"
+    with pytest.raises(LibraryError) as e:
+        library.put_default_set("Nope", "project:P1")
+    assert e.value.status == 404
+    assert library.put_default_set(None, "project:P1")["here"] is None
+    f = projects.project_dir("P1") / "scenario_sets.yaml"
+    assert "default" not in yaml.safe_load(f.read_text()) and "Pilot" in yaml.safe_load(f.read_text())["sets"]
+
+
+def test_describe_entries(study, hani2_home):
+    library.add_upload("opponents", "mine.py", OPPONENT_PY.encode(), "project:P1", group="lib")
+    d = {x["entry"]: x for x in library.describe("opponents", ["LibBoulware", "@lib", "lib", "nope.Nope", "@ghost",
+                                                                "BoulwareTBNegotiator"], "project:P1")}
+    assert d["LibBoulware"]["kind"] == "item" and d["LibBoulware"]["description"].startswith("A Boulware")
+    assert d["@lib"]["kind"] == "group" and d["@lib"]["n"] == 1 and d["lib"]["kind"] == "group"
+    assert d["nope.Nope"]["ok"] is False and "nope.Nope" in d["nope.Nope"]["error"]
+    assert d["@ghost"]["kind"] == "unknown" and d["BoulwareTBNegotiator"]["ok"]
+    t = {x["entry"]: x for x in library.describe("tools", ["Preferences", "@visualization", "Nope"])}
+    assert t["Preferences"]["kind"] == "item" and t["@visualization"]["kind"] == "group" and not t["Nope"]["ok"]
+    with pytest.raises(LibraryError):
+        library.describe("tools", "Preferences")
+
+
+def test_an_empty_offer_offers_nothing(study, hani2_home):
+    assert library.put_offer([], "project:P1")["here"] == []
+    assert library.get_offer("study:P1/s1")["tools"] == []
+    assert library.put_offer(None, "project:P1")["here"] is None
+    assert library.get_offer("study:P1/s1")["tools"]
+
+
+def test_copying_a_group_into_a_layer_keeps_its_fields(study, hani2_home):
+    from hani2.config import settings_dir
+
+    d = settings_dir() / "groups"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "base.json").write_text(json.dumps({"agents": ["BoulwareTBNegotiator"], "description": "Base",
+                                             "syspath": ["/srv/x"], "assistant": "hani2.assistant:Assistant"}))
+    r = library.put_group("opponents", "base", ["BoulwareTBNegotiator", "LinearTBNegotiator"], "project:P1")
+    data = json.loads(Path(r["path"]).read_text())
+    assert data["agents"] == ["BoulwareTBNegotiator", "LinearTBNegotiator"]
+    assert data["description"] == "Base" and data["syspath"] == ["/srv/x"] and data["assistant"] == "hani2.assistant:Assistant"
+    assert json.loads((d / "base.json").read_text())["agents"] == ["BoulwareTBNegotiator"]
+
+
+def test_a_broken_tools_yaml_is_not_overwritten(hani2_home):
+    from hani2.config import settings_dir
+
+    f = settings_dir() / "tools.yaml"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text("offer: [a\n")
+    for call in (lambda: library.put_offer(["Trace"]), lambda: library.put_placement({"Trace": {"pane": "side"}}),
+                 lambda: library.put_group("tools", "mine", ["Trace"])):
+        with pytest.raises(LibraryError) as e:
+            call()
+        assert e.value.status == 409
+    assert f.read_text() == "offer: [a\n"
+
+
 def test_api_is_admin_only(client):
     assert client.get("/api/admin/library/tools").status_code == 401
     client.post("/api/auth/login", json={"username": "user", "password": "userpass"})

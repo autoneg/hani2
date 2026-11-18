@@ -52,7 +52,8 @@ from hani2 import composition
 
 __all__ = ["KINDS", "Layer", "parse_layer", "layer_context", "list_items", "add_upload", "add_link", "remove_item",
            "list_groups", "put_group", "delete_group", "get_placement", "put_placement", "get_offer", "put_offer",
-           "tool_classes", "prime_syspaths", "LibraryError", "safe_extract", "CODE_WARNING"]
+           "tool_classes", "prime_syspaths", "LibraryError", "safe_extract", "CODE_WARNING", "group_warnings",
+           "get_default_set", "put_default_set", "describe", "trash"]
 
 KINDS = ("scenarios", "opponents", "assistants", "tools")
 INDEX = "library.yaml"
@@ -182,8 +183,11 @@ def layer_context(layer: Layer) -> Iterator[Layer]:
         if layer.level == "study":
             yield layer
             return
+        from hani2.config import layer_view
+
         dirs = [x.dir for x in reversed(layer.chain()) if x.level != "settings"]
-        with use_layers(dirs):
+        # the project's group files and folders too (groups.search_dirs, config.project_dir)
+        with use_layers(dirs), layer_view(layer.project if layer.level == "project" else None):
             yield layer
 
 
@@ -211,6 +215,47 @@ def read_index(layer_dir: Path) -> dict[str, dict[str, dict[str, Any]]]:
     except Exception as e:  # noqa: BLE001
         print(f"[hani2] ignoring {f}: {e}")
         return {}
+
+
+def check_writable(path: Path) -> None:
+    """Refuse to rewrite a YAML file that exists but cannot be read (409): reading it as empty
+    and writing it back would lose what an admin wrote by hand."""
+    f = Path(path)
+    if not f.is_file():
+        return
+    try:
+        data = yaml.safe_load(f.read_text())
+    except Exception as e:  # noqa: BLE001
+        raise LibraryError(f"{f.name} at {f.parent} is not valid YAML ({e}); fix it by hand first", 409) from None
+    if data is not None and not isinstance(data, dict):
+        raise LibraryError(f"{f.name} at {f.parent} is not a mapping; fix it by hand first", 409)
+
+
+def read_index_strict(layer_dir: Path) -> dict[str, dict[str, dict[str, Any]]]:
+    """:func:`read_index` for a write: a broken ``library.yaml`` is refused (409), not emptied."""
+    check_writable(Path(layer_dir) / INDEX)
+    return read_index(layer_dir)
+
+
+#: removed and replaced uploads go to a ``.trash`` folder next to them (names starting with ``.``
+#: are never served), so nothing an admin added is lost by one click
+TRASH = ".trash"
+
+
+def trash(path: Path) -> Path:
+    """Move ``path`` into ``<its folder>/.trash/<name>-<time>``; returns where it went."""
+    import time
+
+    d = Path(path).parent / TRASH
+    d.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    dest = d / f"{Path(path).name}-{stamp}"
+    n = 1
+    while dest.exists():
+        dest = d / f"{Path(path).name}-{stamp}-{n}"
+        n += 1
+    shutil.move(str(path), str(dest))
+    return dest
 
 
 def write_index(layer_dir: Path, data: dict[str, Any]) -> Path:
@@ -330,11 +375,23 @@ def safe_extract(zip_path: Path, dest: Path, enter: bool = True) -> Path:
             target = (root / n).resolve()
             if target != root and root not in target.parents:
                 raise LibraryError(f"unsafe path in the archive: {n!r}")
+        total = 0
         for i in infos:
             parts = Path(i.filename).parts
             if not parts or parts[0] == "__MACOSX" or parts[-1] == ".DS_Store":
                 continue
-            zf.extract(i, root)
+            target = (root / i.filename).resolve()
+            if i.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # count the bytes actually written: the sizes in the archive's directory may lie
+            with zf.open(i) as src, open(target, "wb") as dst:
+                while chunk := src.read(1 << 20):
+                    total += len(chunk)
+                    if total > MAX_ZIP_BYTES:
+                        raise LibraryError(f"the archive unpacks to more than {MAX_ZIP_BYTES // (1024 * 1024)} MB")
+                    dst.write(chunk)
     top = [p for p in root.iterdir() if not p.name.startswith(".") and p.name != "__MACOSX"]
     if enter and len(top) == 1 and top[0].is_dir() and not (top[0] / "__init__.py").exists():
         return top[0]
@@ -716,8 +773,9 @@ def add_upload(kind: str, filename: str, content: bytes, layer: "str | Layer | N
         _forget_modules_under(tmp)
         with contextlib.suppress(ValueError):
             sys.path.remove(str(staged))
+        read_index_strict(la.dir)  # refuse before touching files when library.yaml is broken
         if dest.exists():
-            shutil.rmtree(dest)
+            trash(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
         if staged.is_file():
             dest.mkdir()
@@ -747,6 +805,7 @@ def add_upload(kind: str, filename: str, content: bytes, layer: "str | Layer | N
 
 
 def _forget_modules_under(folder: str) -> None:
+    _DESCRIBED.clear()
     prefixes = (str(folder), str(Path(folder).resolve()))
     for k, v in list(sys.modules.items()):
         locs = [str(getattr(v, "__file__", "") or "")] + [str(x) for x in (getattr(v, "__path__", None) or [])]
@@ -768,7 +827,8 @@ def _select(found: list[dict[str, Any]], classes: list[str] | None) -> list[dict
 def _register(kind: str, la: Layer, entries: list[dict[str, Any]], name: str | None, group: str | None,
               replace: bool) -> dict[str, Any]:
     """Check that every entry loads and its name is free, write the index (and the group)."""
-    idx = read_index(la.dir)
+    _DESCRIBED.clear()
+    idx = read_index_strict(la.dir)
     mine = idx.setdefault(kind, {})
     existing = _item_names(kind, la)
     added = []
@@ -893,14 +953,15 @@ def _add_scenarios(la: Layer, src: Path, name: str, *, copy: bool, allow_code: b
                 warnings.append(f"{rel}: its outcome space is called {osn!r}, so it is shown like {hit!r} scenarios")
     if errors:
         raise LibraryError("invalid scenario: " + "; ".join(errors[:10]), 422)
+    check_writable(la.dir / scenario_links.FILE)
     if copy:
+        idx = read_index_strict(la.dir)
         if dest.exists():
-            shutil.rmtree(dest)
+            trash(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(src, dest)
         if own_link:
             scenario_links.remove_link(la.dir, name)
-        idx = read_index(la.dir)
         idx.setdefault("scenarios", {})[name] = {"source": "uploaded", "path": str(dest.relative_to(la.dir)),
                                                  "n_scenarios": len(folders)}
         write_index(la.dir, idx)
@@ -923,15 +984,17 @@ def remove_item(kind: str, name: str, layer: "str | Layer | None" = None) -> dic
     kind = check_kind(kind)
     la = _layer(layer)
     name = check_name(name, "item name")
+    _DESCRIBED.clear()
     if kind == "scenarios":
         from hani2.scenarios import registry
 
         check_folder_name(name, "scenario type name")
+        check_writable(la.dir / scenario_links.FILE)
         if scenario_links.remove_link(la.dir, name):
             return {"ok": True, "removed": name, "how": "unlinked", "layer": la.name}
         if registry.get(name) is not None:
             raise LibraryError(f"{name!r} is a registered scenario type; it cannot be removed here", 409)
-        idx = read_index(la.dir)
+        idx = read_index_strict(la.dir)
         if name not in idx.get("scenarios", {}):
             raise LibraryError(f"no uploaded or linked scenario type {name!r} at {la.name} (the library only "
                                "removes what it added)", 404)
@@ -939,10 +1002,11 @@ def remove_item(kind: str, name: str, layer: "str | Layer | None" = None) -> dic
         write_index(la.dir, idx)
         root = (la.dir / "scenarios").resolve()
         d = la.dir / "scenarios" / name
+        out = {"ok": True, "removed": name, "how": "deleted", "layer": la.name}
         if d.is_dir() and not d.is_symlink() and d.resolve().parent == root:
-            shutil.rmtree(d)
-        return {"ok": True, "removed": name, "how": "deleted", "layer": la.name}
-    idx = read_index(la.dir)
+            out["trash"] = str(trash(d))
+        return out
+    idx = read_index_strict(la.dir)
     mine = idx.get(kind, {})
     key = next((k for k in mine if k.lower() == name.lower()), None)
     if key is None:
@@ -958,8 +1022,8 @@ def remove_item(kind: str, name: str, layer: "str | Layer | None" = None) -> dic
             _forget_modules_under(str(d))
             with contextlib.suppress(ValueError):
                 sys.path.remove(str(d))
-            shutil.rmtree(d)
-            how = "deleted"
+            moved = trash(d)
+            return {"ok": True, "removed": key, "how": "deleted", "layer": la.name, "trash": str(moved)}
     return {"ok": True, "removed": key, "how": how, "layer": la.name}
 
 
@@ -1140,6 +1204,7 @@ def put_group(kind: str, name: str, entries: list[str], layer: "str | Layer | No
         elif kind == "tools":
             from hani2 import tool_groups
 
+            check_writable(la.dir / tool_groups.FILE)
             if name.lower() in tool_groups.BUILTIN_GROUPS:
                 raise LibraryError(f"{name!r} is a built-in tool group; choose another name", 409)
             if rename_from and not tool_groups.delete_group(la.dir, composition.ref_name(rename_from)):
@@ -1147,9 +1212,169 @@ def put_group(kind: str, name: str, entries: list[str], layer: "str | Layer | No
             path = tool_groups.write_group(la.dir, name, clean)
         else:
             path = _put_group_file(kind, la, name, clean, description, rename_from, extra)
-    expanded = next((g["expanded"] for g in list_groups(kind, la)
-                     if g["name"].lower() == name.lower() and g.get("active", True)), [])
-    return {"ok": True, "name": name, "entries": clean, "expanded": expanded, "layer": la.name, "path": str(path)}
+    after = list_groups(kind, la)
+    expanded = next((g["expanded"] for g in after if g["name"].lower() == name.lower() and g.get("active", True)), [])
+    return {"ok": True, "name": name, "entries": clean, "expanded": expanded, "layer": la.name, "path": str(path),
+            "warnings": group_warnings(kind, la, name, clean, after)}
+
+
+def group_warnings(kind: str, layer: "str | Layer | None", name: str, entries: list[str],
+                   groups_now: list[dict[str, Any]] | None = None) -> list[str]:
+    """What looks wrong in group ``name``'s ``entries`` (saved anyway): a reference to an unknown
+    group, an entry that is no known item or group, a cycle through other groups."""
+    kind = check_kind(kind)
+    la = _layer(layer)
+    gs = [g for g in (groups_now if groups_now is not None else list_groups(kind, la)) if g.get("active", True)]
+    by = {g["name"].lower(): g for g in gs}
+    code = kind in ("opponents", "assistants")
+    known: set[str] = set()
+    if not code:
+        for it in list_items_quick(kind, la):
+            known.add(str(it.get("name", "")).lower())
+    out: list[str] = []
+    for e in entries:
+        ref = composition.ref_name(e)
+        is_group = ref.lower() in by and (composition.is_ref(e) or ref.lower() != name.lower())
+        if composition.is_ref(e) and not is_group:
+            out.append(f"{name}: unknown group {ref!r}")
+        elif not is_group and code:
+            # opponents and Assistants are class specs: say when one does not load
+            info = _load_info(kind, e, la)
+            if not info["ok"]:
+                out.append(f"{name}: {info['error']}")
+        elif not is_group and e.lower() not in known:
+            out.append(f"{name}: {e!r} is no known {kind[:-1].replace('scenario', 'scenario type')} or group")
+    # cycles: follow group references from this group
+    graph = {g["name"].lower(): [composition.ref_name(x).lower() for x in g.get("entries") or []
+                                 if composition.is_ref(x) or (composition.ref_name(x).lower() in by
+                                                              and composition.ref_name(x).lower() != g["name"].lower())]
+             for g in gs if g.get("source") != "builtin"}
+    graph[name.lower()] = [composition.ref_name(x).lower() for x in entries
+                           if composition.is_ref(x) or (x.lower() in by and x.lower() != name.lower())]
+    seen: set[str] = set()
+
+    def walk(n: str, stack: list[str]) -> None:
+        if n in stack:
+            cyc = stack[stack.index(n):] + [n]
+            key = "->".join(sorted(set(cyc)))
+            if key not in seen:
+                seen.add(key)
+                out.append(f"{name}: cycle {' -> '.join(cyc)} (the last step is ignored)")
+            return
+        if len(stack) > 50:
+            return
+        for m in graph.get(n, []):
+            walk(m, stack + [n])
+
+    walk(name.lower(), [])
+    return out
+
+
+def list_items_quick(kind: str, la: Layer) -> list[dict[str, Any]]:
+    """The items of ``kind`` at ``la`` without their groups (what :func:`group_warnings` checks against)."""
+    with layer_context(la):
+        if kind == "scenarios":
+            return _scenario_items(la)
+        if kind == "tools":
+            return _tool_items(la)
+        return _class_items(kind, la)
+
+
+# --------------------------------------------------------------------------- #
+# Scenarios: the default set                                                   #
+# --------------------------------------------------------------------------- #
+def get_default_set(layer: "str | Layer | None" = None) -> dict[str, Any]:
+    """``{layer, here, effective, sets}``: this layer's ``default`` in ``scenario_sets.yaml``
+    (``None``: not set here), the default sessions of this layer get, and the set names."""
+    from hani2 import scenario_sets
+
+    la = _layer(layer)
+    f = la.dir / scenario_sets.FILE
+    here = scenario_sets._read(f).get("default") if f.is_file() else None
+    with layer_context(la):
+        raw, default = scenario_sets.raw_sets()
+    return {"layer": la.name, "here": str(here) if here else None, "effective": default, "sets": list(raw)}
+
+
+def put_default_set(name: str | None, layer: "str | Layer | None" = None) -> dict[str, Any]:
+    """Set (``None``: remove) the default scenario set at ``layer``. The set must exist there."""
+    from hani2 import scenario_sets
+
+    la = _layer(layer)
+    f = la.dir / scenario_sets.FILE
+    check_writable(f)
+    data = scenario_sets._read(f) if f.is_file() else {}
+    if name is not None and str(name).strip():
+        with layer_context(la):
+            raw, _ = scenario_sets.raw_sets()
+        n = composition.ref_name(str(name))
+        hit = next((k for k in [*raw, scenario_sets.CUSTOM] if k.lower() == n.lower()), None)
+        if hit is None:
+            raise LibraryError(f"no scenario set {n!r} at {la.name}", 404)
+        data["default"] = hit
+    else:
+        data.pop("default", None)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
+    return get_default_set(la)
+
+
+# --------------------------------------------------------------------------- #
+# Describing entries (members of groups, pools)                                #
+# --------------------------------------------------------------------------- #
+_DESCRIBED: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+
+def describe(kind: str, entries: list[str], layer: "str | Layer | None" = None) -> list[dict[str, Any]]:
+    """What each entry is: ``{entry, kind: item | group | unknown, name, title, description, ok,
+    error}``. Opponent, Assistant and tool classes that are no library item are loaded (cached)
+    to say whether they import."""
+    kind = check_kind(kind)
+    la = _layer(layer)
+    if not isinstance(entries, list) or not all(isinstance(x, str) for x in entries):
+        raise LibraryError("entries must be a list of strings")
+    entries = list(dict.fromkeys(x.strip() for x in entries if x.strip()))[:2000]
+    gs = {g["name"].lower(): g for g in list_groups(kind, la) if g.get("active", True)}
+    items: dict[str, dict[str, Any]] = {}
+    for it in list_items_quick(kind, la):
+        for k in (it.get("name"), it.get("spec")):
+            if k:
+                items.setdefault(str(k).lower(), it)
+    out = []
+    for e in entries:
+        ref = composition.ref_name(e)
+        g = gs.get(ref.lower())
+        if g is not None and (composition.is_ref(e) or e.lower() not in items):
+            out.append({"entry": e, "kind": "group", "name": g["name"], "title": g["name"],
+                        "description": g.get("description") or "", "n": len(g.get("expanded") or []), "ok": True,
+                        "error": ""})
+            continue
+        if composition.is_ref(e):
+            out.append({"entry": e, "kind": "unknown", "name": ref, "title": ref, "description": "", "ok": False,
+                        "error": f"no group {ref!r}"})
+            continue
+        it = items.get(e.lower())
+        d: dict[str, Any] = {"entry": e, "kind": "item" if it else "unknown", "name": (it or {}).get("name", e),
+                             "title": (it or {}).get("title") or e, "description": (it or {}).get("description") or "",
+                             "ok": it is not None, "error": "" if it else f"no {kind[:-1]} {e!r}"}
+        if kind in ("opponents", "assistants") and not d["description"]:
+            d.update(_load_info(kind, str((it or {}).get("spec") or e), la))
+        out.append(d)
+    return out
+
+
+def _load_info(kind: str, spec: str, la: Layer) -> dict[str, Any]:
+    key = (kind, spec, la.name)
+    if key not in _DESCRIBED:
+        try:
+            with layer_context(la):
+                cls = verify(kind, spec)
+            doc = (inspect.getdoc(cls) or "").strip().splitlines()
+            _DESCRIBED[key] = {"ok": True, "error": "", "description": doc[0] if doc else "",
+                               "module": getattr(cls, "__module__", "")}
+        except LibraryError as e:
+            _DESCRIBED[key] = {"ok": False, "error": str(e), "description": ""}
+    return dict(_DESCRIBED[key])
 
 
 def _put_set(la: Layer, name: str, entries: list[str], rename_from: str | None) -> Path:
@@ -1158,6 +1383,7 @@ def _put_set(la: Layer, name: str, entries: list[str], rename_from: str | None) 
     if scenario_sets.CUSTOM.lower() in (name.lower(), (rename_from or "").lower()):
         raise LibraryError("Custom is the list in scenario_order.txt; edit that file instead", 409)
     f = la.dir / scenario_sets.FILE
+    check_writable(f)
     data = scenario_sets._read(f) if f.is_file() else {}
     sets = dict(data.get("sets") or {})
     if rename_from:
@@ -1191,9 +1417,14 @@ def _put_group_file(kind: str, la: Layer, name: str, entries: list[str], descrip
         old = next((x for x in sorted(d.glob("*.json")) if x.stem.lower() == name.lower()), d / f"{name}.json") \
             if d.is_dir() else d / f"{name}.json"
     current: dict[str, Any] = {}
-    if old.is_file():
+    src = old if old.is_file() else None
+    if src is None and not rename_from:
+        # copying a group of a less specific layer here: start from its other fields
+        lower = next((g for g in _group_files(gk, la) if g["active"] and g["name"].lower() == name.lower()), None)
+        src = Path(lower["path"]) if lower else None
+    if src is not None:
         try:
-            data = json.loads(old.read_text())
+            data = json.loads(src.read_text())
             current = dict(data) if isinstance(data, dict) else {groups.MEMBERS_KEY[gk]: data}
         except Exception:  # noqa: BLE001 - a broken file is replaced
             current = {}
@@ -1245,12 +1476,14 @@ def delete_group(kind: str, name: str, layer: "str | Layer | None" = None) -> di
         from hani2 import scenario_sets
 
         f = la.dir / scenario_sets.FILE
+        check_writable(f)
         data = scenario_sets._read(f)
         data["sets"] = {k: v for k, v in (data.get("sets") or {}).items() if str(k).lower() != name.lower()}
         f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
     elif kind == "tools":
         from hani2 import tool_groups
 
+        check_writable(la.dir / tool_groups.FILE)
         tool_groups.delete_group(la.dir, name)
     else:
         Path(g["path"]).unlink()
@@ -1294,6 +1527,7 @@ def put_placement(placement: dict[str, Any], layer: "str | Layer | None" = None,
     la = _layer(layer)
     if not isinstance(placement, dict):
         raise LibraryError("placement must map tool names to placements")
+    check_writable(la.dir / tool_groups.FILE)
     try:
         tool_groups.write_placement(la.dir, placement, replace=replace)
     except ValueError as e:
@@ -1322,5 +1556,6 @@ def put_offer(entries: list[str] | None, layer: "str | Layer | None" = None) -> 
     la = _layer(layer)
     if entries is not None and (not isinstance(entries, list) or not all(isinstance(x, str) for x in entries)):
         raise LibraryError("offer must be a list of tool names and groups, or null")
+    check_writable(la.dir / tool_groups.FILE)
     tool_groups.write_offer(la.dir, entries)
     return get_offer(la)

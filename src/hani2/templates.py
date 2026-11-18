@@ -42,6 +42,12 @@ def _s(v: Any) -> str:
     return "" if v is None else str(v)
 
 
+def project_variables(project: str) -> dict[str, str]:
+    """The placeholder values at a project layer: the project's own, the study ones empty."""
+    # a study-less reference to the project: its defaults apply, there is no study folder
+    return study_variables(projects.StudyRef(project, ""))
+
+
 def study_variables(ref: "projects.StudyRef | None" = projects.UNSET) -> dict[str, str]:
     """The placeholder values for study ``ref`` (default: the current study)."""
     r = projects.current_study() if ref is projects.UNSET else ref
