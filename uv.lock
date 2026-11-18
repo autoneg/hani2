@@ -1124,7 +1124,7 @@ wheels = [
 [[package]]
 name = "han-agents"
 version = "0.0.2"
-source = { git = "https://github.com/autoneg/han-agents?branch=main#745ef8868c06d891f661baf8bbb7284820f96653" }
+source = { git = "https://github.com/autoneg/han-agents?branch=main#9559a5c7a3635be98f89ec7878ba929200936bf9" }
 dependencies = [
     { name = "negmas" },
     { name = "negmas-llm" },
