@@ -26,7 +26,6 @@
   `hani2 connections …` and `hani2 models list|resolve`, and new endpoints
   `/api/admin/connections`, `/api/admin/providers` and `/api/admin/models`. See
   [Models and connections](guide/models.md).
-||||||| parent of fb956fec0 (feat: scenarios in admin sets open their details page, with a lazily loaded outcome-space plot)
 - **Scenario details from a set, with a plot of the outcome space.** In the console, the entries
   of a scenario set (and of any opponent, Assistant or tool group) open forward: an item shows its
   full details page, a nested group its members, and going back keeps the group's unsaved edits.
@@ -140,7 +139,6 @@
   renders the formulas. A `PUT` of a study or project with `scheduling: {}` inherits every
   dimension again.
 
-||||||| parent of 3cc753ae2 (feat: scenarios shape how offers are shown — text, history, the offer on the table and the controls)
 - **Scenarios shape how offers are shown.** A scenario's display (`hani2.display.OfferDisplay`, in
   its `display.py` or passed to `register`) can now define four views: the one-line `text`, the
   offer in the `history`, the offer `on_table` and the counter-offer `controls`. Views are lists
