@@ -161,6 +161,9 @@ export interface SessionState {
   notice: null | { text: string; level: string };
   questionnaire: Questionnaire | null;
   finish_url: string | null;
+  finish_text?: string | null;
+  project?: string;
+  study_name?: string | null;
   study: { kind: string; pid?: string; required?: number; counted?: number; practice_next?: boolean; auto_deadline?: number | null; auto_kind?: string | null; max_minutes?: number };
   can_choose_scenario: boolean;
   webmcp?: { enabled: boolean; actions: boolean };

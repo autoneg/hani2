@@ -8,6 +8,13 @@ quotas, questionnaires and completion.
   practice round, ``PROLIFIC_N_REQUIRED`` counted rounds, an optional
   ``schedule.json``, the zero-action rule, auto-start / auto-load timers and
   a completion link.
+* :class:`ParticipantStudy` — the same flow for participants of an online or
+  lab study (``?pid=`` / ``?participant=`` / ``?code=``), ending with the
+  study's completion link or end page.
+
+Numbers such as the counted rounds and time limits come from the environment
+(``PROLIFIC_*``, an outside system's explicit input) when set, else from the
+study's ``study.yaml`` and its project's ``project.yaml``, else the defaults.
 """
 
 from __future__ import annotations
@@ -23,14 +30,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from hani2 import projects
 from hani2 import scenario_store as store
 from hani2.agents import expand_agents
-from hani2.config import experiment_dir
+from hani2.config import settings_layers
 
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
 
 PROLIFIC_PREFIX = "prolific_"
+#: results folder prefix of online / lab participants (``?pid=``, ``?participant=``, ``?code=``)
+PARTICIPANT_PREFIX = "participant_"
 
 
 def _env_int(name: str, default: int) -> int:
@@ -55,7 +65,8 @@ def questionnaire_spec() -> dict | None:
         # a bare name ("evaluation") is a questionnaire in the settings or bundled with HANI2
         if "/" in v or v.endswith((".yaml", ".yml")):
             return [Path(v).expanduser()]
-        return [settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
+        return [*(d / "questionnaires" / f"{v}.yaml" for d in settings_layers()),
+                settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
 
     cands: list[Path] = []
     for var in ("HANI2_PER_NEG_YAML", "PROLIFIC_PER_NEG_YAML"):
@@ -63,18 +74,21 @@ def questionnaire_spec() -> dict | None:
             cands.extend(named(os.environ[var]))
     if get_env("questionnaire", None):
         cands.extend(named(str(get_env("questionnaire"))))
-    exp = experiment_dir()
-    if exp is not None:
-        cands.append(exp / "questionnaires" / "per_negotiation.yaml")
+    for layer in settings_layers():  # the study, then its project
+        cands.append(layer / "questionnaires" / "per_negotiation.yaml")
     cands.append(settings_dir() / "questionnaires" / "per_negotiation.yaml")
     for p in cands:
         if p.is_file():
             try:
                 spec = yaml.safe_load(p.read_text()) or {}
-                if spec.get("questions"):
-                    return spec
+                if not spec.get("questions"):
+                    continue
             except Exception as e:  # pragma: no cover
                 print(f"[hani2] questionnaire {p} failed to parse: {e}")
+                continue
+            from hani2.templates import render_data
+
+            return render_data(spec)
     return None
 
 
@@ -92,7 +106,7 @@ def questionnaire_for(session: "NegotiationSession", spec: dict | None) -> dict 
 def save_questionnaire(user_path: Path, row_meta: dict[str, Any], answers: dict[str, Any]) -> None:
     path = user_path / "negotiation_questionnaires.csv"
     base = ["mechanism_id", "scenario", "agent_type", "practice", "shown_at", "submitted_at", "duration_seconds"]
-    fields = base + sorted(answers)
+    fields = base + sorted(answers) + [k for k in ("project", "study") if k in row_meta]
     existing: list[str] = []
     if path.exists():
         with path.open() as fh:
@@ -135,6 +149,15 @@ class Study:
     def completion_url(self) -> str | None:
         return None
 
+    def finish_text(self) -> str | None:
+        """The end page's text (``end_text`` in study.yaml, with placeholders filled)."""
+        st = projects.get_study(self.session.study_ref)
+        if st is None or not st.end_text:
+            return None
+        from hani2.templates import render, study_variables
+
+        return render(st.end_text, study_variables(self.session.study_ref))
+
     def round_label(self) -> str:
         n = self.session.round_number + (0 if self.session.phase in ("running", "ended") else 1)
         return f"Negotiation {max(1, n)}"
@@ -174,7 +197,8 @@ class Study:
             dict(mechanism_id=getattr(m, "id", ""), scenario=s._scenario_name(),
                  agent_type=s.ss.get("last_partner_type", ""), practice=bool(s.ss.get("is_practice_round")),
                  shown_at=shown or "", submitted_at=datetime.now().isoformat(),
-                 duration_seconds=f"{dur:.3f}" if dur is not None else ""),
+                 duration_seconds=f"{dur:.3f}" if dur is not None else "",
+                 **projects.stamp(s.study_ref)),
             answers,
         )
         if getattr(s, "recorder", None) is not None:
@@ -192,14 +216,18 @@ class Study:
 class ProlificStudy(Study):
     META = "prolific_session.json"
     SCHEDULE = "schedule.json"
+    PREFIX = PROLIFIC_PREFIX
+    KIND = "prolific"
 
     def __init__(self, session: "NegotiationSession"):
         super().__init__(session)
-        self.pid = session.user[len(PROLIFIC_PREFIX):]
+        self.pid = session.user[len(self.PREFIX):]
         self.user_path: Path = session.ss["user_path"]
-        self.n_required = _env_int("PROLIFIC_N_REQUIRED", 5)
-        self.practice_time = _env_int("PROLIFIC_PRACTICE_TIME_LIMIT", 300)
-        self.counted_time = _env_int("PROLIFIC_COUNTED_TIME_LIMIT", 600)
+        ref = session.study_ref
+        self.n_required = projects.setting("n_required", 5, env="PROLIFIC_N_REQUIRED", cast=int, ref=ref)
+        self.practice_time = projects.setting("practice_time_limit", 300, env="PROLIFIC_PRACTICE_TIME_LIMIT", cast=int, ref=ref)
+        self.counted_time = projects.setting("counted_time_limit", 600, env="PROLIFIC_COUNTED_TIME_LIMIT", cast=int, ref=ref)
+        self.has_practice = projects.setting("practice", True, cast=bool, ref=ref)
         self.auto_start = _env_int("PROLIFIC_AUTO_START_SECONDS", 120)
         self.auto_load = _env_int("PROLIFIC_AUTO_LOAD_SECONDS", 30)
         self.auto_load_practice = _env_int("PROLIFIC_AUTO_LOAD_PRACTICE_SECONDS", 60)
@@ -226,7 +254,8 @@ class ProlificStudy(Study):
         meta = {
             "started_at": datetime.now().isoformat(),
             "scenario_type": types[h % len(types)] if types else None,
-            "max_minutes": _env_int("PROLIFIC_MAX_MINUTES", 45),
+            "max_minutes": projects.setting("minutes", 45, env="PROLIFIC_MAX_MINUTES", cast=int,
+                                            ref=self.session.study_ref),
             "max_negs": self.n_required + 1,
         }
         self.user_path.mkdir(parents=True, exist_ok=True)
@@ -319,7 +348,7 @@ class ProlificStudy(Study):
             return 0
 
     def is_practice_next(self) -> bool:
-        return not self.is_returning() and not self.practice_done()
+        return self.has_practice and not self.is_returning() and not self.practice_done()
 
     # -- Study API ----------------------------------------------------------
     def plan_round(self, scenario_type: str | None, name: str | None) -> dict[str, Any]:
@@ -362,7 +391,7 @@ class ProlificStudy(Study):
 
     def client_state(self) -> dict[str, Any]:
         return {
-            "kind": "prolific",
+            "kind": self.KIND,
             "pid": self.pid,
             "required": self.n_required,
             "counted": self.counted(),
@@ -374,12 +403,32 @@ class ProlificStudy(Study):
         }
 
     def completion_url(self) -> str:
+        """First match: ``PROLIFIC_COMPLETION_URL`` (``{pid}`` is the participant), the
+        outside system's completion path (``SCMLWEB_BASE_URL`` / ``SCMLWEB_PROLIFIC_PATH``),
+        ``completion_url`` in study.yaml, Prolific's completion link for
+        ``completion_code`` in study.yaml, else the outside system's default path."""
         tmpl = os.environ.get("PROLIFIC_COMPLETION_URL", "").strip()
         if tmpl:
             return tmpl.replace("{pid}", self.pid)
+        outside = any((os.environ.get(v) or "").strip() for v in ("SCMLWEB_BASE_URL", "SCMLWEB_PROLIFIC_PATH"))
+        if not outside:
+            own = self._study_completion_url()
+            if own:
+                return own
+            st = projects.get_study(self.session.study_ref)
+            if st is not None and st.completion_code:
+                return f"https://app.prolific.com/submissions/complete?cc={st.completion_code}"
         base = os.environ.get("SCMLWEB_BASE_URL", "https://anac.cs.brown.edu").rstrip("/")
         path = "/" + os.environ.get("SCMLWEB_PROLIFIC_PATH", "/prolific").strip("/")
         return f"{base}{path}/done?PROLIFIC_PID={self.pid}"
+
+    def _study_completion_url(self) -> str | None:
+        st = projects.get_study(self.session.study_ref)
+        if st is None or not st.completion_url:
+            return None
+        from hani2.templates import render, study_variables
+
+        return render(st.completion_url, study_variables(self.session.study_ref)).replace("{pid}", self.pid)
 
     # -- timers ---------------------------------------------------------------
     def _cancel(self) -> None:
@@ -403,7 +452,7 @@ class ProlificStudy(Study):
                     f"The next negotiation starts automatically in {self.auto_load_warn} seconds.", "warning")
 
         if kind == "load" and warn_at > 0:
-            w = threading.Timer(warn_at, _warn)
+            w = threading.Timer(warn_at, self.session.in_study(_warn))
             w.daemon = True
             w.start()
 
@@ -419,7 +468,7 @@ class ProlificStudy(Study):
                 if s.phase == "ready":
                     s.start()
 
-        self._timer = threading.Timer(seconds, _fire)
+        self._timer = threading.Timer(seconds, self.session.in_study(_fire))
         self._timer.daemon = True
         self._timer.start()
 
@@ -472,11 +521,35 @@ class ProlificStudy(Study):
         if self.finished():
             s.phase = "finished"
             s.finish_url = self.completion_url()
+            s.finish_text = self.finish_text()
             return
         self._arm(self.auto_load_practice if self.is_practice_next() else self.auto_load, "load")
+
+
+class ParticipantStudy(ProlificStudy):
+    """An online or lab study's participant (``?pid=``, ``?participant=`` or ``?code=``):
+    the Prolific flow (practice, counted rounds, questionnaires, schedule.json), ending
+    with ``completion_url`` from study.yaml (online) or the end page."""
+
+    PREFIX = PARTICIPANT_PREFIX
+    KIND = "participant"
+
+    def completion_url(self) -> str | None:  # type: ignore[override]
+        return self._study_completion_url()
+
+    def finish_text(self) -> str | None:
+        text = super().finish_text()
+        if text:
+            return text
+        from hani2.templates import study_variables
+
+        code = study_variables(self.session.study_ref).get("completion_code")
+        return "Thank you for taking part." + (f" Your completion code is {code}." if code else "")
 
 
 def make_study(session: "NegotiationSession") -> Study:
     if session.user.startswith(PROLIFIC_PREFIX):
         return ProlificStudy(session)
+    if session.user.startswith(PARTICIPANT_PREFIX):
+        return ParticipantStudy(session)
     return Study(session)

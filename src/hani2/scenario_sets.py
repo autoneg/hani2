@@ -19,7 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from hani2.config import DEFAULT_SETTINGS_DIR, experiment_dir, get_settings_file, settings_dir
+from hani2.config import DEFAULT_SETTINGS_DIR, get_settings_file, settings_dir, settings_layers
 
 __all__ = ["CUSTOM", "DEFAULT_SET", "load_sets", "raw_sets", "expand", "set_names", "resolve", "set_types", "active_set", "custom_order"]
 
@@ -45,9 +45,7 @@ def _read(path: Path) -> dict:
 
 def _layers() -> list[Path]:
     out = [DEFAULT_SETTINGS_DIR / FILE, settings_dir() / FILE]
-    exp = experiment_dir()
-    if exp is not None:
-        out.append(exp / FILE)
+    out += [d / FILE for d in reversed(settings_layers())]
     return [p for p in out if p.exists()]
 
 

@@ -102,6 +102,7 @@ def make_session(
     load: bool = True,
     partner: str | None = "BoulwareTBNegotiator",
     support_settings: dict[str, Any] | None = None,
+    study: Any = None,
 ) -> TestSession:
     """Create a headless session (and load a scenario).
 
@@ -109,7 +110,8 @@ def make_session(
     ``agent_class`` / ``assistant_settings`` configure the Assistant for this
     session only (they override ``assistant_settings.json``). ``partner`` and
     ``support_settings`` are the old names of ``opponent`` and
-    ``assistant_settings`` and still work (the new names win).
+    ``assistant_settings`` and still work (the new names win). ``study``
+    (``"project/study"``) runs the session in that study (default: the current one).
     """
     if home is not None or "HANI2_HOME" not in os.environ:
         os.environ["HANI2_HOME"] = home or tempfile.mkdtemp(prefix="hani2-test-")
@@ -133,7 +135,9 @@ def make_session(
     runtime.load_support_agent_settings = lambda: settings  # type: ignore[assignment]
     old_env = {v: os.environ.pop(v, None) for v in ("HANI2_ASSISTANT", "HANI2_SUPPORT_AGENT")}
     try:
-        s = TestSession(f"test:{uuid.uuid4().hex[:8]}", user, mode=mode, is_admin=is_admin, query=q, hub=_Collector())
+        extra = {"study": study} if study is not None else {}
+        s = TestSession(f"test:{uuid.uuid4().hex[:8]}", user, mode=mode, is_admin=is_admin, query=q, hub=_Collector(),
+                        **extra)
     finally:
         runtime.load_support_agent_settings = original  # type: ignore[assignment]
         for v, value in old_env.items():

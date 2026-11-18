@@ -140,7 +140,47 @@ def get_meta(username: str) -> dict:
 
 
 def get_user_consent(username: str) -> bool:
+    """The old, global consent flag (see :func:`has_study_consent` for consent per study)."""
     return bool(get_meta(username).get("consented", False))
+
+
+def consent_hash(text: str) -> str:
+    return hashlib.sha256((text or "").encode()).hexdigest()
+
+
+def _consent_key(ref) -> str:
+    return str(ref) if ref is not None else ""
+
+
+def has_study_consent(username: str, ref, text: str | None = None) -> bool:
+    """Whether ``username`` consented to study ``ref`` (and, when ``text`` is given, to
+    exactly that consent text). Without a record for the study, the old global
+    ``consented`` flag still counts for the process default study (and when no study
+    is active), so existing users are not asked again there."""
+    from hani2 import projects
+
+    meta = get_meta(username)
+    rec = (meta.get("consents") or {}).get(_consent_key(ref))
+    if isinstance(rec, dict):
+        return text is None or rec.get("hash") == consent_hash(text)
+    if ref is None or ref == projects.default_study():
+        return bool(meta.get("consented", False))
+    return False
+
+
+def set_study_consent(username: str, ref, text: str, **extra: Any) -> dict:
+    """Record consent to study ``ref``: when, and a hash of the text accepted."""
+    from hani2 import projects
+
+    rec = {"date": datetime.now().isoformat(), "hash": consent_hash(text), **projects.stamp(ref), **extra}
+    with _LOCK:
+        meta = _read(_meta_file())
+        m = meta.setdefault(username, {})
+        m.setdefault("consents", {})[_consent_key(ref)] = rec
+        if ref is None or ref == projects.default_study():
+            m.update(consented=True, consent_date=rec["date"])  # keep the old flag in step
+        _write(_meta_file(), meta)
+    return rec
 
 
 def set_user_consent(username: str, consented: bool = True, **extra: Any) -> None:
@@ -187,7 +227,7 @@ def validate_new_user(username: str, password: str, confirm: str | None = None) 
         return "Username is required."
     if len(username) > 64 or any(c in username for c in "/\\:*?\"<>| "):
         return "Username may not contain spaces or path characters."
-    if username.lower() in RESERVED_NAMES or username.lower().startswith("prolific_"):
+    if username.lower() in RESERVED_NAMES or username.lower().startswith(("prolific_", "participant_")):
         return "This username is reserved."
     if not password or len(password) < 4:
         return "Password must have at least 4 characters."

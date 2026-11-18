@@ -122,13 +122,11 @@ def _import(spec: str):
 
 
 def _plugin_specs() -> list[str]:
-    from hani2.config import experiment_dir, settings_dir
+    from hani2.config import settings_dir, settings_layers
 
     specs: list[str] = []
     dirs = [settings_dir() / "scenario_types"]
-    exp = experiment_dir()
-    if exp is not None:
-        dirs.append(exp / "scenario_types")
+    dirs += [d / "scenario_types" for d in reversed(settings_layers())]
     for d in dirs:
         if d.is_dir():
             specs += [str(f) for f in sorted(d.glob("*.py")) if not f.name.startswith("_")]

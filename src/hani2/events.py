@@ -1,7 +1,8 @@
 """Event tracking: an append-only SQLite log of everything that happens.
 
 Events are typed (``EventType``). The database lives at
-``<results root>/events.db``. Logging is best-effort and never raises.
+``<results root>/events.db`` of the session's study, and every row carries the
+``project`` and ``study``. Logging is best-effort and never raises.
 Set ``HANI2_EVENTS=0`` to disable it.
 """
 
@@ -80,9 +81,21 @@ def _conn() -> sqlite3.Connection:
     if c is None:
         c = sqlite3.connect(path, check_same_thread=False, timeout=10)
         c.executescript(_SCHEMA)
+        for table in ("events", "sessions"):  # columns added later (older databases lack them)
+            have = {r[1] for r in c.execute(f"PRAGMA table_info({table})")}
+            for col in ("project", "study"):
+                if col not in have:
+                    c.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
         c.commit()
         _CONN[path] = c
     return c
+
+
+def _study_of(session_id: str | None):
+    """The study of the session (its own, not the calling thread's)."""
+    from hani2 import projects
+
+    return projects.study_of_session(session_id)
 
 
 def _now() -> str:
@@ -113,17 +126,20 @@ def log_event(
     if not _enabled():
         return
     try:
+        from hani2 import projects
         from hani2.config import experiment_name
 
         et = event_type.value if isinstance(event_type, EventType) else str(event_type)
         v = None if value is None else json.dumps(value, default=str)
-        with _LOCK:
+        ref = _study_of(session_id)
+        st = projects.stamp(ref)
+        with _LOCK, projects.use_study(ref):
             c = _conn()
             c.execute(
                 "INSERT INTO events (session_id,user,experiment,event_type,timestamp,component,action,value,"
-                "scenario_id,round_number,utility_value,duration_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "scenario_id,round_number,utility_value,duration_ms,project,study) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (session_id, user, experiment_name(), et, _now(), component, action, v, scenario_id,
-                 round_number, utility_value, duration_ms),
+                 round_number, utility_value, duration_ms, st["project"], st["study"]),
             )
             c.commit()
     except Exception as e:  # pragma: no cover - never break the app
@@ -134,13 +150,17 @@ def start_session_record(sid: str, user: str, mode: str, ip: str | None = None, 
     if not _enabled():
         return
     try:
+        from hani2 import projects
         from hani2.config import experiment_name
 
-        with _LOCK:
+        ref = _study_of(sid)
+        st = projects.stamp(ref)
+        with _LOCK, projects.use_study(ref):
             c = _conn()
             c.execute(
-                "INSERT OR REPLACE INTO sessions (id,user,experiment,mode,start_time,ip,user_agent) VALUES (?,?,?,?,?,?,?)",
-                (sid, user, experiment_name(), mode, _now(), ip, user_agent),
+                "INSERT OR REPLACE INTO sessions (id,user,experiment,mode,start_time,ip,user_agent,project,study) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                (sid, user, experiment_name(), mode, _now(), ip, user_agent, st["project"], st["study"]),
             )
             c.commit()
     except Exception as e:  # pragma: no cover
@@ -151,7 +171,9 @@ def end_session_record(sid: str) -> None:
     if not _enabled():
         return
     try:
-        with _LOCK:
+        from hani2 import projects
+
+        with _LOCK, projects.use_study(_study_of(sid)):
             c = _conn()
             c.execute("UPDATE sessions SET end_time=? WHERE id=?", (_now(), sid))
             c.commit()

@@ -45,8 +45,9 @@ LAST_SCENARIO_FILE = "last_scenario.txt"
 
 
 def base_dir() -> Path:
-    """Scenario pool root: experiment → ``HANI_PROLIFIC_SCENARIOS_BASE`` → settings."""
-    from hani2.config import experiment_dir
+    """Scenario pool root: study → ``HANI2_SCENARIOS_BASE`` / ``HANI_PROLIFIC_SCENARIOS_BASE``
+    → project → settings."""
+    from hani2.config import experiment_dir, project_dir
 
     exp = experiment_dir()
     if exp is not None and (exp / "scenarios").is_dir():
@@ -54,6 +55,9 @@ def base_dir() -> Path:
     env = (os.environ.get("HANI2_SCENARIOS_BASE") or os.environ.get("HANI_PROLIFIC_SCENARIOS_BASE") or "").strip()
     if env:
         return Path(env).expanduser()
+    proj = project_dir()
+    if proj is not None and (proj / "scenarios").is_dir():
+        return proj / "scenarios"
     return scenarios_dir()
 
 

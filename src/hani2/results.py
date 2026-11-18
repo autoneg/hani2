@@ -53,6 +53,14 @@ def negotiation_advantage(ufun, utility: float) -> float:
     return 0.0
 
 
+def _stamp(ss: dict[str, Any]) -> dict[str, str]:
+    """The ``project`` and ``study`` columns (from the session, not the calling thread)."""
+    from hani2 import projects
+
+    sess = ss.get("_session")
+    return projects.stamp(sess.study_ref) if sess is not None else projects.stamp()
+
+
 def get_status(state: SAOState) -> str:
     if state.agreement is not None:
         return "success"
@@ -172,6 +180,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             support_agent=bool(ss.get("support_agent_used", False)),
             autopilot=bool(ss.get("autopilot_used", False)),
         )
+        | _stamp(ss)
         | asdict(m.state)
         | {k: v for k, v in asdict(m.nmi).items() if not k.startswith("_") and not k.startswith("outcome_space")}
         | optimality,

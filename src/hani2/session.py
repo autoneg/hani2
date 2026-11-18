@@ -14,6 +14,10 @@ Threading model
   UI, tools and the Assistant stay responsive while the opponent thinks.
 * :meth:`run_on_doc` runs a callable under ``self.lock`` — it is what support
   agents use to read or change UI-owned state safely.
+* Every session belongs to one study (``self.study_ref``, see
+  :mod:`hani2.projects`). Work it hands to other threads (:meth:`submit`,
+  :meth:`submit_ui`, timers, :meth:`in_study`) runs bound to that study, so
+  settings, scenarios and results resolve for it.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from negmas import ContiguousIssue, ContinuousIssue, Outcome, ResponseType, SAOR
 from negmas.sao import SAOMechanism, SAONegotiator, SAOState
 
 from hani2 import events as ev
+from hani2 import projects
 from hani2 import scenario_store as store
 from hani2.recording import recorder as rec
 from hani2.agents import DEFAULT_POOL, expand_agents, make_agent, session_agent_override, short_name
@@ -93,6 +98,19 @@ ADMIN_PREFS: dict[str, Any] = {
 #: Set while the Assistant operates a tool (see ``acting_for_agent``).
 _AGENT_CONTEXT = threading.local()
 
+
+def _in_own_study(fn: Callable) -> Callable:
+    """Run a public session method bound to the session's study (for direct callers
+    such as tests and headless runs; the server's threads are bound already)."""
+    import functools
+
+    @functools.wraps(fn)
+    def _run(self, *a, **kw):
+        with projects.use_study(self.study_ref):
+            return fn(self, *a, **kw)
+
+    return _run
+
 # old names of admin preferences, still accepted
 PREF_ALIASES = {"partner_types": "opponent_types", "show_partner_type": "show_opponent_type"}
 
@@ -148,7 +166,16 @@ def _issue_kind(issue) -> str:
 
 
 class NegotiationSession:
-    def __init__(
+    def __init__(self, sid: str, user: str, *, study: Any = projects.UNSET, **kwargs: Any):
+        """``study``: the study this session belongs to (a :class:`~hani2.projects.StudyRef`,
+        ``"project/study"`` or ``None``); default: the current study."""
+        self.study_ref: projects.StudyRef | None = (
+            projects.current_study() if study is projects.UNSET else projects.parse_ref(study))
+        projects.register_session(sid, self.study_ref)
+        with projects.use_study(self.study_ref):
+            self._init(sid, user, **kwargs)
+
+    def _init(
         self,
         sid: str,
         user: str,
@@ -181,6 +208,7 @@ class NegotiationSession:
         self.admin_prefs.update(
             {PREF_ALIASES.get(k, k): v for k, v in (get_env("negotiation", {}) or {}).items()}
         )
+        self._apply_study_defaults()
         if os.environ.get("HANI2_SCENARIO_SET"):
             self.admin_prefs["scenario_set"] = os.environ["HANI2_SCENARIO_SET"]
         if self.is_admin:
@@ -203,6 +231,7 @@ class NegotiationSession:
         self.notice: dict[str, Any] | None = None
         self.questionnaire: dict[str, Any] | None = None
         self.finish_url: str | None = None
+        self.finish_text: str | None = None
         self.draft: dict[str, Any] = {}
         self.draft_text: str = ""
         self.thinking = False
@@ -218,6 +247,12 @@ class NegotiationSession:
 
         user_path = results_root() / user
         user_path.mkdir(parents=True, exist_ok=True)
+        try:  # make the study's opponent group packages importable
+            from hani2.agents import _prime_group_syspaths
+
+            _prime_group_syspaths()
+        except Exception:  # pragma: no cover
+            pass
         self.ss: dict[str, Any] = {
             "_session": self,
             "user": user,
@@ -278,12 +313,28 @@ class NegotiationSession:
         s = self.scenario
         return list(s.outcome_space.issues) if s is not None else []
 
+    def _apply_study_defaults(self) -> None:
+        """The study's / project's defaults (study.yaml, project.yaml) for this session."""
+        ref = self.study_ref
+        for key in ("scenario_set", "role_rule", "human_roles", "time_limit", "n_steps"):
+            v = projects.setting(key, None, ref=ref)
+            if v is not None:
+                self.admin_prefs[key] = v
+        opp = projects.setting("opponents", None, ref=ref)
+        if opp:
+            self.admin_prefs["opponent_types"] = [o.strip() for o in opp.split(",")] if isinstance(opp, str) else list(opp)
+
+    def in_study(self, fn: Callable) -> Callable:
+        """``fn`` wrapped to run bound to this session's study (for other threads)."""
+        return projects.bind(fn, self.study_ref)
+
     def submit(self, fn: Callable, *args, **kwargs):
         actor = rec.current_actor()
 
         def _run():
             try:
-                with rec.bind(self.sid), rec.acting(actor) if actor else contextlib.nullcontext():
+                with rec.bind(self.sid), projects.use_study(self.study_ref), \
+                        rec.acting(actor) if actor else contextlib.nullcontext():
                     return fn(*args, **kwargs)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
@@ -458,6 +509,7 @@ class NegotiationSession:
         t = self.tool_by_id(tid)
         return t is not None and t.name in self.shown_tool_names()
 
+    @_in_own_study
     def render_tool(self, tid: str) -> dict[str, Any] | None:
         t = self.tool_by_id(tid)
         if t is None:
@@ -467,6 +519,7 @@ class NegotiationSession:
             return {"id": tid, "view": None}
         return {"id": tid, "view": self.relabel(t.render())}
 
+    @_in_own_study
     def tool_input(self, tid: str, name: str, value: Any) -> None:
         t = self.tool_by_id(tid)
         if t is None:
@@ -477,6 +530,7 @@ class NegotiationSession:
             traceback.print_exc()
         ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=f"input:{name}")
 
+    @_in_own_study
     def tool_action(self, tid: str, action: str, payload: dict[str, Any]) -> None:
         t = self.tool_by_id(tid)
         if t is None:
@@ -506,6 +560,7 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # Scenario loading                                                    #
     # ------------------------------------------------------------------ #
+    @_in_own_study
     def load(self, scenario_type: str | None = None, name: str | None = None) -> None:
         """Load the next scenario (no negotiation is started)."""
         with self.lock:
@@ -514,6 +569,7 @@ class NegotiationSession:
             if self.study.finished():
                 self.phase = "finished"
                 self.finish_url = self.study.completion_url()
+                self.finish_text = self.study.finish_text()
                 self.push_state()
                 return
             plan = self.study.plan_round(scenario_type if self.can_choose_scenario() else None, name)
@@ -620,6 +676,7 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # Starting a negotiation                                              #
     # ------------------------------------------------------------------ #
+    @_in_own_study
     def start(self) -> None:
         with self.lock:
             if self.phase != "ready" or self.scenario is None:
@@ -960,6 +1017,7 @@ class NegotiationSession:
             return value
         return value
 
+    @_in_own_study
     def set_draft(self, values: dict[str, Any], *, by_agent: bool = False) -> dict:
         if (refused := self._agent_gate("fill_offer")) is not None:
             return refused
@@ -1022,6 +1080,7 @@ class NegotiationSession:
                     return i
         return None
 
+    @_in_own_study
     def accept(self) -> bool:
         if self._agent_gate("accept") is not None:
             return False
@@ -1032,6 +1091,7 @@ class NegotiationSession:
                      utility_value=self.utility(offer), round_number=self.mechanism.state.step if self.mechanism else None)
         return self.act(SAOResponse(ResponseType.ACCEPT_OFFER, offer))
 
+    @_in_own_study
     def end(self) -> bool:
         if self._agent_gate("end") is not None:
             return False
@@ -1040,6 +1100,7 @@ class NegotiationSession:
         ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, action="end_by_human")
         return self.act(SAOResponse(ResponseType.END_NEGOTIATION, None))
 
+    @_in_own_study
     def send_counter(self, text: str | None = None, offer: dict | None = None, text_only: bool | None = None) -> dict:
         """Send the counter-offer (the draft offer plus the message)."""
         if (refused := self._agent_gate("submit_counter")) is not None:
@@ -1134,7 +1195,7 @@ class NegotiationSession:
         if self.deadline is None:
             return
         delay = max(0.0, self.deadline - time.time()) + 0.25
-        self._timer = threading.Timer(delay, self._on_timeout)
+        self._timer = threading.Timer(delay, self.in_study(self._on_timeout))
         self._timer.daemon = True
         self._timer.start()
 
@@ -1250,6 +1311,7 @@ class NegotiationSession:
     def agent_work_pending(self) -> bool:
         return any(not f.done() for f in list(self.__dict__.get("_agent_futures", ())))
 
+    @_in_own_study
     def user_chat(self, text: str) -> None:
         """The participant typed in the assistant chat (gated by the on/off switch)."""
         sa = self.support_agent
@@ -1590,6 +1652,7 @@ class NegotiationSession:
             out.append(d)
         return out
 
+    @_in_own_study
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
             m = self.mechanism
@@ -1680,6 +1743,9 @@ class NegotiationSession:
                 "notice": self.notice,
                 "questionnaire": self.questionnaire,
                 "finish_url": self.finish_url,
+                "finish_text": self.finish_text,
+                "project": self.study_ref.project if self.study_ref else projects.DEFAULT_PROJECT,
+                "study_name": self.study_ref.study if self.study_ref else None,
                 "study": self.study.client_state(),
                 "can_choose_scenario": self.can_choose_scenario(),
                 "webmcp": self.webmcp_policy(),
@@ -1721,13 +1787,14 @@ class NegotiationSession:
 
         def _run():
             try:
-                with rec.bind(self.sid):
+                with rec.bind(self.sid), projects.use_study(self.study_ref):
                     return fn(*args, **kwargs)
             except Exception:  # noqa: BLE001
                 traceback.print_exc()
 
         return self.ui_executor.submit(_run)
 
+    @_in_own_study
     def close(self) -> None:
         if self.recorder is not None:
             self.recorder.close()
@@ -1735,6 +1802,7 @@ class NegotiationSession:
         if self._timer is not None:
             self._timer.cancel()
         ev.end_session_record(self.sid)
+        projects.forget_session(self.sid)
 
 
 #: Element names the Assistant (or tool) can highlight / annotate.

@@ -32,7 +32,8 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 
 The old names `--support-agent` and `--no-support-agent` still work, here and in `hani2 experiment create` (see [Old names](../guide/assistant.md#old-names)).
 | `--tools` | none | Extra tools: comma-separated `package.module:Class`, `path/to/file.py:Class`, or a folder or `.py` file (every tool in it, see [Build a tool](../tutorials/tools.md#set-up)). Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the Assistant adds them. |
-| `--experiment` | none | Run this experiment (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
+| `--study` | none | The default study, as `project/study`, for URLs without one (see `hani2 study create`). Every study is still reachable at `/s/<project>/<study>/`. Sets `HANI2_STUDY`. |
+| `--experiment` | none | Old name: the default study is this experiment, `default/<name>` (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
 | `--scenario-set`, `--set` | the default set | The [scenario set](../guide/scenario-sets.md) to use, e.g. `HAN2026` or `ANAC2027` (any case). Sets `HANI2_SCENARIO_SET`. Admins can still change it per session. |
 | `--scenario-types` | none | Python files or modules that register extra scenario types, comma separated. Sets `HANI2_SCENARIO_TYPES`. See [Writing your own scenario type](../guide/scenarios.md#writing-your-own-scenario-type). |
 | `--scenarios` | the settings' scenarios folder | A folder of saved scenarios to serve. Sets `HANI2_SCENARIOS_BASE`. |
@@ -85,7 +86,7 @@ home            /home/me/negmas/hani2
 settings        /home/me/negmas/hani2/settings
 scenarios       /home/me/negmas/hani2/settings/scenarios
 results         /home/me/negmas/hani2/db
-experiment      -
+study           -  (no study folder)
 auth mode       password  (oauth: none)
 Assistant   on
 ```
@@ -140,7 +141,34 @@ hani2 sets [NAME]
 
 Lists the scenario sets with their scenario types, marks the active and the default set, and flags types that have neither a generator nor a folder. See [Scenario sets](../guide/scenario-sets.md).
 
+## `hani2 project` and `hani2 study`
+
+Create and inspect [projects and studies](../guide/projects.md):
+
+```bash
+hani2 project create HI2027 --kind assistant --full-name "Human-AI Interaction League 2027" --year 2027 \
+    --organizer "The Lab" --contact lab@example.org
+hani2 project list
+hani2 project show HI2027
+hani2 study create HI2027/hi-2027-01 --type prolific --title "January run" --completion-code C1A2B3 \
+    --prolific-study-id 65a0c0ffee
+hani2 study list [PROJECT]
+hani2 study show HI2027/hi-2027-01
+```
+
+`project create` writes `projects/NAME/project.yaml` (`--description` is `short_description`). `study create PROJECT/STUDY` writes `projects/PROJECT/studies/STUDY/study.yaml` and `results/`, creating the project when it is missing; the other options are `--completion-url`, `--link`, `--start`, `--end`, `--n-required`, `--end-text` and `--type prolific|online|lab` (default `prolific`). Running `create` again updates the given fields. `study create` and `study show` print the links to give participants, for example:
+
+```text
+  Prolific study URL   https://example.org/s/HI2027/hi-2027-01/play?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+  Play page            https://example.org/s/HI2027/hi-2027-01/play
+  App (log in)         https://example.org/s/HI2027/hi-2027-01/app
+```
+
+The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in `env.json`, else `http://localhost:5006`. A bare name (`hani2 study create pilot`) is a study of the `default` project, that is, an experiment folder.
+
 ## `hani2 experiment`
+
+An experiment is a study of the `default` project; these commands keep their earlier behaviour.
 
 Experiments are self-contained studies with their own settings, scenarios and results. See [Studies and results](../guide/studies.md).
 

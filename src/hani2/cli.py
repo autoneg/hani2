@@ -15,12 +15,16 @@ import typer
 from hani2 import __version__
 
 app = typer.Typer(add_completion=False, no_args_is_help=False, help="HANI2 — Human-Agent Negotiation Interface.")
-experiment_app = typer.Typer(help="Create and inspect experiments (self-contained studies).")
+experiment_app = typer.Typer(help="Create and inspect experiments (old name: an experiment is a study of the default project).")
+project_app = typer.Typer(help="Create and inspect projects (long-lived programmes that own studies).")
+study_app = typer.Typer(help="Create and inspect studies (one data collection of a project, with its own results).")
 users_app = typer.Typer(help="Manage user accounts.")
 replay_app = typer.Typer(help="Explore, replay and evaluate recorded negotiations (.hrec files).")
 tools_app = typer.Typer(help="List, locate and create tools.")
 scenario_app = typer.Typer(help="Write scenarios by hand: start from a template, check a folder.")
 app.add_typer(experiment_app, name="experiment")
+app.add_typer(project_app, name="project")
+app.add_typer(study_app, name="study")
 app.add_typer(users_app, name="users")
 app.add_typer(replay_app, name="replay")
 app.add_typer(tools_app, name="tools")
@@ -163,7 +167,8 @@ def main(
     no_support_agent: Annotated[bool, typer.Option("--no-support-agent", hidden=True, help="Old name of --no-assistant.")] = False,
     tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files (every tool in them). Tools with timing 'agent' appear only when the Assistant adds them.")] = None,
     root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
-    experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
+    study: Annotated[Optional[str], typer.Option("--study", help="Default study for URLs without one, as project/study (see `hani2 study create`). Every study can still be reached at /s/<project>/<study>/.")] = None,
+    experiment: Annotated[Optional[str], typer.Option(help="Old name of --study for a study of the default project (an experiment folder).")] = None,
     scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", "--set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
     scenario_types: Annotated[Optional[str], typer.Option("--scenario-types", help="Extra scenario types: comma-separated Python files or modules that register them (see the Scenarios guide).")] = None,
     scenarios: Annotated[Optional[Path], typer.Option("--scenarios", help="Folder to load saved scenarios from (instead of the settings' scenarios folder).")] = None,
@@ -181,6 +186,14 @@ def main(
         os.environ["HANI2_ROOT_PATH"] = root_path
     if experiment:
         os.environ["HANI2_EXPERIMENT"] = experiment
+    if study:
+        from hani2 import projects
+
+        try:
+            projects.parse_ref(study)
+        except ValueError as e:
+            raise typer.BadParameter(str(e), param_hint="--study") from None
+        os.environ["HANI2_STUDY"] = study
     if scenario_types:
         os.environ["HANI2_SCENARIO_TYPES"] = scenario_types
     if scenarios:
@@ -234,7 +247,9 @@ def info():
     typer.echo(f"settings        {settings_dir()}")
     typer.echo(f"scenarios       {scenarios_dir()}")
     typer.echo(f"results         {results_root()}")
-    typer.echo(f"experiment      {experiment_dir() or '-'}")
+    from hani2.projects import default_study
+
+    typer.echo(f"study           {default_study() or '-'}  ({experiment_dir() or 'no study folder'})")
     typer.echo(f"auth mode       {auth_mode()}  (oauth: {', '.join(oauth_providers()) or 'none'})")
     typer.echo(f"assistant       {assistant_mode()}")
     opp = os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS")
@@ -466,7 +481,7 @@ def experiment_create(
             typer.echo(f"  opponents: {', '.join(env['opponents'])} (env.json)")
         envf.write_text(_json.dumps(env, indent=2))
     typer.echo(f"Created experiment at {exp}")
-    typer.echo(f"Run it with:  hani2 --experiment {name}")
+    typer.echo(f"Run it with:  hani2 --experiment {name}   (it is the study default/{name}: /s/default/{name}/play)")
 
 
 @experiment_app.command("list")
@@ -840,3 +855,146 @@ def tools_new(
         typer.echo(f"Start the server with `hani2 --tools {target_dir}` to load it.")
     else:
         typer.echo("New sessions pick it up; edit it and open a new session to see your changes.")
+
+
+# --------------------------------------------------------------------------- #
+# Projects and studies                                                         #
+# --------------------------------------------------------------------------- #
+def _ref(value: str):
+    from hani2 import projects
+
+    try:
+        ref = projects.parse_ref(value)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    if ref is None:
+        raise typer.BadParameter("give a study as project/study")
+    return ref
+
+
+def _echo_mapping(data: dict, indent: str = "  ") -> None:
+    for k, v in data.items():
+        if v in (None, "", {}, []):
+            continue
+        typer.echo(f"{indent}{k:20s} {v}")
+
+
+@project_app.command("create")
+def project_create(
+    name: str,
+    full_name: Annotated[Optional[str], typer.Option("--full-name", help="Full name shown to participants.")] = None,
+    kind: Annotated[Optional[str], typer.Option(help="What is evaluated: opponent, assistant or none (default none).")] = None,
+    description: Annotated[Optional[str], typer.Option("--description", help="Short description.")] = None,
+    link: Annotated[Optional[str], typer.Option(help="Web page of the project.")] = None,
+    year: Annotated[Optional[int], typer.Option(help="Year of the project.")] = None,
+    organizer: Annotated[Optional[str], typer.Option(help="Who runs it.")] = None,
+    contact: Annotated[Optional[str], typer.Option(help="Contact for participants (e-mail).")] = None,
+):
+    """Create a project (or update its project.yaml)."""
+    from hani2 import projects
+
+    try:
+        pr = projects.create_project(name, full_name=full_name, kind=kind, short_description=description, link=link,
+                                     year=year, organizer=organizer, contact=contact)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    typer.echo(f"Project {pr.name} at {projects.project_dir(pr.name)}")
+    typer.echo(f"Add a study with:  hani2 study create {pr.name}/<study> --type prolific|online|lab")
+
+
+@project_app.command("list")
+def project_list():
+    """List projects and their studies."""
+    from hani2 import projects
+
+    for name in projects.list_projects():
+        pr = projects.load_project(name)
+        studies = projects.list_studies(name)
+        typer.echo(f"{name:24s} {pr.kind:9s} {len(studies)} stud{'y' if len(studies) == 1 else 'ies'}"
+                   + (f"  {pr.full_name}" if pr.full_name else ""))
+
+
+@project_app.command("show")
+def project_show(name: str):
+    """Show a project's settings and studies."""
+    from hani2 import projects
+
+    if not projects.project_exists(name):
+        raise typer.BadParameter(f"no project {name!r}")
+    pr = projects.load_project(name)
+    typer.echo(f"{name}  ({pr.path or 'no folder: uses the settings folder'})")
+    _echo_mapping({k: v for k, v in pr.to_dict().items() if k != "name"})
+    for st in projects.list_studies(name):
+        typer.echo(f"  study {st}")
+
+
+@study_app.command("create")
+def study_create(
+    ref: Annotated[str, typer.Argument(help="project/study (a bare name is a study of the default project).")],
+    type: Annotated[Optional[str], typer.Option("--type", help="prolific, online or lab (default prolific; kept when updating).")] = None,
+    title: Annotated[Optional[str], typer.Option(help="Title shown to participants.")] = None,
+    completion_code: Annotated[Optional[str], typer.Option("--completion-code", help="Completion code (Prolific).")] = None,
+    completion_url: Annotated[Optional[str], typer.Option("--completion-url", help="Where participants go at the end ({pid} is the participant id).")] = None,
+    prolific_study_id: Annotated[Optional[str], typer.Option("--prolific-study-id", help="The Prolific study id.")] = None,
+    link: Annotated[Optional[str], typer.Option(help="Web page of the study.")] = None,
+    start: Annotated[Optional[str], typer.Option(help="Start date (YYYY-MM-DD).")] = None,
+    end: Annotated[Optional[str], typer.Option(help="End date (YYYY-MM-DD).")] = None,
+    n_required: Annotated[Optional[int], typer.Option("--n-required", help="Counted negotiations per participant.")] = None,
+    end_text: Annotated[Optional[str], typer.Option("--end-text", help="Text of the end page (may use {{variables}}).")] = None,
+    base_url: Annotated[Optional[str], typer.Option("--base-url", help="Public address of this server for the printed links (default: HANI2_PUBLIC_URL).")] = None,
+):
+    """Create a study (or update its study.yaml) and print the links to give participants."""
+    from hani2 import projects
+
+    r = _ref(ref)
+    try:
+        st = projects.create_study(r, type=type, title=title, completion_code=completion_code,
+                                   completion_url=completion_url, prolific_study_id=prolific_study_id, link=link,
+                                   start=start, end=end, n_required=n_required, end_text=end_text)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    typer.echo(f"Study {r} ({st.type}) at {st.path}")
+    _print_links(r, base_url)
+
+
+def _print_links(r, base_url: Optional[str]) -> None:
+    from hani2 import projects
+
+    links = projects.participant_links(r, (base_url or projects.public_base_url()))
+    labels = {"prolific": "Prolific study URL", "participant": "Participant link", "session_code": "Session-code link",
+              "play": "Play page", "app": "App (log in)"}
+    for k in ("prolific", "participant", "session_code", "play", "app"):
+        if k in links:
+            typer.echo(f"  {labels[k]:20s} {links[k]}")
+
+
+@study_app.command("list")
+def study_list(project: Annotated[Optional[str], typer.Argument(help="Only this project.")] = None):
+    """List studies (project/study, type, participants)."""
+    from hani2 import projects
+
+    names = [project] if project else projects.list_projects()
+    for p in names:
+        for s in projects.list_studies(p):
+            r = projects.StudyRef(p, s)
+            st = projects.load_study(r)
+            res = projects.study_dir(r) / "results"
+            n = len(list(res.glob("*/results.csv"))) if res.is_dir() else 0
+            typer.echo(f"{str(r):36s} {st.type:9s} {n} participant(s)" + ("  (experiment folder)" if st.legacy else ""))
+
+
+@study_app.command("show")
+def study_show(
+    ref: str,
+    base_url: Annotated[Optional[str], typer.Option("--base-url", help="Public address of this server.")] = None,
+):
+    """Show a study's settings and the links to give participants."""
+    from hani2 import projects
+
+    r = _ref(ref)
+    if not projects.study_exists(r):
+        raise typer.BadParameter(f"no study {r}")
+    st = projects.load_study(r)
+    typer.echo(f"{r}  ({st.path})")
+    _echo_mapping({k: v for k, v in st.to_dict().items() if k not in ("name", "project")})
+    _print_links(r, base_url)

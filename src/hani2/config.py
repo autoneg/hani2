@@ -5,9 +5,13 @@ installation with the ``HANI2_HOME`` environment variable.
 
 Precedence for every settings file (first hit wins):
 
-1. ``<experiment dir>/<file>``  (only when an experiment is active)
-2. ``$HANI2_HOME/settings/<file>``  (default ``~/negmas/hani2/settings``)
-3. ``<package>/default_settings/<file>``  (bundled defaults)
+1. ``<study folder>/<file>``  (only when a study is active — see :mod:`hani2.projects`)
+2. ``<project folder>/<file>``  (the study's project; not for the default project)
+3. ``$HANI2_HOME/settings/<file>``  (default ``~/negmas/hani2/settings``)
+4. ``<package>/default_settings/<file>``  (bundled defaults)
+
+The active study is per session (see :func:`hani2.projects.current_study`); an
+old experiment (``HANI2_EXPERIMENT``) is a study of the default project.
 """
 
 from __future__ import annotations
@@ -43,12 +47,37 @@ def experiments_root() -> Path:
 
 
 def experiment_name() -> str | None:
-    return (os.environ.get("HANI2_EXPERIMENT") or "").strip() or None
+    """The current study's name (``project/study`` outside the default project); ``None`` without a study."""
+    from hani2.projects import DEFAULT_PROJECT, current_study
+
+    ref = current_study()
+    if ref is None:
+        return None
+    return ref.study if ref.project == DEFAULT_PROJECT else str(ref)
 
 
 def experiment_dir() -> Path | None:
-    name = experiment_name()
-    return experiments_root() / name if name else None
+    """The current study's folder (``None`` without a study). Old name, kept for callers."""
+    from hani2.projects import current_study, study_dir
+
+    ref = current_study()
+    return study_dir(ref) if ref is not None else None
+
+
+current_study_dir = experiment_dir
+
+
+def project_dir() -> Path | None:
+    """The current study's project folder (``None`` for the default project, whose layer is the settings folder)."""
+    from hani2.projects import current_study, project_layer_dir
+
+    ref = current_study()
+    return project_layer_dir(ref.project if ref else None)
+
+
+def settings_layers() -> list[Path]:
+    """The study and project folders of the current study, most specific first."""
+    return [d for d in (experiment_dir(), project_dir()) if d is not None]
 
 
 def results_root() -> Path:
@@ -60,16 +89,16 @@ def results_root() -> Path:
 
 
 def scenarios_dir() -> Path:
-    exp = experiment_dir()
-    if exp is not None and (exp / "scenarios").is_dir():
-        return exp / "scenarios"
+    for layer in settings_layers():
+        if (layer / "scenarios").is_dir():
+            return layer / "scenarios"
     return settings_dir() / "scenarios"
 
 
 def get_settings_file(filename: str) -> Path:
-    exp = experiment_dir()
-    if exp is not None and (exp / filename).exists():
-        return exp / filename
+    for layer in settings_layers():
+        if (layer / filename).exists():
+            return layer / filename
     user = settings_dir() / filename
     if user.exists():
         return user
@@ -99,8 +128,9 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
 
     ``old_names`` are earlier names of the same file, still read. The layers,
     lowest precedence first: ``defaults``, the bundled default, then in the
-    settings folder and then in the experiment folder each old name followed
-    by ``filename`` (so the new name wins over an old one at each level)."""
+    settings folder, then in the project folder and then in the study folder
+    each old name followed by ``filename`` (so the new name wins over an old
+    one at each level)."""
     merged: dict = deepcopy(defaults or {})
     bundled = DEFAULT_SETTINGS_DIR / filename
     if bundled.exists():
@@ -110,9 +140,8 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
             pass
     names = [*old_names, filename]
     layers = [settings_dir() / n for n in names]
-    exp = experiment_dir()
-    if exp is not None:
-        layers += [exp / n for n in names]
+    for folder in reversed(settings_layers()):
+        layers += [folder / n for n in names]
     for layer in layers:
         if layer.exists():
             try:

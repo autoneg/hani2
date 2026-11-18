@@ -88,6 +88,7 @@ nav:
       - Opponents: guide/opponents.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
+      - Projects and studies: guide/projects.md
       - Studies and results: guide/studies.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md

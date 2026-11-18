@@ -22,7 +22,9 @@ The console has a navigation column on the left (a scrolling bar at the top on n
 
 The settings sections (Server and studies, Language model, Assistant, Autopilot, Texts) load the current effective settings, let you edit them, and save with the **Save** button at the bottom. "Unsaved changes" appears next to it while you have edits.
 
-Saving writes the file in the settings folder (`$HANI2_HOME/settings`, default `~/negmas/hani2/settings`). It always writes there, even while an experiment is running. If the active experiment has its own copy of the same file, that copy takes precedence and your saved change has no visible effect until you edit the experiment's copy or remove it. See [Configuration reference](configuration.md) for the lookup order.
+Saving writes the file in the settings folder (`$HANI2_HOME/settings`, default `~/negmas/hani2/settings`). It always writes there, even while a study or experiment is running. If the active study (or its project) has its own copy of the same file, that copy takes precedence and your saved change has no visible effect until you edit that copy or remove it. See [Configuration reference](configuration.md) for the lookup order. The [admin API](projects.md#admin-api) reads and writes a study's or project's own copy (`?study=project/study`, `?project=name`), manages `project.yaml` and `study.yaml`, and previews texts with their variables filled in.
+
+The console shows the server's default study (results, events, recordings and the effective settings). Open it at `/s/<project>/<study>/admin` to see another study's results, events and recordings. Do not save settings there: the editors then show that study's effective settings, but **Save** still writes them to the shared settings folder, where they would apply to every study.
 
 Saved settings apply to sessions created after saving. Sessions already open keep their settings.
 
@@ -62,7 +64,7 @@ Charts and a filterable log of the events the server records:
 - **Activity over time (per hour)**.
 - A filter row: user, event type, from date, until date, and **Apply**.
 - A searchable event table (up to 2000 rows) with `timestamp`, `user`, `event_type`, `component`, `action`, `value`, `scenario_id` and `utility_value`.
-- **Recorded sessions**: start and end time, user, mode, experiment and browser of the latest 200 sessions.
+- **Recorded sessions**: start and end time, user, mode, experiment, project, study and browser of the latest 200 sessions.
 - **Export CSV** downloads every event (`/api/admin/events.csv`, saved as `hani2_events.csv`).
 
 See [Studies and results](studies.md) for the event log and its event types.
@@ -145,10 +147,10 @@ Edits `autopilot_settings.json`.
 
 ## Texts
 
-Plain-text editors for three files, each with its own **Save** button:
+Plain-text editors for these files, each with its own **Save** button. The welcome text and the consent form may use [text variables](projects.md#texts-with-variables); the editors show them as written.
 
 - **Welcome text**: `announcements.md`, shown before the first negotiation.
-- **Consent form**: `consent.md`, shown on registration and on the consent page.
+- **Consent form**: `consent.md`, shown on registration and on the consent page. Consent is recorded per study (see [Consent per study](projects.md#consent-per-study)).
 - **Scenario sets**: `scenario_sets.yaml`, the named lists of scenario types (see [Scenario sets](scenario-sets.md)).
 - **Custom order**: `scenario_order.txt`, one scenario type per line (the `Custom` set).
 

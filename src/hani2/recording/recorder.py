@@ -173,9 +173,12 @@ class SessionRecorder:
                     app=dict(name="hani2", version=__version__),
                 )
                 try:
+                    from hani2 import projects
                     from hani2.config import experiment_name
 
-                    header["experiment"] = experiment_name()
+                    with projects.use_study(getattr(s, "study_ref", None)):
+                        header["experiment"] = experiment_name()
+                    header.update(projects.stamp(getattr(s, "study_ref", None)))
                 except Exception:
                     pass
                 self._line(header)
@@ -256,9 +259,12 @@ class SessionRecorder:
             size=final.stat().st_size,
         )
         try:
+            from hani2 import projects
             from hani2.config import experiment_name
 
-            info["experiment"] = experiment_name()
+            with projects.use_study(getattr(s, "study_ref", None)):
+                info["experiment"] = experiment_name()
+            info.update(projects.stamp(getattr(s, "study_ref", None)))
         except Exception:
             pass
         final.with_name(f"{rec_id}.json").write_text(json.dumps(_clean(info), indent=1))

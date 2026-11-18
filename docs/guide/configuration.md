@@ -19,17 +19,22 @@ $HANI2_HOME/                      default ~/negmas/hani2
 │   ├── users.json                password hashes
 │   ├── users_meta.json           user metadata
 │   └── .cookie_secret            generated cookie secret
-├── db/                           results and events (when no experiment is active)
-└── experiments/<name>/           one folder per experiment
+├── db/                           results and events (when no study is active)
+├── experiments/<name>/           one folder per experiment (a study of the default project)
+└── projects/<project>/           projects: project.yaml, shared settings files,
+    └── studies/<study>/          and their studies: study.yaml, settings files, results/
 ```
+
+See [Projects and studies](projects.md) for the project and study files.
 
 ## Precedence
 
-Each settings file is looked up in up to three places. The first one that exists wins:
+Each settings file is looked up in up to four places, per session. The first one that exists wins:
 
-1. `<experiment>/<file>`, when an experiment is active (`--experiment` or `HANI2_EXPERIMENT`),
-2. `$HANI2_HOME/settings/<file>`,
-3. the defaults bundled with the package.
+1. `<study>/<file>`, when the session belongs to a study (its URL `/s/<project>/<study>/…`, or the server's default study from `--study` / `HANI2_STUDY` or the old `--experiment` / `HANI2_EXPERIMENT`); an experiment folder is a study,
+2. `<project>/<file>`, the study's project folder (not for the `default` project),
+3. `$HANI2_HOME/settings/<file>`,
+4. the defaults bundled with the package.
 
 JSON files are then **merged over the built-in defaults**: HANI2 starts from its internal defaults, merges the bundled file over them, and merges the chosen file over the result. Nested objects merge key by key, so a file only needs the keys you change:
 
@@ -37,11 +42,13 @@ JSON files are then **merged over the built-in defaults**: HANI2 starts from its
 {"negotiation": {"n_steps": 30}}
 ```
 
-The JSON files are merged in layers: the bundled defaults, then the settings folder, then the experiment folder. A key set in a later layer wins; keys it does not mention keep their earlier value.
+The JSON files are merged in layers: the bundled defaults, then the settings folder, then the project folder, then the study folder. A key set in a later layer wins; keys it does not mention keep their earlier value.
 
 Text files (`consent.md`, `announcements.md`, `scenario_order.txt`) are taken from the first location that has them.
 
-The admin console always saves to the settings folder. While an experiment with its own copy of a file is active, edits to that file in the console have no effect; edit the experiment's copy instead.
+The admin console always saves to the settings folder. While a study with its own copy of a file is active, edits to that file in the console have no effect; edit the study's copy instead (the admin API writes to a study's or project's folder with `?study=` / `?project=`).
+
+Texts shown to participants (consent, welcome text, title and subtitle, questionnaire texts) may use `{{variables}}` such as `{{project_full_name}}` and `{{n_required}}`; see [Texts with variables](projects.md#texts-with-variables).
 
 Scenarios, results and questionnaires follow their own rules, described in [Scenarios](scenarios.md) and [Studies and results](studies.md).
 
@@ -81,6 +88,9 @@ The main deployment configuration.
 | `title` | `"HANI2"` | Name shown in the header, on the login page and, after the scenario title, in the browser tab. |
 | `subtitle` | `"Human-Agent Negotiation Interface"` | Line shown under the title on the login page. |
 | `docs_url` | `"https://autoneg.github.io/hani2/"` | Documentation URL reported by `GET /api/config`. The bundled web app does not use it yet. |
+| `public_url` | none | The address participants use to reach this server, including any root path (for example `https://example.org/hani`). Used for the study links that `hani2 study` and the admin API give out. `HANI2_PUBLIC_URL` wins over it. |
+
+`title` and `subtitle` may use [text variables](projects.md#texts-with-variables), for example `"{{project_full_name}}"`.
 
 ### `admin`
 
@@ -279,18 +289,21 @@ See [Autopilot](autopilot.md).
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HANI2_HOME` | `~/negmas/hani2` | Root folder for settings, results and experiments. |
-| `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments. |
-| `HANI2_EXPERIMENT` | none | Name of the active experiment. Set by `--experiment`. |
+| `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments (the studies of the `default` project). |
+| `HANI2_EXPERIMENT` | none | Old name: the server's default study is this experiment (`default/<name>`). Set by `--experiment`. |
+| `HANI2_STUDY` | none | The server's default study, as `project/study`, for URLs without one. Set by `--study`. Wins over `HANI2_EXPERIMENT`. |
+| `HANI2_PROJECTS` | `$HANI2_HOME/projects` | Folder that holds projects. |
+| `HANI2_PUBLIC_URL` | none | The address participants use to reach the server, for the links `hani2 study create` prints (else `public_url` in `env.json`). |
 | `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
 | `HANI2_TOOLS` | none | Extra tool classes, folders and `.py` files, comma separated. Set by `--tools`. |
 | `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. |
 | `HANI2_ASSISTANT` | none | `on`, `off` or `auto`; overrides `mode` in `assistant_settings.json`. Set by `--assistant`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
-| `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when no experiment provides one, instead of `settings/scenarios`. Set by `--scenarios`. |
+| `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when the study provides none, instead of the project's or the settings' `scenarios`. Set by `--scenarios`. |
 | `HANI2_SCENARIO_SET` | none | The scenario set to use. Set by `--scenario-set`. |
 | `HANI2_SCENARIO_TYPES` | none | Python files or modules that register extra scenario types, comma separated. Set by `--scenario-types`. |
-| `HANI2_PER_NEG_YAML` | none | Path or name (`evaluation`) of the questionnaire file; takes precedence over the experiment and settings folders. |
+| `HANI2_PER_NEG_YAML` | none | Path or name (`evaluation`) of the questionnaire file; takes precedence over the study, project and settings folders. |
 | `HANI2_EVENTS` | `1` | `0`, `false`, `no` or `off` disables the event log. |
 | `HANI2_RECORD` | `1` | `0`, `false`, `no` or `off` disables [recordings](recordings.md). |
 | `HANI2_REPLAY_DIRS` | none | Extra folders of recordings shown in the replay tool (`os.pathsep`-separated). Set by `hani2 replay open PATHS`. |
@@ -311,6 +324,7 @@ See [Autopilot](autopilot.md).
 | `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Opponent agents for the practice round (old name `PROLIFIC_PRACTICE_AGENTS`). |
 | `PROLIFIC_PER_NEG_YAML` | none | Same as `HANI2_PER_NEG_YAML`, checked second. |
 | `PROLIFIC_COMPLETION_URL` | none | Completion link; `{pid}` is replaced by the participant's ID. |
+| `PROLIFIC_COMPLETION_CODE` | none | Value of the `{{completion_code}}` text variable (else `completion_code` in `study.yaml`). |
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the default completion link. |
 | `SCMLWEB_PROLIFIC_PATH` | `/prolific` | Path of the default completion link. |
 

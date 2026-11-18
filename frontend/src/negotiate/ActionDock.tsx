@@ -550,7 +550,11 @@ function Finished({ st }: { st: SessionState }) {
         <CircleCheck size={22} />
       </div>
       <div className="text-lg font-semibold">You're all done. Thank you!</div>
-      <p className="max-w-prose text-sm text-muted">You completed every negotiation. Use the button below to finish and submit your session.</p>
+      {st.finish_text ? (
+        <p className="max-w-prose whitespace-pre-line text-sm">{st.finish_text}</p>
+      ) : (
+        <p className="max-w-prose text-sm text-muted">You completed every negotiation. Use the button below to finish and submit your session.</p>
+      )}
       {st.finish_url && (
         <a className="btn-success px-5 py-2.5" href={st.finish_url} target="_top">
           Finish and submit <ArrowRight size={16} />

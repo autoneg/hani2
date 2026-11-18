@@ -1,10 +1,16 @@
 # Studies and results
 
-This page covers running a study: keeping each study in its own experiment folder, asking questions after every negotiation, and reading what HANI2 records. For paid online studies, see also [Prolific](prolific.md).
+This page covers running a study: keeping each study in its own folder, asking questions after every negotiation, and reading what HANI2 records. For paid online studies, see also [Prolific](prolific.md).
+
+!!! tip "Projects and studies"
+    One server can run many studies at once, grouped in projects, each reached at its own address
+    (`/s/<project>/<study>/play`), with texts that fill in the project's and study's names, and
+    consent per study. See [Projects and studies](projects.md). An *experiment*, described below,
+    is a study of the built-in `default` project: everything on this page applies to every study.
 
 ## Experiments
 
-An *experiment* is a self-contained folder with its own scenarios, texts, questionnaire and results. Running HANI2 with an experiment keeps the data of one study apart from everything else on the server.
+An *experiment* is a self-contained folder with its own scenarios, texts, questionnaire and results. Running HANI2 with an experiment keeps the data of one study apart from everything else on the server. It is the study `default/<name>` (see [Projects and studies](projects.md#migrating-from-experiments)).
 
 ### Creating an experiment
 
@@ -37,7 +43,7 @@ hani2 --experiment pilot
 HANI2_EXPERIMENT=pilot hani2
 ```
 
-`hani2 experiment list` shows every experiment and how many participants have results in it.
+`hani2 experiment list` shows every experiment and how many participants have results in it. The experiment is the server's default study; every other study is still reachable at `/s/<project>/<study>/`.
 
 ### What an experiment changes
 
@@ -47,11 +53,13 @@ While an experiment is active:
 - **Scenarios** come from `<experiment>/scenarios`.
 - **The questionnaire** comes from `<experiment>/questionnaires/per_negotiation.yaml`.
 - **Results** go to `<experiment>/results` instead of `~/negmas/hani2/db`. This includes the per-participant folders, the event log and the agent group files (`results/groups/`).
-- **Events** carry the experiment name in their `experiment` column.
+- **Events** carry the experiment name in their `experiment` column, and the `project` and `study` columns.
 
 User accounts are shared by all experiments.
 
-The admin console always saves to the settings folder. If the experiment folder has its own copy of a file (for example `consent.md`), that copy wins and edits made in the admin console do not show up until you edit or delete the copy. See [Configuration reference](configuration.md) for the full precedence rules.
+The same applies to every study of a project, with the project folder as an extra layer between the study and the settings folder (see [Projects and studies](projects.md#settings-files-per-study)).
+
+The admin console always saves to the settings folder (the admin API can also write to a study's or project's folder). If the experiment folder has its own copy of a file (for example `consent.md`), that copy wins and edits made in the admin console do not show up until you edit or delete the copy. See [Configuration reference](configuration.md) for the full precedence rules.
 
 ## Per-negotiation questionnaires
 
@@ -109,8 +117,11 @@ HANI2 uses the first of these files that exists and has questions:
 1. The file in the `HANI2_PER_NEG_YAML` environment variable.
 2. The file in the `PROLIFIC_PER_NEG_YAML` environment variable.
 3. The questionnaire named by `"questionnaire"` in `env.json`.
-4. `<experiment>/questionnaires/per_negotiation.yaml`, when an experiment is active.
-5. `~/negmas/hani2/settings/questionnaires/per_negotiation.yaml`.
+4. `<study>/questionnaires/per_negotiation.yaml` (the experiment folder), when a study is active.
+5. `<project>/questionnaires/per_negotiation.yaml`, for a study of a project.
+6. `~/negmas/hani2/settings/questionnaires/per_negotiation.yaml`.
+
+Every text of the questionnaire (title, intro, questions, labels, options) may use the `{{variables}}` of [Projects and studies](projects.md#texts-with-variables).
 
 Instead of a path, the first three can name a questionnaire: `evaluation` is
 `settings/questionnaires/evaluation.yaml`, or the one bundled with HANI2 — the
@@ -140,12 +151,13 @@ Answers are appended to `<results>/<user>/negotiation_questionnaires.csv`. Each 
 | `practice` | Whether it was a practice round. |
 | `shown_at`, `submitted_at` | ISO timestamps. |
 | `duration_seconds` | Time spent on the form. |
+| `project`, `study` | The study the answers belong to. |
 
 If you add questions during a study, HANI2 rewrites the file with the extra columns and keeps the earlier rows.
 
 ## Results
 
-Everything is written under the *results root*: `~/negmas/hani2/db` (`$HANI2_HOME/db`), or `<experiment>/results` when an experiment is active.
+Everything is written under the *results root*: `~/negmas/hani2/db` (`$HANI2_HOME/db`), or `<study>/results` for a session of a study (an experiment's `<experiment>/results`).
 
 ```text
 <results>/
@@ -161,7 +173,7 @@ Everything is written under the *results root*: `~/negmas/hani2/db` (`$HANI2_HOM
     └── llm_logs/<mechanism id>.jsonl  # only with HANI2_LLM_LOG=1
 ```
 
-The folder name is the user name: the account name for logged-in users, `guest_<id>` for each playground browser, and `prolific_<PID>` for Prolific participants. Playground visitors therefore do not share a folder. Prolific participants have a few extra files, described in [Prolific](prolific.md). For `llm_logs/`, see [Language models](llms.md).
+The folder name is the user name: the account name for logged-in users, `guest_<id>` for each playground browser, `prolific_<PID>` for Prolific participants and `participant_<ID>` for participants of an online or lab study. Playground visitors therefore do not share a folder. Prolific participants have a few extra files, described in [Prolific](prolific.md). For `llm_logs/`, see [Language models](llms.md).
 
 ### The trace logs
 
@@ -237,6 +249,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `device` / `orientation` | The layout in use (`desktop`, `tablet` or `phone`) and `landscape` or `portrait`. |
 | `support_agent` | Whether the Assistant acted (sent a message or changed something) during this negotiation. |
 | `autopilot` | Whether the autopilot was switched on during this negotiation. |
+| `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.
 
@@ -270,8 +283,10 @@ HANI2 records what happens in an append-only SQLite database, `<results>/events.
 
 The database has two tables:
 
-- `events`: `id`, `session_id`, `user`, `experiment`, `event_type`, `timestamp` (UTC, ISO format), `component`, `action`, `value` (JSON), `scenario_id`, `round_number`, `utility_value` and `duration_ms`.
-- `sessions`: one row per browser session, with `id`, `user`, `experiment`, `mode`, `start_time`, `end_time`, `ip` and `user_agent`.
+- `events`: `id`, `session_id`, `user`, `experiment`, `event_type`, `timestamp` (UTC, ISO format), `component`, `action`, `value` (JSON), `scenario_id`, `round_number`, `utility_value`, `duration_ms`, `project` and `study`.
+- `sessions`: one row per browser session, with `id`, `user`, `experiment`, `mode`, `start_time`, `end_time`, `ip`, `user_agent`, `project` and `study`.
+
+An events database from an earlier version gets the `project` and `study` columns the first time HANI2 opens it.
 
 The server writes these event types:
 

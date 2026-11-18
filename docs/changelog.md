@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- **Projects and studies.** One server now runs many data collections at once. A *project*
+  (`projects/<project>/project.yaml`: name, full name, kind, year, organiser, contact and defaults
+  such as `n_required` and time limits) owns *studies* (`studies/<study>/study.yaml`: type
+  `prolific`, `online` or `lab`, title, dates, Prolific study id, completion code), each with its
+  own settings files and results. Every study is reached at `/s/<project>/<study>/play` (or `/app`,
+  or with `?study=project/study`) without a restart; settings, scenarios, questionnaires and
+  results resolve per session (study, then project, then the settings folder). Results rows,
+  questionnaire answers, events and recordings gain `project` and `study` columns. Online studies
+  take participant ids from `?pid=` / `?participant=`, lab studies session codes from `?code=`, and
+  both end with the study's completion link or end page. Consent, welcome, title and questionnaire
+  texts may use `{{variables}}` (`{{project_full_name}}`, `{{n_required}}`, …); consent is recorded
+  per study with a hash of the text, so a new study or a changed text asks again. New commands
+  `hani2 project create|list|show`, `hani2 study create|list|show` (which prints the participant
+  links) and `hani2 --study`, and admin API endpoints for projects, studies, settings layers and
+  text previews. Experiments keep working unchanged as studies of the `default` project
+  (`HANI2_EXPERIMENT`, `--experiment`, `hani2 experiment`, the same folders and files). See
+  [Projects and studies](guide/projects.md).
 - **Human, Assistant and Opponent.** The three parties of a negotiation now have the same names
   everywhere (interface, admin console, docs, CLI help, messages, scenario texts and prompts): the
   *human* (the participant), the *Assistant* (the AI helper that advises the human and can act for

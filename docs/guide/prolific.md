@@ -10,11 +10,17 @@ Point your Prolific study at the playground with the participant's ID in the que
 https://negotiate.example.org/play?PROLIFIC_PID={{%PROLIFIC_PID%}}
 ```
 
+For a study of a project, use the study's address (`hani2 study create` prints it, see [Projects and studies](projects.md#prolific)):
+
+```text
+https://negotiate.example.org/s/HI2027/hi-2027-01/play?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
+
 The lowercase `prolific_pid` parameter also works. HANI2 keeps only letters, digits, `-` and `_` from the ID, up to 64 characters.
 
 What changes for a URL with a Prolific ID:
 
-- The participant's user name is `prolific_<PID>` and their session key is `prolific:<PID>`. Opening the link again, in any browser, returns to the same session while the server is running.
+- The participant's user name is `prolific_<PID>` and their session key is `prolific:<PID>` (for a study other than the server's default study, the key also names the study, so the same person can take part in two studies). Opening the link again, in any browser, returns to the same session while the server is running.
 - The link works even when the playground is disabled in `env.json`.
 - The session is never in admin mode, even for a logged-in admin and even with `?admin=1`.
 - The Assistant starts switched off. The participant can still switch it on, if the Assistant is available to them at all (see [Assistant](assistant.md)).
@@ -86,7 +92,7 @@ The start and result screens show a countdown. Set a timer to `0` to switch it o
 
 ## Environment variables
 
-All Prolific settings are environment variables, read when a Prolific session is created.
+All Prolific settings are environment variables, read when a Prolific session is created. For a study of a project, `n_required`, `practice_time_limit`, `counted_time_limit`, `minutes` and `practice` (whether there is a practice round) can also be set in `study.yaml` or `project.yaml`; an environment variable that is set wins over them (see [Projects and studies](projects.md#studyyaml)).
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -102,10 +108,11 @@ All Prolific settings are environment variables, read when a Prolific session is
 | `PROLIFIC_FINALISTS` | the opponent pool | Comma-separated specs for the counted opponents. |
 | `PROLIFIC_PER_NEG_YAML` | none | A questionnaire file (used when `HANI2_PER_NEG_YAML` is not set). |
 | `PROLIFIC_COMPLETION_URL` | none | The completion URL. `{pid}` is replaced by the Prolific ID. |
+| `PROLIFIC_COMPLETION_CODE` | none | The `{{completion_code}}` variable of texts (wins over `completion_code` in `study.yaml`). |
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the completion URL when `PROLIFIC_COMPLETION_URL` is not set. |
 | `SCMLWEB_PROLIFIC_PATH` | `/prolific` | Path of the completion URL when `PROLIFIC_COMPLETION_URL` is not set. |
 
-Without `PROLIFIC_COMPLETION_URL`, the completion URL is `<SCMLWEB_BASE_URL><SCMLWEB_PROLIFIC_PATH>/done?PROLIFIC_PID=<PID>`, the completion page of the ANAC competition site. For your own study, set `PROLIFIC_COMPLETION_URL` to the completion link Prolific gives you:
+Without `PROLIFIC_COMPLETION_URL`, the completion URL is `<SCMLWEB_BASE_URL><SCMLWEB_PROLIFIC_PATH>/done?PROLIFIC_PID=<PID>`, the completion page of an outside system such as a competition website, when either variable is set. Otherwise a study's `completion_url` or `completion_code` in `study.yaml` is used (the code becomes Prolific's completion link), and without those the outside system's default path. For your own study, put the completion code Prolific gives you in `study.yaml` (`hani2 study create P/S --completion-code ABC123`), or set `PROLIFIC_COMPLETION_URL`:
 
 ```bash
 export PROLIFIC_COMPLETION_URL="https://app.prolific.com/submissions/complete?cc=ABC123"
@@ -140,7 +147,7 @@ export PROLIFIC_COMPLETION_URL="https://example.org/done?pid={pid}"
 hani2 --experiment pilot --page play --no-browser
 ```
 
-Then open `http://localhost:5006/play?PROLIFIC_PID=test1&noautostart=1` and:
+Then open `http://localhost:5006/play?PROLIFIC_PID=test1&noautostart=1` (or, for a study of a project, `http://localhost:5006/s/<project>/<study>/play?PROLIFIC_PID=test1&noautostart=1`) and:
 
 1. Play the practice round and make at least one offer.
 2. In the first counted round, click *End* before making any offer. The notice says the round does not count.
