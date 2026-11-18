@@ -48,6 +48,19 @@ A spec that starts with `:` expands to a list of specs. Tokens are case-insensit
 | `:genius` | Every agent in `negmas.genius.gnegotiators`, as `genius.<Class>`. |
 | `:custom` | The comma-separated specs in the `HANI2_CUSTOM_AGENTS` environment variable (these may contain group tokens too). |
 | `:pan` | The classes in an external `pan.py` module (see below). Empty when no such module is found. |
+| `:han<year>-all` | Every participant of that year's HAN league (Human-Agent Negotiation, ANAC), e.g. `:han2026-all`. Needs the `han` extra (below). |
+| `:han<year>-qualified` | That year's qualified participants (disqualified entries dropped). |
+| `:han<year>-finalists` | That year's finalists. |
+| `:han<year>-winners` | That year's winners (empty until they are announced). |
+
+The HAN groups come from the optional [`han-agents`](https://pypi.org/project/han-agents/) package and appear for every year it covers:
+
+```bash
+pip install "hani2[han]"      # or: uv pip install -e ".[han]" in a checkout
+hani2 --opponents :han2026-finalists
+```
+
+Without the package these tokens are unknown. The groups list class paths only, so an agent is imported only when a session uses it. Some agents use a language model and need a reachable model backend (see [LLM model injection](#llm-model-injection) below).
 
 Unknown tokens print a warning in the server log and expand to nothing. Lists are de-duplicated and keep their order, so `:notext,BoulwareTBNegotiator` has `BoulwareTBNegotiator` only once.
 

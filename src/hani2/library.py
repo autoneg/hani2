@@ -1115,7 +1115,7 @@ def list_groups(kind: str, layer: "str | Layer | None" = None) -> list[dict[str,
             hit = lk(k, True) if k != "pan" else None  # importing the pan pool here is slow and noisy
             members = [str(x) for x in hit[1]] if hit and len(hit) > 2 else []
             out.append({"name": k, "entries": members, "expanded": members, "source": "builtin", "layer": None,
-                        "description": groups.BUILTIN_DESCRIPTIONS.get((gk, k), ""), "path": None,
+                        "description": groups.builtin_description(gk, k), "path": None,
                         "active": k.lower() not in files, "editable": False})
         return out
 

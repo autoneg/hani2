@@ -280,6 +280,17 @@ BUILTIN_DESCRIPTIONS = {
 }
 
 
+def builtin_description(kind: str, key: str) -> str:
+    """The description of a built-in group (``""``: none)."""
+    k = key.strip().lstrip(":").lower()
+    d = BUILTIN_DESCRIPTIONS.get((check_kind(kind), k))
+    if d is None and check_kind(kind) == OPPONENT:
+        from hani2.agents import HAN_GROUP_DESCRIPTIONS
+
+        d = HAN_GROUP_DESCRIPTIONS.get(k)
+    return d or ""
+
+
 def builtin_keys(kind: str) -> list[str]:
     kind = check_kind(kind)
     if kind == ASSISTANT:
@@ -318,7 +329,7 @@ def resolve(kind: str, key: str, ref: Any = None) -> Group | None:
     if members is None:
         return None
     k = key.strip().lstrip(":").lower()
-    return Group(key=k, kind=check_kind(kind), members=members, description=BUILTIN_DESCRIPTIONS.get((kind, k), ""))
+    return Group(key=k, kind=check_kind(kind), members=members, description=builtin_description(kind, k))
 
 
 def assistant_lookup(ref: Any = None, errors: list[str] | None = None):
@@ -420,7 +431,7 @@ def list_groups(kind: str, *, project: str | None = None, ref: Any = None,
         for k in builtin_keys(kind):
             members = builtin_members(kind, k) or []
             out.append(dict(key=k, kind=kind, members=members, syspath=[], source="builtin", path=None,
-                            description=BUILTIN_DESCRIPTIONS.get((kind, k), ""),
+                            description=builtin_description(kind, k),
                             active=(k not in seen) if project is None else None))
     return out
 

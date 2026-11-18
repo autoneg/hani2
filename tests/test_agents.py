@@ -27,3 +27,33 @@ def test_file_spec(tmp_path, monkeypatch):
 def test_make_agent_wraps_and_refuses_none_accept():
     a = make_agent("helpers.AgentK", {"name": "x"}, practice=True)
     assert type(a).__name__.startswith("NoEnd_NoAcceptNone_")
+
+
+def test_han_groups_when_installed():
+    import pytest
+
+    pytest.importorskip("han_agents")
+    from hani2 import agents, groups
+
+    years = agents.han_years()
+    assert years
+    y = years[-1]
+    keys = {g["key"] for g in groups.list_groups(groups.OPPONENT)}
+    for kind in ("all", "qualified", "finalists", "winners"):
+        assert f"han{y}-{kind}" in keys
+    every = agents.resolve_agent_group(f"han{y}-all")
+    finalists = agents.session_agent_override({"group": f"han{y}-finalists"}) or []
+    assert every and set(finalists) <= set(every)
+    assert set(agents.expand_agents(f":han{y}-qualified")) <= set(every)
+    # an empty group (no winners yet) is still a known group
+    assert agents._builtin_known(f":han{y}-winners")
+
+
+def test_han_groups_without_package(monkeypatch):
+    import sys
+
+    from hani2 import agents
+
+    monkeypatch.setitem(sys.modules, "han_agents", None)
+    monkeypatch.setitem(sys.modules, "han_agents.registry", None)
+    assert agents.han_years() == [] and agents.han_groups() == {}

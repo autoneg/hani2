@@ -123,6 +123,60 @@ AGENT_GROUPS = {
     ":genius": GENIUS_NEGOTITORS,
 }
 
+# --- HAN league agents (optional: ``pip install "hani2[han]"``) --------------
+#: the HAN group kinds: suffix -> (han_agents.get_agents filter flag, description)
+HAN_GROUP_KINDS = {
+    "all": (None, "Every HAN {year} participant"),
+    "qualified": ("qualified_only", "The qualified HAN {year} participants"),
+    "finalists": ("finalists_only", "The HAN {year} finalists"),
+    "winners": ("winners_only", "The HAN {year} winners"),
+}
+#: group key (``han2026-finalists``) -> description; filled by :func:`han_groups`
+HAN_GROUP_DESCRIPTIONS: dict[str, str] = {}
+
+
+def han_years() -> list[int]:
+    """The competition years the installed ``han-agents`` package covers
+    (``[]`` when it is not installed)."""
+    try:
+        from han_agents import registry
+    except Exception:  # noqa: BLE001 — optional dependency
+        return []
+    years = set()
+    for k in getattr(registry, "_REGISTRY", {}) or {}:
+        y = str(k).split("|", 1)[0]
+        if y.isdigit():
+            years.add(int(y))
+    return sorted(years)
+
+
+def han_groups() -> dict[str, list[str]]:
+    """``{":han<year>-all" | "-qualified" | "-finalists" | "-winners": [dotted class paths]}``
+    for every year of the installed ``han-agents`` package; ``{}`` without it.
+    Only the paths are listed: nothing is imported until an agent is picked."""
+    years = han_years()
+    if not years:
+        return {}
+    try:
+        from han_agents import get_agents
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict[str, list[str]] = {}
+    for year in years:
+        for kind, (flag, desc) in HAN_GROUP_KINDS.items():
+            try:
+                specs = get_agents(year, **({flag: True} if flag else {}))
+            except Exception as e:  # noqa: BLE001
+                print(f"⚠️ han-agents: could not list the {kind} agents of {year} ({e}).")
+                continue
+            key = f"han{year}-{kind}"
+            out[":" + key] = [str(x) for x in specs]
+            HAN_GROUP_DESCRIPTIONS[key] = desc.format(year=year)
+    return out
+
+
+AGENT_GROUPS.update(han_groups())
+
 # Boulware/Linear/Conceder/Hybrid with NO text component. Bare names
 # resolve via negmas.sao in get_agent_type().
 NOTEXT_NEGOTIATORS = [
@@ -139,7 +193,8 @@ NOTEXT_NEGOTIATORS = [
 # admin launcher can pick the opponent pool without restarting the server).
 #
 # The server stays a STANDALONE tool: it resolves its own built-in group tokens
-# (:llm/:template/:negmas/:hani/:genius/:pan/:notext/:custom) itself, and for
+# (:llm/:template/:negmas/:hani/:genius/:pan/:notext/:custom and, with han-agents,
+# :han<year>-all/-qualified/-finalists/-winners) itself, and for
 # "participant" groups it only ever READS a JSON list file that an external
 # tool may drop into DB_PATH/groups/<key>.json. It never calls another service
 # or reads a competition database.
@@ -232,9 +287,8 @@ def _resolve_builtin(token: str) -> list:
     if low == ":custom":
         raw = os.environ.get("HANI2_CUSTOM_AGENTS") or os.environ.get("HANI_CUSTOM_AGENTS", "")
         return _expand_agent_items([s for s in raw.split(",") if s.strip()])
-    grp = AGENT_GROUPS.get(low)
-    if grp:
-        return list(grp)
+    if low in AGENT_GROUPS:
+        return list(AGENT_GROUPS[low])
     avail = ", ".join(list(AGENT_GROUPS) + [":pan", ":notext", ":custom"])
     print(f"⚠️ Unknown agent group '{token}'. Available: {avail}")
     return []

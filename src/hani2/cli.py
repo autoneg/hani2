@@ -227,7 +227,7 @@ def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
-    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan; with hani2[han]: :han2026-all, :han2026-qualified, :han2026-finalists, :han2026-winners), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant: on (everyone), off (nobody), auto (admins only), or an Assistant class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     assistants: Annotated[Optional[str], typer.Option("--assistants", help="Assistant pool: comma-separated Assistant classes and/or Assistant groups (:default, :tutorial, or a group file's key). With more than one, each human keeps one Assistant, balanced across the humans of a study.")] = None,

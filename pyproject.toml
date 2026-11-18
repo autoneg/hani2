@@ -36,6 +36,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-timeout", "ruff"]
+# the HAN league agents: adds the :han<year>-all / -qualified / -finalists / -winners groups
+han = ["han-agents>=0.0.2"]
 docs = ["mkdocs>=1.6", "mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
 [project.scripts]
