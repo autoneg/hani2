@@ -840,8 +840,50 @@ def admin_llm_status(_: str = Depends(require_admin)):
 # --------------------------------------------------------------------------- #
 # The web app                                                                  #
 # --------------------------------------------------------------------------- #
+_COMPRESSIBLE = (".js", ".mjs", ".css", ".svg", ".json", ".map", ".txt", ".html")
+
+
+class _Assets(StaticFiles):
+    """The built app's files: gzip-compressed (once, then kept in memory) and cached for a year.
+
+    Their names carry a content hash, so a browser never has to ask for them again,
+    and compression shrinks the charting library from ~4.8 MB to ~1.5 MB.
+    """
+
+    def __init__(self, *args: Any, **kw: Any) -> None:
+        super().__init__(*args, **kw)
+        self._gz: dict[str, tuple[float, bytes]] = {}
+
+    def _gzipped(self, path: str, mtime: float) -> bytes:
+        hit = self._gz.get(path)
+        if hit is None or hit[0] != mtime:
+            import gzip
+
+            hit = (mtime, gzip.compress(Path(path).read_bytes(), compresslevel=9, mtime=0))
+            self._gz[path] = hit
+        return hit[1]
+
+    async def get_response(self, path: str, scope) -> Response:
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if not isinstance(response, FileResponse) or response.status_code != 200:
+            return response
+        file = str(response.path)
+        if not file.endswith(_COMPRESSIBLE):
+            return response
+        response.headers["Vary"] = "Accept-Encoding"
+        accept = dict(scope.get("headers") or []).get(b"accept-encoding", b"")
+        if b"gzip" not in accept:
+            return response
+        st = os.stat(file)
+        body = await asyncio.to_thread(self._gzipped, file, st.st_mtime)
+        headers = {k: v for k, v in response.headers.items() if k.lower() not in ("content-length", "accept-ranges")}
+        headers["Content-Encoding"] = "gzip"
+        return Response(body, headers=headers, media_type=response.media_type)
+
+
 if (WEB_DIR / "assets").is_dir():
-    app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+    app.mount("/assets", _Assets(directory=WEB_DIR / "assets"), name="assets")
 
 
 class _StripPrefix:

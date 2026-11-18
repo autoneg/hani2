@@ -35,6 +35,9 @@
 - An evaluation questionnaire (UEQ, TAM, intention to use, opponent perception):
   `HANI2_PER_NEG_YAML=evaluation`. Questions can carry `scale`, `reverse` and
   `requires: support_agent`.
+- Charts appear at once when a negotiation starts: the charting library is fetched while the app
+  loads (not when the first chart is shown), and the app's files are sent gzip-compressed
+  (the charting library shrinks from 4.8 MB to 1.5 MB) and cached by the browser for a year.
 
 ## 0.1.0 (2026-11-17)
 

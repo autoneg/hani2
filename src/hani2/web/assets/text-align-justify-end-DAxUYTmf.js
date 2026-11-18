@@ -1,0 +1,1 @@
+import{c as e}from"./index-D3QZ1nmE.js";const t={name:"text-align-justify-end",size:24,node:[["path",{d:"M3 5h18",key:"1u36vt"}],["path",{d:"M3 12h18",key:"1i2n21"}],["path",{d:"M11 19h10",key:"11t30w"}]]};t.node;const a=e(t);export{t as __iconData,a as default};

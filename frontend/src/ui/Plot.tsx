@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
 let plotlyPromise: Promise<any> | null = null;
-const loadPlotly = () => (plotlyPromise ??= import("plotly.js-dist-min").then((m: any) => m.default ?? m));
+export const loadPlotly = () => {
+  plotlyPromise ??= import("plotly.js-dist-min").then((m: any) => m.default ?? m);
+  // a failed download (e.g. a network blip while warming up) is retried on the next chart
+  plotlyPromise.catch(() => (plotlyPromise = null));
+  return plotlyPromise;
+};
 
 function themeColors() {
   const cs = getComputedStyle(document.documentElement);

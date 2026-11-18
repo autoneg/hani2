@@ -1,1 +1,0 @@
-import{c as a}from"./index-DdKyJmkH.js";const e={name:"text-search",size:24,node:[["path",{d:"M21 5H3",key:"1fi0y6"}],["path",{d:"M10 12H3",key:"1ulcyk"}],["path",{d:"M10 19H3",key:"108z41"}],["circle",{cx:"17",cy:"15",r:"3",key:"1upz2a"}],["path",{d:"m21 19-1.9-1.9",key:"dwi7p8"}]]};e.node;const t=a(e);export{e as __iconData,t as default};
