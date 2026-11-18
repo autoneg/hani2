@@ -36,7 +36,10 @@ class Gadget(Tool):
     def on_action(self, action, payload):
         if action == "go":
             self.values["n"] = self.values.get("n", 0) + 1
-            self.set_offer(self.scenario.outcome_space.random_outcome())
+            # an outcome that differs from the current draft (a random one may equal it)
+            os = self.scenario.outcome_space
+            current = tuple(self.session.draft.get(i.name) for i in os.issues)
+            self.set_offer(next(o for o in os.enumerate_or_sample(max_cardinality=50) if tuple(o) != current))
 
 
 def test_describe_components_text_and_controls():
