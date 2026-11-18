@@ -20,7 +20,11 @@ res["rows"]       # one row per recording
 compare_rows(res["rows"], by="support_agent")
 ```
 
-`hani2 replay metrics` lists every metric and column.
+`hani2 replay metrics` lists every metric and column. The [metric reference](metrics.md) explains
+each of them: what it measures, its formula, how to read it, a worked example and the caveats. The
+same texts are shown by `hani2 replay metrics --details [NAME]` (a metric, a column or a `compare`
+statistic, e.g. `hani2 replay metrics --details nash_distance`), by the ⓘ buttons and the **Metric
+reference** panel of the replay tool, and by `GET /api/replay/metric-reference` (admins).
 
 ## Hard metrics
 
@@ -41,9 +45,10 @@ compare_rows(res["rows"], by="support_agent")
 Move types follow the usual negotiation-dynamics classification: a move is the change from a
 side's previous offer to its next one, by the change of its own utility (Δself) and of the other
 side's (Δother): **silent** (no change), **nice** (Δself = 0, Δother > 0), **fortunate** (both up),
-**unfortunate** (both down or Δother ≤ 0 while Δself ≤ 0), **concession** (Δself < 0, Δother > 0)
-and **selfish** (Δself > 0, Δother < 0). The assistant's suggestions are classified against the
-human's previous offer.
+**unfortunate** (Δself ≤ 0 and Δother ≤ 0, not silent), **concession** (Δself < 0, Δother > 0)
+and **selfish** (Δself > 0, Δother ≤ 0). The assistant's suggestions are classified against the
+human's previous offer. See the [metric reference](metrics.md#dynamics-negotiation-dynamics) for the
+exact rules and a figure.
 
 ## Subjective metrics
 

@@ -1,1 +1,0 @@
-import{c as a}from"./index-BKLEob7n.js";const e={name:"square-user-round",size:24,node:[["path",{d:"M18 21a6 6 0 0 0-12 0",key:"kaz2du"}],["circle",{cx:"12",cy:"11",r:"4",key:"1gt34v"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["user-square-2"]};e.node;const t=a(e);export{e as __iconData,t as default};

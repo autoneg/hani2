@@ -74,11 +74,11 @@ markdown_extensions:
 
 extra_javascript:
   - javascripts/katex.js
-  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js
-  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js
 
 extra_css:
-  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css
+  - https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css
 
 nav:
   - Home: index.md
@@ -103,6 +103,7 @@ nav:
       - Studies and results: guide/studies.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md
+      - Metric reference: guide/metrics.md
       - Prolific: guide/prolific.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md

@@ -1,11 +1,13 @@
-// Render the maths of pages written with pymdownx.arithmatex (generic mode) using KaTeX.
-// Arithmatex wraps maths in \( \) and \[ \]; plain dollar signs elsewhere are left alone.
-document$.subscribe(({ body }) => {
-  renderMathInElement(body, {
-    delimiters: [
-      { left: "\\(", right: "\\)", display: false },
-      { left: "\\[", right: "\\]", display: true },
-    ],
-    throwOnError: false,
+// Render the math that pymdownx.arithmatex (generic mode) marked. Only the
+// .arithmatex elements are rendered, so other dollar signs stay plain text.
+document$.subscribe(() => {
+  document.querySelectorAll(".arithmatex").forEach((el) => {
+    renderMathInElement(el, {
+      delimiters: [
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      throwOnError: false,
+    });
   });
 });

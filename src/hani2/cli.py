@@ -749,10 +749,22 @@ def replay_show(path: Path, events: Annotated[bool, typer.Option("--events", hel
 
 
 @replay_app.command("metrics")
-def replay_metrics():
-    """List the evaluation metrics."""
+def replay_metrics(
+    name: Annotated[Optional[str], typer.Argument(help="A metric, column or compare statistic to explain (with --details).")] = None,
+    details: Annotated[bool, typer.Option("--details", "-d", help="Explain what each metric measures and how it is calculated (Markdown with LaTeX formulas).")] = False,
+):
+    """List the evaluation metrics (``--details [NAME]``: the full reference)."""
     from hani2.evaluation import available_metrics
 
+    if details or name:
+        from hani2.evaluation.reference import details_markdown
+
+        try:
+            typer.echo(details_markdown(name))
+        except KeyError:
+            typer.secho(f"unknown metric or column {name!r}; see `hani2 replay metrics`", fg="red", err=True)
+            raise typer.Exit(1) from None
+        return
     for m in available_metrics():
         flag = " (LLM)" if m["needs_llm"] else ""
         dflt = "" if m["default"] else " [not default]"

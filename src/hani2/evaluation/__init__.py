@@ -33,11 +33,13 @@ from hani2.evaluation import llm_judge as _llm  # noqa: F401
 from hani2.evaluation import subjective as _subj  # noqa: F401
 from hani2.evaluation.base import REGISTRY, Column, EvalContext, Metric, metric
 from hani2.evaluation.llm_judge import llm_judge_status
+from hani2.evaluation.reference import metric_reference
 from hani2.recording.format import Recording, iter_recordings, recording_id
 
 __all__ = [
     "REGISTRY", "Column", "EvalContext", "Metric", "metric", "available_metrics", "evaluate_recording",
     "evaluate_paths", "evaluate_keys", "compare_rows", "compare_keys", "pass_hat_k", "llm_judge_status",
+    "metric_reference",
 ]
 
 #: fields copied from the recording into every row (used to group and filter)
@@ -45,9 +47,11 @@ ID_FIELDS = ("key", "id", "user", "mode", "scenario", "opponent", "support_agent
              "started", "practice")
 
 
-def available_metrics() -> list[dict]:
+def available_metrics(full: bool = False) -> list[dict]:
+    """Every registered metric (hard, subjective, soft); ``full`` adds the
+    reference texts (formulas, details, dynamic columns, figures)."""
     order = {"hard": 0, "subjective": 1, "soft": 2}
-    return sorted((m.info() for m in REGISTRY.values()), key=lambda m: order.get(m["kind"], 9))
+    return sorted((m.info(full) for m in REGISTRY.values()), key=lambda m: order.get(m["kind"], 9))
 
 
 def _select(metrics: Iterable[str] | None, use_llm: bool) -> list[Metric]:
@@ -158,8 +162,10 @@ def _columns(selected: list[Metric], rows: list[dict]) -> list[dict]:
         extra = sorted({k for r in rows for k in r if k.startswith(("q_", "scale_")) and k not in seen}) \
             if m.name == "questionnaire" else []
         for k in extra:
-            cols.append(dict(name=k, metric=m.name, kind=m.kind, title=k.replace("_", " "), description="",
-                             higher_is_better=None))
+            pat = m.column_info(k)
+            cols.append(dict(name=k, metric=m.name, kind=m.kind, title=k.replace("_", " "),
+                             description=pat.description if pat else "",
+                             higher_is_better=pat.higher_is_better if pat else None))
             seen.add(k)
     return cols
 

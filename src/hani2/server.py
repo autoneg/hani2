@@ -1134,6 +1134,16 @@ def replay_metrics(_: str = Depends(require_admin)):
     return {"metrics": available_metrics(), "llm": llm_judge_status()}
 
 
+@app.get("/api/replay/metric-reference")
+def replay_metric_reference(_: str = Depends(require_admin)):
+    """What every metric and column measures and how it is calculated: notation,
+    metrics (with formulas, details and dynamic columns), compare statistics,
+    identifier columns and the figures (SVG)."""
+    from hani2.evaluation import metric_reference
+
+    return metric_reference()
+
+
 @app.post("/api/replay/evaluate")
 def replay_evaluate(body: dict = Body(...), _: str = Depends(require_admin)):
     """Evaluate recordings: ``{"keys": [...], "metrics": [names] | null, "llm": bool, "refresh": bool}``."""

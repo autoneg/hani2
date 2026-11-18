@@ -262,6 +262,7 @@ folders (default: the results folder).
 | `hani2 replay show FILE [--events]` | What a recording holds. |
 | `hani2 replay export FILE -o out.json` | The recording as plain JSON. |
 | `hani2 replay metrics` | Every [evaluation metric](../guide/evaluation.md) and its columns. |
+| `hani2 replay metrics --details [NAME]` | What a metric or column measures and how it is calculated (the [metric reference](../guide/metrics.md)). |
 | `hani2 replay evaluate [PATHS…] [-m a,b] [--llm] [--refresh] [-o file.csv] [--option k=v]` | One row of metrics per recording; `.json` output also works. |
 | `hani2 replay compare [PATHS…] --by opponent [-m …] [--llm] [-o file.csv]` | Means per group, and pass^k reliability. |
 

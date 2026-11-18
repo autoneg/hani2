@@ -4,6 +4,7 @@ import { api } from "../api";
 import { Brand, ThemeButton } from "../negotiate/Header";
 import { navigate, queryParams, withBase } from "../router";
 import { Library } from "./Library";
+import { MetricReferenceSheet, ReferenceButton } from "./MetricReference";
 import { Player } from "./Player";
 
 /** Admin tool: browse, replay, evaluate and compare recorded negotiations. */
@@ -44,6 +45,7 @@ export function ReplayPage() {
             <ArrowLeft size={14} /> All recordings
           </a>
         )}
+        <ReferenceButton />
         <a className="btn-ghost px-2.5 py-1 text-xs" href={withBase("/admin")} onClick={(e) => { e.preventDefault(); navigate("/admin"); }}>
           Admin
         </a>
@@ -58,6 +60,7 @@ export function ReplayPage() {
           </div>
         </main>
       )}
+      <MetricReferenceSheet />
     </div>
   );
 }

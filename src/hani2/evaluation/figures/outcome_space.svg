@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 440" width="560" role="img" aria-labelledby="os-t os-d" class="metric-figure" style="max-width:100%;height:auto;font-family:inherit">
+<title id="os-t">Outcome space of the example scenario</title>
+<desc id="os-d">Eight outcomes plotted by the Human utility (x) and the Opponent utility (y). Five lie on the Pareto frontier. The reservation point d is (0.2, 0.2). The Nash point is B, the Kalai-Smorodinsky point is C, the agreement F lies inside the frontier; its distances to C and B are drawn.</desc>
+<rect x="158.0" y="32.0" width="320.0" height="272.0" fill="#6b74f0" fill-opacity="0.07"/>
+<text x="342.0" y="66.0" font-size="11" fill="#6b74f0">individually rational (ZOPA)</text>
+<rect x="158.0" y="168.0" width="240.0" height="136.0" fill="#d9922b" fill-opacity="0.12" stroke="#d9922b" stroke-dasharray="4 3" stroke-width="1"/>
+<text x="278.0" y="287.0" font-size="11" fill="#d9922b" text-anchor="middle">Nash product of B = 0.6 × 0.4</text>
+<g stroke="currentColor" stroke-opacity="0.55" stroke-width="1.2" fill="none"><path d="M78 372 H492 M78 372 V18"/></g>
+<path d="M492 372 l-7 -4 v8 z M78 18 l-4 7 h8 z" fill="currentColor" fill-opacity="0.55"/>
+<line x1="78.0" y1="372" x2="78.0" y2="377" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="78.0" y="390" font-size="11" text-anchor="middle" fill="currentColor" fill-opacity="0.75">0</text>
+<line x1="73" y1="372.0" x2="78" y2="372.0" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="69" y="376.0" font-size="11" text-anchor="end" fill="currentColor" fill-opacity="0.75">0</text>
+<line x1="158.0" y1="372" x2="158.0" y2="377" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="158.0" y="390" font-size="11" text-anchor="middle" fill="currentColor" fill-opacity="0.75">0.2</text>
+<line x1="73" y1="304.0" x2="78" y2="304.0" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="69" y="308.0" font-size="11" text-anchor="end" fill="currentColor" fill-opacity="0.75">0.2</text>
+<line x1="278.0" y1="372" x2="278.0" y2="377" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="278.0" y="390" font-size="11" text-anchor="middle" fill="currentColor" fill-opacity="0.75">0.5</text>
+<line x1="73" y1="202.0" x2="78" y2="202.0" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="69" y="206.0" font-size="11" text-anchor="end" fill="currentColor" fill-opacity="0.75">0.5</text>
+<line x1="478.0" y1="372" x2="478.0" y2="377" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="478.0" y="390" font-size="11" text-anchor="middle" fill="currentColor" fill-opacity="0.75">1</text>
+<line x1="73" y1="32.0" x2="78" y2="32.0" stroke="currentColor" stroke-opacity="0.55"/>
+<text x="69" y="36.0" font-size="11" text-anchor="end" fill="currentColor" fill-opacity="0.75">1</text>
+<text x="278.0" y="412" font-size="13" text-anchor="middle" fill="currentColor">Human utility u<tspan font-size="10" dy="3">h</tspan></text>
+<text transform="translate(24 202.0) rotate(-90)" font-size="13" text-anchor="middle" fill="currentColor">Opponent utility u<tspan font-size="10" dy="3">o</tspan></text>
+<line x1="158.0" y1="304.0" x2="478.0" y2="32.0" stroke="#1fa77a" stroke-dasharray="2 4" stroke-width="1.4"/>
+<line x1="478.0" y1="32.0" x2="398.0" y2="168.0" stroke="currentColor" stroke-opacity="0.5" stroke-dasharray="3 3"/>
+<text x="450.0" y="100.0" font-size="11" fill="currentColor" fill-opacity="0.8">opposition</text>
+<polyline points="118.0,32.0 218.0,66.0 326.0,117.0 398.0,168.0 478.0,304.0" fill="none" stroke="#6b74f0" stroke-width="2.2" stroke-linejoin="round"/>
+<text x="130.0" y="93.2" font-size="12" fill="#6b74f0" font-weight="600">Pareto frontier 𝒫</text>
+<line x1="278.0" y1="219.0" x2="326.0" y2="117.0" stroke="#e0525f" stroke-width="1.8"/>
+<line x1="278.0" y1="219.0" x2="398.0" y2="168.0" stroke="#e0525f" stroke-width="1.6" stroke-dasharray="5 3"/>
+<text x="266.0" y="161.2" font-size="11" fill="#e0525f" text-anchor="end">Pareto / Kalai distance 0.32</text>
+<text x="342.0" y="212.2" font-size="11" fill="#e0525f">Nash distance 0.34</text>
+<circle cx="198.0" cy="253.0" r="5" fill="none" stroke="#8a93a6" stroke-width="1.6"/>
+<text x="206.0" y="257.0" font-size="12" fill="currentColor" fill-opacity="0.8">G</text>
+<circle cx="358.0" cy="270.0" r="5" fill="none" stroke="#8a93a6" stroke-width="1.6"/>
+<text x="366.0" y="274.0" font-size="12" fill="currentColor" fill-opacity="0.8">H</text>
+<circle cx="478.0" cy="304.0" r="5" fill="#6b74f0"/>
+<text x="462.0" y="296.0" font-size="12" fill="currentColor">A</text>
+<circle cx="218.0" cy="66.0" r="5" fill="#6b74f0"/>
+<text x="226.0" y="58.0" font-size="12" fill="currentColor">D</text>
+<circle cx="118.0" cy="32.0" r="5" fill="#6b74f0"/>
+<text x="126.0" y="24.0" font-size="12" fill="currentColor">E</text>
+<path d="M398.0 160.0 l8 8 l-8 8 l-8 -8 z" fill="#d9922b" stroke="#d9922b"/>
+<text x="409.0" y="172.0" font-size="12" fill="currentColor"><tspan font-weight="600">B</tspan> Nash point</text>
+<path d="M326.0 108.0 l8 14 h-16 z" fill="#1fa77a"/>
+<text x="337.0" y="113.0" font-size="12" fill="currentColor"><tspan font-weight="600">C</tspan> Kalai–Smorodinsky</text>
+<circle cx="278.0" cy="219.0" r="6.5" fill="#e0525f"/>
+<text x="268.0" y="237.0" font-size="12" fill="currentColor"><tspan font-weight="600">F</tspan> agreement ω</text>
+<rect x="153.0" y="299.0" width="10" height="10" fill="currentColor"/>
+<text x="167.0" y="320.0" font-size="12" fill="currentColor">d = (r<tspan font-size="9" dy="3">h</tspan><tspan dy="-3">, r</tspan><tspan font-size="9" dy="3">o</tspan><tspan dy="-3">) = (0.2, 0.2)</tspan></text>
+<path d="M472.0 26.0 l12 12 M484.0 26.0 l-12 12" stroke="currentColor" stroke-width="2"/>
+<text x="468.0" y="22.0" font-size="11" text-anchor="end" fill="currentColor" fill-opacity="0.85">ideal point (max u<tspan font-size="9" dy="3">h</tspan><tspan dy="-3">, max u</tspan><tspan font-size="9" dy="3">o</tspan><tspan dy="-3">)</tspan></text>
+</svg>

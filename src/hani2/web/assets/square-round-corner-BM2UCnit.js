@@ -1,0 +1,1 @@
+import{c as e}from"./index-DdbCSu2a.js";const a={name:"square-round-corner",size:24,node:[["path",{d:"M21 11a8 8 0 0 0-8-8",key:"1lxwo5"}],["path",{d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4",key:"1dv2y5"}]]};a.node;const n=e(a);export{a as __iconData,n as default};

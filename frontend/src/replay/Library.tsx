@@ -4,6 +4,7 @@ import { api, apiRaw } from "../api";
 import { navigate, withBase } from "../router";
 import { useStore } from "../store";
 import { downloadText, fmtDuration, fmtNum, toCsv } from "./csv";
+import { InfoButton, ReferenceButton } from "./MetricReference";
 
 export interface RecInfo {
   key: string;
@@ -44,6 +45,8 @@ interface Col {
   title: string;
   description?: string;
   higher_is_better?: boolean | null;
+  /** the metric reference entry its ⓘ button opens (default: the column, for metric columns) */
+  info?: string;
 }
 
 const toast = (message: string, level: "success" | "error" = "success") => useStore.getState().pushToast({ message, level });
@@ -62,9 +65,10 @@ function Table({ cols, rows, empty }: { cols: Col[]; rows: Record<string, any>[]
         <thead className="bg-sunken/60 text-xs text-muted">
           <tr>
             {cols.map((c) => (
-              <th key={c.name} className="whitespace-nowrap px-3 py-2 font-medium" title={c.description || c.title}>
+              <th key={c.name} className="whitespace-nowrap px-3 py-2 font-medium">
                 {c.title}
                 {c.higher_is_better === true ? " ↑" : c.higher_is_better === false ? " ↓" : ""}
+                {(c.info ?? (c.metric ? c.name : undefined)) && <InfoButton name={(c.info ?? c.name) as string} label={`About ${c.title}`} className="ml-0.5" />}
               </th>
             ))}
           </tr>
@@ -169,6 +173,7 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
         <h2 className="flex-1 text-base font-semibold">
           {mode === "evaluate" ? "Evaluate" : "Compare"} {keys.length} recording{keys.length === 1 ? "" : "s"}
         </h2>
+        <ReferenceButton />
         <button className="btn-ghost px-2 py-1 text-xs" onClick={onClose}>
           Close
         </button>
@@ -186,13 +191,16 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</div>
                 {ms.length === 0 && <div className="text-xs text-muted">None available</div>}
                 {ms.map((m) => (
-                  <label key={m.name} className="flex cursor-pointer items-start gap-2 py-0.5 text-sm" title={m.description}>
-                    <input type="checkbox" className="mt-1 accent-[rgb(var(--you))]" checked={sel.has(m.name)} onChange={() => toggle(m.name)} />
-                    <span>
-                      {m.title}
-                      {m.needs_llm && <span className="ml-1 text-[10px] text-muted">LLM</span>}
-                    </span>
-                  </label>
+                  <div key={m.name} className="flex items-start gap-1 py-0.5 text-sm">
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <input type="checkbox" className="mt-1 accent-[rgb(var(--you))]" checked={sel.has(m.name)} onChange={() => toggle(m.name)} />
+                      <span>
+                        {m.title}
+                        {m.needs_llm && <span className="ml-1 text-[10px] text-muted">LLM</span>}
+                      </span>
+                    </label>
+                    <InfoButton name={m.name} label={`About ${m.title}`} className="mt-0.5" />
+                  </div>
                 ))}
               </div>
             );
@@ -251,20 +259,23 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
               </button>
             </div>
             <Table
-              cols={[{ name: "group", title: res.by }, { name: "n", title: "n" }, ...cmpCols.map((c) => ({ ...c, name: c.name }))]}
+              cols={[{ name: "group", title: res.by }, { name: "n", title: "n", info: "n" }, ...cmpCols.map((c) => ({ ...c, name: c.name }))]}
               rows={(res.groups || []).map((g: any) => ({
                 group: g.group,
                 n: g.n,
                 ...Object.fromEntries(cmpCols.map((c) => [c.name, g.mean?.[c.name] == null ? null : `${fmtNum(g.mean[c.name])} ± ${fmtNum(g.std?.[c.name] ?? 0)}`])),
               }))}
             />
+            <div className="mt-1 flex items-center gap-0.5 text-xs text-muted">
+              Cells: mean ± standard deviation over the group <InfoButton name="mean" label="About the group statistics" />
+            </div>
           </div>
           {res.reliability?.length > 0 && (
             <div>
-              <div className="mb-2 text-sm font-medium" title="pass^k: the probability that all k attempts succeed">
-                Reliability (pass^k)
+              <div className="mb-2 flex items-center gap-0.5 text-sm font-medium">
+                Reliability (pass^k) <InfoButton name="pass_hat_k" label="About pass^k" />
               </div>
-              <Table cols={[{ name: "group", title: res.by }, { name: "k", title: "k" }, { name: "pass_hat_k", title: "pass^k" }]} rows={res.reliability} />
+              <Table cols={[{ name: "group", title: res.by }, { name: "k", title: "k" }, { name: "pass_hat_k", title: "pass^k", info: "pass_hat_k" }]} rows={res.reliability} />
             </div>
           )}
         </div>

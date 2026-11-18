@@ -19,6 +19,7 @@ questionnaire answers).
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Callable
@@ -30,14 +31,48 @@ from hani2.recording.format import Recording
 
 @dataclass
 class Column:
+    """One output column of a metric.
+
+    ``description`` is a one-line summary (table headers, CLI listing).
+    The reference fields explain the column fully and are shared by the CLI
+    (``hani2 replay metrics --details``), the API, the replay tool and the docs:
+
+    * ``formula`` — its exact definition in LaTeX (no ``$`` delimiters);
+    * ``details`` — Markdown: what it measures, why it matters, how to read it,
+      a worked example and caveats (inline math ``$...$``, display ``$$...$$``);
+    * ``range`` — the possible values (e.g. ``[0, 1]``, ``count``, ``seconds``).
+
+    A ``name`` with ``<...>`` (e.g. ``q_<id>``) describes a family of dynamic
+    columns (see :meth:`Metric.column_info`).
+    """
+
     name: str
     title: str
     description: str = ""
     higher_is_better: bool | None = None
+    formula: str = ""
+    details: str = ""
+    range: str = ""
+
+    def info(self) -> dict:
+        return dict(name=self.name, title=self.title, description=self.description,
+                    higher_is_better=self.higher_is_better, formula=self.formula, details=self.details,
+                    range=self.range)
+
+    def matches(self, name: str) -> bool:
+        if "<" not in self.name:
+            return name == self.name
+        rx = re.escape(self.name)
+        rx = re.sub(r"<[^>]*>", ".+", rx.replace(r"\<", "<").replace(r"\>", ">"))
+        return re.fullmatch(rx, name) is not None
 
 
 @dataclass
 class Metric:
+    """A registered metric. ``details`` (Markdown) and ``formula`` (LaTeX)
+    explain it as a whole; ``patterns`` describe dynamic columns (``q_<id>``);
+    ``figures`` name figures of :data:`FIGURES` that illustrate it."""
+
     name: str
     kind: str
     title: str
@@ -47,25 +82,53 @@ class Metric:
     needs_llm: bool = False
     default: bool = True
     version: str = "1"
+    formula: str = ""
+    details: str = ""
+    patterns: list[Column] = field(default_factory=list)
+    figures: list[str] = field(default_factory=list)
+    options: dict[str, str] = field(default_factory=dict)
 
-    def info(self) -> dict:
-        return dict(name=self.name, kind=self.kind, title=self.title, description=self.description,
-                    needs_llm=self.needs_llm, default=self.default, version=self.version,
-                    columns=[c.__dict__ for c in self.columns])
+    def info(self, full: bool = False) -> dict:
+        """The metric's description; ``full`` adds the reference texts
+        (formulas, details, dynamic-column patterns and figures)."""
+        cols = [c.info() for c in self.columns]
+        if not full:
+            cols = [{k: c[k] for k in ("name", "title", "description", "higher_is_better")} for c in cols]
+        out = dict(name=self.name, kind=self.kind, title=self.title, description=self.description,
+                   needs_llm=self.needs_llm, default=self.default, version=self.version, columns=cols)
+        if full:
+            out.update(formula=self.formula, details=self.details, patterns=[c.info() for c in self.patterns],
+                       figures=list(self.figures), options=dict(self.options))
+        return out
+
+    def column_info(self, name: str) -> Column | None:
+        """The declared column ``name``, else the first pattern that matches it."""
+        for c in self.columns:
+            if c.name == name:
+                return c
+        for c in self.patterns:
+            if c.matches(name):
+                return c
+        return None
 
 
 REGISTRY: dict[str, Metric] = {}
 
 
 def metric(name: str, *, kind: str, title: str, columns: list[Column], description: str = "",
-           needs_llm: bool = False, default: bool = True, version: str = "1"):
-    """Register a metric (decorator)."""
+           needs_llm: bool = False, default: bool = True, version: str = "1", formula: str = "",
+           details: str = "", patterns: list[Column] | None = None, figures: list[str] | None = None,
+           options: dict[str, str] | None = None):
+    """Register a metric (decorator). ``description`` defaults to the first
+    paragraph of the function's docstring."""
     if kind not in ("hard", "soft", "subjective"):
         raise ValueError(f"unknown metric kind {kind!r}")
 
     def deco(fn):
         REGISTRY[name] = Metric(name, kind, title, description or (fn.__doc__ or "").strip(), columns, fn,
-                                needs_llm=needs_llm, default=default, version=version)
+                                needs_llm=needs_llm, default=default, version=version, formula=formula,
+                                details=details.strip(), patterns=list(patterns or []),
+                                figures=list(figures or []), options=dict(options or {}))
         return fn
 
     return deco

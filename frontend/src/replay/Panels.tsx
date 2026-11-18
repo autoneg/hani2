@@ -6,6 +6,7 @@ import { fmtDuration, fmtNum, fmtTime } from "./csv";
 import type { FidelityReport, Replay } from "./reconstruct";
 import { COLOR, KINDS, type Kind, type TimelineItem } from "./summary";
 import type { RecInfo } from "./Library";
+import { InfoButton, ReferenceButton } from "./MetricReference";
 
 /* ---------------- events ---------------- */
 export function EventsPanel({ items, T, onSeek }: { items: TimelineItem[]; T: number; onSeek: (t: number) => void }) {
@@ -114,7 +115,8 @@ export function MetricsPanel({ rkey }: { rkey: string }) {
         <label className={`flex items-center gap-1.5 text-xs ${llm.configured ? "" : "opacity-50"}`} title={llm.configured ? `Judge: ${llm.model ?? ""}` : "No language model is configured"}>
           <input type="checkbox" disabled={!llm.configured} checked={useLlm && llm.configured} onChange={(e) => setUseLlm(e.target.checked)} className="accent-[rgb(var(--you))]" /> Use LLM judge
         </label>
-        <button className="btn-ghost ml-auto px-2 py-1 text-xs" onClick={() => run(true)} disabled={busy}>
+        <ReferenceButton className="ml-auto" />
+        <button className="btn-ghost px-2 py-1 text-xs" onClick={() => run(true)} disabled={busy}>
           {busy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Refresh
         </button>
       </div>
@@ -127,8 +129,10 @@ export function MetricsPanel({ rkey }: { rkey: string }) {
             <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</div>
             <div className="rounded-lg border border-line">
               {cs.map((c) => (
-                <div key={c.name} className="flex items-baseline gap-2 border-b border-line/60 px-2.5 py-1 last:border-0" title={c.description}>
-                  <span className="flex-1 text-xs">{c.title}</span>
+                <div key={c.name} className="flex items-center gap-1 border-b border-line/60 px-2.5 py-1 last:border-0">
+                  <span className="text-xs">{c.title}</span>
+                  <InfoButton name={c.name} label={`About ${c.title}`} />
+                  <span className="flex-1" />
                   <span className="tnum font-medium">{fmtNum(row[c.name])}</span>
                 </div>
               ))}

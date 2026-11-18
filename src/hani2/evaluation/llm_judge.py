@@ -254,12 +254,47 @@ HUMAN_CRITERIA = {
 }
 
 
+_JUDGE_D = (
+    "A language model (the judge) reads a transcript of the session (both sides' utilities, every offer, chat "
+    "message, suggestion and function call, with times) and rates the {who} from 1 (very poor) to 7 (excellent) on "
+    "this criterion, or answers null when the record gives no evidence for it. Higher is better. Answers outside "
+    "1–7 are clipped; null and unparsable answers are empty. The criterion as the judge sees it: “{text}”")
+_OVERALL_D = (
+    "The judge's overall rating of the {who} (1–7), given together with the criteria and a short justification "
+    "(in the details). Higher is better.")
+
+
 def _cols(criteria: dict[str, str], prefix: str, who: str) -> list:
-    return [C(f"{prefix}_{k}", f"{who}: {k.replace('_', ' ')}", v, True) for k, v in criteria.items()] + [
-        C(f"{prefix}_overall", f"{who}: overall", f"Overall judgement of the {who.lower()} (1–7)", True)]
+    return [C(f"{prefix}_{k}", f"{who}: {k.replace('_', ' ')}", v, True,
+              formula=r"J_{\text{%s}} = \min\big(7, \max(1, x_{\text{%s}})\big), \quad x \text{ the judge's rating}"
+              % (k.replace("_", r"\_"), k.replace("_", r"\_")),
+              range="1–7", details=_JUDGE_D.format(who=who, text=v)) for k, v in criteria.items()] + [
+        C(f"{prefix}_overall", f"{who}: overall", f"Overall judgement of the {who.lower()} (1–7)", True,
+          formula=r"J_{\text{overall}} = \min\big(7, \max(1, x_{\text{overall}})\big)", range="1–7",
+          details=_OVERALL_D.format(who=who))]
+
+
+_JUDGE_COMMON = r"""
+**How it is judged.** The judge is the language model configured for evaluation, asked at temperature
+0 with a fixed rubric; its answer must be one JSON object (it is asked again once if not). It sees both
+sides' utilities (between 0 and 1), which the Human did not, and is not told which Opponent agent was
+used nor the participant's questionnaire answers, so its view is independent of both. Very long
+transcripts are shortened in the middle. Judgements are cached next to the recording per metric,
+prompt version and judge model.
+
+**Caveats.** A language model's ratings are noisy and may be biased (e.g. toward long, polite
+messages); compare groups judged by the same model, and check a sample by hand.
+"""
 
 
 @metric("judge_assistant", kind="soft", title="LLM judge: assistant", needs_llm=True, version="1",
+        formula=r"J_c \in \{1, \dots, 7\} \ \text{for every criterion } c, \qquad J_{\text{overall}} \in \{1, \dots, 7\}",
+        details=r"""
+A language model rates the Assistant from 1 to 7 on helpfulness, explanations, insight into the
+Opponent, understanding of the Human, explaining the scenario and its own abilities, respect for the
+Human's autonomy, communication and improving the Human's messages. Not computed for sessions without
+any Assistant activity (no chat, suggestion, function call or action).
+""" + _JUDGE_COMMON,
         columns=_cols(ASSISTANT_CRITERIA, "ja", "Assistant"))
 def judge_assistant(ctx: EvalContext, options: dict) -> dict:
     """A language model rates the Assistant (1–7) on helpfulness, explanations,
@@ -271,6 +306,13 @@ def judge_assistant(ctx: EvalContext, options: dict) -> dict:
 
 
 @metric("judge_opponent", kind="soft", title="LLM judge: opponent", needs_llm=True, version="1",
+        formula=r"J_c \in \{1, \dots, 7\} \ \text{for every criterion } c, \qquad J_{\text{overall}} \in \{1, \dots, 7\}",
+        details=r"""
+A language model rates the Opponent as the Human experienced it from 1 to 7: kindness, intelligence,
+cooperativeness, how human-like it seemed, its messages and its consistency. Compare with the
+participant's own view (`questionnaire`: `opponent_kindness`, `opponent_intelligence`,
+`opponent_humanlike`). Not computed for sessions without offers.
+""" + _JUDGE_COMMON,
         columns=_cols(OPPONENT_CRITERIA, "jo", "Opponent"))
 def judge_opponent(ctx: EvalContext, options: dict) -> dict:
     """A language model rates the opponent as the human experienced it."""
@@ -281,6 +323,12 @@ def judge_opponent(ctx: EvalContext, options: dict) -> dict:
 
 
 @metric("judge_human", kind="soft", title="LLM judge: human", needs_llm=True, version="1",
+        formula=r"J_c \in \{1, \dots, 7\} \ \text{for every criterion } c, \qquad J_{\text{overall}} \in \{1, \dots, 7\}",
+        details=r"""
+A language model rates what the Human did themselves (not the Assistant) from 1 to 7: engagement,
+strategy, cooperativeness, use of the Assistant (neither ignoring nor blindly following it) and their
+messages. Not computed for sessions without actions.
+""" + _JUDGE_COMMON,
         columns=_cols(HUMAN_CRITERIA, "jh", "Human"))
 def judge_human(ctx: EvalContext, options: dict) -> dict:
     """A language model rates the human's engagement and negotiation."""
@@ -298,9 +346,35 @@ def _assertions(options: dict) -> list[str]:
     return [str(x) for x in a if str(x).strip()]
 
 
-@metric("nl_assertions", kind="soft", title="LLM judge: assertions", needs_llm=True, version="1", columns=[
-    C("assertions_met", "Assertions met", "Share of the natural-language assertions the judge found satisfied", True),
-    C("assertions_total", "Assertions judged", "Assertions that applied to this session"),
+@metric("nl_assertions", kind="soft", title="LLM judge: assertions", needs_llm=True, version="1",
+        options={"assertions": "The statements to check (a list of strings); default: env.json evaluation.assertions or the built-in list."},
+        formula=r"m_i \in \{\text{true}, \text{false}, \text{null}\} \ \text{for every assertion } i",
+        details=r"""
+Natural-language statements the session should satisfy, each judged by a language model as met
+(true), not met (false) or not applicable (null, when the record gives no opportunity to check it).
+By default they check the Assistant's explanatory behaviour: that it explained what it can do, the
+Opponent's behaviour and its recommendations, checked the Human's goals, helped them understand the
+scenario, never acted without consent and gave advice consistent with the Human's preferences. Set your
+own with the option `assertions` or `evaluation.assertions` in env.json. Each verdict and its
+one-sentence reasoning are in the details.
+
+**Example.** Seven assertions: four met, one not met, two not applicable. `assertions_met`
+$= 4/5 = 0.8$ and `assertions_total` $= 5$.
+
+Not computed for sessions without Assistant activity unless assertions are given explicitly.
+""" + _JUDGE_COMMON, columns=[
+    C("assertions_met", "Assertions met", "Share of the applicable natural-language assertions the judge found satisfied", True,
+      formula=r"\frac{\lvert \{i : m_i = \text{true}\} \rvert}{\lvert \{i : m_i \neq \text{null}\} \rvert}", range="[0, 1]",
+      details=r"""
+The share of the applicable assertions that were met; assertions judged not applicable are left out.
+Higher is better. Empty when none applied.
+"""),
+    C("assertions_total", "Assertions judged", "Assertions that applied to this session",
+      formula=r"\lvert \{i : m_i \neq \text{null}\} \rvert", range="count",
+      details=r"""
+How many assertions the judge found applicable (met or not met): the denominator of `assertions_met`.
+It is not the number of assertions asked.
+"""),
 ])
 def nl_assertions(ctx: EvalContext, options: dict) -> dict:
     """Natural-language statements about the session (by default about the
@@ -333,14 +407,65 @@ def nl_assertions(ctx: EvalContext, options: dict) -> dict:
 SEVERITIES = ("minor", "major", "critical")
 
 
-@metric("error_review", kind="soft", title="LLM judge: error review", needs_llm=True, version="1", columns=[
-    C("assistant_errors", "Assistant errors", "Errors the judge found in the assistant's behaviour", False),
-    C("assistant_critical_errors", "Assistant critical errors", "… of which critical (changed the outcome)", False),
-    C("human_errors", "Human errors", "Errors the judge found in the human's decisions", False),
-    C("human_critical_errors", "Human critical errors", "… of which critical", False),
-    C("human_overrode_helpfully", "Helpful overrides", "Times the human went against the assistant and it helped", True),
-    C("human_overrode_harmfully", "Harmful overrides", "Times the human went against the assistant and it hurt", False),
-    C("first_critical", "First critical error", "Who made the first critical error: assistant, human or none"),
+@metric("error_review", kind="soft", title="LLM judge: error review", needs_llm=True, version="1",
+        formula=r"E = \{(\text{source}, \text{time}, \text{severity}, \dots)\}, \quad \text{severity} \in \{\text{minor}, \text{major}, \text{critical}\}",
+        details=r"""
+A language model lists the errors $E$ made by the Assistant and by the Human (wrong or harmful advice,
+misreading the Opponent, accepting a bad deal, rejecting a good one, ignoring their own preferences,
+unclear or misleading messages, acting without consent, …), each with its source, time, severity
+(**critical** = it changed the final outcome) and tags, and counts the times the Human went against the
+Assistant's suggestion and whether that helped or hurt. The full list is in the details.
+
+An error whose source mentions "assist" or "agent" is the Assistant's, any other the Human's; an
+unknown severity counts as minor.
+
+**Example.** The judge reports a minor Assistant error at 01:10, a critical Human error at 02:30 and a
+critical Assistant error at 03:05: `assistant_errors` $= 2$, `assistant_critical_errors` $= 1$,
+`human_errors` $= 1$, `human_critical_errors` $= 1$ and `first_critical` = human.
+
+Not computed for sessions without actions.
+""" + _JUDGE_COMMON, columns=[
+    C("assistant_errors", "Assistant errors", "Errors the judge found in the assistant's behaviour", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{assistant}\} \rvert", range="count",
+      details=r"""
+How many errors the judge attributed to the Assistant, of any severity. Lower is better.
+"""),
+    C("assistant_critical_errors", "Assistant critical errors", "… of which critical (changed the outcome)", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{assistant} \wedge \text{severity}(e) = \text{critical}\} \rvert",
+      range="count",
+      details=r"""
+The Assistant's errors that, according to the judge, changed the final outcome.
+"""),
+    C("human_errors", "Human errors", "Errors the judge found in the human's decisions", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{human}\} \rvert", range="count",
+      details=r"""
+How many errors the judge attributed to the Human, of any severity. Lower is better.
+"""),
+    C("human_critical_errors", "Human critical errors", "… of which critical", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{human} \wedge \text{severity}(e) = \text{critical}\} \rvert",
+      range="count",
+      details=r"""
+The Human's errors that, according to the judge, changed the final outcome.
+"""),
+    C("human_overrode_helpfully", "Helpful overrides", "Times the human went against the assistant and it helped", True,
+      formula=r"n_{\text{override}}^{+}", range="count",
+      details=r"""
+How often the Human did something different from the Assistant's suggestion and it helped them, as
+counted by the judge. Higher means the Human added value over the Assistant.
+"""),
+    C("human_overrode_harmfully", "Harmful overrides", "Times the human went against the assistant and it hurt", False,
+      formula=r"n_{\text{override}}^{-}", range="count",
+      details=r"""
+How often the Human did something different from the Assistant's suggestion and it hurt them, as
+counted by the judge.
+"""),
+    C("first_critical", "First critical error", "Who made the first critical error: assistant, human or none",
+      formula=r"\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{none}\}",
+      range="category",
+      details=r"""
+Who made the earliest critical error (by the mm:ss time the judge gave; errors without a readable
+time come last), or none. It shows who first put the outcome at risk.
+"""),
 ])
 def error_review(ctx: EvalContext, options: dict) -> dict:
     """The judge lists the mistakes of the assistant and of the human with

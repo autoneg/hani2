@@ -126,6 +126,10 @@ body {
 .md > :first-child { @apply mt-0; }
 .md > :last-child { @apply mb-0; }
 .md-sm { @apply text-[0.8rem]; }
+/* math (KaTeX) */
+.md-math-display { @apply block overflow-x-auto overflow-y-hidden; }
+.md-math-display .katex-display { @apply my-2; }
+.md .katex { font-size: 1.05em; }
 .md-lg { @apply text-base; }
 
 /* highlights driven by the Assistant */
