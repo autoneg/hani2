@@ -4,7 +4,7 @@ Example::
 
     from hani2.testing import make_session
 
-    s = make_session(agent_class="my_agent:MyAgent", partner="BoulwareTBNegotiator")
+    s = make_session(agent_class="my_agent:MyAgent", opponent="BoulwareTBNegotiator")
     s.start()
     s.wait_for_turn()
     s.send_counter("Here is my offer")
@@ -90,9 +90,9 @@ def make_session(
     *,
     user: str = "tester",
     mode: str = "main",
-    partner: str | None = "BoulwareTBNegotiator",
+    opponent: str | None = None,
     agent_class: str | None = None,
-    support_settings: dict[str, Any] | None = None,
+    assistant_settings: dict[str, Any] | None = None,
     scenario_type: str | None = "Trade",
     n_steps: int | None = 20,
     time_limit: float | None = None,
@@ -100,37 +100,45 @@ def make_session(
     home: str | None = None,
     query: dict[str, Any] | None = None,
     load: bool = True,
+    partner: str | None = "BoulwareTBNegotiator",
+    support_settings: dict[str, Any] | None = None,
 ) -> TestSession:
     """Create a headless session (and load a scenario).
 
-    ``agent_class`` / ``support_settings`` configure the support agent for this
-    session only (they override ``support_agent_settings.json``).
+    ``opponent`` is the opponent negotiator (default ``BoulwareTBNegotiator``).
+    ``agent_class`` / ``assistant_settings`` configure the Assistant for this
+    session only (they override ``assistant_settings.json``). ``partner`` and
+    ``support_settings`` are the old names of ``opponent`` and
+    ``assistant_settings`` and still work (the new names win).
     """
     if home is not None or "HANI2_HOME" not in os.environ:
         os.environ["HANI2_HOME"] = home or tempfile.mkdtemp(prefix="hani2-test-")
     os.environ.setdefault("HANI2_EVENTS", "0")
     q = dict(query or {})
-    if partner:
-        q.setdefault("opponents", partner)
+    opponent = opponent or partner
+    if opponent:
+        q.setdefault("opponents", opponent)
 
     from hani2.support_agent import runtime
-    from hani2.support_agent.settings import load_support_agent_settings
+    from hani2.support_agent.settings import load_assistant_settings
 
-    settings = load_support_agent_settings()
+    settings = load_assistant_settings()
     settings["mode"] = "on"
     if agent_class is not None:
         settings["agent_class"] = agent_class
     settings.update(support_settings or {})
+    settings.update(assistant_settings or {})
 
     original = runtime.load_support_agent_settings
     runtime.load_support_agent_settings = lambda: settings  # type: ignore[assignment]
-    old_env = os.environ.pop("HANI2_SUPPORT_AGENT", None)
+    old_env = {v: os.environ.pop(v, None) for v in ("HANI2_ASSISTANT", "HANI2_SUPPORT_AGENT")}
     try:
         s = TestSession(f"test:{uuid.uuid4().hex[:8]}", user, mode=mode, is_admin=is_admin, query=q, hub=_Collector())
     finally:
         runtime.load_support_agent_settings = original  # type: ignore[assignment]
-        if old_env is not None:
-            os.environ["HANI2_SUPPORT_AGENT"] = old_env
+        for v, value in old_env.items():
+            if value is not None:
+                os.environ[v] = value
     s.admin_prefs["n_steps"] = n_steps
     s.admin_prefs["time_limit"] = time_limit
     s.admin_prefs["allow_scenario_selection"] = True

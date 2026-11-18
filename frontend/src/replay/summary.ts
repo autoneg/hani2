@@ -1,9 +1,9 @@
 import type { Rec, Replay } from "./reconstruct";
 
-export type Kind = "human" | "partner" | "assistant" | "llm" | "fn" | "click" | "questionnaire" | "system" | "input";
+export type Kind = "human" | "opponent" | "assistant" | "llm" | "fn" | "click" | "questionnaire" | "system" | "input";
 export const KINDS: { kind: Kind; label: string; color: string; defaultOn: boolean }[] = [
   { kind: "human", label: "Your actions", color: "#2563eb", defaultOn: true },
-  { kind: "partner", label: "Partner offers", color: "#d97706", defaultOn: true },
+  { kind: "opponent", label: "Opponent offers", color: "#d97706", defaultOn: true },
   { kind: "assistant", label: "Assistant", color: "#7c3aed", defaultOn: true },
   { kind: "llm", label: "LLM calls", color: "#0d9488", defaultOn: true },
   { kind: "fn", label: "Functions", color: "#64748b", defaultOn: true },
@@ -84,7 +84,7 @@ export function buildTimeline(r: Replay): TimelineItem[] {
         add(t, "system", `Negotiation started${e.opponent ? ` with ${e.opponent}` : ""}`, e);
         break;
       case "result":
-        add(t, "system", `Result: ${e.summary?.status ?? "finished"}${e.summary?.human_utility != null ? ` (you ${num(e.summary.human_utility)}, partner ${num(e.summary.agent_utility)})` : ""}`, e);
+        add(t, "system", `Result: ${e.summary?.status ?? "finished"}${e.summary?.human_utility != null ? ` (you ${num(e.summary.human_utility)}, opponent ${num(e.summary.agent_utility)})` : ""}`, e);
         break;
       case "scenario":
         add(t, "system", `Scenario ${e.name ?? ""} loaded`, e);
@@ -102,7 +102,7 @@ export function buildTimeline(r: Replay): TimelineItem[] {
     lastKey = k.t;
     if (k.v === "char") add(k.t, "input", "Typed", undefined, false);
   }
-  // partner offers: new offers by the other side in the history the browser received
+  // opponent offers: new offers by the other side in the history the browser received
   const seen = new Set<any>();
   for (const m of r.msgs) {
     const items: any[] | undefined = m.type === "state" ? m.data?.history : m.type === "history" ? m.data?.items : undefined;
@@ -111,7 +111,7 @@ export function buildTimeline(r: Replay): TimelineItem[] {
       if (seen.has(it.id)) continue;
       seen.add(it.id);
       if (it.kind === "offer" && it.by === "agent" && !m.carry)
-        add(m.t, "partner", `Partner offered ${it.offer_str || values(it.offer)}${it.text ? `: "${short(it.text, 60)}"` : ""}${it.utility != null ? ` (worth ${num(it.utility)} to you)` : ""}`);
+        add(m.t, "opponent", `Opponent offered ${it.offer_str || values(it.offer)}${it.text ? `: "${short(it.text, 60)}"` : ""}${it.utility != null ? ` (worth ${num(it.utility)} to you)` : ""}`);
     }
   }
   out.sort((a, b) => a.t - b.t);

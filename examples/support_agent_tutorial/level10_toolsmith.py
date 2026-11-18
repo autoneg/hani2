@@ -4,7 +4,7 @@ The agent ships a tool of its own, the *Deal Compass*. Its ``timing`` is
 ``"agent"``, so nobody sees it until the agent decides to add it: here, when the
 negotiation starts. Then, every time it is the participant's turn, the agent
 *uses* a tool the participant already has, the Utility-based Selector: it moves
-the selector's minimum-utility slider just above the partner's offer and picks
+the selector's minimum-utility slider just above the opponent's offer and picks
 the best row, which fills the counter-offer. The agent never needed to know how
 the selector works inside: it reads the tool's inputs, buttons and table with
 :meth:`read_tool` and operates them with :meth:`use_tool`, exactly like the
@@ -24,16 +24,16 @@ class DealCompassTool(Tool):
     """How the offer on the table compares with your no-deal value, issue by issue."""
 
     name = "Deal Compass"
-    description = "How the partner's offer compares with walking away, issue by issue."
-    agent_hint = "Read it to see which issues of the partner's offer are weak for the participant."
+    description = "How the opponent's offer compares with walking away, issue by issue."
+    agent_hint = "Read it to see which issues of the opponent's offer are weak for the participant."
     icon = "compass"
     pane = "side"
-    timing = "agent"  # only the support agent adds it
+    timing = "agent"  # only the Assistant adds it
 
     def view(self):
         offer = self.session.partner_offer()
         if offer is None or self.human_ufun is None:
-            return [ui.text_block("Waiting for the partner's first offer.", muted=True)]
+            return [ui.text_block("Waiting for the opponent's first offer.", muted=True)]
         u = float(self.human_ufun(offer))
         rv = float(self.human_ufun.reserved_value or 0)
         verdict = "better than walking away" if u > rv else "worse than walking away"
@@ -41,7 +41,7 @@ class DealCompassTool(Tool):
         values = getattr(self.human_ufun, "values", None)
         if values is not None:
             for issue, fun, v in zip(self.issues, values, offer):
-                rows.append({"Issue": issue.name, "Partner offers": v, "Your score": float(fun(v))})
+                rows.append({"Issue": issue.name, "Opponent offers": v, "Your score": float(fun(v))})
         out = [ui.stat("This offer is worth", f"{u:.0%}", hint=verdict, kind="good" if u > rv else "bad")]
         if rows:
             out.append(ui.table(rows, formats={"Your score": "percent"}))
@@ -66,7 +66,7 @@ class ToolsmithAgent(SupportAgent):
         ufun = self.session_state.get("human_ufun")
         if offer is None or ufun is None:
             return
-        # aim a little above what the partner offers now; if no option is in that band,
+        # aim a little above what the opponent offers now; if no option is in that band,
         # look in the bands above it, then below it
         start = min(95, int(float(ufun(offer)) * 100) + 10)
         bands = [b for b in range(start, 100, 15)] + [b for b in range(start - 15, -1, -15)]

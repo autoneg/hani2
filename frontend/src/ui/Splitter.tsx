@@ -3,7 +3,7 @@ import { send, useStore } from "../store";
 
 /** A size the participant can change by dragging a divider. The value is a
  *  fraction of the container (0–1). It is stored in the session layout
- *  (`layout.sizes[key]`) so it survives reloads and the support agent can set it;
+ *  (`layout.sizes[key]`) so it survives reloads and the Assistant can set it;
  *  `undefined` means "use the default". */
 export function useLayoutSize(key: string): [number | undefined, (v: number | undefined) => void, (v: number | undefined) => void] {
   const stored = useStore((s) => s.state?.layout.sizes?.[key]) as number | undefined;

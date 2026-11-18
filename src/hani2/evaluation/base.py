@@ -293,7 +293,7 @@ class EvalContext:
     @cached_property
     def turn_starts(self) -> list[float]:
         """Times the participant's turn began (from the screen states when a
-        browser was connected, else the partner's offers)."""
+        browser was connected, else the opponent's offers)."""
         out, prev = [], False
         for t, _, st in self.rec.states():
             neg = (st or {}).get("negotiation") or {}

@@ -6,7 +6,7 @@ from my_agent import MyAgent
 
 
 def test_assess_runs_on_a_live_negotiation():
-    session = make_session(agent_class="my_agent:MyAgent", partner="BoulwareTBNegotiator")
+    session = make_session(agent_class="my_agent:MyAgent", opponent="BoulwareTBNegotiator")
     session.start()
     session.wait_for_turn()
     agent = session.support_agent

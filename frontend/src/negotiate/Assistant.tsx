@@ -135,7 +135,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
       <div ref={ref} className="scroll-thin flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
         {st.chat.length === 0 && (
           <div className="mt-6 text-center text-sm text-muted">
-            Ask about your partner's offer, what to propose next, or what a tool shows.
+            Ask about your opponent's offer, what to propose next, or what a tool shows.
           </div>
         )}
         {st.chat.map((m) => {

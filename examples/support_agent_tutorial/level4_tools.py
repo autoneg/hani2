@@ -13,7 +13,7 @@ class CoachDispatcher(ToolDispatcher):
             self._assess,
             lambda: make_function_schema(
                 "assess_partner_offer",
-                "Judge the partner's current offer against the user's reserved "
+                "Judge the opponent's current offer against the user's reserved "
                 "value and a target that relaxes as the deadline nears. Call this "
                 "before recommending accept / counter / end.",
                 {},
@@ -26,7 +26,7 @@ class CoachDispatcher(ToolDispatcher):
         ctx = self.runtime.run_on_doc(self.ss["actions"]["context"])
         utility = ctx["partner_offer_utility"]
         if utility is None:
-            return {"ok": False, "error": "the partner has not made an offer yet"}
+            return {"ok": False, "error": "the opponent has not made an offer yet"}
         reserved = ctx["reserved_value"]
         time = ctx["relative_time"] or 0.0
         target = max(reserved, 0.9 - 0.4 * time)  # 90% at the start, 50% at the end

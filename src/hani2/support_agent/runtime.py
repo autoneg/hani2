@@ -1,6 +1,7 @@
-"""The Negotiation Support Agent runtime.
+"""The Assistant runtime.
 
-One :class:`SupportAgent` lives in each session (``session_state["support_agent"]``).
+:class:`Assistant` is the class of the Assistant; :class:`SupportAgent` is its
+old name (the same class). One :class:`SupportAgent` lives in each session (``session_state["support_agent"]``).
 It owns the conversation with its language model, the capability state, and the
 multi-turn tool-calling loop, and it can reach the participant at any moment
 (chat, notifications, the status board, highlights, notes, layout changes and
@@ -11,7 +12,7 @@ without freezing the interface. Use :meth:`SupportAgent.run_on_doc` to read or
 change interface-owned state atomically.
 
 Build your own agent by subclassing :class:`SupportAgent` and pointing
-``support_agent_settings.json`` → ``agent_class`` at it
+``assistant_settings.json`` → ``agent_class`` at it
 (``"my_module:MyAgent"``).
 """
 
@@ -34,11 +35,12 @@ from hani2.support_agent.tools import ToolDispatcher, _log_agent_action
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
 
-__all__ = ["SupportAgent", "resolve_agent_class", "create_support_agent_for", "flatten_tool_messages"]
+__all__ = ["Assistant", "SupportAgent", "resolve_agent_class", "create_assistant_for", "create_support_agent_for",
+           "flatten_tool_messages"]
 
 _VALID_TOAST_LEVELS = {"info", "success", "warning", "error"}
 _VALID_PROACTIVE_DELIVERY = {"toast", "board", "chat"}
-AGENT_NAME = "Support Agent"
+AGENT_NAME = "Assistant"
 
 
 def flatten_tool_messages(messages: list[dict]) -> list[dict]:
@@ -80,7 +82,7 @@ def parse_text_tool_calls(content: str) -> list[dict]:
 
 
 class SupportAgent:
-    """Base Negotiation Support Agent.
+    """Base Assistant (``Assistant``; ``SupportAgent`` is the old name of this class).
 
     Override any of these (all optional):
 
@@ -277,7 +279,7 @@ class SupportAgent:
             try:
                 cls = import_tool(item) if isinstance(item, str) else item
             except Exception as e:  # noqa: BLE001
-                print(f"[hani2] support agent tool {item!r} could not be loaded: {e}")
+                print(f"[hani2] Assistant tool {item!r} could not be loaded: {e}")
                 continue
             name = getattr(cls, "name", "") or cls.__name__
             if name.lower() in present or name.lower() in disabled:
@@ -541,7 +543,7 @@ class SupportAgent:
             return "(system) A new negotiation just started. Briefly greet the human and offer help if appropriate."
         if event_name == "action_requested":
             return ("(system) It is now the human's turn to act. If you have a useful observation about the "
-                    "partner's latest offer, share it concisely.")
+                    "opponent's latest offer, share it concisely.")
         if event_name == "negotiation_ended":
             return "(system) The negotiation ended. Give a one-sentence debrief."
         return None
@@ -590,7 +592,7 @@ class SupportAgent:
             acted = self._run_turn(system_note=note, context_note=self._context_snapshot(), force_action=True) or set()
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            print(f"[autopilot] support-agent turn failed: {e}")
+            print(f"[autopilot] Assistant turn failed: {e}")
         if acted & self._ACTION_TOOLS:
             self._autopilot_stalls = 0
             return
@@ -599,7 +601,7 @@ class SupportAgent:
 
     def _autopilot_fallback(self) -> None:
         if self._autopilot_stalls >= 3:
-            self.toast("Autopilot disengaged: the support agent kept failing to act. You're back in control.", "error")
+            self.toast("Autopilot disengaged: the Assistant kept failing to act. You're back in control.", "error")
             self.session.set_autopilot(False)
             return
         self.toast("Autopilot: the agent didn't act; sending a counter-offer to keep the negotiation moving.", "warning")
@@ -664,7 +666,7 @@ class SupportAgent:
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             if not force_action:
-                self.post(f"⚠️ Support agent error: {e}")
+                self.post(f"⚠️ Assistant error: {e}")
             return executed
         finally:
             self._busy.release()
@@ -774,6 +776,10 @@ def load_class(path: str) -> type:
     return getattr(importlib.import_module(mod), attr)
 
 
+#: the Assistant's class (``SupportAgent`` is its old name; both are the same object)
+Assistant = SupportAgent
+
+
 def resolve_agent_class(settings: dict) -> type[SupportAgent]:
     """Resolve ``agent_class`` (``module:Class``, ``module.Class`` or
     ``path/to/file.py:Class``); fall back to :class:`SupportAgent` (with a
@@ -784,7 +790,7 @@ def resolve_agent_class(settings: dict) -> type[SupportAgent]:
     try:
         klass = load_class(path)
         if not (isinstance(klass, type) and issubclass(klass, SupportAgent)):
-            raise TypeError(f"{path} is not a SupportAgent subclass")
+            raise TypeError(f"{path} is not an Assistant (SupportAgent) subclass")
         return klass
     except Exception as e:  # noqa: BLE001
         print(f"[hani2] WARNING: could not load custom agent_class {path!r} ({e}); using the default agent")
@@ -810,3 +816,7 @@ def get_or_create_support_agent(session_state: dict[str, Any], settings: dict | 
     if agent is None:
         agent = create_support_agent_for(session_state["_session"])
     return agent
+
+
+#: new name of :func:`create_support_agent_for`
+create_assistant_for = create_support_agent_for

@@ -1,12 +1,12 @@
-# Support-agent template
+# Assistant template
 
-A minimal, working starting point for your own negotiation support agent.
+A minimal, working starting point for your own negotiation Assistant.
 
 ```bash
 pip install hani2
 hani2 setup
 ollama pull qwen3:4b-instruct            # or configure any litellm provider
-cp settings.example.json ~/negmas/hani2/settings/support_agent_settings.json
+cp settings.example.json ~/negmas/hani2/settings/assistant_settings.json
 PYTHONPATH=$PWD hani2 --page play        # click Start, then open the Assistant
 pytest                                   # offline smoke test
 ```

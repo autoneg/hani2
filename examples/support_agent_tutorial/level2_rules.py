@@ -15,7 +15,7 @@ class RulesAgent(SupportAgent):
 
         offer = ctx["partner_offer"]
         if offer is None:
-            self.post("Your partner has not made an offer yet.")
+            self.post("Your opponent has not made an offer yet.")
             return
 
         utility = ctx["partner_offer_utility"]
@@ -26,6 +26,6 @@ class RulesAgent(SupportAgent):
             advice = "That beats your reserved value - it could be acceptable."
         offer_text = ", ".join(f"{issue}: {value}" for issue, value in offer.items())
         self.post(
-            f"Partner offer: {offer_text}\n\n"
+            f"Opponent offer: {offer_text}\n\n"
             f"Worth **{utility:.0%}** to you (reserved value {reserved:.0%}). {advice}"
         )

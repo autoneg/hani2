@@ -6,7 +6,7 @@ HANI2 is a regular Python package. The web interface ships pre-built inside the 
 
 - Python 3.11 or newer (3.11 to 3.15 are tested).
 - A modern browser.
-- Optional: a language model. The built-in support agent, the LLM opponents and the message-writing tools need one. A local model served by [Ollama](https://ollama.com) works; so does any hosted provider. See [Language models](../guide/llms.md).
+- Optional: a language model. The built-in Assistant, the LLM opponents and the message-writing tools need one. A local model served by [Ollama](https://ollama.com) works; so does any hosted provider. See [Language models](../guide/llms.md).
 
 ## Install the package
 
@@ -56,7 +56,7 @@ hani2 setup
 | --- | --- |
 | `env.json` | The main deployment configuration: title, authentication, opponents, negotiation defaults, tools. |
 | `llm_settings.json` | The language model used to write and read negotiation messages and by LLM opponents. |
-| `support_agent_settings.json` | The support agent: who gets it, its model, autonomy and capabilities. |
+| `assistant_settings.json` | The Assistant: who gets it, its model, autonomy and capabilities. |
 | `autopilot_settings.json` | Whether autopilot is allowed and which drivers are offered. |
 | `consent.md` | The consent form shown at registration. |
 | `announcements.md` | The welcome text shown before a negotiation. |

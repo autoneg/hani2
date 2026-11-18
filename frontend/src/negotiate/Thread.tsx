@@ -7,12 +7,12 @@ import { Gauge } from "../ui/Gauge";
 import { fmtValue, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
 
-function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" | "partner" }) {
+function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" | "opponent" }) {
   const issues = useStore((s) => s.state?.scenario?.issues);
   return (
     <div className="flex flex-wrap gap-1">
       {Object.entries(offer).map(([k, v]) => (
-        <span key={k} className={`inline-flex items-baseline gap-1 rounded-md px-1.5 py-0.5 text-xs ${tone === "you" ? "bg-you/10" : "bg-partner/10"}`}>
+        <span key={k} className={`inline-flex items-baseline gap-1 rounded-md px-1.5 py-0.5 text-xs ${tone === "you" ? "bg-you/10" : "bg-opponent/10"}`}>
           <span className="text-muted">{k}</span>
           <b className="tnum font-semibold">{showValue(issues?.find((i) => i.name === k), v)}</b>
         </span>
@@ -23,15 +23,15 @@ function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" |
 
 function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: number; last: boolean; display: string }) {
   const mine = h.by === "human";
-  const tone = mine ? "you" : "partner";
+  const tone = mine ? "you" : "opponent";
   return (
     <Anchor id={last ? "history:last" : `history:${h.id}`} className={`enter flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
-      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mine ? "bg-you text-white" : "bg-partner text-white"}`} aria-hidden>
+      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mine ? "bg-you text-white" : "bg-opponent text-white"}`} aria-hidden>
         {mine ? <UserRound size={15} /> : <Bot size={15} />}
       </div>
-      <div className={`flex max-w-[min(34rem,85%)] flex-col gap-1.5 rounded-xl border px-3 py-2 ${mine ? "rounded-tr-sm border-you/20 bg-you/[0.04]" : "rounded-tl-sm border-partner/25 bg-partner/[0.05]"}`}>
+      <div className={`flex max-w-[min(34rem,85%)] flex-col gap-1.5 rounded-xl border px-3 py-2 ${mine ? "rounded-tr-sm border-you/20 bg-you/[0.04]" : "rounded-tl-sm border-opponent/25 bg-opponent/[0.05]"}`}>
         <div className="flex items-center gap-2 text-[11px] text-muted">
-          <span className={`font-semibold ${mine ? "text-you" : "text-partner"}`}>{mine ? "You" : "Partner"}</span>
+          <span className={`font-semibold ${mine ? "text-you" : "text-opponent"}`}>{mine ? "You" : "Opponent"}</span>
           {h.step !== null && h.step !== undefined && <span className="tnum">round {h.step + 1}</span>}
           {h.relative_time !== null && h.relative_time !== undefined && (
             <span className="tnum inline-flex items-center gap-0.5">
@@ -83,15 +83,15 @@ export function Thread() {
   if (newestFirst) list = [...list].reverse();
   const typing = thinking && (
     <div className="flex items-center gap-2.5 text-sm text-muted" role="status">
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-partner/15 text-partner">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-opponent/15 text-opponent">
         <Bot size={15} />
       </div>
       <span className="inline-flex gap-1" aria-hidden>
-        <span className="dot h-1.5 w-1.5 rounded-full bg-partner" />
-        <span className="dot h-1.5 w-1.5 rounded-full bg-partner" />
-        <span className="dot h-1.5 w-1.5 rounded-full bg-partner" />
+        <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
+        <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
+        <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
       </span>
-      {st.phase === "starting" ? "Setting up the negotiation…" : "Your partner is thinking…"}
+      {st.phase === "starting" ? "Setting up the negotiation…" : "Your opponent is thinking…"}
     </div>
   );
   return (
@@ -101,7 +101,7 @@ export function Thread() {
         {newestFirst && typing}
         {list.length === 0 && !thinking && (
           <div className="m-auto max-w-sm text-center text-sm text-muted">
-            {st.phase === "ready" ? "Offers you and your partner exchange will appear here." : "No offers yet."}
+            {st.phase === "ready" ? "Offers you and your opponent exchange will appear here." : "No offers yet."}
           </div>
         )}
         {list.map((h) =>

@@ -22,7 +22,7 @@ def test_level2_reads_state():
     s.start()
     s.wait_for_turn()
     chat(s, "what now?")
-    assert "Partner offer:" in s.chat[-1]["text"]
+    assert "Opponent offer:" in s.chat[-1]["text"]
 
 
 def test_bad_agent_class_falls_back():

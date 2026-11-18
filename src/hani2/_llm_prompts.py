@@ -53,7 +53,7 @@ NEGOTIATION HISTORY:
 YOUR PROPOSED OFFER (what you want to send):
 {outcome_description}
 
-PARTNER'S OFFER YOU ARE REJECTING:
+OPPONENT'S OFFER YOU ARE REJECTING:
 {rejected_outcome_description}
 
 YOUR STRATEGIC CONTEXT (qualitative assessment - do NOT reveal these details directly):
@@ -62,7 +62,7 @@ YOUR STRATEGIC CONTEXT (qualitative assessment - do NOT reveal these details dir
 === TASK ===
 
 Generate a natural, persuasive negotiation message that:
-1. If rejecting a partner's offer: Diplomatically explain why their offer doesn't work for you WITHOUT revealing your exact preferences or utility values
+1. If rejecting an opponent's offer: Diplomatically explain why their offer doesn't work for you WITHOUT revealing your exact preferences or utility values
 2. Present your counter-offer in a way that highlights mutual benefits
 3. Use negotiation principles such as:
    - Anchoring: Frame your offer as reasonable and well-justified
@@ -75,7 +75,7 @@ Generate a natural, persuasive negotiation message that:
 
 CRITICAL: Never mention specific utility values, percentages, weights, or that you're using a utility function.
 Instead, use qualitative language like "this works better for my needs" or "I need more flexibility on X".
-The utility function information is for YOUR reasoning only - never expose it to your negotiation partner.
+The utility function information is for YOUR reasoning only - never expose it to your negotiation opponent.
 
 Return only the message text, no additional formatting or explanation."""
 
@@ -95,7 +95,7 @@ YOUR UTILITY FUNCTION (your preferences - use this to make strategic decisions):
 NEGOTIATION HISTORY:
 {negotiation_history}
 
-CURRENT PARTNER OFFER (if any):
+CURRENT OPPONENT OFFER (if any):
 {current_offer_description}
 Your utility for this offer: {current_offer_utility}
 

@@ -49,7 +49,7 @@ RESOURCES = Story(
     type="Resources",
     title="Resource Exchange",
     short_description='In this scenario, two traders split a shipment of gold, iron, bananas and spices (five items of each).',
-    long_description='**The Domain** There are four issues, one per good: how many of its five items you get; your partner gets the rest. Each item is worth some points to you (see your hints) and different points to your partner.',
+    long_description='**The Domain** There are four issues, one per good: how many of its five items you get; your opponent gets the rest. Each item is worth some points to you (see your hints) and different points to your opponent.',
     roles={"agent": _trader("agent"), "human": _trader("human")},
     role_descriptions={"agent": "one of the two traders", "human": "one of the two traders"},
     issues=[Issue(g, list(range(n + 1)), f"How many of the {n} {GOODS_UNITS[g][1]} you get", unit=GOODS_UNITS[g])
@@ -88,7 +88,7 @@ ESTATE_STORY = Story(
     type="Estate",
     title="Dividing an Estate",
     short_description='In this scenario, two heirs divide a collection: six vinyl records, three clocks, two paintings and three books.',
-    long_description='**The Domain** There are four issues, one per kind of item: how many you get; your partner gets the rest. The piles have different sizes. Each item is worth some points to you (see your hints) and different points to your partner.',
+    long_description='**The Domain** There are four issues, one per kind of item: how many you get; your opponent gets the rest. The piles have different sizes. Each item is worth some points to you (see your hints) and different points to your opponent.',
     roles={"agent": _heir("agent"), "human": _heir("human")},
     role_descriptions={"agent": "one of the two heirs", "human": "one of the two heirs"},
     issues=[Issue(k, list(range(n + 1)), f"How many of the {n} {ESTATE_UNITS[k][1]} you get", unit=ESTATE_UNITS[k])

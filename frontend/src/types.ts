@@ -7,7 +7,7 @@ export interface IssueSpec {
   max?: number;
   values?: (string | number)[];
   description?: string;
-  /** shown names of some values (e.g. "agent" → "Partner"); the value itself is what is sent */
+  /** shown names of some values (e.g. "agent" → "Opponent"); the value itself is what is sent */
   labels?: Record<string, string>;
 }
 
@@ -40,7 +40,7 @@ export interface ToolInfo {
   visible: boolean;
   enabled: boolean;
   permanent: boolean;
-  /** who added the tool during the session (e.g. the support agent's name) */
+  /** who added the tool during the session (e.g. the Assistant's name) */
   added_by?: string | null;
 }
 

@@ -18,14 +18,14 @@ class NegotiationSummary(LLMTool):
 
     **How it works.** When you press **Summarise**, the issues and every offer and message so
     far (with what each offer is worth to you) are sent to the language model, which writes
-    the summary shown here. Nothing is sent to your partner. Press the button again after
+    the summary shown here. Nothing is sent to your opponent. Press the button again after
     new offers for a fresh summary.
     """
     icon = "notebook-pen"
     button_label = "Summarise"
     needs_offers = True
     empty_text = "Press Summarise once a few offers have been made."
-    prompt = """You are helping a person (the Participant) who negotiates with a Partner.
+    prompt = """You are helping a person (the Participant) who negotiates with an Opponent.
 Summarise the negotiation below for the Participant in at most six short bullet points:
 where each side stands, what each side has conceded, which issues are still open, and one
 suggestion for the next move. Use plain language and do not invent offers."""

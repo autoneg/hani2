@@ -1,5 +1,5 @@
 """Server-side tool layout: which tools exist, where they are and whether they
-are visible / enabled. Both the participant's buttons and the support agent
+are visible / enabled. Both the participant's buttons and the Assistant
 go through this controller, so their behaviour cannot drift apart."""
 
 from __future__ import annotations

@@ -466,10 +466,10 @@ def get_agent_type(x: Negotiator | str | None) -> Negotiator:
 def _is_llm_negotiator_class(klass) -> bool:
     """True if ``klass`` is an LLM-backed negotiator (a subclass of
     negmas-llm's ``LLMNegotiator``, which includes ``OllamaNegotiator``
-    and the Prolific practice partners defined in ``pan.py``).
+    and the Prolific practice opponents defined in ``pan.py``).
 
     Used so make_mechanism injects the configured model into LLM
-    partners whose *type string* does not start with the ``"LLM"``
+    opponents whose *type string* does not start with the ``"LLM"``
     prefix the settings UI uses -- e.g. ``pan.PAHSHP0Negotiator``. Those
     otherwise fall back to negmas-llm's hard-coded default model
     (``smollm2:135m``), which is far too small to emit valid offers and
@@ -522,7 +522,7 @@ def no_accept_none_class(base: type) -> type:
     """Return a subclass of ``base`` that forbids accepting a *None* offer.
 
     Any agent (not just pan.py's) can decide to ACCEPT on a turn where there is
-    no offer on the table (e.g. its opening move, or after the partner sent a
+    no offer on the table (e.g. its opening move, or after the opponent sent a
     text-only / None offer). negmas' SAOMechanism treats an ACCEPT of a None
     offer as a hard break (agreement=None), which kills the negotiation. We do
     NOT want to forbid accepting real offers -- only the meaningless accept of
@@ -562,7 +562,7 @@ _NO_END_CLASSES: dict[type, type] = {}
 def no_end_class(base: type) -> type:
     """Return a subclass of ``base`` that never ends the negotiation itself.
 
-    Any agent (e.g. the LLM-backed pan.py practice partners) can return
+    Any agent (e.g. the LLM-backed pan.py practice opponents) can return
     END_NEGOTIATION -- for an LLM that simply means it emitted
     ``"response_type": "end"`` (see negmas_llm's response map). negmas' mechanism
     then stops with ``agreement=None``. We want the agent to be able to walk away
@@ -595,7 +595,7 @@ def no_end_class(base: type) -> type:
 #: visit never incurs LLM cost.
 DEFAULT_POOL = list(TEMPLATE_BASED_NEGOTIATORS) or list(NOTEXT_NEGOTIATORS)
 
-#: The groups offered in the admin "Partner" settings.
+#: The groups offered in the admin "Opponents" settings.
 SELECTABLE_GROUPS = {
     "llm": LLM_NEGOTIATORS,
     "template": TEMPLATE_BASED_NEGOTIATORS,

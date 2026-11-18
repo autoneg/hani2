@@ -1,6 +1,6 @@
 {
   "allowed": false,
-  "driver": "Support Agent",
+  "driver": "Assistant",
   "allowed_drivers": null,
   "step_delay": 0.5,
   "user_can_choose": null

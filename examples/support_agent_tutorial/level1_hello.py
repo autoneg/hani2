@@ -1,4 +1,4 @@
-"""Level 1 - the simplest possible Support Agent (no LLM at all)."""
+"""Level 1 - the simplest possible Assistant (no LLM at all)."""
 
 from hani2.support_agent.runtime import SupportAgent
 

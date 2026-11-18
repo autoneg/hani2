@@ -13,7 +13,7 @@ questions:
       1: "Not at all"
       5: "Extremely"
   - id: partner_cooperativeness
-    text: "How cooperative did your partner feel?"
+    text: "How cooperative did your opponent feel?"
     type: select
     required: true
     options: ["Very competitive", "Somewhat competitive", "Neutral", "Somewhat cooperative", "Very cooperative"]

@@ -1,4 +1,4 @@
-"""Capabilities and autonomy for the Negotiation Support Agent.
+"""Capabilities and autonomy for the Assistant.
 
 Two layers gate what the agent may do:
 
@@ -47,9 +47,9 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "tool_visibility": ("Show / hide tools", "Show, hide and focus tool tabs"),
     "tool_order": ("Rearrange tools", "Reorder tools and move them between panes"),
     "fill_offer": ("Fill the offer", "Put values in your counter-offer fields"),
-    "fill_text": ("Write the message", "Write the message to your partner"),
+    "fill_text": ("Write the message", "Write the message to your opponent"),
     "submit_counter": ("Send counter-offers", "Send a counter-offer for you"),
-    "accept": ("Accept", "Accept your partner's offer"),
+    "accept": ("Accept", "Accept your opponent's offer"),
     "end": ("End", "End the negotiation"),
     "highlight": ("Highlight", "Spotlight parts of the interface with a short note"),
     "annotate": ("Annotate", "Attach notes to issues, offers and other elements"),

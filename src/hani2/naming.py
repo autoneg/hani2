@@ -1,9 +1,9 @@
 """Display names for the two sides of a negotiation.
 
 Some scenarios name the sides ``human`` and ``agent`` (for example, who gets
-each item on the island). With a support agent in the session, "agent" is
+each item on the island). With the Assistant in the session, "agent" is
 ambiguous: it could be the assistant. When relabelling is on, everything the
-participant or the support agent *sees* uses ``You`` and ``Partner`` (or the
+participant or the Assistant *sees* uses ``You`` and ``Opponent`` (or the
 names set in ``env.json`` → ``names``) instead, and values coming back
 (offers filled by the participant, the agent or a tool) are mapped back to the
 scenario's own values. Stored results, logs and what the opponent receives
@@ -11,9 +11,9 @@ keep the original values.
 
 ``env.json``::
 
-    "names": {"apply": "auto", "self": "You", "opponent": "Partner"}
+    "names": {"apply": "auto", "self": "You", "opponent": "Opponent"}
 
-``apply`` is ``auto`` (relabel when the session has a support agent),
+``apply`` is ``auto`` (relabel when the session has the Assistant),
 ``always`` or ``never``. Only scenarios that use these words (as issue values
 or role names) are relabelled.
 """
@@ -38,7 +38,7 @@ _PLOT_KEYS = ("x", "y", "labels", "text", "name", "hovertext")
 
 
 def role_labels(session: "NegotiationSession") -> dict[str, str]:
-    """``{"human": "You", "agent": "Partner"}`` when relabelling applies to
+    """``{"human": "You", "agent": "Opponent"}`` when relabelling applies to
     this session, else ``{}``."""
     cfg = get_env("names", {}) or {}
     apply = str(cfg.get("apply", "auto")).lower()
@@ -49,7 +49,7 @@ def role_labels(session: "NegotiationSession") -> dict[str, str]:
     if not uses_side_words(session):
         return {}
     self_label = str(cfg.get("self") or "You")
-    opp_label = str(cfg.get("opponent") or "Partner")
+    opp_label = str(cfg.get("opponent") or "Opponent")
     return {"human": self_label, "agent": opp_label}
 
 
@@ -85,7 +85,7 @@ def relabel_value(v: Any, m: dict[str, str]) -> Any:
 
 
 def unlabel_value(v: Any, m: dict[str, str]) -> Any:
-    """The scenario's own value for a label (``"Partner"`` → ``"agent"``)."""
+    """The scenario's own value for a label (``"Opponent"`` → ``"agent"``)."""
     if m and isinstance(v, str):
         for raw, label in m.items():
             if v.strip().lower() == label.lower():
@@ -95,7 +95,7 @@ def unlabel_value(v: Any, m: dict[str, str]) -> Any:
 
 def relabel_text(text: str | None, m: dict[str, str]) -> str | None:
     """Replace the side words in free text (an offer description or the
-    partner's message), whole words only."""
+    opponent's message), whole words only."""
     if not m or not text:
         return text
     pattern = re.compile(r"\b(" + "|".join(map(re.escape, m)) + r")\b", re.IGNORECASE)

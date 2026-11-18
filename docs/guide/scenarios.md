@@ -68,6 +68,13 @@ The active set is chosen by, first hit wins:
 4. `Custom`, when `scenario_order.txt` was changed from the bundled default.
 5. The `default` of `scenario_sets.yaml` (`HAN2026`).
 
+!!! note "For contributors"
+    The [Scenario sets](scenario-sets.md) page is generated from the registered scenario types and the bundled sets. Regenerate it whenever a scenario text (title, descriptions, roles, issues) or a bundled set changes:
+
+    ```bash
+    .venv/bin/python scripts/make_scenario_catalog.py docs/guide/scenario-sets.md
+    ```
+
 Set names are matched without regard to case (`anac2027` works). `hani2 sets` lists the sets, marks the active one and flags any type that has neither a generator nor a folder.
 
 ### `scenario_sets.yaml`
@@ -178,7 +185,7 @@ All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and
 | `n_issue_columns` | The number of columns in the counter-offer editor (default `2`). |
 | `human_role` | The role a participant plays by default (see [Which side the participant plays](#which-side-the-participant-plays)). |
 | `issue_format` | A Python format string per issue for writing values in offers, e.g. `Rent: "${:,}/month"` turns `3400` into `$3,400/month`. Used by the built-in story display. |
-| `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets, and offers read "You get 2 clocks; your partner gets 1 clock". |
+| `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets, and offers read "You get 2 clocks; your opponent gets 1 clock". |
 | `story` | The scenario type that generated the scenario (set by the generators). |
 
 The keys of `hints` and of role-specific `issue_description` must match the utility function `name` exactly, including case.
@@ -296,7 +303,7 @@ STORIES = [SHIRT]
 - `setup(rng)` may draw hidden facts both roles see through `ctx` (for example two different estimates of the same chance). `Side.hints` adds facts to that role's hints.
 - `band` (default `(0.35, 0.90)`) is the opposition range draws must hit, and `reserved` the range of reservation values.
 - The roles are stored in alphabetical order, the same order negmas loads them in, so a saved scenario reloads unchanged.
-- The long description gets the standard *Roles*, *Utility Function*, *Partner Utility Function* and *Value on Disagreement* paragraphs.
+- The long description gets the standard *Roles*, *Utility Function*, *Opponent Utility Function* and *Value on Disagreement* paragraphs.
 
 ### Registering it
 

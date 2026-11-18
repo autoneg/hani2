@@ -2,7 +2,7 @@
 
 When the negotiation starts the agent switches to the calm *focus* layout and
 shows a panel asking how the participant wants to work. Its buttons call
-``on_panel_action``. On every turn the panel lists the three offers the partner
+``on_panel_action``. On every turn the panel lists the three offers the opponent
 made that are best for the participant, each with a button that copies it into
 the counter-offer.
 """
@@ -33,7 +33,7 @@ class PanelAgent(SupportAgent):
 
     def show_best_offers(self) -> None:
         ctx = self.context()
-        offers = [h for h in ctx["history"] if h["by"] == "partner" and h["offer"]]
+        offers = [h for h in ctx["history"] if h["by"] == "partner" and h["offer"]]  # "partner": wire name of the opponent
         best = sorted(offers, key=lambda h: h["utility"] or 0, reverse=True)[:3]
         if not best:
             return
@@ -41,7 +41,7 @@ class PanelAgent(SupportAgent):
         buttons = [ui.button(f"Use offer {i + 1}", "use", payload={"offer": h["offer"]}) for i, h in enumerate(best)]
         self.show_panel(
             "best",
-            "Partner's best offers for you",
+            "Opponent's best offers for you",
             [*rows, ui.row(*buttons)],
             placement="side",
         )

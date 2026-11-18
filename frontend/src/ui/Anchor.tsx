@@ -9,7 +9,7 @@ const NOTE: Record<string, string> = {
   warning: "border-bad/30 bg-bad/10 text-ink",
 };
 
-/** Wraps an element the support agent (or a tool) can highlight or annotate. */
+/** Wraps an element the Assistant (or a tool) can highlight or annotate. */
 export function Anchor({
   id,
   children,

@@ -2,18 +2,18 @@
 
 HANI2 does not need a language model to run a negotiation. You need one for three things:
 
-- the **support agent** (the assistant next to the negotiation),
-- **LLM opponents**, the partners from negmas-llm that negotiate in natural language,
+- the **Assistant** (the AI helper next to the negotiation),
+- **LLM opponents**, the opponents from negmas-llm that negotiate in natural language,
 - the **message helpers**: writing a message for an offer, reading an offer out of a message, and the admin-only `LLM` tool that turns a plain-language instruction into an offer and a message.
 
 There are two independent configurations, so the assistant can use a different model from the opponents.
 
 | File | Used by | Client |
 | --- | --- | --- |
-| `support_agent_settings.json` | The support agent and its autopilot driver. | [litellm](https://docs.litellm.ai/docs/providers), so any provider litellm supports. |
+| `assistant_settings.json` | The Assistant and its autopilot driver. | [litellm](https://docs.litellm.ai/docs/providers), so any provider litellm supports. |
 | `llm_settings.json` | LLM opponents (`model` and `provider` are passed to them) and the message helpers. | Any litellm provider, for both the opponents (through negmas-llm) and the message helpers. |
 
-Both files live in the settings folder and can be edited in the admin console, under **Language model** and **Support agent**. The [configuration reference](configuration.md) lists every key.
+Both files live in the settings folder and can be edited in the admin console, under **Language model** and **Assistant**. The [configuration reference](configuration.md) lists every key.
 
 ## The default: a local model with Ollama
 
@@ -44,7 +44,7 @@ Out of the box both configurations point to Ollama on the same machine, with the
     }
     ```
 
-    ```json title="support_agent_settings.json (model part)"
+    ```json title="assistant_settings.json (model part)"
     {
       "provider": "ollama",
       "model": "qwen3:4b-instruct",
@@ -58,11 +58,11 @@ Out of the box both configurations point to Ollama on the same machine, with the
 
 Small models answer quickly but follow instructions less reliably. If the assistant calls the wrong functions or LLM opponents produce invalid offers, try a larger model, for example `ollama pull qwen3:8b` and set `"model": "qwen3:8b"` in both files.
 
-To use an Ollama server on another machine, set `ollama_base_url` in `llm_settings.json` (for the message helpers) and `api_base` in `support_agent_settings.json` (for the assistant), for example `"api_base": "http://gpu-box:11434"`.
+To use an Ollama server on another machine, set `ollama_base_url` in `llm_settings.json` (for the message helpers) and `api_base` in `assistant_settings.json` (for the assistant), for example `"api_base": "http://gpu-box:11434"`.
 
 ### Local fallback for missing models
 
-When an Ollama call made through litellm (by an LLM opponent or the support agent) fails because the model is not found, and the call did not name a local `api_base` (no `api_base` at all also counts), HANI2 retries it once against the local Ollama daemon. The local address is `http://localhost:11434` unless you set `HANI2_OLLAMA_LOCAL_BASE`:
+When an Ollama call made through litellm (by an LLM opponent or the Assistant) fails because the model is not found, and the call did not name a local `api_base` (no `api_base` at all also counts), HANI2 retries it once against the local Ollama daemon. The local address is `http://localhost:11434` unless you set `HANI2_OLLAMA_LOCAL_BASE`:
 
 ```bash
 export HANI2_OLLAMA_LOCAL_BASE=http://127.0.0.1:11500
@@ -72,9 +72,9 @@ Calls that already target `localhost` or `127.0.0.1` are not retried.
 
 ## Hosted providers
 
-### The support agent
+### The Assistant
 
-`support_agent_settings.json` accepts any litellm provider name in `provider` and a model name in `model`. HANI2 builds the litellm model string from the two (for example `openai` + `gpt-4o-mini` becomes `openai/gpt-4o-mini`). The API key is read from the environment variable named in `api_key_env`; set `api_base` for OpenAI-compatible servers.
+`assistant_settings.json` accepts any litellm provider name in `provider` and a model name in `model`. HANI2 builds the litellm model string from the two (for example `openai` + `gpt-4o-mini` becomes `openai/gpt-4o-mini`). The API key is read from the environment variable named in `api_key_env`; set `api_base` for OpenAI-compatible servers.
 
 === "OpenAI"
 
@@ -114,7 +114,7 @@ export OPENAI_API_KEY=sk-...
 hani2
 ```
 
-The assistant uses function calling, so pick a model that supports tools. See the [support agent guide](support-agent.md) for the remaining keys.
+The assistant uses function calling, so pick a model that supports tools. See the [Assistant guide](assistant.md) for the remaining keys.
 
 ### LLM opponents
 
@@ -165,7 +165,7 @@ Every template can use these placeholders:
 | `{negotiation_history}` | The last turns, one per line. |
 | `{last_offer}` | The latest offer in the history. |
 | `{last_5_offers}`, `{last_10_offers}` | The latest offers. |
-| `{current_offer_description}` | The partner's current offer, one issue per line. |
+| `{current_offer_description}` | The opponent's current offer, one issue per line. |
 | `{current_offer_utility}` | The human's utility for it, as a percentage. |
 
 Some placeholders are specific to one template:
@@ -173,12 +173,12 @@ Some placeholders are specific to one template:
 | Template | Extra placeholders |
 | --- | --- |
 | `extraction_prompt` | `{message}`: the message to analyse. |
-| `generation_prompt` | `{outcome_description}`: the offer to describe; `{rejected_outcome_description}`: the partner offer being rejected; `{utility_context}`: a qualitative assessment of both offers that does not reveal numbers. |
+| `generation_prompt` | `{outcome_description}`: the offer to describe; `{rejected_outcome_description}`: the opponent offer being rejected; `{utility_context}`: a qualitative assessment of both offers that does not reveal numbers. |
 | `instruction_prompt` | `{instruction}`: what the user typed; `{history}`: the history text. |
 
 If a template uses a placeholder that is not available, HANI2 retries the format with a reduced set (`issues_description` plus the template-specific fields) and fails if that is not enough either.
 
-The support agent has its own prompt, `system_prompt` in `support_agent_settings.json`. See the [support agent guide](support-agent.md).
+The Assistant has its own prompt, `system_prompt` in `assistant_settings.json`. See the [Assistant guide](assistant.md).
 
 ## Logging LLM calls of opponents
 

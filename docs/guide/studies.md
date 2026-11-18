@@ -43,7 +43,7 @@ HANI2_EXPERIMENT=pilot hani2
 
 While an experiment is active:
 
-- **Settings files.** Any settings file placed in the experiment folder takes priority over the one in the settings folder: `env.json`, `llm_settings.json`, `support_agent_settings.json`, `autopilot_settings.json`, `consent.md`, `announcements.md`, `scenario_order.txt` and `scenario_sets.yaml`. For the JSON files, the experiment's file is merged over the settings-folder file, which is merged over the bundled defaults. Files you do not add are read from the settings folder as usual.
+- **Settings files.** Any settings file placed in the experiment folder takes priority over the one in the settings folder: `env.json`, `llm_settings.json`, `assistant_settings.json`, `autopilot_settings.json`, `consent.md`, `announcements.md`, `scenario_order.txt` and `scenario_sets.yaml`. For the JSON files, the experiment's file is merged over the settings-folder file, which is merged over the bundled defaults. Files you do not add are read from the settings folder as usual.
 - **Scenarios** come from `<experiment>/scenarios`.
 - **The questionnaire** comes from `<experiment>/questionnaires/per_negotiation.yaml`.
 - **Results** go to `<experiment>/results` instead of `~/negmas/hani2/db`. This includes the per-participant folders, the event log and the agent group files (`results/groups/`).
@@ -70,7 +70,7 @@ questions:
       1: "Not at all"
       5: "Extremely"
   - id: partner_cooperativeness
-    text: "How cooperative did your partner feel?"
+    text: "How cooperative did your opponent feel?"
     type: select
     required: true
     options: ["Very competitive", "Somewhat competitive", "Neutral", "Somewhat cooperative", "Very cooperative"]
@@ -235,7 +235,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `view_source` | `query` when the layout came from the `?view=` URL parameter, else `default`. |
 | `user_agent` | The browser's user agent string. |
 | `device` / `orientation` | The layout in use (`desktop`, `tablet` or `phone`) and `landscape` or `portrait`. |
-| `support_agent` | Whether the support agent acted (sent a message or changed something) during this negotiation. |
+| `support_agent` | Whether the Assistant acted (sent a message or changed something) during this negotiation. |
 | `autopilot` | Whether the autopilot was switched on during this negotiation. |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.
@@ -280,7 +280,7 @@ The server writes these event types:
 | `session_start` | A session is created. | `value.mode` |
 | `login`, `logout`, `login_failed` | Password or OAuth sign-in and sign-out. | `user`; `value.oauth` for OAuth |
 | `scenario_loaded` | A scenario is loaded. | `scenario_id` |
-| `scenario_started` | A negotiation starts. | `value.partner` |
+| `scenario_started` | A negotiation starts. | `value.partner` (wire name, the old name of the opponent) |
 | `counter_offer` | The participant sends an offer. | `value.offer`, `value.text`, `utility_value` |
 | `offer_accepted` | The participant accepts. | `utility_value`, `round_number` |
 | `negotiation_ended` | The participant clicks End (`action` = `end_by_human`), and again when any negotiation finishes (`value` holds the summary). | `utility_value` |

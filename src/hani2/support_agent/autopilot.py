@@ -1,6 +1,6 @@
 """Autopilot: let an agent make *all* of the human's negotiation decisions.
 
-The *driver* is either ``"Support Agent"`` (the support agent decides each
+The *driver* is either ``"Assistant"`` (the Assistant decides each
 turn, with forced tool calls and a stall safety net) or any negotiator (it
 plays the human's seat directly, with the human's preferences). Configured in
 ``settings/autopilot_settings.json``:
@@ -11,6 +11,9 @@ plays the human's seat directly, with the human's preferences). Configured in
 * ``step_delay`` — seconds between autopilot steps;
 * ``user_can_choose`` — whether non-admins may pick the driver
   (``null`` = only in the guest playground).
+
+The old driver name ``"Support Agent"`` is still accepted wherever a driver
+is read (settings, the participant's choice) and means ``"Assistant"``.
 """
 
 from __future__ import annotations
@@ -23,7 +26,15 @@ from hani2.config import load_json_settings, save_json_settings
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
 
-SUPPORT_AGENT_DRIVER = "Support Agent"
+ASSISTANT_DRIVER = "Assistant"
+#: old name of the Assistant driver, still accepted
+OLD_ASSISTANT_DRIVERS = ("Support Agent",)
+SUPPORT_AGENT_DRIVER = ASSISTANT_DRIVER  # old name of the constant
+
+
+def normalize_driver(driver: Any) -> Any:
+    """Map an old driver name (``"Support Agent"``) to its current one."""
+    return ASSISTANT_DRIVER if isinstance(driver, str) and driver in OLD_ASSISTANT_DRIVERS else driver
 AUTOPILOT_NEGOTIATORS: list[str] = [
     "AspirationNegotiator",
     "NaiveTitForTatNegotiator",
@@ -34,7 +45,7 @@ AUTOPILOT_NEGOTIATORS: list[str] = [
 FILENAME = "autopilot_settings.json"
 DEFAULT_AUTOPILOT_SETTINGS: dict[str, Any] = {
     "allowed": False,
-    "driver": SUPPORT_AGENT_DRIVER,
+    "driver": ASSISTANT_DRIVER,
     "allowed_drivers": None,
     "step_delay": 0.5,
     "user_can_choose": None,
@@ -52,7 +63,11 @@ def all_autopilot_negotiators() -> list[str]:
 
 
 def load_autopilot_settings() -> dict:
-    return load_json_settings(FILENAME, DEFAULT_AUTOPILOT_SETTINGS)
+    s = load_json_settings(FILENAME, DEFAULT_AUTOPILOT_SETTINGS)
+    s["driver"] = normalize_driver(s.get("driver"))
+    if isinstance(s.get("allowed_drivers"), list):
+        s["allowed_drivers"] = list(dict.fromkeys(normalize_driver(d) for d in s["allowed_drivers"]))
+    return s
 
 
 def save_autopilot_settings(settings: dict) -> None:
@@ -73,36 +88,38 @@ def user_can_select_driver(session: "NegotiationSession", settings: dict | None 
 
 
 def driver_options(settings: dict | None = None, session: "NegotiationSession | None" = None) -> list[str]:
-    """The drivers on offer; without a support agent in ``session`` the
-    Support Agent driver is left out."""
+    """The drivers on offer; without the Assistant in ``session`` the
+    Assistant driver is left out."""
     s = settings or load_autopilot_settings()
-    opts = [SUPPORT_AGENT_DRIVER] + all_autopilot_negotiators()
+    opts = [ASSISTANT_DRIVER] + all_autopilot_negotiators()
     if session is not None and session.support_agent is None:
         opts = opts[1:]
     allowed = s.get("allowed_drivers")
     if allowed:
-        opts = [o for o in opts if o in set(allowed)]
+        allowed = {normalize_driver(d) for d in allowed}
+        opts = [o for o in opts if o in allowed]
     return opts
 
 
 def resolve_driver(session: "NegotiationSession", settings: dict | None = None) -> str | None:
     s = settings or load_autopilot_settings()
     opts = driver_options(s, session)
-    if user_can_select_driver(session, s) and session.autopilot_driver_name in opts:
-        return session.autopilot_driver_name
-    driver = s.get("driver") or None
+    chosen = normalize_driver(session.autopilot_driver_name)
+    if user_can_select_driver(session, s) and chosen in opts:
+        return chosen
+    driver = normalize_driver(s.get("driver")) or None
     if driver and driver not in opts:
         return opts[0] if opts else None
     return driver
 
 
 def is_negotiator_driver(driver: str | None) -> bool:
-    return bool(driver) and driver != SUPPORT_AGENT_DRIVER
+    return bool(driver) and normalize_driver(driver) != ASSISTANT_DRIVER
 
 
 def make_negotiator_driver(session: "NegotiationSession"):
     """The negotiator that plays the human seat under negotiator-driven autopilot
-    (``None`` for the support-agent driver or when autopilot is unavailable)."""
+    (``None`` for the Assistant driver or when autopilot is unavailable)."""
     s = load_autopilot_settings()
     if not autopilot_allowed(s):
         return None
@@ -139,6 +156,7 @@ def client_state(session: "NegotiationSession") -> dict[str, Any]:
 
 def set_autopilot(session: "NegotiationSession", active: bool, driver: str | None = None) -> dict:
     s = load_autopilot_settings()
+    driver = normalize_driver(driver)
     if driver and user_can_select_driver(session, s) and driver in driver_options(s, session):
         session.autopilot_driver_name = driver
         if session.mechanism is not None and is_negotiator_driver(driver):
@@ -160,7 +178,7 @@ def set_autopilot(session: "NegotiationSession", active: bool, driver: str | Non
         if not drv:
             return {"ok": False, "error": "No autopilot driver is configured."}
         if not is_negotiator_driver(drv) and session.support_agent is None:
-            return {"ok": False, "error": "The support agent is not available in this session."}
+            return {"ok": False, "error": "The Assistant is not available in this session."}
         if is_negotiator_driver(drv) and session.mechanism is not None:
             human = session.mechanism.negotiators[session.human_index]
             if getattr(human, "_driver", None) is None:

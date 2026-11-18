@@ -80,7 +80,7 @@ function summary(s: SessionState) {
     },
     my_draft: { outcome: s.draft.values, message: s.draft.text, utility_for_me: s.draft.utility },
     history: s.history.slice(-12).map((h) =>
-      h.kind === "system" ? { event: h.text } : { by: h.by === "human" ? "me" : "partner", outcome: h.offer, message: h.text, utility_for_me: h.utility },
+      h.kind === "system" ? { event: h.text } : { by: h.by === "human" ? "me" : "partner" /* wire name: kept for browser agents */, outcome: h.offer, message: h.text, utility_for_me: h.utility },
     ),
     result: s.result,
     questionnaire: s.phase === "questionnaire" ? s.questionnaire : null,
@@ -107,7 +107,7 @@ function requireTurn(): string | null {
   const s = st();
   if (!s) return "The page is not connected yet.";
   if (s.phase !== "running") return `There is no running negotiation (phase: ${s.phase}). Call start_negotiation first.`;
-  if (!s.negotiation.is_my_turn || s.negotiation.thinking) return "It is not your turn; the partner is still thinking.";
+  if (!s.negotiation.is_my_turn || s.negotiation.thinking) return "It is not your turn; the opponent is still thinking.";
   return null;
 }
 
@@ -117,7 +117,7 @@ function toolDefs(): ToolDef[] {
       name: "get_negotiation_state",
       title: "Get the negotiation state",
       description:
-        "Everything visible on the page: the scenario and its issues, whose turn it is, the partner's current offer and what it is worth to me (utility 0..1), my draft offer, my value on disagreement (reserved_value), recent history, time left and the result when finished.",
+        "Everything visible on the page: the scenario and its issues, whose turn it is, the opponent's current offer and what it is worth to me (utility 0..1), my draft offer, my value on disagreement (reserved_value), recent history, time left and the result when finished.",
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
       execute: async () => {
@@ -142,7 +142,7 @@ function toolDefs(): ToolDef[] {
     {
       name: "start_negotiation",
       title: "Start the negotiation",
-      description: "Start the negotiation with the scenario that is loaded (call load_next_scenario first after a negotiation ended). Waits for the partner's first move.",
+      description: "Start the negotiation with the scenario that is loaded (call load_next_scenario first after a negotiation ended). Waits for the opponent's first move.",
       inputSchema: { type: "object", properties: {} },
       action: true,
       execute: async () => {
@@ -173,7 +173,7 @@ function toolDefs(): ToolDef[] {
       name: "send_counter_offer",
       title: "Send a counter-offer",
       description:
-        "Reject the partner's offer and send my counter-offer: an outcome (issue name → value, every issue) and an optional message to the partner. Waits for the partner's reply and returns the new state.",
+        "Reject the opponent's offer and send my counter-offer: an outcome (issue name → value, every issue) and an optional message to the opponent. Waits for the opponent's reply and returns the new state.",
       inputSchema: {
         type: "object",
         properties: { outcome: { type: "object", description: "Issue name → value for every issue" }, message: { type: "string" } },
@@ -191,7 +191,7 @@ function toolDefs(): ToolDef[] {
     },
     {
       name: "accept_offer",
-      title: "Accept the partner's offer",
+      title: "Accept the opponent's offer",
       description: "Accept the offer on the table. This ends the negotiation with an agreement.",
       inputSchema: { type: "object", properties: {} },
       action: true,

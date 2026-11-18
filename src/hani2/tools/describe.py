@@ -1,4 +1,4 @@
-"""Turn a tool's components into text a support agent (or an LLM) can read.
+"""Turn a tool's components into text the Assistant (or an LLM) can read.
 
 :func:`describe_components` walks the declarative components returned by
 ``Tool.view()`` and writes what a person would see: text, numbers, the first

@@ -1,7 +1,7 @@
 """Level 8 - point at the interface: highlights and notes (no LLM).
 
 On every turn the agent reads the negotiation, then
-* annotates each issue the partner just moved on ("Partner conceded here"),
+* annotates each issue the opponent just moved on ("Opponent conceded here"),
 * spotlights the button it recommends, with a one-line reason.
 """
 
@@ -21,11 +21,11 @@ class SpotlightAgent(SupportAgent):
         if offer is None:
             return
 
-        # 1. Notes on the issues the partner changed since its last offer.
+        # 1. Notes on the issues the opponent changed since its last offer.
         previous = self._last_partner_offer or {}
         for issue, value in offer.items():
             if issue in previous and previous[issue] != value:
-                self.annotate(f"issue:{issue}", f"Partner moved: {previous[issue]} → {value}", kind="tip")
+                self.annotate(f"issue:{issue}", f"Opponent moved: {previous[issue]} → {value}", kind="tip")
             else:
                 self.annotate(f"issue:{issue}", None)  # remove an old note
         self._last_partner_offer = offer

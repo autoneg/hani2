@@ -9,7 +9,7 @@ $HANI2_HOME/                      default ~/negmas/hani2
 ├── settings/
 │   ├── env.json                  main configuration
 │   ├── llm_settings.json         LLM opponents and message helpers
-│   ├── support_agent_settings.json
+│   ├── assistant_settings.json
 │   ├── autopilot_settings.json
 │   ├── consent.md                consent form (Markdown)
 │   ├── announcements.md          welcome text (Markdown)
@@ -152,26 +152,26 @@ The Prolific flow overrides some of these per round (for example the time limits
 ### `names`
 
 Some scenarios call the two sides `human` and `agent` (on the island, for example, every item goes
-to `human` or `agent`). With a support agent in the session, "agent" is ambiguous, so HANI2 shows
-these values as **You** and **Partner** instead: in the offer fields, the offer text, the
-partner's messages, tool tables and charts, and in what the support agent reads. Values typed or
+to `human` or `agent`). With an Assistant in the session, "agent" is ambiguous, so HANI2 shows
+these values as **You** and **Opponent** instead: in the offer fields, the offer text, the
+opponent's messages, tool tables and charts, and in what the Assistant reads. Values typed or
 picked with the new names are mapped back, so results, logs and the opponent keep the scenario's
 own values, and results from sessions with and without an assistant stay comparable.
 
 ```json
-"names": {"apply": "auto", "self": "You", "opponent": "Partner"}
+"names": {"apply": "auto", "self": "You", "opponent": "Opponent"}
 ```
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `apply` | `auto` | `auto`: relabel when the session has a support agent; `always`; or `never`. |
+| `apply` | `auto` | `auto`: relabel when the session has an Assistant; `always`; or `never`. |
 | `self` | `You` | Shown instead of `human`. |
-| `opponent` | `Partner` | Shown instead of `agent`. |
+| `opponent` | `Opponent` | Shown instead of `agent`. |
 
 Only scenarios that use these words (as issue values or role names) are relabelled; a Buyer/Seller
 scenario is left alone. When relabelling applies, the scenario description, hints and result text
 use the new names too, and the header no longer says "You are the human". Messages the participant
-or the assistant write to the partner are sent as written.
+or the assistant write to the opponent are sent as written.
 
 ### `tools`
 
@@ -225,12 +225,14 @@ The language model for LLM opponents and for the message helpers.
 
 See [Language models](llms.md) for the prompt placeholders.
 
-## `support_agent_settings.json`
+## `assistant_settings.json`
+
+The old name of this file, `support_agent_settings.json`, is still read; where both exist, `assistant_settings.json` is merged over it (see [Old names](assistant.md#old-names)).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `mode` | `"on"` | Who gets the support agent: `on` (everyone), `off` (nobody) or `auto` (admins only). Overridden by `--support-agent`/`HANI2_SUPPORT_AGENT`. |
-| `agent_class` | `null` | Your `SupportAgent` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. |
+| `mode` | `"on"` | Who gets the Assistant: `on` (everyone), `off` (nobody) or `auto` (admins only). Overridden by `--assistant`/`HANI2_ASSISTANT`. |
+| `agent_class` | `null` | Your `Assistant` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. |
 | `provider` | `"ollama"` | Any litellm provider. |
 | `model` | `"qwen3:4b-instruct"` | Model name. |
 | `api_key_env` | `"OPENAI_API_KEY"` | Name of the environment variable holding the key. |
@@ -246,14 +248,14 @@ See [Language models](llms.md) for the prompt placeholders.
 | `proactive.on_negotiation_ended` | `false` | Speak up when a negotiation ends. |
 | `system_prompt` | built in | The assistant's system prompt. |
 
-See [Support agent](support-agent.md).
+See [Assistant](assistant.md).
 
 ## `autopilot_settings.json`
 
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `allowed` | `false` | Master switch for autopilot. |
-| `driver` | `"Support Agent"` | Default driver: `"Support Agent"` or a negotiator name. |
+| `driver` | `"Assistant"` | Default driver: `"Assistant"` or a negotiator name. |
 | `allowed_drivers` | `null` | Drivers that may be used. `null`: all. If `driver` is not listed, the first allowed driver is used. |
 | `step_delay` | `0.5` | Seconds to wait before each autopilot move (both kinds of driver). |
 | `user_can_choose` | `null` | Whether non-admins may pick the driver. `null`: only in the playground. |
@@ -281,8 +283,8 @@ See [Autopilot](autopilot.md).
 | `HANI2_EXPERIMENT` | none | Name of the active experiment. Set by `--experiment`. |
 | `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
 | `HANI2_TOOLS` | none | Extra tool classes, folders and `.py` files, comma separated. Set by `--tools`. |
-| `HANI2_SUPPORT_AGENT_CLASS` | none | Support-agent class for everyone. Set by `--support-agent <class>`. |
-| `HANI2_SUPPORT_AGENT` | none | `on`, `off` or `auto`; overrides `mode` in `support_agent_settings.json`. Set by `--support-agent`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
+| `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. |
+| `HANI2_ASSISTANT` | none | `on`, `off` or `auto`; overrides `mode` in `assistant_settings.json`. Set by `--assistant`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
 | `HANI2_SCENARIOS_BASE` | none | Scenario folder to use when no experiment provides one, instead of `settings/scenarios`. Set by `--scenarios`. |

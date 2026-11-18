@@ -17,7 +17,7 @@ What changes for a URL with a Prolific ID:
 - The participant's user name is `prolific_<PID>` and their session key is `prolific:<PID>`. Opening the link again, in any browser, returns to the same session while the server is running.
 - The link works even when the playground is disabled in `env.json`.
 - The session is never in admin mode, even for a logged-in admin and even with `?admin=1`.
-- The support agent starts switched off. The participant can still switch it on, if the support agent is available to them at all (see [Support agent](support-agent.md)).
+- The Assistant starts switched off. The participant can still switch it on, if the Assistant is available to them at all (see [Assistant](assistant.md)).
 - The *Different scenario* button on the start screen is hidden.
 
 ## The study flow
@@ -99,7 +99,7 @@ All Prolific settings are environment variables, read when a Prolific session is
 | `PROLIFIC_AUTO_LOAD_WARN_SECONDS` | `15` | How long before an auto-load the warning appears. |
 | `PROLIFIC_MAX_MINUTES` | `45` | Recorded in `prolific_session.json` and sent to the browser. HANI2 does not enforce it. |
 | `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Comma-separated specs for the practice opponent. |
-| `PROLIFIC_FINALISTS` | the partner pool | Comma-separated specs for the counted opponents. |
+| `PROLIFIC_FINALISTS` | the opponent pool | Comma-separated specs for the counted opponents. |
 | `PROLIFIC_PER_NEG_YAML` | none | A questionnaire file (used when `HANI2_PER_NEG_YAML` is not set). |
 | `PROLIFIC_COMPLETION_URL` | none | The completion URL. `{pid}` is replaced by the Prolific ID. |
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the completion URL when `PROLIFIC_COMPLETION_URL` is not set. |
@@ -111,7 +111,7 @@ Without `PROLIFIC_COMPLETION_URL`, the completion URL is `<SCMLWEB_BASE_URL><SCM
 export PROLIFIC_COMPLETION_URL="https://app.prolific.com/submissions/complete?cc=ABC123"
 ```
 
-The usual HANI2 settings apply too: the partner pool, scenario pools, `scenario_order.txt` and the experiment (see [Configuration reference](configuration.md)).
+The usual HANI2 settings apply too: the opponent pool, scenario pools, `scenario_order.txt` and the experiment (see [Configuration reference](configuration.md)).
 
 ## Files written
 

@@ -72,14 +72,14 @@ def test_experiment_create_with_support_agent_class(hani2_home, tmp_path, monkey
     f = tmp_path / "mine.py"
     f.write_text(AGENT_FILE)
     monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
-    r = CliRunner().invoke(app, ["experiment", "create", "hi", "--support-agent", f"{f}:Mine"])
+    r = CliRunner().invoke(app, ["experiment", "create", "hi", "--assistant", f"{f}:Mine"])
     assert r.exit_code == 0, r.output
-    sa = json.loads((tmp_path / "exps" / "hi" / "support_agent_settings.json").read_text())
+    sa = json.loads((tmp_path / "exps" / "hi" / "assistant_settings.json").read_text())
     assert sa == {"mode": "on", "agent_class": f"{f.resolve()}:Mine"}
-    r = CliRunner().invoke(app, ["experiment", "create", "han", "--no-support-agent"])
+    r = CliRunner().invoke(app, ["experiment", "create", "han", "--no-assistant"])
     assert r.exit_code == 0, r.output
-    assert json.loads((tmp_path / "exps" / "han" / "support_agent_settings.json").read_text()) == {"mode": "off"}
-    r = CliRunner().invoke(app, ["experiment", "create", "bad", "--support-agent", "nope.module:Missing"])
+    assert json.loads((tmp_path / "exps" / "han" / "assistant_settings.json").read_text()) == {"mode": "off"}
+    r = CliRunner().invoke(app, ["experiment", "create", "bad", "--assistant", "nope.module:Missing"])
     assert r.exit_code != 0
 
 

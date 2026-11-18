@@ -1,4 +1,4 @@
-"""The functions the support agent's language model may call.
+"""The functions the Assistant's language model may call.
 
 Each function is gated by a :class:`~hani2.support_agent.capabilities.Capability`
 (or ``None`` for read-only helpers) and only advertised to the model while that
@@ -447,7 +447,7 @@ class ToolDispatcher:
     def _schema_get_negotiation_state(self) -> dict:
         return _fn(
             "get_negotiation_state",
-            "Get the current negotiation state: issues, the partner's offer on the table, "
+            "Get the current negotiation state: issues, the opponent's offer on the table, "
             "the human's current draft offer and message, utilities, and recent history.",
             {},
             [],
@@ -498,7 +498,7 @@ class ToolDispatcher:
     def _schema_set_message_text(self) -> dict:
         return _fn(
             "set_message_text",
-            "Write the message that will be sent to the partner (does not submit). "
+            "Write the message that will be sent to the opponent (does not submit). "
             "NEVER reveal the human's utility values; keep it qualitative.",
             {"text": {"type": "string"}},
             ["text"],
@@ -541,7 +541,7 @@ class ToolDispatcher:
     def _schema_submit_counter_offer(self) -> dict:
         execute = self.caps.autonomy_allows_execute(Capability.SUBMIT_COUNTER)
         verb = (
-            "Submit a counter-offer (reject the partner's offer and send this outcome + message)."
+            "Submit a counter-offer (reject the opponent's offer and send this outcome + message)."
             if execute
             else "Prepare a counter-offer: fills the offer fields and message and highlights the "
             "Send button. In the current mode this does NOT auto-submit; the human must confirm."
@@ -551,7 +551,7 @@ class ToolDispatcher:
             verb,
             {
                 "outcome": {"type": "object", "description": "Issue name -> value."},
-                "message": {"type": "string", "description": "Message to the partner (no ufun leaks)."},
+                "message": {"type": "string", "description": "Message to the opponent (no ufun leaks)."},
             },
             [],
         )
@@ -560,7 +560,7 @@ class ToolDispatcher:
         return self._irreversible(Capability.ACCEPT, "accept")
 
     def _schema_accept_offer(self) -> dict:
-        return self._schema_irreversible("accept_offer", Capability.ACCEPT, "Accept the partner's current offer.")
+        return self._schema_irreversible("accept_offer", Capability.ACCEPT, "Accept the opponent's current offer.")
 
     def _end_negotiation(self, args: dict) -> dict:
         return self._irreversible(Capability.END, "end")
@@ -668,7 +668,7 @@ class ToolDispatcher:
     def _schema_annotate(self) -> dict:
         return _fn(
             "annotate",
-            "Attach a short note to an interface element, e.g. 'issue:Price' -> 'Partner keeps "
+            "Attach a short note to an interface element, e.g. 'issue:Price' -> 'Opponent keeps "
             "conceding here'. Same targets as highlight. Omit text to remove the note.",
             {
                 "target": {"type": "string"},

@@ -23,7 +23,7 @@ This file is a development note; it is not part of the user documentation or the
 - [x] Mechanism params (n_steps, time_limit, pend, pend_per_second, step/negotiator limits, ignore_negotiator_exceptions)
 - [x] `allow_none_with_data` (text-only offers), `end_on_no_response`
 - [x] LLM model/provider injection, no-accept-None wrapper, no-end wrapper in practice rounds, verbose flag
-- [x] Human seat placeholder; partner steps in a worker thread; "partner is thinking" indicator
+- [x] Human seat placeholder; opponent steps in a worker thread; "opponent is thinking" indicator
 - [x] Countdown (red ≤10 s); timeout → reject with the last offer
 - [x] History: text, offer (scenario display), utility gauge (red below reserved), relative time, newest-first, hide history, hide own offers
 - [x] Action panel: offer on the table + utility, Accept (util) / Counter-offer / End (reserved), confirmation dialogs with below-reserved warning
@@ -35,12 +35,12 @@ This file is a development note; it is not part of the user documentation or the
 - [-] "Undo" of a counter-offer edit (the editor keeps the draft; not needed)
 
 ## Layout
-- [x] Header: title, role, round badge (practice / negotiation N), admin badge, partner pill, layout switch, autopilot + driver, assistant
+- [x] Header: title, role, round badge (practice / negotiation N), admin badge, opponent pill, layout switch, autopilot + driver, assistant
 - [x] Three tool panes (upper / lower / side) with move / hide / restore; simple view; new focus view; mobile layout
 - [x] Timer, round counter, progress
 - [x] Toasts; status board
-- [x] Settings: display prefs (all) + per-session admin settings (timing, rules, text, offer init, scenarios, partners, tools)
-- [x] Admin console: sessions, results, analytics, users, server, LLM, support agent, autopilot, texts
+- [x] Settings: display prefs (all) + per-session admin settings (timing, rules, text, offer init, scenarios, opponents, tools)
+- [x] Admin console: sessions, results, analytics, users, server, LLM, Assistant, autopilot, texts
 - [~] Font size → text-size slider; colour scheme → light/dark/system theme
 - [-] Per-side foreground/background colour pickers and the "Panel" outcome display method
 - [-] Random header images
@@ -52,15 +52,15 @@ This file is a development note; it is not part of the user documentation or the
 - [x] Preferences, Scenario Info, Utility Plot, Outcome Plot, Trace, Value Histogram, My Results (was "User Results"), Utility-based Selector (cached inverter), LLM (Response Generator), Random, All Results, Opponent Preferences
 - [-] Session Results (was disabled)
 
-## Support agent & autopilot
-- [x] `SupportAgent` API (post, toast, message_user, ask_user, show_on_board, run_on_doc, _post_async, handle_user_message, on_event, proactive_note, build_system_prompt, _complete, _context_snapshot, _run_turn, _execute_tool_call, dispatcher_class, make_dispatcher)
+## Assistant & autopilot
+- [x] `Assistant` API (post, toast, message_user, ask_user, show_on_board, run_on_doc, _post_async, handle_user_message, on_event, proactive_note, build_system_prompt, _complete, _context_snapshot, _run_turn, _execute_tool_call, dispatcher_class, make_dispatcher)
 - [x] New: highlight, clear_highlights, annotate, set_layout, focus_tool, show_panel / close_panel, on_panel_action, on_draft_changed, context()
 - [x] ToolDispatcher + make_function_schema; all built-in LLM functions + focus_tool, highlight, clear_highlights, annotate, set_layout, show_panel, close_panel, describe_tools, read_tool, use_tool (`use_tools` capability)
 - [x] Capabilities (14) admin ∩ user; autonomy suggest / semi / full; highlight / confirm dialogs
 - [x] Assistant dock: on/off, abilities, autonomy, proactive delivery (toast / board / chat), clear conversation
 - [x] Draft-below-reserved warning (toast with "discuss" action, note on the editor, board)
-- [x] mode on / off / auto, `HANI2_SUPPORT_AGENT` / `--support-agent`, custom `agent_class` with fallback
-- [x] Autopilot: support-agent driver (forced tool calls, stall net, auto-disengage), negotiator drivers, step delay, admin gate, driver choice
+- [x] mode on / off / auto, `HANI2_ASSISTANT` / `--assistant`, custom `agent_class` with fallback
+- [x] Autopilot: Assistant driver (forced tool calls, stall net, auto-disengage), negotiator drivers, step delay, admin gate, driver choice
 - [x] Attribution logging (event type `support_agent`, value.actor)
 
 ## Settings, CLI, env
@@ -83,7 +83,7 @@ This file is a development note; it is not part of the user documentation or the
 - [-] Hard-coded finalist fallback list (use `PROLIFIC_FINALISTS` or the pool)
 
 ## Events & analytics
-- [x] SQLite event log (same event types + support_agent), sessions table; logged: login/logout, page views, tab changes, tool open/close/interactions, dialogs, offers/accept/end, scenario load/start, support-agent actions
+- [x] SQLite event log (same event types + support_agent), sessions table; logged: login/logout, page views, tab changes, tool open/close/interactions, dialogs, offers/accept/end, scenario load/start, Assistant actions
 - [~] Per-button click events: actions are logged by meaning (counter-offer, accept, end…) rather than as raw clicks
 - [x] Analytics in the admin console (by type, timeline, filters, sessions, CSV export)
 - [-] Separate analytics app and event-DB experiment CLI (both were broken entry points)
@@ -91,4 +91,4 @@ This file is a development note; it is not part of the user documentation or the
 ## Other
 - [x] Per-negotiation LLM logging, Ollama local fallback
 - [x] Message helpers / LLM tool accept any litellm provider (was ollama/openai/anthropic only)
-- [x] Docs (self-contained), tutorials (support agent levels 0–9, tools), examples, offline test helpers
+- [x] Docs (self-contained), tutorials (Assistant levels 0–9, tools), examples, offline test helpers

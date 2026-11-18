@@ -1,8 +1,8 @@
-"""Study logic: which scenario / partner each round uses, practice rounds,
+"""Study logic: which scenario / opponent each round uses, practice rounds,
 quotas, questionnaires and completion.
 
 * :class:`Study` — normal sessions: rounds follow ``scenario_order.txt`` (or
-  random order), partners are drawn from the partner pool, and an optional
+  random order), opponents are drawn from the opponent pool, and an optional
   per-negotiation questionnaire follows each round.
 * :class:`ProlificStudy` — Prolific participants (``?PROLIFIC_PID=``): one
   practice round, ``PROLIFIC_N_REQUIRED`` counted rounds, an optional
@@ -210,7 +210,7 @@ class ProlificStudy(Study):
         self._timer: threading.Timer | None = None
         self.auto_deadline: float | None = None
         self.auto_kind: str | None = None
-        # The participant's support agent starts switched off (still user-toggleable).
+        # The participant's Assistant starts switched off (still user-toggleable).
         session.ss.setdefault("support_agent_default_enabled", False)
 
     # -- persistent files ----------------------------------------------------
@@ -455,7 +455,7 @@ class ProlificStudy(Study):
         elif uncounted:
             msg, level = (f"This negotiation {phrase} without any action on your side, so it does NOT count. "
                           f"{counted} of {self.n_required} counted so far. Make at least one offer (or accept your "
-                          "partner's offer) in the next one so it counts."), "error"
+                          "opponent's offer) in the next one so it counts."), "error"
         else:
             msg, level = f"{counted} of {self.n_required} counted negotiations complete — {self.n_required - counted} to go.", "info"
         s.notice = {"text": msg, "level": level}

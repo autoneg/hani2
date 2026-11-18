@@ -144,7 +144,7 @@ LICENSE = Story(
         Issue("Royalty", ROYALTY, "Share of sales paid to the inventor", fmt="{}%"),
         Issue("Exclusivity", EXCLUSIVITY, "Whether the inventor may license the device to others"),
     ],
-    disagreement="Without a deal the inventor keeps looking for a partner and the firm drops the project.",
+    disagreement="Without a deal the inventor keeps looking for another firm and the firm drops the project.",
     human_role="Inventor",
     setup=_license_setup,
     source=SOURCE_PIE,

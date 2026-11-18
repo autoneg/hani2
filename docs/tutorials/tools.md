@@ -1,6 +1,6 @@
 # Build a tool
 
-This tutorial builds five tools step by step: a few numbers, an interactive form, a live chart and two tools that use a language model, one that summarises the negotiation and one that answers the participant's questions. All five are in `examples/tools` in the repository, so you can run them as you read. By the end you will know the `Tool` and `LLMTool` classes, their lifecycle hooks, the UI components, how to react to the participant's input, how to write the help text behind a tool's **?** button, how to register a tool, how the support agent uses it and how to test it without a browser.
+This tutorial builds five tools step by step: a few numbers, an interactive form, a live chart and two tools that use a language model, one that summarises the negotiation and one that answers the participant's questions. All five are in `examples/tools` in the repository, so you can run them as you read. By the end you will know the `Tool` and `LLMTool` classes, their lifecycle hooks, the UI components, how to react to the participant's input, how to write the help text behind a tool's **?** button, how to register a tool, how the Assistant uses it and how to test it without a browser.
 
 The [Tools](../guide/tools.md) guide lists the built-in tools and the `env.json` options. The generated [Python API](../reference/api.md) reference has every docstring.
 
@@ -63,17 +63,17 @@ You never call `view()` yourself. The server calls it whenever the tool needs to
 | Attribute | Default | Meaning |
 |-----------|---------|---------|
 | `name` | the class name | The tab title. It must be unique among the session's tools. |
-| `description` | `""` | One line shown as the tab tooltip, on the "switched off" placeholder, and to the support agent. |
-| `help` | `""` | Markdown explaining what the tool does and how it works. The participant reads it from the tool's **?** button and the support agent reads it with `read_tool`. Falls back to `description`. See [Help text](#help-text). |
+| `description` | `""` | One line shown as the tab tooltip, on the "switched off" placeholder, and to the Assistant. |
+| `help` | `""` | Markdown explaining what the tool does and how it works. The participant reads it from the tool's **?** button and the Assistant reads it with `read_tool`. Falls back to `description`. See [Help text](#help-text). |
 | `icon` | `"wrench"` | A [lucide](https://lucide.dev/icons/) icon name in kebab case, such as `"chart-line"`. |
 | `pane` | `"upper"` | The default pane: `"upper"`, `"lower"` or `"side"`. |
-| `timing` | `"start"` | When the tool appears: `"always"` (page open), `"load"` (scenario loaded), `"start"` (negotiation started), `"end"` (negotiation finished) or `"agent"` (only when a support agent adds it). |
+| `timing` | `"start"` | When the tool appears: `"always"` (page open), `"load"` (scenario loaded), `"start"` (negotiation started), `"end"` (negotiation finished) or `"agent"` (only when an Assistant adds it). |
 | `permanent` | `False` | Always on: no enable switch, and it cannot be hidden. |
 | `admin_only` | `False` | Only sessions of admin accounts get the tool. |
 | `guest` | `True` | Whether playground and Prolific sessions get the tool. |
 | `enabled` | `True` | The default state of the enable switch. A switched-off tool shows its tab, but `view()` is not called until it is switched on. |
 | `order` | `100` | Sort key inside the pane (smaller first). Tools with `order` 0 or 1 become the selected tab of their pane when they appear. |
-| `agent_hint` | `""` | Advice for a support agent on when and how to use the tool. |
+| `agent_hint` | `""` | Advice for an Assistant on when and how to use the tool. |
 
 An admin can override `pane`, `timing`, `enabled`, `admin_only`, `guest` and `order` per deployment in `env.json`, without changing your code (see [Tools](../guide/tools.md)).
 
@@ -125,7 +125,7 @@ def on_action(self, action, payload):
 
 ## Step 3: a live chart
 
-The third tool plots the utility (for the participant) of the partner's offers over time and projects the trend to the deadline, so the participant can see how fast the partner concedes.
+The third tool plots the utility (for the participant) of the opponent's offers over time and projects the trend to the deadline, so the participant can see how fast the opponent concedes.
 
 ```python title="examples/tools/concession_tracker.py"
 --8<-- "examples/tools/concession_tracker.py"
@@ -137,7 +137,7 @@ The third tool plots the utility (for the participant) of the partner's offers o
 |------|------------|
 | `base_layout(height=260, legend=True, **kw)` | A layout dict with the standard margins, a horizontal legend above the plot, transparent backgrounds and `hovermode="closest"`. Extra keyword arguments are merged in. Use it as `fig.update_layout(**base_layout(240, xaxis=...))`. |
 | `HUMAN_COLOR` | The colour used for the participant (`#4f46e5`). |
-| `AGENT_COLOR` | The colour used for the partner (`#f59e0b`). |
+| `AGENT_COLOR` | The colour used for the opponent (`#f59e0b`). |
 | `NEUTRAL_COLOR` | A neutral grey (`#64748b`). |
 | `SEQUENCE` | A list of six colours for categorical series, starting with the two party colours. |
 | `party_color(name, human_id)` | `HUMAN_COLOR` when `name` is the participant's id, else `AGENT_COLOR`. |
@@ -161,7 +161,7 @@ The fourth tool asks the language model for a summary of the negotiation so far:
 The tool only says what to ask. By default the model receives `prompt`, then the issues with their options, then the negotiation so far as text, one line per offer:
 
 ```text
-Partner: Price=10, Quantity=1 (worth 32% to the participant) - "Take it or leave it"
+Opponent: Price=10, Quantity=1 (worth 32% to the participant) - "Take it or leave it"
 Participant: Price=6, Quantity=3 (worth 81% to the participant)
 ```
 
@@ -210,16 +210,16 @@ Any tool can call the model directly with `self.ask_llm(prompt, system=None, **s
 
 ## Help text
 
-Every tool should explain itself. The `help` attribute is Markdown that says **what the tool shows or does** and **how it works or how to use it**. Participants open it with the small **?** button at the right end of the tool's tab strip; it works even while the tool is switched off. The support agent reads the same text, so it can explain the tool or decide when it helps.
+Every tool should explain itself. The `help` attribute is Markdown that says **what the tool shows or does** and **how it works or how to use it**. Participants open it with the small **?** button at the right end of the tool's tab strip; it works even while the tool is switched off. The Assistant reads the same text, so it can explain the tool or decide when it helps.
 
 ```python
 class ConcessionTracker(Tool):
-    description = "The utility of the partner's offers for you, and a projection to the deadline."
+    description = "The utility of the opponent's offers for you, and a projection to the deadline."
     help = """
-    **What it shows.** What each of your partner's offers is worth to you over time, and a
+    **What it shows.** What each of your opponent's offers is worth to you over time, and a
     dotted line projecting that trend to the deadline.
 
-    **How it works.** The concession rate is the change in value between the partner's first
+    **How it works.** The concession rate is the change in value between the opponent's first
     and latest offers, divided by the time between them. ...
     """
 ```
@@ -263,7 +263,7 @@ Properties:
 | `issues` | The scenario's issues (empty before a scenario is loaded). |
 | `human_index` | The participant's index in the scenario. |
 | `human_ufun` | The participant's utility function. |
-| `agent_ufun` | The partner's utility function. Show it only to admins. |
+| `agent_ufun` | The opponent's utility function. Show it only to admins. |
 | `is_admin` | Whether the session belongs to an admin account. |
 | `values` | The current values of the tool's inputs, by name. |
 | `params` | Keyword arguments given to the constructor (empty for tools created by the server). |
@@ -274,7 +274,7 @@ Methods:
 | Method | What it does |
 |--------|--------------|
 | `trace()` | The mechanism's full trace as a list of rows (see step 1). |
-| `context()` | The live negotiation snapshot, the same dict the support agent sees (see below). |
+| `context()` | The live negotiation snapshot, the same dict the Assistant sees (see below). |
 | `outcome_dict(outcome)` | Turns an outcome tuple into `{issue name: value}`. |
 | `set_offer(outcome)` | Fills the participant's counter-offer. Accepts a tuple or a dict of issue name to value; returns `{"ok": ..., "applied": ..., "unrecognised": ...}`. Issue names are matched exactly, then ignoring case, then by substring. |
 | `set_text(text)` | Fills the message box. Returns `{"ok": False, ...}` when an admin switched off human messages. |
@@ -332,7 +332,7 @@ If `view()` raises, the tool shows a red alert with the error message instead of
 
 ## Register the tool
 
-Every way of registering a tool makes it available to every new session, where both the participant and the support agent can use it. Choose the one that fits:
+Every way of registering a tool makes it available to every new session, where both the participant and the Assistant can use it. Choose the one that fits:
 
 **In a tools folder.** Save the file in `$HANI2_HOME/tools`, or in a folder given with `hani2 --tools`, `HANI2_TOOLS` or `env.json` → `tools.paths`, as in the [set-up section](#set-up). Best while you develop a tool and for a single deployment.
 
@@ -365,11 +365,11 @@ Once the package is installed in the same environment as HANI2, every session ge
 
 Tool names must be unique. When two sources offer a tool with the same name, the first one wins (built-in tools, then packages, then `register_tool`, then tool folders, then `extra`) and the server log says which one was ignored.
 
-## Make your tool usable by a support agent
+## Make your tool usable by an Assistant
 
-You do not have to do anything: a support agent with the **Use tools** capability reads any tool
+You do not have to do anything: an Assistant with the **Use tools** capability reads any tool
 as text and operates its inputs, buttons and selectable tables (see
-[Support agent](../guide/support-agent.md#tools-the-agent-can-find-use-and-add)). A few habits make
+[Assistant](../guide/assistant.md#tools-the-agent-can-find-use-and-add)). A few habits make
 that work better:
 
 - Write a clear `description`; the agent sees it in `list_tools`.
@@ -389,7 +389,7 @@ that work better:
 
 To control exactly what the agent reads, override `describe_for_agent(max_chars)` and return text.
 
-Set `timing = "agent"` for a tool that should appear only when a support agent adds it, then
+Set `timing = "agent"` for a tool that should appear only when an Assistant adds it, then
 register it as usual or pass it on the command line:
 
 ```bash
@@ -464,7 +464,7 @@ def test_tool_is_registered(tmp_path):
 
 Useful parts of the test session:
 
-- `make_session(partner=..., scenario_type="Trade", n_steps=20, time_limit=None, is_admin=False, mode="main", query=None, load=True)`: `partner` is the opponent spec, `is_admin=True` gives the session the admin-only tools, and `mode="guest"` simulates the playground.
+- `make_session(opponent=..., scenario_type="Trade", n_steps=20, time_limit=None, is_admin=False, mode="main", query=None, load=True)`: `opponent` is the opponent spec, `is_admin=True` gives the session the admin-only tools, and `mode="guest"` simulates the playground.
 - `s.start()`, `s.wait_for_turn()`, `s.play_counters(n)` (send the current draft `n` times), `s.accept()`, `s.end()` and `s.wait_until_done()` drive the negotiation.
 - `s.tool_input(tid, name, value)` and `s.tool_action(tid, action, payload)` deliver input exactly as the browser does.
 - `s.hub.messages` records every message the browser would have received, and `s.hub.of_type("toast")` filters them by type.
@@ -545,4 +545,4 @@ Every input has a `name`. Changing it calls the tool's `on_input(name, value)`.
 | `Component` | The type of every component: `dict[str, Any]`. |
 | `jsonable(x)` | Converts numpy values, tuples, sets, dates and other objects to JSON-friendly values. NaN becomes `None` and infinity becomes `"inf"` or `"-inf"`. |
 
-The same components build the custom panels a support agent can show with `show_panel`; see the [support agent tutorial](support-agent.md).
+The same components build the custom panels an Assistant can show with `show_panel`; see the [Assistant tutorial](assistant.md).

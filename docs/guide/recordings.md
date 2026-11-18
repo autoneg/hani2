@@ -66,7 +66,7 @@ Opens one recording. The negotiation is shown at the participant's own window si
 fit) with their pointer, clicks and key presses drawn on top.
 
 - Play, pause, speed (0.5× to 8×), skip idle periods, jump to the previous or next action.
-- A timeline with markers for human actions, partner offers, assistant messages and suggestions,
+- A timeline with markers for human actions, opponent offers, assistant messages and suggestions,
   language-model calls, clicks and the questionnaire.
 - **Events**: everything in order, readable ("Human offered …", "Assistant: …", "LLM call
   (support, 1.2 s, 845 tokens)", "Clicked *Accept*"); click one to jump there.

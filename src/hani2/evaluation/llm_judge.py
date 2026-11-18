@@ -8,7 +8,7 @@ when asked (``refresh``).
 
 Metrics
 -------
-* ``judge_assistant`` — the support agent: helpfulness, explanations, insight
+* ``judge_assistant`` — the Assistant: helpfulness, explanations, insight
   into the opponent, understanding of the human, respect for their autonomy, …
 * ``judge_opponent`` — the opponent as the human experienced it.
 * ``judge_human`` — the human's engagement and negotiation quality.
@@ -262,7 +262,7 @@ def _cols(criteria: dict[str, str], prefix: str, who: str) -> list:
 @metric("judge_assistant", kind="soft", title="LLM judge: assistant", needs_llm=True, version="1",
         columns=_cols(ASSISTANT_CRITERIA, "ja", "Assistant"))
 def judge_assistant(ctx: EvalContext, options: dict) -> dict:
-    """A language model rates the support agent (1–7) on helpfulness, explanations,
+    """A language model rates the Assistant (1–7) on helpfulness, explanations,
     opponent insight, understanding of the human, autonomy and communication."""
     if not _has_assistant(ctx):
         return {}

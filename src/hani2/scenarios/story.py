@@ -252,10 +252,10 @@ def _info(story: Story, issues: list[Issue], sides: dict[str, Side], ufuns) -> d
             + "\n\n**Utility Function** Every option of every issue has a value for you, and some issues matter "
               "more to you than others. You can see your preferences in the *Preferences* pane, and the hints "
               "tell you your most and least important issues."
-            + "\n\n**Partner Utility Function** Your partner has their own values and priorities, which you do "
+            + "\n\n**Opponent Utility Function** Your opponent has their own values and priorities, which you do "
               "not know. Their role, described above, tells you which way they probably lean."
             + "\n\n**Value on Disagreement (Reservation Value)** " + story.disagreement.strip()
-            + " Your reservation value is the utility you get in that case; your partner has one too, which you "
+            + " Your reservation value is the utility you get in that case; your opponent has one too, which you "
               "do not know.")
     if story.source:
         long += f"\n\n*{story.source}*"
@@ -322,7 +322,7 @@ class StoryOutcomeDisplay(DefaultOutcomeDisplay):
                     mine.append(f"{n_mine} {one if n_mine == 1 else many}")
                 if n_theirs:
                     theirs.append(f"{n_theirs} {one if n_theirs == 1 else many}")
-            return f"You get {', '.join(mine) or 'nothing'}; your partner gets {', '.join(theirs) or 'nothing'}."
+            return f"You get {', '.join(mine) or 'nothing'}; your opponent gets {', '.join(theirs) or 'nothing'}."
         fmts = info.get("issue_format", {}) or {}
         parts = []
         for issue, v in zip(issues, outcome):

@@ -15,7 +15,7 @@ export default {
         ink: "rgb(var(--ink) / <alpha-value>)",
         muted: "rgb(var(--muted) / <alpha-value>)",
         you: "rgb(var(--you) / <alpha-value>)",
-        partner: "rgb(var(--partner) / <alpha-value>)",
+        opponent: "rgb(var(--opponent) / <alpha-value>)",
         good: "rgb(var(--good) / <alpha-value>)",
         bad: "rgb(var(--bad) / <alpha-value>)",
         warn: "rgb(var(--warn) / <alpha-value>)",

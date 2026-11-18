@@ -1,10 +1,18 @@
-"""Settings of the Negotiation Support Agent (``settings/support_agent_settings.json``).
+"""Settings of the Assistant (``settings/assistant_settings.json``).
 
-Who gets the assistant is resolved, highest precedence first, from the
-``HANI2_SUPPORT_AGENT`` environment variable (set by ``hani2 --support-agent``),
-then the ``mode`` setting: ``on`` (everyone), ``off`` (nobody) or ``auto``
-(admins only). ``HANI2_SUPPORT_AGENT_CLASS`` (set by ``hani2 --support-agent
-<class>``) overrides the ``agent_class`` setting.
+The old file name ``support_agent_settings.json`` is still read: in the
+settings folder and in an experiment folder, ``assistant_settings.json`` is
+merged over ``support_agent_settings.json`` when both exist.
+
+Who gets the Assistant is resolved, highest precedence first, from the
+``HANI2_ASSISTANT`` environment variable (set by ``hani2 --assistant``; the old
+name ``HANI2_SUPPORT_AGENT`` is still read), then the ``mode`` setting: ``on``
+(everyone), ``off`` (nobody) or ``auto`` (admins only). ``HANI2_ASSISTANT_CLASS``
+(set by ``hani2 --assistant <class>``; old name ``HANI2_SUPPORT_AGENT_CLASS``)
+overrides the ``agent_class`` setting.
+
+The functions and constants with ``support_agent`` in their names are the old
+names of the ``assistant`` ones and stay available.
 """
 
 from __future__ import annotations
@@ -15,10 +23,20 @@ from typing import Any
 from hani2.config import load_json_settings, save_json_settings
 
 __all__ = [
+    "ASSISTANT_ENV_VAR",
+    "ASSISTANT_CLASS_ENV_VAR",
+    "parse_assistant_choice",
+    "DEFAULT_CAPABILITIES",
+    "DEFAULT_ASSISTANT_SETTINGS",
+    "load_assistant_settings",
+    "save_assistant_settings",
+    "assistant_mode",
+    "assistant_enabled",
+    "assistant_env",
+    # old names
     "SUPPORT_AGENT_ENV_VAR",
     "SUPPORT_AGENT_CLASS_ENV_VAR",
     "parse_support_agent_choice",
-    "DEFAULT_CAPABILITIES",
     "DEFAULT_SUPPORT_AGENT_SETTINGS",
     "load_support_agent_settings",
     "save_support_agent_settings",
@@ -26,9 +44,23 @@ __all__ = [
     "support_agent_enabled",
 ]
 
+ASSISTANT_ENV_VAR = "HANI2_ASSISTANT"
+ASSISTANT_CLASS_ENV_VAR = "HANI2_ASSISTANT_CLASS"
+#: old names of the environment variables, still read (the new ones win)
 SUPPORT_AGENT_ENV_VAR = "HANI2_SUPPORT_AGENT"
 SUPPORT_AGENT_CLASS_ENV_VAR = "HANI2_SUPPORT_AGENT_CLASS"
-FILENAME = "support_agent_settings.json"
+FILENAME = "assistant_settings.json"
+#: old name of the settings file, still read under ``assistant_settings.json``
+OLD_FILENAME = "support_agent_settings.json"
+
+
+def assistant_env(new: str, old: str) -> str | None:
+    """The value of the environment variable ``new``, else of its old name ``old``."""
+    v = os.getenv(new)
+    if v is not None and v.strip():
+        return v
+    return os.getenv(old)
+
 
 try:
     from negmas_llm.common import DEFAULT_MODELS
@@ -56,26 +88,27 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "tool_use": True,
 }
 
-DEFAULT_SYSTEM_PROMPT = """You are a Negotiation Support Agent embedded in a human-agent \
+DEFAULT_SYSTEM_PROMPT = """You are the Assistant, a negotiation assistant embedded in a human-agent \
 negotiation interface. You assist a single human negotiator during a live negotiation \
-against a partner.
+against an opponent.
 
 You can chat with the human, send notifications, show / hide / enable / rearrange their \
 analysis tools, highlight parts of the interface, attach short notes to issues, change the \
 layout, show small interactive panels, and help them act in the negotiation (fill the offer \
-fields, write the message to the partner, and — depending on your granted autonomy — send a \
+fields, write the message to the opponent, and — depending on your granted autonomy — send a \
 counter-offer, accept, or end the negotiation). Use the provided functions to take these \
 actions; only the functions you are given are available in this session.
 
 CRITICAL CONFIDENTIALITY RULE: any text you put in the message field is sent to the \
-negotiation PARTNER. Never reveal the human's utility values, weights, exact reserved value, \
+negotiation OPPONENT. Never reveal the human's utility values, weights, exact reserved value, \
 or that a utility function exists. Speak qualitatively. The utility information is for your \
 reasoning only.
 
 You are ALWAYS given the current negotiation state with each user message: the issues, the \
-partner's current offer, the human's draft offer and message, the utilities and the recent \
+opponent's current offer, the human's draft offer and message, the utilities and the recent \
 history. Use it directly — NEVER ask the human for it. Call get_negotiation_state for a \
-fresh snapshot mid-task.
+fresh snapshot mid-task. In the state, the partner_* fields and history entries \
+by "partner" are the opponent's (wire names); call the other side "the opponent" with the human.
 
 The participant's tools are part of your toolkit: list_tools shows them with a description, \
 read_tool gives a tool's help text (what it does and how it works), what it currently shows \
@@ -87,7 +120,7 @@ would help them right now.
 You also have an always-visible status board; keep your current recommendation there with \
 show_on_board. Be concise and helpful."""
 
-DEFAULT_SUPPORT_AGENT_SETTINGS: dict[str, Any] = {
+DEFAULT_ASSISTANT_SETTINGS: dict[str, Any] = {
     "mode": "on",
     "agent_class": None,
     "provider": "ollama",
@@ -106,14 +139,14 @@ DEFAULT_SUPPORT_AGENT_SETTINGS: dict[str, Any] = {
 }
 
 
-def load_support_agent_settings() -> dict:
-    s = load_json_settings(FILENAME, DEFAULT_SUPPORT_AGENT_SETTINGS)
+def load_assistant_settings() -> dict:
+    s = load_json_settings(FILENAME, DEFAULT_ASSISTANT_SETTINGS, old_names=(OLD_FILENAME,))
     caps = dict(DEFAULT_CAPABILITIES)
     caps.update(s.get("capabilities") or {})
     s["capabilities"] = caps
     if not s.get("system_prompt"):
         s["system_prompt"] = DEFAULT_SYSTEM_PROMPT
-    klass = os.getenv(SUPPORT_AGENT_CLASS_ENV_VAR)
+    klass = assistant_env(ASSISTANT_CLASS_ENV_VAR, SUPPORT_AGENT_CLASS_ENV_VAR)
     if klass and klass.strip():
         s["agent_class"] = klass.strip()
     return s
@@ -126,9 +159,9 @@ _MODES = {
 }
 
 
-def parse_support_agent_choice(value: str) -> tuple[str, str | None]:
-    """Interpret a ``--support-agent`` value: a mode (``on``, ``off``, ``auto``)
-    or a support-agent class (``package.module:Class``, ``package.module.Class``
+def parse_assistant_choice(value: str) -> tuple[str, str | None]:
+    """Interpret an ``--assistant`` value: a mode (``on``, ``off``, ``auto``)
+    or an Assistant class (``package.module:Class``, ``package.module.Class``
     or ``path/to/file.py:Class``), which means ``on`` with that class.
     Returns ``(mode, agent_class)``; raises ``ValueError`` for anything else."""
     v = (value or "").strip()
@@ -137,20 +170,20 @@ def parse_support_agent_choice(value: str) -> tuple[str, str | None]:
     if ":" in v or "." in v:
         return "on", v
     raise ValueError(
-        f"{value!r} is not a support-agent choice: use on, off, auto or a class such as mypkg.agents:MyAgent"
+        f"{value!r} is not an Assistant choice: use on, off, auto or a class such as mypkg.agents:MyAgent"
     )
 
 
-def save_support_agent_settings(settings: dict) -> None:
+def save_assistant_settings(settings: dict) -> None:
     save_json_settings(FILENAME, settings)
 
 
-def support_agent_mode(settings: dict | None = None) -> str:
-    env = os.getenv(SUPPORT_AGENT_ENV_VAR)
+def assistant_mode(settings: dict | None = None) -> str:
+    env = assistant_env(ASSISTANT_ENV_VAR, SUPPORT_AGENT_ENV_VAR)
     if env is not None and env.strip().lower() in _MODES:
         return _MODES[env.strip().lower()]
     if settings is None:
-        settings = load_support_agent_settings()
+        settings = load_assistant_settings()
     mode = settings.get("mode")
     if isinstance(mode, str) and mode.strip().lower() in ("on", "off", "auto"):
         return mode.strip().lower()
@@ -159,10 +192,19 @@ def support_agent_mode(settings: dict | None = None) -> str:
     return "on"
 
 
-def support_agent_enabled(settings: dict | None = None, is_admin: bool = False) -> bool:
-    mode = support_agent_mode(settings)
+def assistant_enabled(settings: dict | None = None, is_admin: bool = False) -> bool:
+    mode = assistant_mode(settings)
     if mode == "on":
         return True
     if mode == "off":
         return False
     return bool(is_admin)
+
+
+# old names
+DEFAULT_SUPPORT_AGENT_SETTINGS = DEFAULT_ASSISTANT_SETTINGS
+load_support_agent_settings = load_assistant_settings
+save_support_agent_settings = save_assistant_settings
+parse_support_agent_choice = parse_assistant_choice
+support_agent_mode = assistant_mode
+support_agent_enabled = assistant_enabled

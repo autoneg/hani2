@@ -31,7 +31,7 @@ Every other line is an event with ``t`` (seconds since ``t0``) and ``k`` (kind):
 ``chat`` a message in the assistant chat.
 ``llm``  one language-model call (``role``, ``model``, ``latency``, tokens,
          cost, the new prompt messages and the response).
-``fn``   a function the support agent called (``name``, ``args``, ``result``).
+``fn``   a function the Assistant called (``name``, ``args``, ``result``).
 ``scenario`` the scenario (issues, every ufun as a utility table, reserved
          values) — metrics are computed from the file alone.
 ``start`` / ``trace`` / ``result`` / ``questionnaire`` / ``end``.
@@ -260,7 +260,7 @@ class Recording:
                                 offer=r["offer"], step=r.get("step"), text=r.get("text")))
             return out
         # no trace (the session was abandoned mid-negotiation): the human side's
-        # actions and the partner offers shown in the history
+        # actions and the opponent offers shown in the history
         names = sc.get("issue_names") or []
         seen: set[int] = set()
         items = [(float(a["t"]), dict(t=a["t"], by="human", offer=a.get("offer"), step=a.get("step"), text=a.get("text")))

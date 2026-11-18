@@ -15,16 +15,16 @@ All tool names start with `hani2_`.
 
 | Tool | Changes the negotiation | What it does |
 | --- | --- | --- |
-| `hani2_get_negotiation_state` | no | The scenario and its issues, whose turn it is, the partner's offer and its utility, the draft, the value on disagreement, recent history, time left, the result and any open questionnaire. |
+| `hani2_get_negotiation_state` | no | The scenario and its issues, whose turn it is, the opponent's offer and its utility, the draft, the value on disagreement, recent history, time left, the result and any open questionnaire. |
 | `hani2_read_tool` | no | The help text of an analysis tool (what it does and how it works) and its current content (text, tables, statistics, chart data). Switched-off tools are switched on first. |
 | `hani2_evaluate_offer` | fills the editor only | Puts an outcome in the offer editor (without sending it) and returns its utility. |
 | `hani2_use_tool` | yes | Sets an input of an analysis tool and/or triggers one of its actions (for example picking a row in the Utility-based Selector). |
-| `hani2_start_negotiation` | yes | Starts the loaded negotiation and waits for the partner's first move. |
-| `hani2_send_counter_offer` | yes | Sends an outcome and an optional message, waits for the partner's reply and returns the new state. |
+| `hani2_start_negotiation` | yes | Starts the loaded negotiation and waits for the opponent's first move. |
+| `hani2_send_counter_offer` | yes | Sends an outcome and an optional message, waits for the opponent's reply and returns the new state. |
 | `hani2_accept_offer` | yes | Accepts the offer on the table. |
 | `hani2_end_negotiation` | yes | Ends without agreement. |
 | `hani2_load_next_scenario` | yes | Loads the next scenario after a negotiation ended. |
-| `hani2_ask_assistant` | no | Sends a message to the page's support agent and returns its reply (when the session has one). |
+| `hani2_ask_assistant` | no | Sends a message to the page's Assistant and returns its reply (when the session has one). |
 | `hani2_answer_questionnaire` | yes | Submits the post-negotiation questionnaire. |
 
 Read-only tools carry the `readOnlyHint` annotation; accept, end and counter-offers carry

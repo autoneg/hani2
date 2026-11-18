@@ -7,10 +7,14 @@ import shutil
 
 from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, settings_dir
 
+#: old names of settings files: an install that already has the old file keeps
+#: it (and gets no new file that would override it)
+OLD_NAMES = {"assistant_settings.json": "support_agent_settings.json"}
+
 FILES = [
     "env.json",
     "llm_settings.json",
-    "support_agent_settings.json",
+    "assistant_settings.json",
     "autopilot_settings.json",
     "consent.md",
     "announcements.md",
@@ -33,6 +37,10 @@ def run_setup(force: bool = False, admin_password: str | None = None, quiet: boo
             continue
         if dst.exists() and not force:
             say(f"  kept     {dst}")
+            continue
+        old = sdir / OLD_NAMES[name] if name in OLD_NAMES else None
+        if old is not None and old.exists() and not dst.exists() and not force:
+            say(f"  kept     {old} (old name of {name})")
             continue
         shutil.copyfile(src, dst)
         say(f"  created  {dst}")

@@ -60,23 +60,35 @@ def _serve(host: str, port: int, open_path: str | None, reload: bool = False, lo
     uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1)
 
 
-def _apply_support_agent_choice(value: Optional[str]) -> None:
-    """Turn ``--support-agent`` into environment overrides for the server."""
+def _apply_assistant_choice(value: Optional[str]) -> None:
+    """Turn ``--assistant`` into environment overrides for the server
+    (``HANI2_ASSISTANT`` / ``HANI2_ASSISTANT_CLASS``; the old names
+    ``HANI2_SUPPORT_AGENT`` / ``HANI2_SUPPORT_AGENT_CLASS`` are set too)."""
     if not value:
         return
-    from hani2.support_agent.settings import parse_support_agent_choice
+    from hani2.support_agent.settings import parse_assistant_choice
 
     try:
-        mode, klass = parse_support_agent_choice(value)
+        mode, klass = parse_assistant_choice(value)
     except ValueError as e:
-        raise typer.BadParameter(str(e), param_hint="--support-agent") from None
-    os.environ["HANI2_SUPPORT_AGENT"] = mode
+        raise typer.BadParameter(str(e), param_hint="--assistant") from None
+    os.environ["HANI2_ASSISTANT"] = os.environ["HANI2_SUPPORT_AGENT"] = mode
     if klass:
         if ".py:" in klass:
             path, _, attr = klass.rpartition(":")
             klass = f"{Path(path).expanduser().resolve()}:{attr}"
-        _check_support_agent_class(klass)
-        os.environ["HANI2_SUPPORT_AGENT_CLASS"] = klass
+        _check_assistant_class(klass)
+        os.environ["HANI2_ASSISTANT_CLASS"] = os.environ["HANI2_SUPPORT_AGENT_CLASS"] = klass
+
+
+_apply_support_agent_choice = _apply_assistant_choice  # old name
+
+
+def _assistant_option(new: Optional[str], old: Optional[str]) -> Optional[str]:
+    """``--assistant``, else its old name ``--support-agent``."""
+    if old and not new:
+        typer.echo("note: --support-agent is now --assistant", err=True)
+    return new or old
 
 
 def _check_tools(value: str) -> str:
@@ -122,15 +134,18 @@ def _check_opponents(value: str) -> None:
         raise typer.BadParameter(f"{value!r} names no opponent agent", param_hint="--opponents")
 
 
-def _check_support_agent_class(klass: str) -> None:
-    from hani2.support_agent.runtime import SupportAgent, load_class
+def _check_assistant_class(klass: str) -> None:
+    from hani2.support_agent.runtime import Assistant, load_class
 
     try:
         cls = load_class(klass)
     except Exception as e:  # noqa: BLE001
-        raise typer.BadParameter(f"cannot load {klass!r}: {e}", param_hint="--support-agent") from None
-    if not (isinstance(cls, type) and issubclass(cls, SupportAgent)):
-        raise typer.BadParameter(f"{klass!r} is not a SupportAgent subclass", param_hint="--support-agent")
+        raise typer.BadParameter(f"cannot load {klass!r}: {e}", param_hint="--assistant") from None
+    if not (isinstance(cls, type) and issubclass(cls, Assistant)):
+        raise typer.BadParameter(f"{klass!r} is not an Assistant (SupportAgent) subclass", param_hint="--assistant")
+
+
+_check_support_agent_class = _check_assistant_class  # old name
 
 
 @app.callback(invoke_without_command=True)
@@ -140,9 +155,11 @@ def main(
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
     opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
-    support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent: on (everyone), off (nobody), auto (admins only), or a class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
-    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run without a support agent (same as --support-agent off).")] = False,
-    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files (every tool in them). Tools with timing 'agent' appear only when the support agent adds them.")] = None,
+    assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant: on (everyone), off (nobody), auto (admins only), or an Assistant class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
+    no_assistant: Annotated[bool, typer.Option("--no-assistant", help="Run without the Assistant (same as --assistant off).")] = False,
+    support_agent: Annotated[Optional[str], typer.Option("--support-agent", hidden=True, help="Old name of --assistant.")] = None,
+    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", hidden=True, help="Old name of --no-assistant.")] = False,
+    tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files (every tool in them). Tools with timing 'agent' appear only when the Assistant adds them.")] = None,
     root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
     experiment: Annotated[Optional[str], typer.Option(help="Run this experiment (see `hani2 experiment create`).")] = None,
     scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", "--set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
@@ -182,7 +199,7 @@ def main(
     if opponents:
         _check_opponents(opponents)
         os.environ["HANI2_OPPONENTS"] = opponents
-    _apply_support_agent_choice("off" if no_support_agent else support_agent)
+    _apply_assistant_choice("off" if (no_assistant or no_support_agent) else _assistant_option(assistant, support_agent))
     if tools:
         os.environ["HANI2_TOOLS"] = _check_tools(tools)
     if ctx.invoked_subcommand is not None:
@@ -208,7 +225,7 @@ def info():
     """Show where HANI2 keeps its files and how it is configured."""
     from hani2.config import experiment_dir, home, results_root, scenarios_dir, settings_dir
     from hani2.server import auth_mode, oauth_providers
-    from hani2.support_agent.settings import support_agent_mode
+    from hani2.support_agent.settings import assistant_mode
 
     typer.echo(f"version         {__version__}")
     typer.echo(f"home            {home()}")
@@ -217,7 +234,7 @@ def info():
     typer.echo(f"results         {results_root()}")
     typer.echo(f"experiment      {experiment_dir() or '-'}")
     typer.echo(f"auth mode       {auth_mode()}  (oauth: {', '.join(oauth_providers()) or 'none'})")
-    typer.echo(f"support agent   {support_agent_mode()}")
+    typer.echo(f"assistant       {assistant_mode()}")
     opp = os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS")
     from hani2.config import get_env
 
@@ -292,8 +309,10 @@ def sets(
 def experiment_create(
     name: str,
     force: Annotated[bool, typer.Option("--force", "-f", help="Overwrite existing files.")] = False,
-    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", help="Run this experiment without a support agent (e.g. a competition).")] = False,
-    support_agent: Annotated[Optional[str], typer.Option("--support-agent", help="Support agent for this experiment: on, off, auto, or a class (pkg.module:Class or path/to/file.py:Class).")] = None,
+    no_assistant: Annotated[bool, typer.Option("--no-assistant", help="Run this experiment without the Assistant (e.g. a competition).")] = False,
+    assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant for this experiment: on, off, auto, or an Assistant class (pkg.module:Class or path/to/file.py:Class).")] = None,
+    no_support_agent: Annotated[bool, typer.Option("--no-support-agent", hidden=True, help="Old name of --no-assistant.")] = False,
+    support_agent: Annotated[Optional[str], typer.Option("--support-agent", hidden=True, help="Old name of --assistant.")] = None,
     no_webmcp: Annotated[bool, typer.Option("--no-webmcp", help="Do not expose WebMCP tools to browser agents in this experiment.")] = False,
     opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) for this experiment: comma-separated negotiators and/or groups.")] = None,
     tools: Annotated[Optional[str], typer.Option("--tools", help="Extra tools for this experiment: comma-separated tool classes (pkg.module:Class or path/to/file.py:Class) and/or tool folders and .py files.")] = None,
@@ -318,28 +337,29 @@ def experiment_create(
         shutil.copytree(src_scen, sdst, dirs_exist_ok=True)
     import json as _json
 
-    if no_support_agent:
-        support_agent = "off"
-    if support_agent:
-        from hani2.support_agent.settings import parse_support_agent_choice
+    assistant = _assistant_option(assistant, support_agent)
+    if no_assistant or no_support_agent:
+        assistant = "off"
+    if assistant:
+        from hani2.support_agent.settings import parse_assistant_choice
 
         try:
-            mode, klass = parse_support_agent_choice(support_agent)
+            mode, klass = parse_assistant_choice(assistant)
         except ValueError as e:
-            raise typer.BadParameter(str(e), param_hint="--support-agent") from None
+            raise typer.BadParameter(str(e), param_hint="--assistant") from None
         sa = {"mode": mode}
         if klass:
             if ".py:" in klass:
                 path, _, attr = klass.rpartition(":")
                 klass = f"{Path(path).expanduser().resolve()}:{attr}"
-            _check_support_agent_class(klass)
+            _check_assistant_class(klass)
             sa["agent_class"] = klass
-        (exp / "support_agent_settings.json").write_text(_json.dumps(sa, indent=2))
+        (exp / "assistant_settings.json").write_text(_json.dumps(sa, indent=2))
         if mode == "off":
             (exp / "autopilot_settings.json").write_text(_json.dumps({"allowed": False}, indent=2))
-            typer.echo("  support agent: off (support_agent_settings.json), autopilot: off")
+            typer.echo("  assistant: off (assistant_settings.json), autopilot: off")
         else:
-            typer.echo(f"  support agent: {mode}{' using ' + klass if klass else ''} (support_agent_settings.json)")
+            typer.echo(f"  assistant: {mode}{' using ' + klass if klass else ''} (assistant_settings.json)")
     if no_webmcp or opponents or tools:
         envf = exp / "env.json"
         env = _json.loads(envf.read_text()) if envf.exists() else {}
@@ -579,7 +599,7 @@ def replay_evaluate(
 @replay_app.command("compare")
 def replay_compare(
     paths: PathsArg = None,
-    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent, user, scenario, experiment, …")] = "opponent",
+    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent (the Assistant), user, scenario, experiment, …")] = "opponent",
     metrics: MetricsOpt = None,
     llm: LlmOpt = False,
     out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the group table to a .csv or .json file.")] = None,

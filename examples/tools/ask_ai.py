@@ -13,11 +13,11 @@ class AskAI(LLMTool):
     description = "Ask a language model any question about this negotiation."
     help = """
     **What it does.** Answers your own question about the negotiation, for example
-    "Is the partner's last offer good for me?" or "Which issue should I give up first?".
+    "Is the opponent's last offer good for me?" or "Which issue should I give up first?".
 
     **How it works.** Your question, your preferences (issue weights and option values) and
     the offers so far are sent to the language model when you press **Ask**. The answer is
-    shown here and is never sent to your partner. The model can be wrong: check its advice
+    shown here and is never sent to your opponent. The model can be wrong: check its advice
     against the Preferences tool.
     """
     icon = "message-circle-question"
@@ -27,7 +27,7 @@ class AskAI(LLMTool):
 
     def controls_view(self):
         return [ui.textarea("question", self.values.get("question", ""), rows=2,
-                            placeholder="e.g. Which issue matters most to my partner?")]
+                            placeholder="e.g. Which issue matters most to my opponent?")]
 
     def check(self):
         if not (self.values.get("question") or "").strip():

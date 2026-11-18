@@ -2,9 +2,38 @@
 
 ## Unreleased
 
-- **Tool help.** Every tool has a `help` text (Markdown) saying what it does and how it works. Participants open it with the new **?** button next to a pane's tabs (and in an enlarged tool), and the support agent reads it at the top of `read_tool`. All built-in tools have one.
+- **Human, Assistant and Opponent.** The three parties of a negotiation now have the same names
+  everywhere (interface, admin console, docs, CLI help, messages, scenario texts and prompts): the
+  *human* (the participant), the *Assistant* (the AI helper that advises the human and can act for
+  them) and the *opponent* (the other side). The relabelled side names default to `You` and
+  `Opponent`, and scenario texts say "Opponent Utility Function" and "your opponent". The guide
+  page is now [Assistant](guide/assistant.md) and the tutorial [Write an Assistant](tutorials/assistant.md).
+  New names, with the old names kept working as aliases:
+    - `hani2 --assistant` / `--no-assistant` and `hani2 experiment create --assistant` /
+      `--no-assistant` (old names `--support-agent` / `--no-support-agent`, hidden from the help);
+    - `HANI2_ASSISTANT` / `HANI2_ASSISTANT_CLASS` (old names `HANI2_SUPPORT_AGENT` /
+      `HANI2_SUPPORT_AGENT_CLASS`, still read; the new ones win);
+    - `assistant_settings.json` (old name `support_agent_settings.json`, still read). Layers, lowest
+      first: bundled default, settings folder old file, settings folder new file, experiment old
+      file, experiment new file. The admin console saves the new file, `hani2 setup` keeps an
+      existing old file and does not add a new one over it, and the admin settings kind is
+      `assistant` (old name `support_agent`);
+    - `from hani2.assistant import Assistant` (old name `from hani2.support_agent import
+      SupportAgent`, the same class; `hani2.assistant.runtime`, `.settings`, … are the same modules);
+      `load_assistant_settings`, `assistant_mode`, `create_assistant_for` and friends next to their
+      old names;
+    - the autopilot driver `Assistant` (old name `Support Agent`, still accepted in settings);
+    - `make_session(opponent=..., assistant_settings=...)` (old names `partner=` and `support_settings=`).
+
+  Stored names do not change, so old recordings, results and evaluations still load: result columns
+  such as `support_agent_used`, event types and their fields, session snapshot keys, capability keys,
+  LLM function and WebMCP tool names, and the scenario values `human` / `agent`.
+- **Scenario catalog script.** `scripts/make_scenario_catalog.py` writes the
+  [scenario catalog](guide/scenario-sets.md); run it again when scenario texts change.
+
+- **Tool help.** Every tool has a `help` text (Markdown) saying what it does and how it works. Participants open it with the new **?** button next to a pane's tabs (and in an enlarged tool), and the Assistant reads it at the top of `read_tool`. All built-in tools have one.
 - **Easy tool registration.** Tool files in `$HANI2_HOME/tools` are loaded automatically and re-read when they change; more folders come from `env.json` → `tools.paths`, and `hani2 --tools` / `tools.extra` now also take folders and whole `.py` files. New `register_tool` decorator and the `hani2 tools list | path | new` commands.
-- **LLM tools.** `LLMTool` turns a prompt into a working tool (button, background call, errors, Markdown answer); `Tool.ask_llm()`, `Tool.transcript()` and `hani2.llm_service.complete()` help write your own. New example tools: Summary and Ask the AI. The support agent's `use_tool` waits for such a tool to finish, so it gets the answer.
+- **LLM tools.** `LLMTool` turns a prompt into a working tool (button, background call, errors, Markdown answer); `Tool.ask_llm()`, `Tool.transcript()` and `hani2.llm_service.complete()` help write your own. New example tools: Summary and Ask the AI. The Assistant's `use_tool` waits for such a tool to finish, so it gets the answer.
 - **Tutorial.** The tools tutorial now covers the tools folder, LLM tools, help texts and the ways to register a tool.
 - **Scenario sets**: named, ordered lists of scenario types in `scenario_sets.yaml` (editable under
   *Texts*). The bundled sets are `HAN2026` (Trade, Island, Grocery; the default), `MIT2025`,

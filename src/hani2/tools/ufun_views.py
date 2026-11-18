@@ -54,7 +54,7 @@ ENTRY_POINT_GROUP = "hani2.ufun_views"
 
 PREFERENCES_HELP_MD = """
 Your **preferences** say how good each possible agreement is *for you*, on a
-scale from **0% (worst) to 100% (best)**. Your AI partner has its own
+scale from **0% (worst) to 100% (best)**. Your AI opponent has its own
 preferences, and you usually value things differently — that difference is
 what makes a deal worth doing.
 

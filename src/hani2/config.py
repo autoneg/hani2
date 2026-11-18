@@ -94,8 +94,13 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
-def load_json_settings(filename: str, defaults: dict | None = None) -> dict:
-    """Load a JSON settings file merged over the bundled default and ``defaults``."""
+def load_json_settings(filename: str, defaults: dict | None = None, old_names: tuple[str, ...] = ()) -> dict:
+    """Load a JSON settings file merged over the bundled default and ``defaults``.
+
+    ``old_names`` are earlier names of the same file, still read. The layers,
+    lowest precedence first: ``defaults``, the bundled default, then in the
+    settings folder and then in the experiment folder each old name followed
+    by ``filename`` (so the new name wins over an old one at each level)."""
     merged: dict = deepcopy(defaults or {})
     bundled = DEFAULT_SETTINGS_DIR / filename
     if bundled.exists():
@@ -103,10 +108,11 @@ def load_json_settings(filename: str, defaults: dict | None = None) -> dict:
             merged = _deep_merge(merged, json.loads(bundled.read_text()))
         except json.JSONDecodeError:
             pass
-    layers = [settings_dir() / filename]
+    names = [*old_names, filename]
+    layers = [settings_dir() / n for n in names]
     exp = experiment_dir()
     if exp is not None:
-        layers.append(exp / filename)
+        layers += [exp / n for n in names]
     for layer in layers:
         if layer.exists():
             try:

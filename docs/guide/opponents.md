@@ -3,11 +3,11 @@
 !!! note "Two kinds of agents"
     HANI2 has two kinds of agents. The **opponent agent** negotiates *against* the participant; it is
     chosen with `--opponents`, `HANI2_OPPONENTS`, `?opponents=` and `opponents` in `env.json`. The
-    **support agent** helps the participant; it is chosen with `--support-agent` (see
-    [Support agent](support-agent.md)). Participants see the opponent agent as their *partner*.
+    **Assistant** helps the participant; it is chosen with `--assistant` (see
+    [Assistant](assistant.md)). Participants see it labelled **Opponent**.
     The older names `--agents`, `HANI2_AGENTS`, `?agents=` and `agents` still work.
 
-Every negotiation pairs the participant with one automated opponent (the *partner*). HANI2 picks it from a *pool* of agent specs when the negotiation starts. This page explains how specs are written, how the pool is chosen and what HANI2 does to the opponent before it plays.
+Every negotiation pairs the participant with one automated *opponent*. HANI2 picks it from a *pool* of agent specs when the negotiation starts. This page explains how specs are written, how the pool is chosen and what HANI2 does to the opponent before it plays.
 
 ## Agent specs
 
@@ -93,7 +93,7 @@ When a negotiation starts, HANI2 builds the pool from the first source in this l
 
 1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
 2. The `--opponents` option of `hani2` (stored in the `HANI2_OPPONENTS` environment variable).
-3. The per-session *Partner types* setting in the admin settings drawer.
+3. The per-session *Opponent agents* setting in the admin settings drawer.
 4. The `opponents` list in `env.json`, also editable as *Opponent agents* in the admin console.
 5. The default pool: the four template-based talking negotiators (`:template`).
 
@@ -118,16 +118,16 @@ http://localhost:5006/play?group=finalists
 }
 ```
 
-The partner is then chosen at random from the pool, with two exceptions:
+The opponent is then chosen at random from the pool, with two exceptions:
 
-- A study can fix the partner per round. The [Prolific](prolific.md) study does this for practice and counted rounds.
+- A study can fix the opponent per round. The [Prolific](prolific.md) study does this for practice and counted rounds.
 - In admin mode, the *Opponent for the next negotiation* field on the start screen overrides the random choice (see below).
 
 ## The admin opponent picker
 
 When a session is in admin mode, the start screen shows a field labelled *Opponent for the next negotiation*. It suggests every agent in the groups offered to admins (`llm`, `template`, `notext`, `negmas`, `classic`, `genius`), but you can type any spec. Leave it empty to draw from the pool. The choice stays in place for later negotiations in the same session until you clear it.
 
-Admin sessions also show the partner's name in the interface. For other participants, the partner's type stays hidden unless the admin turns on *Show the partner's type* in the settings drawer. See [Admin console](admin.md) and [Authentication](authentication.md) for how a session enters admin mode.
+Admin sessions also show the opponent's name in the interface. For other participants, the opponent's type stays hidden unless the admin turns on *Show the opponent's type* in the settings drawer. See [Admin console](admin.md) and [Authentication](authentication.md) for how a session enters admin mode.
 
 ## What HANI2 does to an opponent
 
@@ -148,7 +148,7 @@ Without this step, LLM negotiators would fall back to negmas-llm's built-in defa
 Two wrappers change the opponent's class at runtime:
 
 - **No accept without an offer.** If the opponent tries to accept while no offer is on the table (for example on its first move, or after the participant sent a message without an offer), the accept becomes a plain "no counter-offer" response that keeps any message. The negotiation continues instead of breaking. Every opponent gets this wrapper.
-- **No ending in practice rounds.** In a practice round, an attempt by the opponent to end the negotiation becomes a "no counter-offer" response, so a participant who is still learning the interface never sees the partner walk away. Real rounds keep the unwrapped behaviour.
+- **No ending in practice rounds.** In a practice round, an attempt by the opponent to end the negotiation becomes a "no counter-offer" response, so a participant who is still learning the interface never sees the opponent walk away. Real rounds keep the unwrapped behaviour.
 
 The wrapped class names start with `NoAcceptNone_` and `NoEnd_`. The `agent_type` column in `results.csv` keeps the spec you configured, not the wrapper name.
 

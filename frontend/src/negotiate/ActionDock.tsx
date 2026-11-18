@@ -188,20 +188,20 @@ function Running({ st }: { st: SessionState }) {
   return (
     <div className="flex flex-col gap-3">
       <Anchor id="partner_offer">
-        <div className={`rounded-xl border px-4 py-3 ${po ? "border-partner/30 bg-partner/[0.05]" : "border-dashed border-line"}`}>
+        <div className={`rounded-xl border px-4 py-3 ${po ? "border-opponent/30 bg-opponent/[0.05]" : "border-dashed border-line"}`}>
           {po ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div className="min-w-[10rem] flex-1">
-                <div className="text-xs font-medium text-partner">Offer on the table</div>
+                <div className="text-xs font-medium text-opponent">Offer on the table</div>
                 <div className="font-semibold">{po.text}</div>
               </div>
               <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
                 <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
-                <Gauge value={po.utility} reserved={rv} party="partner" />
+                <Gauge value={po.utility} reserved={rv} party="opponent" />
               </div>
             </div>
           ) : (
-            <div className="text-sm text-muted">{st.negotiation.thinking ? "Waiting for your partner…" : "No offer on the table yet. Make the first offer."}</div>
+            <div className="text-sm text-muted">{st.negotiation.thinking ? "Waiting for your opponent…" : "No offer on the table yet. Make the first offer."}</div>
           )}
         </div>
       </Anchor>
@@ -237,7 +237,7 @@ function Running({ st }: { st: SessionState }) {
             )}
             {!textOnly && (
               <div className="mt-3 rounded-lg bg-sunken/70 px-3 py-2">
-                <div className="mb-1 text-xs text-muted">If your partner accepts this offer you get</div>
+                <div className="mb-1 text-xs text-muted">If your opponent accepts this offer you get</div>
                 <Gauge value={st.draft.utility} reserved={rv} size="lg" />
               </div>
             )}
@@ -245,7 +245,7 @@ function Running({ st }: { st: SessionState }) {
               {allowText && (
                 <Anchor id="message" className="flex-1">
                   <label className="label" htmlFor="hani-msg">
-                    Message to your partner (optional)
+                    Message to your opponent (optional)
                   </label>
                   <textarea
                     id="hani-msg"
@@ -448,7 +448,7 @@ function ResultCard({ st }: { st: SessionState }) {
         <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${ok ? "bg-good/10 text-good" : "bg-sunken text-muted"}`}>{ok ? <CircleCheck size={22} /> : <CircleX size={22} />}</div>
         <div className="flex-1">
           <div className="text-lg font-semibold">{ok ? "Agreement reached" : "No agreement"}</div>
-          <div className="text-sm text-muted">{ok ? r?.agreement_str : r?.status === "timedout" ? "The time ran out." : r?.ended_by === "human" ? "You ended the negotiation." : r?.ended_by === "agent" ? "Your partner ended the negotiation." : "The negotiation ended."}</div>
+          <div className="text-sm text-muted">{ok ? r?.agreement_str : r?.status === "timedout" ? "The time ran out." : r?.ended_by === "human" ? "You ended the negotiation." : r?.ended_by === "agent" ? "Your opponent ended the negotiation." : "The negotiation ended."}</div>
         </div>
       </div>
       {r && (

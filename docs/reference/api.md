@@ -1,6 +1,6 @@
 # Python API
 
-This page is generated from the docstrings in the source. It covers the modules you use when you write tools, support agents and tests. The guides explain how the pieces fit together: see [Tools](../guide/tools.md), [Support agent](../guide/support-agent.md) and the [tutorials](../tutorials/support-agent.md).
+This page is generated from the docstrings in the source. It covers the modules you use when you write tools, Assistants and tests. The guides explain how the pieces fit together: see [Tools](../guide/tools.md), [Assistant](../guide/assistant.md) and the [tutorials](../tutorials/assistant.md).
 
 ## Tools
 
@@ -18,11 +18,11 @@ This page is generated from the docstrings in the source. It covers the modules 
 
 ::: hani2.tools.ui
 
-## Support agent runtime
+## Assistant runtime
 
 ::: hani2.support_agent.runtime
 
-## Support agent functions
+## Assistant functions
 
 ::: hani2.support_agent.tools
 

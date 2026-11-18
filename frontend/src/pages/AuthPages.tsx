@@ -21,11 +21,11 @@ function Shell({ children, cfg }: { children: React.ReactNode; cfg: AppConfig | 
         <Brand title={cfg?.title ?? "HANI2"} />
         <div className="max-w-md">
           <p className="text-3xl font-semibold leading-tight tracking-tight">
-            Negotiate with an AI partner. See what every offer is worth before you decide.
+            Negotiate with an AI opponent. See what every offer is worth before you decide.
           </p>
           <div className="mt-10 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/[0.04] p-5" aria-hidden>
             {[
-              ["Partner offers", 0.34, "partner"],
+              ["Opponent offers", 0.34, "opponent"],
               ["You counter", 0.71, "you"],
               ["Agreement", 0.58, "you"],
             ].map(([l, v, p]) => (

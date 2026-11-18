@@ -33,7 +33,7 @@ export function Brand({ title: explicit }: { title?: string }) {
       <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden>
         <rect width="32" height="32" rx="8" className="fill-ink" />
         <path d="M7 20.5h8.5V11H7z" className="fill-you" />
-        <path d="M16.5 21H25v-9.5h-8.5z" className="fill-partner" />
+        <path d="M16.5 21H25v-9.5h-8.5z" className="fill-opponent" />
         <path d="M7 23h18" stroke="rgb(var(--surface))" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <span className="text-[1.05rem] font-semibold tracking-tight">{title}</span>
@@ -194,8 +194,8 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
           {st.scenario?.role && <span>You are the {st.scenario.role}</span>}
           <span className={`rounded px-1.5 py-px font-medium ${st.round.practice ? "bg-warn/15 text-warn" : "bg-sunken text-ink"}`}>{st.round.label}</span>
           {st.opponent && (
-            <span className="truncate rounded bg-partner/10 px-1.5 py-px text-partner" title={st.opponent.type}>
-              Partner: {st.opponent.name}
+            <span className="truncate rounded bg-opponent/10 px-1.5 py-px text-opponent" title={st.opponent.type}>
+              Opponent: {st.opponent.name}
             </span>
           )}
           {st.webmcp?.enabled && webmcpAvailable() && (

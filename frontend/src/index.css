@@ -12,7 +12,7 @@
   --ink: 23 32 51;
   --muted: 93 102 120;
   --you: 59 75 219;
-  --partner: 217 130 27;
+  --opponent: 217 130 27;
   --good: 18 148 106;
   --bad: 210 69 59;
   --warn: 196 132 0;
@@ -29,7 +29,7 @@
     --ink: 229 233 241;
     --muted: 148 158 177;
     --you: 124 138 255;
-    --partner: 240 165 72;
+    --opponent: 240 165 72;
     --good: 52 199 148;
     --bad: 240 103 92;
     --warn: 230 175 50;
@@ -45,7 +45,7 @@
   --ink: 229 233 241;
   --muted: 148 158 177;
   --you: 124 138 255;
-  --partner: 240 165 72;
+  --opponent: 240 165 72;
   --good: 52 199 148;
   --bad: 240 103 92;
   --warn: 230 175 50;
@@ -128,7 +128,7 @@ body {
 .md-sm { @apply text-[0.8rem]; }
 .md-lg { @apply text-base; }
 
-/* highlights driven by the support agent */
+/* highlights driven by the Assistant */
 @keyframes hani-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgb(var(--you) / 0.55); }
   50% { box-shadow: 0 0 0 7px rgb(var(--you) / 0); }

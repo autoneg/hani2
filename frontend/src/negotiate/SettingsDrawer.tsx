@@ -112,7 +112,7 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
             <Section title="Negotiation rules">
               <Toggle label="An empty offer ends the negotiation" value={a.end_on_no_response} onChange={(v) => setP("end_on_no_response", v)} />
               <Toggle label="Allow messages without an offer" value={a.allow_text_only_offers} onChange={(v) => setP("allow_text_only_offers", v)} />
-              <Toggle label="Show messages from the AI partner" value={a.allow_text_agent} onChange={(v) => setP("allow_text_agent", v)} />
+              <Toggle label="Show messages from the opponent" value={a.allow_text_agent} onChange={(v) => setP("allow_text_agent", v)} />
               <Toggle label="Let the participant write messages" value={a.allow_text_human} onChange={(v) => setP("allow_text_human", v)} />
               <Toggle label="Text-only mode" hint="The participant sends messages only" value={a.text_only_mode} onChange={(v) => setP("text_only_mode", v)} />
               <Toggle label="Write a message when none is given" hint="Uses the LLM" value={a.auto_generate} onChange={(v) => setP("auto_generate", v)} />

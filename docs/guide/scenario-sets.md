@@ -300,7 +300,7 @@ See the generator's own description in the *Scenario Info* tool.
 | Royalty | 0%, 2%, 4%, 6% | Share of sales paid to the inventor |
 | Exclusivity | Non-exclusive, Exclusive in one region, Worldwide exclusive | Whether the inventor may license the device to others |
 
-*No deal:* Without a deal the inventor keeps looking for a partner and the firm drops the project.
+*No deal:* Without a deal the inventor keeps looking for another firm and the firm drops the project.
 
 *Source:* Adapted from the MBA negotiation cases of the PieArena benchmark (2026).
 
@@ -376,7 +376,7 @@ See the generator's own description in the *Scenario Info* tool.
 
 **Sharing the Housework.** In this scenario, two flatmates negotiate who does each of five chores: one of them, both taking turns, or paid help whose cost they split.
 
-**The Domain** There are five issues, one per chore. Each chore can be done by you, by your partner, by both taking turns (*Shared*) or by paid help whose cost you split. The options *human* and *agent* mean you and your partner.
+**The Domain** There are five issues, one per chore. Each chore can be done by you, by your opponent, by both taking turns (*Shared*) or by paid help whose cost you split. The options *human* and *agent* mean you and your opponent.
 
 | Role | Description |
 |------|-------------|
@@ -514,7 +514,7 @@ See the generator's own description in the *Scenario Info* tool.
 
 **Resource Exchange.** In this scenario, two traders split a shipment of gold, iron, bananas and spices (five items of each).
 
-**The Domain** There are four issues, one per good: how many of its five items you get; your partner gets the rest. Each item is worth some points to you (see your hints) and different points to your partner.
+**The Domain** There are four issues, one per good: how many of its five items you get; your opponent gets the rest. Each item is worth some points to you (see your hints) and different points to your opponent.
 
 | Role | Description |
 |------|-------------|
@@ -536,7 +536,7 @@ See the generator's own description in the *Scenario Info* tool.
 
 **Dividing an Estate.** In this scenario, two heirs divide a collection: six vinyl records, three clocks, two paintings and three books.
 
-**The Domain** There are four issues, one per kind of item: how many you get; your partner gets the rest. The piles have different sizes. Each item is worth some points to you (see your hints) and different points to your partner.
+**The Domain** There are four issues, one per kind of item: how many you get; your opponent gets the rest. The piles have different sizes. Each item is worth some points to you (see your hints) and different points to your opponent.
 
 | Role | Description |
 |------|-------------|

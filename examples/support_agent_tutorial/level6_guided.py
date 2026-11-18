@@ -34,7 +34,7 @@ class GuidedAgent(SupportAgent):
             if self._turns == 2:
                 self._tool("Utility Plot", True)
                 self.message_user("Second round: here is the Utility Plot.", channel="toast")
-                self.message_user("**Plan:** compare the partner's offers on the Utility Plot.", channel="board")
+                self.message_user("**Plan:** compare the opponent's offers on the Utility Plot.", channel="board")
             if self._turns == 3:
                 for name in ("Outcome Plot", "Trace"):
                     self._tool(name, True)

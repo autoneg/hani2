@@ -33,7 +33,7 @@ const NAV: [Section, string, any][] = [
   ["users", "Users", Users],
   ["server", "Server & studies", Settings],
   ["llm", "Language model", Sparkles],
-  ["agent", "Support agent", Bot],
+  ["agent", "Assistant", Bot],
   ["autopilot", "Autopilot", Plane],
   ["texts", "Texts", FileText],
 ];
@@ -205,7 +205,7 @@ function Analytics() {
   return (
     <>
       <div className="flex items-start justify-between">
-        <H sub="Everything participants and support agents did, as logged by the server.">Event analytics</H>
+        <H sub="Everything participants and their Assistants did, as logged by the server.">Event analytics</H>
         <a className="btn-secondary" href={withBase("/api/admin/events.csv")}>
           <Download size={15} /> Export CSV
         </a>
@@ -524,13 +524,13 @@ function LLMSection() {
 }
 
 function AgentSection({ meta }: { meta: any }) {
-  const { data: d, set, save, dirty } = useSettings("support_agent");
+  const { data: d, set, save, dirty } = useSettings("assistant");
   if (!d) return <Loader2 className="animate-spin text-muted" />;
   return (
     <>
-      <H sub="The support agent (the assistant beside each participant). Participants can narrow these permissions, never widen them.">Support agent</H>
+      <H sub="The Assistant (the AI helper beside each participant). Participants can narrow these permissions, never widen them.">Assistant</H>
       <section className="panel px-4">
-        <Row label="Who gets the support agent">
+        <Row label="Who gets the Assistant">
           <Sel v={d.mode} on={(v) => set("mode", v)} opts={[["on", "Everyone"], ["auto", "Admins only"], ["off", "Nobody"]]} />
         </Row>
         <Row label="Agent class" hint="module:Class of your own agent; empty for the built-in one">

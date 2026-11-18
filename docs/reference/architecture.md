@@ -9,7 +9,7 @@ browser (React app)  ── REST /api/... ──────────┐
         │                                        │
         └── WebSocket /api/ws/{sid} ── Hub ── NegotiationSession ── negmas SAOMechanism
                                                  ├── tools (hani2.tools)
-                                                 ├── support agent (hani2.support_agent)
+                                                 ├── Assistant (hani2.assistant)
                                                  ├── autopilot
                                                  └── study (Prolific flow, questionnaires)
 ```
@@ -19,10 +19,10 @@ browser (React app)  ── REST /api/... ──────────┐
 | `hani2.cli` | The `hani2` command (Typer). |
 | `hani2.server` | The FastAPI app: REST API, WebSocket endpoint, OAuth, static files. |
 | `hani2.hub` | Maps session IDs to sessions and to the open WebSockets; delivers messages. |
-| `hani2.session` | `NegotiationSession`: scenario, mechanism, draft offer, history, tools, support agent, autopilot. |
+| `hani2.session` | `NegotiationSession`: scenario, mechanism, draft offer, history, tools, Assistant, autopilot. |
 | `hani2.tool_controller` | Tool placement: panes, order, visibility, enable switch. |
 | `hani2.tools` | The `Tool` base class, the UI components, the registry and the built-in tools. |
-| `hani2.support_agent` | The support agent runtime, its function tools, capabilities, settings and the autopilot. |
+| `hani2.assistant` | The Assistant runtime, its function tools, capabilities, settings and the autopilot. |
 | `hani2.agents` | Opponent specs, groups and the opponent factory. |
 | `hani2.scenario_store`, `hani2.make_scenarios` | Loading and generating scenarios. |
 | `hani2.study` | The study flow: round planning, practice rounds, questionnaires, Prolific completion. |
@@ -34,7 +34,7 @@ browser (React app)  ── REST /api/... ──────────┐
 
 ## Process model
 
-The server runs as **one uvicorn worker process**. `hani2` always passes `workers=1`, because every live session is an in-memory Python object: the negmas mechanism, the opponent, the tools and the support agent conversation are not serialisable. Do not run several workers or several replicas behind a load balancer without sticky routing to a single process.
+The server runs as **one uvicorn worker process**. `hani2` always passes `workers=1`, because every live session is an in-memory Python object: the negmas mechanism, the opponent, the tools and the Assistant conversation are not serialisable. Do not run several workers or several replicas behind a load balancer without sticky routing to a single process.
 
 Sessions are kept in the `Hub`, keyed by a session ID that the server derives from who is connecting:
 
@@ -52,9 +52,9 @@ A background task removes sessions that have had no open WebSocket for six hours
 
 HANI2 keeps the event loop free by running all session work in threads.
 
-- **Session lock.** `NegotiationSession.lock` is a re-entrant lock that guards session state. It is held only briefly. `run_on_doc(fn)` runs a callable under it; support agents and tools use it to read or change state safely.
+- **Session lock.** `NegotiationSession.lock` is a re-entrant lock that guards session state. It is held only briefly. `run_on_doc(fn)` runs a callable under it; Assistants and tools use it to read or change state safely.
 - **Step lock.** `step_lock` serialises stepping the mechanism. Opponent steps, which may wait for a slow LLM, run in a worker thread without holding the session lock, so the UI, the tools and the assistant stay responsive while the opponent thinks.
-- **Worker pool.** A process-wide thread pool (`HANI2_WORKERS` threads, default 32) runs mechanism steps, support agent events and any work submitted with `session.submit(fn, ...)`.
+- **Worker pool.** A process-wide thread pool (`HANI2_WORKERS` threads, default 32) runs mechanism steps, Assistant events and any work submitted with `session.submit(fn, ...)`.
 - **Per-session UI queue.** Each session has a single-thread executor that applies UI messages from the browser in arrival order (`submit_ui`). Messages that may block on an LLM or on the human (`chat`, `answer`, `panel_action`, `extract`, `generate`) go to the worker pool instead, so they never hold up the queue.
 - **Delivery.** Sessions call `Hub.push`, `Hub.push_state` and `Hub.tool_changed` from any thread. The hub hands the work to the event loop. State pushes are coalesced (about 20 ms) and tool re-renders are coalesced per tool (about 50 ms), so a burst of changes produces one message.
 - **Timeouts.** A timer thread watches the negotiation deadline. When time runs out on the human's turn, it repeats the human's last offer so the mechanism can register the timeout.
@@ -73,9 +73,9 @@ All messages are JSON objects with a `type`. On connect the server sends a full 
 | `load` | `scenario_type?`, `name?` | Load the next scenario. The type and name are honoured only when the user may choose scenarios (admins, or `allow_scenario_selection`). |
 | `start` | | Start the negotiation on the loaded scenario. |
 | `draft` | `values` | Update the counter-offer fields (issue → value). |
-| `draft_text` | `text` | Update the message to the partner. |
+| `draft_text` | `text` | Update the message to the opponent. |
 | `send` | `values?`, `text?`, `text_only?` | Send the counter-offer. `text_only` is honoured for admins only. |
-| `accept` | | Accept the partner's current offer. |
+| `accept` | | Accept the opponent's current offer. |
 | `end` | | End the negotiation without agreement. |
 | `tool_input` | `id`, `name`, `value` | A tool input changed (calls `Tool.on_input`). |
 | `tool_action` | `id`, `action`, `payload?` | A tool button or row was clicked (calls `Tool.on_action`). |
@@ -86,7 +86,7 @@ All messages are JSON objects with a `type`. On connect the server sends a full 
 | `chat` | `text` | A message to the assistant. |
 | `answer` | `text` | The answer to a question the assistant asked. |
 | `support` | `op`, `key?`, `value?` | Assistant settings: `op` is `enable`, `capability`, `autonomy`, `delivery` or `reset`. |
-| `panel_action` | `panel_id`, `action`, `payload?` | A button in an assistant panel (calls `SupportAgent.on_panel_action`). |
+| `panel_action` | `panel_id`, `action`, `payload?` | A button in an assistant panel (calls `Assistant.on_panel_action`). |
 | `close_panel` | `panel_id` | Close an assistant panel. |
 | `clear_highlight` | `target?` | Remove one highlight, or all when `target` is missing. |
 | `autopilot` | `active`, `driver?` | Turn autopilot on or off. |
@@ -157,7 +157,7 @@ All endpoints are under `/api`. Admin endpoints require an admin login cookie. T
 | `GET`, `POST /api/admin/users` | List users, or create one (`username`, `password`, `email`, `full_name`, `is_admin`). |
 | `PATCH /api/admin/users/{username}` | Set `password` or `is_admin`. |
 | `DELETE /api/admin/users/{username}` | Delete a user (not `admin`, not yourself). |
-| `GET /api/admin/sessions` | Live sessions: user, mode, phase, round, connections, idle seconds, partner, scenario. |
+| `GET /api/admin/sessions` | Live sessions: user, mode, phase, round, connections, idle seconds, opponent, scenario. |
 | `GET /api/admin/llm/status` | Whether the message-helper LLM is configured. |
 
 FastAPI's interactive documentation is available at `/docs` while the server runs.
@@ -177,13 +177,13 @@ The frontend lives in `frontend/` and uses React 19, TypeScript, Vite, Tailwind 
 
 `npm run build` type-checks and writes the bundle to `src/hani2/web`, which the wheel includes. The server serves whatever is in that folder, so a rebuilt frontend needs no Python change. During development, `npm run dev` serves the app on port 5173 and proxies `/api` (including WebSockets) to the backend on port 5006.
 
-Tools and support agent panels never ship frontend code. They describe their views with the components in `hani2.tools.ui`, which the generic renderer in `src/ui/Renderer.tsx` displays. See [Build a tool](../tutorials/tools.md).
+Tools and Assistant panels never ship frontend code. They describe their views with the components in `hani2.tools.ui`, which the generic renderer in `src/ui/Renderer.tsx` displays. See [Build a tool](../tutorials/tools.md).
 
 ## Extension points
 
 | What | How |
 | --- | --- |
 | Tools | Subclass `hani2.tools.base.Tool`; register by saving the file in `$HANI2_HOME/tools` (or a `--tools` folder), with `register_tool`, through `env.json` → `tools.extra` or a `hani2.tools` entry point. See [Tools](../guide/tools.md). |
-| Support agents | Subclass `hani2.support_agent.runtime.SupportAgent`; set `agent_class` in `support_agent_settings.json`. See [Support agent](../guide/support-agent.md). |
+| Assistants | Subclass `hani2.assistant.runtime.Assistant`; set `agent_class` in `assistant_settings.json`. See [Assistant](../guide/assistant.md). |
 | Opponents | Any negmas negotiator class, by dotted path or `file:` spec. See [Opponents](../guide/opponents.md). |
 | Scenarios | Folders on disk. See [Scenarios](../guide/scenarios.md). |

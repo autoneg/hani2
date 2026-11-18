@@ -257,7 +257,7 @@ export function InfoPanel({ replay, rkey, meta }: { replay: Replay; rkey: string
       <KV k="Status" v={res?.summary?.status} />
       <KV k="Ended by" v={res?.summary?.ended_by} />
       <KV k="Your utility" v={res?.summary?.human_utility != null ? fmtNum(res.summary.human_utility) : null} />
-      <KV k="Partner utility" v={res?.summary?.agent_utility != null ? fmtNum(res.summary.agent_utility) : null} />
+      <KV k="Opponent utility" v={res?.summary?.agent_utility != null ? fmtNum(res.summary.agent_utility) : null} />
       <KV k="Agreement" v={res?.agreement} />
       <KV k="Questionnaire" v={q ? q.answers : null} />
       <KV k="Records" v={`${replay.events.length} (${n("out")} messages out, ${n("in")} in, ${n("tel")} telemetry batches, ${n("llm")} LLM calls, ${n("fn")} functions)`} />

@@ -169,7 +169,7 @@ def test_negotiation_summary_asks_the_llm(monkeypatch):
     assert _wait(lambda: not tool.busy)
     assert tool.answer == "- **Price** is still open"
     prompt = calls[0]["prompt"]
-    assert "Summarise the negotiation" in prompt and "Partner:" in prompt and s.issues[0].name in prompt
+    assert "Summarise the negotiation" in prompt and "Opponent:" in prompt and s.issues[0].name in prompt
     assert any(c.get("type") == "card" for c in tool.render())
 
 

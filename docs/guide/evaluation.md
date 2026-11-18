@@ -6,7 +6,7 @@ Every [recording](recordings.md) can be evaluated with optional metrics of three
 - **subjective** — the participant's own answers to the questionnaire;
 - **soft** — judged by a language model from the transcript (opt-in, because it costs calls).
 
-The same metrics evaluate human participants, support agents (the assistant) and opponents:
+The same metrics evaluate human participants, the Assistant and opponents:
 compare recordings grouped by any of them.
 
 Run them in the [replay tool](recordings.md#the-replay-tool), with `hani2 replay evaluate` /
@@ -36,7 +36,7 @@ compare_rows(res["rows"], by="support_agent")
 | `activity` | `n_clicks`, `n_keys`, `mouse_distance`, `n_scrolls`, `idle_fraction`, `hidden_seconds`, `n_blur`, `has_telemetry` | Low-level interaction and attention (time away from the page). |
 | `system_use` | `n_user_messages`, `n_assistant_messages`, `n_suggestions`, `suggestion_adoption`, `suggestions_ignored`, `drafts_explored`, `drafts_per_action`, `n_tool_interactions`, `n_tools_used`, `n_tab_changes`, `actions_by_human`, `actions_by_agent`, `actions_by_autopilot` | How the assistant and the tools were used: messages, suggestions and how often the human sent exactly what the assistant suggested, how many counter-offers they explored before acting, who acted. |
 | `engagement_flags` | `never_acted`, `click_through`, `always_follows`, `never_follows` | Sessions to inspect or remove: a participant who never acted, clicked through as fast as possible without exploring offers, always sent the assistant's suggestion, or never took one. Option `click_through_seconds` (default 3). |
-| `assistant_interaction` | `assistant_response_seconds`, `unanswered_messages`, `unsolicited_messages`, `max_assistant_streak`, `fn_calls`, `fn_success_rate` | The assistant as a conversational partner: responsiveness, unanswered messages, proactive messages, monologues and how often its function calls worked. |
+| `assistant_interaction` | `assistant_response_seconds`, `unanswered_messages`, `unsolicited_messages`, `max_assistant_streak`, `fn_calls`, `fn_success_rate` | The assistant in conversation with the participant: responsiveness, unanswered messages, proactive messages, monologues and how often its function calls worked. |
 
 Move types follow the usual negotiation-dynamics classification: a move is the change from a
 side's previous offer to its next one, by the change of its own utility (Δself) and of the other

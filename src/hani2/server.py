@@ -593,11 +593,12 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
 SETTINGS_KINDS = {
     "env": ("env.json", lambda: load_env()),
     "llm": ("llm_settings.json", lambda: __import__("hani2.config", fromlist=["x"]).load_llm_settings()),
-    "support_agent": ("support_agent_settings.json",
-                      lambda: __import__("hani2.support_agent.settings", fromlist=["x"]).load_support_agent_settings()),
+    "assistant": ("assistant_settings.json",
+                  lambda: __import__("hani2.support_agent.settings", fromlist=["x"]).load_assistant_settings()),
     "autopilot": ("autopilot_settings.json",
                   lambda: __import__("hani2.support_agent.autopilot", fromlist=["x"]).load_autopilot_settings()),
 }
+SETTINGS_KINDS["support_agent"] = SETTINGS_KINDS["assistant"]  # old name of the kind
 TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt",
               "scenario_sets": "scenario_sets.yaml"}
 

@@ -387,7 +387,7 @@ export function Library() {
               {head("opponent", "Opponent")}
               {head("status", "Status")}
               {head("human_utility", "You", "text-right")}
-              {head("agent_utility", "Partner", "text-right")}
+              {head("agent_utility", "Opponent", "text-right")}
               {head("duration", "Duration", "text-right")}
               {head("support_agent", "Assistant")}
               {head("size", "Size", "text-right")}

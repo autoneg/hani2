@@ -169,10 +169,10 @@ class UtilityPlotTool(Tool):
     help = """
     **What it shows.** A line chart of every offer so far: by default the round on the
     x axis and the offer's value *for you* on the y axis, one line for your offers and one
-    for your partner's. The dotted red line is your value on disagreement.
+    for your opponent's. The dotted red line is your value on disagreement.
 
     **How to use it.** Choose the axes with the two drop-downs (relative time, round or
-    seconds). A partner line that rises means the partner is conceding towards you; a flat
+    seconds). An opponent line that rises means the opponent is conceding towards you; a flat
     line means it is holding firm. It is off by default: switch it on to use it.
     """
     icon = "chart-line"
@@ -205,7 +205,7 @@ class UtilityPlotTool(Tool):
                 sub = df[df["negotiator"] == neg]
                 fig.add_trace(go.Scatter(
                     x=sub[x] * (100 if x in ycols else 1) / (100 if x in ycols else 1), y=sub[y],
-                    mode="lines+markers", name="You" if str(neg) == str(human_id) else "Partner",
+                    mode="lines+markers", name="You" if str(neg) == str(human_id) else "Opponent",
                     line=dict(color=party_color(neg, human_id), width=2.5, shape="spline"),
                     marker=dict(size=7)))
         rv = 100 * float(getattr(self.human_ufun, "reserved_value", 0) or 0)
@@ -329,10 +329,10 @@ class OutcomePlotTool(Tool):
     description = "Offers placed in the outcome space (any two issues or time)."
     help = """
     **What it shows.** Every offer as a point placed by two issues of your choice (or by
-    time), with your offers and your partner's in different colours.
+    time), with your offers and your opponent's in different colours.
 
     **How to use it.** Pick the issues for the X and Y axes; untick *Show your offers* to see
-    only your partner's. It shows *what* was offered, not what it is worth. It is off by
+    only your opponent's. It shows *what* was offered, not what it is worth. It is off by
     default: switch it on to use it.
     """
     icon = "scatter-chart"
@@ -360,7 +360,7 @@ class OutcomePlotTool(Tool):
                 continue
             sub = df[df["negotiator"] == neg]
             fig.add_trace(go.Scatter(x=sub[x], y=sub[y], mode="lines+markers",
-                                     name="You" if str(neg) == str(human_id) else "Partner",
+                                     name="You" if str(neg) == str(human_id) else "Opponent",
                                      line=dict(color=party_color(neg, human_id)), marker=dict(size=8)))
         for col, axis in ((x, "xaxis"), (y, "yaxis")):
             issue = next((i for i in self.issues if i.name == col), None)
@@ -397,7 +397,7 @@ class TraceTool(Tool):
         for r in self.trace():
             t, rel, step, neg, offer = (list(r) + [None] * 9)[:5]
             text = (list(r) + [None] * 9)[7]
-            row = {"Step": step, "Time": rel, "By": "You" if str(neg) == str(human_id) else "Partner",
+            row = {"Step": step, "Time": rel, "By": "You" if str(neg) == str(human_id) else "Opponent",
                    "Offer": self.session.outcome_str(offer) if offer is not None else "—",
                    "Message": text or "",
                    "Your utility": float(self.human_ufun(offer)) if offer is not None else None}
@@ -417,10 +417,10 @@ class ValueHistogramTool(Tool):
     description = "How often each value of each issue has been offered."
     help = """
     **What it shows.** For each chosen issue, a bar chart counting how often each option has
-    been offered, by you and by your partner.
+    been offered, by you and by your opponent.
 
     **How to use it.** Pick issues with the chips; untick *Your offers* to count only your
-    partner's. Options your partner offers again and again probably matter to it; options it
+    opponent's. Options your opponent offers again and again probably matter to it; options it
     never offers are probably bad for it.
     """
     icon = "chart-column"
@@ -449,13 +449,13 @@ class ValueHistogramTool(Tool):
                 for neg in (df["negotiator"].unique() if len(df) else []):
                     counts = df[df["negotiator"] == neg][issue.name].value_counts()
                     fig.add_trace(go.Bar(x=[str(v) for v in allv], y=[int(counts.get(v, 0)) for v in allv],
-                                         name="You" if str(neg) == str(human_id) else "Partner",
+                                         name="You" if str(neg) == str(human_id) else "Opponent",
                                          marker_color=party_color(neg, human_id), opacity=0.85))
                 fig.update_layout(xaxis=dict(type="category"), barmode="group")
             else:
                 for neg in (df["negotiator"].unique() if len(df) else []):
                     fig.add_trace(go.Histogram(x=df[df["negotiator"] == neg][issue.name], nbinsx=20,
-                                               name="You" if str(neg) == str(human_id) else "Partner",
+                                               name="You" if str(neg) == str(human_id) else "Opponent",
                                                marker_color=party_color(neg, human_id), opacity=0.75))
                 fig.update_layout(barmode="overlay")
             fig.update_layout(**base_layout(220, yaxis_title="count", xaxis_title=issue.name))

@@ -10,13 +10,13 @@ export function Gauge({
 }: {
   value: number | null | undefined;
   reserved?: number | null;
-  party?: "you" | "partner" | "neutral";
+  party?: "you" | "opponent" | "neutral";
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
 }) {
   const v = value === null || value === undefined ? null : Math.max(0, Math.min(1, value));
   const below = v !== null && reserved !== null && reserved !== undefined && v < reserved;
-  const fill = below ? "bg-bad" : party === "partner" ? "bg-partner" : party === "neutral" ? "bg-muted" : "bg-you";
+  const fill = below ? "bg-bad" : party === "opponent" ? "bg-opponent" : party === "neutral" ? "bg-muted" : "bg-you";
   const h = size === "sm" ? "h-1.5" : size === "lg" ? "h-2.5" : "h-2";
   return (
     <div className="flex min-w-0 items-center gap-2" title={reserved != null ? `Value on disagreement: ${pct(reserved)}` : undefined}>

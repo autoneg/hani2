@@ -10,7 +10,7 @@ The agent that plays is called the *driver*. There are two kinds.
 
 | Driver | How it plays |
 |--------|--------------|
-| `Support Agent` | The session's [support agent](support-agent.md) decides each turn through its functions. |
+| `Assistant` | The session's [Assistant](assistant.md) decides each turn through its functions. |
 | A negotiator name | A negmas negotiator takes the participant's seat and plays with the participant's preferences. |
 
 The negotiators offered are `AspirationNegotiator`, `NaiveTitForTatNegotiator`, `BoulwareTBNegotiator`, `ConcederTBNegotiator` and `LinearTBNegotiator`, followed by the text-producing negotiators from negmas-llm when that package provides them (`HybridWithTextNegotiator`, `BoulwareWithTextNegotiator`, `ConcederWithTextNegotiator`, `LinearWithTextNegotiator`, `LLMHybridNegotiator`, `LLMBoulwareTBNegotiator`, `LLMConcederTBNegotiator`, `LLMLinearTBNegotiator`). See [Opponents](opponents.md) for what these negotiators do.
@@ -22,7 +22,7 @@ Autopilot reads `autopilot_settings.json` from the settings folder, merged over 
 ```json
 {
   "allowed": false,
-  "driver": "Support Agent",
+  "driver": "Assistant",
   "allowed_drivers": null,
   "step_delay": 0.5,
   "user_can_choose": null
@@ -32,27 +32,27 @@ Autopilot reads `autopilot_settings.json` from the settings folder, merged over 
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `allowed` | `false` | The master switch. With `false`, the Autopilot button is not shown. |
-| `driver` | `"Support Agent"` | The default driver, used whenever the participant cannot or did not choose one. |
+| `driver` | `"Assistant"` | The default driver, used whenever the participant cannot or did not choose one. |
 | `allowed_drivers` | `null` | The drivers that may be used. `null` allows all of them. When `driver` is not in this list, the first allowed driver is used instead. |
 | `step_delay` | `0.5` | Seconds to wait before each autopilot move, so people can follow the play. |
 | `user_can_choose` | `null` | Whether non-admin participants may pick the driver. `null` allows it only in the guest playground (not for Prolific participants). Admins can always choose. |
 
 ## When autopilot is available
 
-The Autopilot button appears when `allowed` is true. It is enabled when a driver is configured and, for the `Support Agent` driver, the session has a support agent. When the participant may choose, a driver selector appears next to the button. The button and selector are shown on wide screens only.
+The Autopilot button appears when `allowed` is true. It is enabled when a driver is configured and, for the `Assistant` driver, the session has an Assistant. When the participant may choose, a driver selector appears next to the button. The button and selector are shown on wide screens only.
 
 Turning it on fails with a warning toast in these cases:
 
 - autopilot is not allowed on the server;
 - no driver is configured;
-- the driver is `Support Agent` and the session has no support agent (for example with `--support-agent off`);
+- the driver is `Assistant` and the session has no Assistant (for example with `--assistant off`);
 - the driver is a negotiator but the current negotiation was started without one. The negotiator for the seat is built when the negotiation starts, so the participant has to wait for the next negotiation.
 
 Switching the driver to another negotiator in the middle of a negotiation rebuilds the seat's driver so the switch takes effect at once.
 
-## The support agent driver
+## The Assistant driver
 
-When the support agent drives:
+When the Assistant drives:
 
 - its autonomy is raised to `full` for both the admin and the participant layer, and restored when autopilot stops;
 - on each of the participant's turns it runs a model turn with the instruction to call exactly one of `submit_counter_offer`, `accept_offer` or `end_negotiation`, and the model is required to call a function;
@@ -63,10 +63,10 @@ Capabilities still apply. If `submit_counter`, `accept` or `end` is not effectiv
 
 ### The stall safety net
 
-If a turn ends without one of the three actions, the agent counts a stall, shows a warning toast and sends the current draft as a counter-offer to keep the negotiation moving. After three stalls in a row it shows an error toast ("Autopilot disengaged: the support agent kept failing to act. You're back in control.") and switches autopilot off. A successful turn resets the count.
+If a turn ends without one of the three actions, the agent counts a stall, shows a warning toast and sends the current draft as a counter-offer to keep the negotiation moving. After three stalls in a row it shows an error toast ("Autopilot disengaged: the Assistant kept failing to act. You're back in control.") and switches autopilot off. A successful turn resets the count.
 
 !!! note
-    The session drives autopilot turns itself: it calls the agent's `autopilot_step()` on every turn, independently of `on_event`. Custom agents that override `on_event` therefore work as drivers too, and the driver keeps moving even when the participant has switched the assistant's chat off. `step_delay` applies to support-agent drivers as well.
+    The session drives autopilot turns itself: it calls the agent's `autopilot_step()` on every turn, independently of `on_event`. Custom agents that override `on_event` therefore work as drivers too, and the driver keeps moving even when the participant has switched the assistant's chat off. `step_delay` applies to Assistant drivers as well.
 
 ## Negotiator drivers
 
@@ -78,7 +78,7 @@ While autopilot is active, the participant's time limit does not force a move; t
 
 ## Results
 
-A negotiation in which autopilot was switched on at any time has `autopilot` set to true in `results.csv` (see [Studies and results](studies.md)). With the support agent driver, the agent's actions are also logged as `support_agent` events.
+A negotiation in which autopilot was switched on at any time has `autopilot` set to true in `results.csv` (see [Studies and results](studies.md)). With the Assistant driver, the agent's actions are also logged as `support_agent` events.
 
 ## Testing
 

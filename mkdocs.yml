@@ -81,7 +81,7 @@ nav:
       - The interface: guide/interface.md
       - Tools: guide/tools.md
       - Showing other preferences: guide/preferences.md
-      - Support agent: guide/support-agent.md
+      - Assistant: guide/assistant.md
       - Autopilot: guide/autopilot.md
       - WebMCP (browser agents): guide/webmcp.md
       - Language models: guide/llms.md
@@ -96,7 +96,7 @@ nav:
       - Admin console: guide/admin.md
       - Configuration reference: guide/configuration.md
   - Tutorials:
-      - Build a support agent: tutorials/support-agent.md
+      - Build an Assistant: tutorials/assistant.md
       - Build a tool: tutorials/tools.md
   - Reference:
       - Architecture: reference/architecture.md

@@ -2,16 +2,16 @@
 
 One :class:`NegotiationSession` exists per browser session (a cookie, or a
 Prolific PID). It owns the scenario, the negmas mechanism, the human's draft
-offer, the history, the tools, the support agent and the autopilot, and pushes
+offer, the history, the tools, the Assistant and the autopilot, and pushes
 state to every connected browser tab through :class:`hani2.hub.Hub`.
 
 Threading model
 ---------------
 * Every public method may be called from any thread.
 * ``self.lock`` (re-entrant) guards session state; hold it only briefly.
-* ``self.step_lock`` serialises mechanism stepping. Partner steps (which may
+* ``self.step_lock`` serialises mechanism stepping. Opponent steps (which may
   call slow LLMs) run in a worker thread and never hold ``self.lock``, so the
-  UI, tools and the support agent stay responsive while the partner thinks.
+  UI, tools and the Assistant stay responsive while the opponent thinks.
 * :meth:`run_on_doc` runs a callable under ``self.lock`` — it is what support
   agents use to read or change UI-owned state safely.
 """
@@ -90,7 +90,7 @@ ADMIN_PREFS: dict[str, Any] = {
     "opponent_types": [],
 }
 
-#: Set while the support agent operates a tool (see ``acting_for_agent``).
+#: Set while the Assistant operates a tool (see ``acting_for_agent``).
 _AGENT_CONTEXT = threading.local()
 
 # old names of admin preferences, still accepted
@@ -317,7 +317,7 @@ class NegotiationSession:
 
     @property
     def labels(self) -> dict[str, str]:
-        """Display names for side words (``{"human": "You", "agent": "Partner"}``)
+        """Display names for side words (``{"human": "You", "agent": "Opponent"}``)
         when relabelling applies (see :mod:`hani2.naming`), else ``{}``."""
         key = id(self.scenario)
         cached = self.__dict__.get("_labels")
@@ -856,7 +856,7 @@ class NegotiationSession:
         self._step_to_human()
 
     def _step_to_human(self, wait: float | None = None) -> None:
-        """Step the partner until it is the human's turn. ``wait`` seconds to
+        """Step the opponent until it is the human's turn. ``wait`` seconds to
         wait for a step in progress (``None``: skip if one is running)."""
         if not (self.step_lock.acquire(timeout=wait) if wait else self.step_lock.acquire(blocking=False)):
             return
@@ -1096,7 +1096,7 @@ class NegotiationSession:
         from hani2.llm_service import NegotiationContext
 
         hist = [
-            {"role": "You" if h["by"] == "human" else "Partner", "text": h.get("text") or "", "outcome": str(h.get("offer") or "")}
+            {"role": "You" if h["by"] == "human" else "Opponent", "text": h.get("text") or "", "outcome": str(h.get("offer") or "")}
             for h in self.history[-10:]
         ]
         return NegotiationContext(
@@ -1148,7 +1148,7 @@ class NegotiationSession:
             self.toast("Time's up!", "warning")
             self.act(SAOResponse(ResponseType.REJECT_OFFER, self.human_last_offer))
         else:
-            # the partner's own step will notice the timeout; check again shortly
+            # the opponent's own step will notice the timeout; check again shortly
             self.deadline = time.time() + 2
             self._schedule_timeout()
 
@@ -1200,7 +1200,7 @@ class NegotiationSession:
             elif summary.get("ended_by") == "human":
                 msg = "You ended the negotiation without agreement."
             elif summary.get("ended_by") == "agent":
-                msg = "Your partner ended the negotiation without agreement."
+                msg = "Your opponent ended the negotiation without agreement."
             else:
                 msg = "The negotiation ended without agreement."
             self.history.append(dict(id=len(self.history), kind="system", text=msg, status=summary.get("status"), time=time.time()))
@@ -1219,7 +1219,7 @@ class NegotiationSession:
         self.push_state()
 
     # ------------------------------------------------------------------ #
-    # Support agent bridge                                                #
+    # Assistant bridge                                                #
     # ------------------------------------------------------------------ #
     def _agent_event(self, name: str) -> None:
         sa = self.support_agent
@@ -1241,7 +1241,7 @@ class NegotiationSession:
             self._track_agent(self.submit(sa.on_event, name, nmi))
 
     def _track_agent(self, future) -> None:
-        """Remember queued support-agent work so tests can wait for it."""
+        """Remember queued Assistant work so tests can wait for it."""
         with self.lock:
             pending = self.__dict__.setdefault("_agent_futures", set())
             pending.add(future)
@@ -1279,7 +1279,7 @@ class NegotiationSession:
         return msg
 
     # ------------------------------------------------------------------ #
-    # The action API shared by the UI and the support agent                #
+    # The action API shared by the UI and the Assistant                #
     # ------------------------------------------------------------------ #
     def context(self) -> dict[str, Any]:
         m = self.mechanism
@@ -1328,10 +1328,10 @@ class NegotiationSession:
             "result": self.result,
             "tools": [t.name for t in self.tools],
             **({"names": "Values are shown with these names: "
-                         + ", ".join(f"{v} = {'the participant' if k == 'human' else 'the opponent (partner)'}"
+                         + ", ".join(f"{v} = {'the participant' if k == 'human' else 'the opponent'}"
                                      for k, v in self.labels.items())
-                         + ". Use these names with the participant and in offers. The message to the partner is "
-                           "read by the partner, so there say who gets what in plain words (for example "
+                         + ". Use these names with the participant and in offers. The message to the opponent is "
+                           "read by the opponent, so there say who gets what in plain words (for example "
                            "'I get the compass, you get the rope')."} if self.labels else {}),
         }
 
@@ -1355,23 +1355,23 @@ class NegotiationSession:
 
     def _actor(self) -> str:
         """Who is acting on the participant's seat in this thread: ``human``
-        (a browser message), ``agent`` (the support agent or a tool working for
+        (a browser message), ``agent`` (the Assistant or a tool working for
         it) or ``autopilot``."""
         if getattr(_AGENT_CONTEXT, "caps", None) is not None:
             return "agent"
         return rec.current_actor() or "human"
 
     def _agent_gate(self, capability: str) -> dict | None:
-        """While the support agent operates a tool (:meth:`acting_for_agent`),
+        """While the Assistant operates a tool (:meth:`acting_for_agent`),
         refuse what the agent itself may not do; ``None`` means allowed."""
         caps = getattr(_AGENT_CONTEXT, "caps", None)
         if caps is None or capability in caps:
             return None
-        return {"ok": False, "error": f"the support agent is not allowed to do this ({capability} is off)"}
+        return {"ok": False, "error": f"the Assistant is not allowed to do this ({capability} is off)"}
 
     @contextlib.contextmanager
     def acting_for_agent(self, capabilities: set[str]):
-        """Run tool callbacks on behalf of the support agent: actions the tool
+        """Run tool callbacks on behalf of the Assistant: actions the tool
         triggers through the session are limited to ``capabilities``."""
         prev = getattr(_AGENT_CONTEXT, "caps", None)
         _AGENT_CONTEXT.caps = set(capabilities)
@@ -1737,7 +1737,7 @@ class NegotiationSession:
         ev.end_session_record(self.sid)
 
 
-#: Element names a support agent (or tool) can highlight / annotate.
+#: Element names the Assistant (or tool) can highlight / annotate.
 ANCHORS = {
     "accept": "The Accept button",
     "reject": "The Reject / counter-offer button",
@@ -1745,7 +1745,7 @@ ANCHORS = {
     "send": "The Send counter-offer button",
     "offer": "The counter-offer editor",
     "message": "The message box",
-    "partner_offer": "The partner's current offer",
+    "partner_offer": "The opponent's current offer",
     "history": "The negotiation history",
     "timer": "The countdown / progress area",
     "issue:<name>": "One issue field in the counter-offer editor",

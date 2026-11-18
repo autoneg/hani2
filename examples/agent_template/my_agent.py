@@ -1,4 +1,4 @@
-"""Support-agent template.
+"""Assistant template.
 
 Copy this folder, rename the class, and edit. Run it with:
 
@@ -14,14 +14,14 @@ from __future__ import annotations
 from hani2.support_agent import SupportAgent, ToolDispatcher, make_function_schema
 
 # --------------------------------------------------------------------------- #
-# EDIT 1: your agent's persona. The live negotiation state (issues, partner
+# EDIT 1: your agent's persona. The live negotiation state (issues, opponent
 # offer, utilities, reserved value, history) is attached to every message.
 # --------------------------------------------------------------------------- #
 SYSTEM_PROMPT = """You are a calm, concise negotiation coach.
 - Answer in at most three short sentences.
-- Compare the partner's offer with the user's reserved value before advising.
+- Compare the opponent's offer with the user's reserved value before advising.
 - Never recommend accepting an offer worth less than the reserved value.
-- Never reveal the user's utility numbers to the partner."""
+- Never reveal the user's utility numbers to the opponent."""
 
 
 # --------------------------------------------------------------------------- #
@@ -35,7 +35,7 @@ class MyTools(ToolDispatcher):
             self._assess,
             lambda: make_function_schema(
                 "assess_partner_offer",
-                "Judge the partner's current offer against the user's reserved value and a target "
+                "Judge the opponent's current offer against the user's reserved value and a target "
                 "that relaxes as the deadline nears.",
                 {},
                 [],
@@ -47,7 +47,7 @@ class MyTools(ToolDispatcher):
         ctx = self.runtime.context()
         utility = ctx["partner_offer_utility"]
         if utility is None:
-            return {"ok": False, "error": "the partner has not made an offer yet"}
+            return {"ok": False, "error": "the opponent has not made an offer yet"}
         reserved = ctx["reserved_value"]
         target = max(reserved, 0.9 - 0.4 * (ctx["relative_time"] or 0.0))
         verdict = "end_or_counter" if utility < reserved else "accept" if utility >= target else "counter"

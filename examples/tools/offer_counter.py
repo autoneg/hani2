@@ -7,7 +7,7 @@ class OfferCounter(Tool):
     name = "Offer Counter"
     description = "How many offers each side made so far."
     help = """
-    **What it shows.** Two numbers: how many offers you have made and how many your partner
+    **What it shows.** Two numbers: how many offers you have made and how many your opponent
     has made. It updates after every offer.
     """
     icon = "hash"
@@ -20,6 +20,6 @@ class OfferCounter(Tool):
         return [
             ui.stats(
                 ui.stat("Your offers", mine),
-                ui.stat("Partner offers", len(trace) - mine),
+                ui.stat("Opponent offers", len(trace) - mine),
             )
         ]

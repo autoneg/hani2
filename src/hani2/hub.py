@@ -176,7 +176,7 @@ class Hub:
 
     def _render_newly_shown(self, s) -> None:
         """Render tools that became visible and changed (or were never sent)
-        while hidden: a tab opened by the support agent, a revealed tool, …"""
+        while hidden: a tab opened by the Assistant, a revealed tool, …"""
         names_fn = getattr(s, "shown_tool_names", None)
         if names_fn is None:
             return

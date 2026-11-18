@@ -319,7 +319,7 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
 
 
 def addable_tool_specs(session: "NegotiationSession") -> list[ToolSpec]:
-    """Registered tools a support agent may add to ``session`` now: tools not
+    """Registered tools the Assistant may add to ``session`` now: tools not
     already present that this participant is allowed to have (admin-only and
     guest rules and ``tools.disabled`` still apply)."""
     present = {t.name.lower() for t in session.tools}

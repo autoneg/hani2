@@ -20,7 +20,7 @@ The console has a navigation column on the left (a scrolling bar at the top on n
 
 ## How saving works
 
-The settings sections (Server and studies, Language model, Support agent, Autopilot, Texts) load the current effective settings, let you edit them, and save with the **Save** button at the bottom. "Unsaved changes" appears next to it while you have edits.
+The settings sections (Server and studies, Language model, Assistant, Autopilot, Texts) load the current effective settings, let you edit them, and save with the **Save** button at the bottom. "Unsaved changes" appears next to it while you have edits.
 
 Saving writes the file in the settings folder (`$HANI2_HOME/settings`, default `~/negmas/hani2/settings`). It always writes there, even while an experiment is running. If the active experiment has its own copy of the same file, that copy takes precedence and your saved change has no visible effect until you edit the experiment's copy or remove it. See [Configuration reference](configuration.md) for the lookup order.
 
@@ -37,7 +37,7 @@ A table of every session the server holds in memory, refreshed every five second
 | `phase` | `idle`, `ready`, `starting`, `running`, `ended`, `questionnaire` or `finished` |
 | `round` | Negotiations started in this session |
 | `scenario` | The loaded scenario |
-| `partner` | The opponent type of the latest negotiation |
+| `opponent` | The opponent type of the latest negotiation |
 | `connections` | Open browser tabs |
 | `idle` | Seconds since the last message from the browser |
 
@@ -97,7 +97,7 @@ Edits `env.json`.
 | Time limit (seconds), empty for none | `negotiation.time_limit` |
 | Opponent agents, comma separated | `opponents` |
 
-Under the partner pool, **Available groups** lists the opponent groups and how many negotiators each contains. See [Opponents](opponents.md).
+Under the opponent pool, **Available groups** lists the opponent groups and how many negotiators each contains. See [Opponents](opponents.md).
 
 **Tools**: one row per registered tool with its description, its pane, when it appears, and whether it is admin-only. Untick **Offered** to add the tool to `tools.disabled`; untick **Admins only** to give an admin-only tool to every participant (`tools.overrides.<name>.admin_only`). **Participants see opponent utilities** sets `tools.show_opponent_utility`. **Extra tools** edits `tools.extra` (class paths such as `my_pkg.tools:MyTool`). **Enlarged tools open as** chooses whether a tool's enlarge button opens it in a large window, fills the screen, or is not offered (`tools.maximize`: `window`, `fullscreen` or `off`; see [The interface](interface.md#enlarge-and-put-back)). See [Tools](tools.md).
 
@@ -105,13 +105,13 @@ The OAuth rows edit the key and secret only. The `enabled` flag of a provider is
 
 ## Language model
 
-Edits `llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM partners. A banner at the top shows whether the model is configured ("Ready: provider / model") or which API key variable is missing.
+Edits `llm_settings.json`, used by the LLM offer tool, tools built on `LLMTool`, message writing, offer extraction and LLM opponents. A banner at the top shows whether the model is configured ("Ready: provider / model") or which API key variable is missing.
 
 Fields: provider (`ollama`, `openai`, `anthropic`, `gemini`, `azure`, `groq`, `mistral`, `openrouter`), model, Ollama address (`ollama_base_url`), API key variable (`api_key_env`, the name of the environment variable that holds the key), temperature and max tokens. When the settings contain `extraction_prompt`, `generation_prompt` or `instruction_prompt`, each is shown in a text area. See [Language models](llms.md).
 
-## Support agent
+## Assistant
 
-Edits `support_agent_settings.json`.
+Edits `assistant_settings.json`.
 
 | Field | Key |
 | --- | --- |
@@ -126,9 +126,9 @@ Edits `support_agent_settings.json`.
 | Speaks up unprompted when a negotiation starts, it is the participant's turn, a negotiation ends | `proactive.on_negotiation_started`, `proactive.on_action_requested`, `proactive.on_negotiation_ended` |
 | System prompt | `system_prompt` |
 
-Participants can narrow these permissions in their assistant settings but never widen them. See [Support agent](support-agent.md).
+Participants can narrow these permissions in their assistant settings but never widen them. See [Assistant](assistant.md).
 
-![The support agent section of the admin console](../assets/screens/admin-agent.png)
+![The Assistant section of the admin console](../assets/screens/admin-agent.png)
 
 ## Autopilot
 
@@ -158,14 +158,14 @@ See [Scenarios](scenarios.md) for the scenario order.
 
 An administrator negotiating on `/app` (or on `/play` while logged in) gets more than a participant:
 
-- The **Admin** badge and the partner's name in the header, and no time limit by default (`time_limit` starts as none for admins).
+- The **Admin** badge and the opponent's name in the header, and no time limit by default (`time_limit` starts as none for admins).
 - The **Scenario** picker before each negotiation: a scenario type and a scenario name, then **Load**.
-- The **Opponent for the next negotiation** picker, with suggestions from every opponent group. Leave it empty for a random partner from the pool.
+- The **Opponent for the next negotiation** picker, with suggestions from every opponent group. Leave it empty for a random opponent from the pool.
 - In the counter-offer editor: **Text only**, **Offer from message** and **Write message**.
 - Admin-only tools in the tool panes.
 - Extra sections in the settings drawer.
 
-The opponent picker and the partner's name are also available in admin mode (`?admin=1`) without an admin account. The other controls are not.
+The opponent picker and the opponent's name are also available in admin mode (`?admin=1`) without an admin account. The other controls are not.
 
 ### The admin settings drawer
 
@@ -181,13 +181,13 @@ The gear button opens the settings drawer. Below the display settings, administr
 | | End probability per second | `pend_per_second` | 0 |
 | Negotiation rules | An empty offer ends the negotiation | `end_on_no_response` | off |
 | | Allow messages without an offer | `allow_text_only_offers` | on |
-| | Show messages from the AI partner | `allow_text_agent` | on |
+| | Show messages from the opponent | `allow_text_agent` | on |
 | | Let the participant write messages | `allow_text_human` | on |
 | | Text-only mode | `text_only_mode` | off |
 | | Write a message when none is given (uses the LLM) | `auto_generate` | off |
 | | Start the editor from my last offer | `init_with_last` | on |
 | | Otherwise start from my best outcome | `init_with_best` | on |
-| Scenarios and partners | Use saved scenario pools (off: generate a fresh scenario each time) | `load_existing` | on (off in the playground) |
+| Scenarios and opponents | Use saved scenario pools (off: generate a fresh scenario each time) | `load_existing` | on (off in the playground) |
 | | Follow the scenario order | `predefined_order` | on (off in the playground) |
 | | Participants may choose the scenario | `allow_scenario_selection` | off |
 | | Show the opponent agent's type | `show_opponent_type` | off (on for admins) |

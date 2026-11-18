@@ -41,7 +41,7 @@ class NegotiationContext:
     outcome_space: OutcomeSpace | None = None
     ufun: UtilityFunction | None = None
     history: list[dict] | None = None
-    current_offer: Outcome | None = None  # Partner's offer we're responding to
+    current_offer: Outcome | None = None  # Opponent's offer we're responding to
 
     def get_outcome_space_json(self) -> str:
         """Serialize outcome space to JSON for LLM context."""
@@ -278,17 +278,17 @@ def _format_utility_context(
         # Describe why we're rejecting
         if rejected_utility < 0.3:
             lines.append(
-                "The partner's offer is quite unfavorable to you - you need to push for better terms."
+                "The opponent's offer is quite unfavorable to you - you need to push for better terms."
             )
         elif rejected_utility < 0.5:
-            lines.append("The partner's offer doesn't meet your needs well enough yet.")
+            lines.append("The opponent's offer doesn't meet your needs well enough yet.")
         elif rejected_utility < 0.7:
             lines.append(
-                "The partner's offer is acceptable but you believe you can do better."
+                "The opponent's offer is acceptable but you believe you can do better."
             )
         else:
             lines.append(
-                "The partner's offer is actually quite good for you, but you're exploring alternatives."
+                "The opponent's offer is actually quite good for you, but you're exploring alternatives."
             )
 
         # Provide guidance on negotiation dynamics
@@ -621,14 +621,14 @@ def generate_text_from_outcome(
     This function generates persuasive negotiation text that:
     - Proposes the given outcome
     - Explains why the rejected offer (if any) isn't acceptable
-    - Uses negotiation theory to persuade the partner
+    - Uses negotiation theory to persuade the opponent
     - Has access to full utility function and negotiation history
 
     Args:
         outcome: The structured outcome tuple (our counter-offer)
         issues: List of negotiation issues
         context: Full negotiation context (ufun, outcome space, history)
-        rejected_outcome: The partner's offer we're rejecting (optional, overrides context.current_offer)
+        rejected_outcome: The opponent's offer we're rejecting (optional, overrides context.current_offer)
         my_utility: Our utility for our proposed outcome (optional, computed from context if not provided)
         rejected_utility: Our utility for the rejected outcome (optional, computed from context if not provided)
         settings: Optional LLM settings override

@@ -49,16 +49,16 @@ class Tool:
 
     ============== ===========================================================
     ``name``        Tab title (defaults to the class name). Must be unique.
-    ``description`` One line shown as the tab tooltip and to the support agent.
+    ``description`` One line shown as the tab tooltip and to the Assistant.
     ``help``        Markdown explaining what the tool does and how it works.
                     Shown behind the tool's ``?`` button and given to the
-                    support agent. Falls back to ``description``.
+                    Assistant. Falls back to ``description``.
     ``icon``        A lucide icon name (kebab case), e.g. ``"chart-line"``.
     ``pane``        Default pane: ``"upper"``, ``"lower"`` or ``"side"``.
     ``timing``      When the tool appears: ``"always"`` (page open),
                     ``"load"`` (scenario loaded), ``"start"`` (negotiation
                     started), ``"end"`` (negotiation finished) or ``"agent"``
-                    (never on its own: only when a support agent adds it).
+                    (never on its own: only when the Assistant adds it).
     ``permanent``   Always on: no enable switch, cannot be hidden.
     ``admin_only``  Only logged-in administrators get the tool.
     ``guest``       Whether guests / playground users get it (default True).
@@ -66,11 +66,11 @@ class Tool:
                     tools still show their tab, but :meth:`view` is not called
                     until the user switches them on.
     ``order``       Sort key inside its pane (smaller first).
-    ``agent_hint``  Extra advice for a support agent on when and how to use
+    ``agent_hint``  Extra advice for the Assistant on when and how to use
                     the tool (added to what it reads with ``read_tool``).
     ============== ===========================================================
 
-    A support agent can read any tool (:meth:`describe_for_agent`) and use its
+    The Assistant can read any tool (:meth:`describe_for_agent`) and use its
     inputs and buttons, so a tool written for people is usable by the agent
     without extra code.
     """
@@ -157,7 +157,7 @@ class Tool:
             return []
 
     def context(self) -> dict[str, Any]:
-        """The live negotiation snapshot (same dict the support agent sees)."""
+        """The live negotiation snapshot (same dict the Assistant sees)."""
         actions = self.session_state.get("actions") or {}
         fn = actions.get("context")
         return fn() if callable(fn) else {}
@@ -199,7 +199,7 @@ class Tool:
             if h.get("kind") == "system":
                 lines.append(f"[{h.get('text', '')}]")
                 continue
-            who = "Participant" if h.get("by") == "human" else "Partner"
+            who = "Participant" if h.get("by") == "human" else "Opponent"
             # explicit issue=value pairs: the display text ("I get everything.") reads like a quote to a model
             offer = ", ".join(f"{k}={v}" for k, v in (h.get("offer") or {}).items()) or h.get("offer_str") or "no offer"
             u = h.get("utility")
@@ -222,7 +222,7 @@ class Tool:
         return complete(prompt, system=system, **settings)
 
     def describe_for_agent(self, max_chars: int = 4000) -> str:
-        """What this tool shows, as text for a support agent: its help text
+        """What this tool shows, as text for the Assistant: its help text
         (:meth:`help_text`), :attr:`agent_hint`, and its current view (numbers, table rows, chart
         summaries, and the inputs and buttons it can use). Override to give
         the agent a better summary than the generic one."""
@@ -301,7 +301,7 @@ class Tool:
 
     @property
     def view_lock(self) -> threading.RLock:
-        """Held while the tool is rendered or read by a support agent, so the
+        """Held while the tool is rendered or read by the Assistant, so the
         two never run :meth:`view` at the same time."""
         lock = self.__dict__.get("_view_lock")
         if lock is None:

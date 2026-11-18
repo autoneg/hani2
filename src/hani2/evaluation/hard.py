@@ -146,8 +146,8 @@ def length(ctx: EvalContext, options: dict) -> dict:
     C("llm_cost_usd", "LLM cost (USD)", "Estimated cost of every call (when the provider's price is known)", False),
     C("llm_latency_mean", "LLM latency (s)", "Mean seconds per call", False),
     C("llm_error_rate", "LLM error rate", "Share of calls that failed", False),
-    C("support_llm_calls", "Assistant LLM calls", "Calls made by the support agent"),
-    C("support_tokens", "Assistant tokens", "Tokens used by the support agent", False),
+    C("support_llm_calls", "Assistant LLM calls", "Calls made by the Assistant"),
+    C("support_tokens", "Assistant tokens", "Tokens used by the Assistant", False),
     C("opponent_llm_calls", "Opponent LLM calls", "Calls made by the opponent"),
     C("opponent_tokens", "Opponent tokens", "Tokens used by the opponent", False),
 ])
@@ -464,7 +464,7 @@ def engagement_flags(ctx: EvalContext, options: dict) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# The assistant as a conversational partner                                   #
+# The Assistant as a conversational helper                                     #
 # --------------------------------------------------------------------------- #
 @metric("assistant_interaction", kind="hard", title="Assistant interaction quality", columns=[
     C("assistant_response_seconds", "Response time (s)", "Mean time from a human message to the assistant's next message", False),

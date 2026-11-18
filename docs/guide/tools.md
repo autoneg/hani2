@@ -14,7 +14,7 @@ Every tool lives in one of three panes:
 | `lower` | The tab strip at the bottom left |
 | `side` | The tab strip on the right, next to the action panel |
 
-A tool's class sets its default pane. Participants can move a tool to another pane from the tool's menu (unless an admin switched off `allow_moving_tools`), an admin can change the default in `env.json`, and a support agent with the `tool_order` capability can move tools too.
+A tool's class sets its default pane. Participants can move a tool to another pane from the tool's menu (unless an admin switched off `allow_moving_tools`), an admin can change the default in `env.json`, and an Assistant with the `tool_order` capability can move tools too.
 
 ## When tools appear
 
@@ -36,7 +36,7 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Preferences | upper | load | yes (permanent) | everyone | A donut chart of your issue weights, a bar chart of the value of every option of the selected issue, your value on disagreement, and a collapsible explanation of how a deal's value is computed. |
 | Scenario Info | upper | load | yes (permanent) | everyone | The scenario title, a "You act as ..." badge, the short description, a table of issues with their options and per-role descriptions, the hints for your role, and the long description in a collapsible card. |
 | My Results | upper | always | yes (permanent) | logged-in users (not guests) | Your score (the average of your best result per scenario), the number of negotiations and agreements, a per-scenario score table and a searchable table of every negotiation you finished, with a column picker. |
-| Value Histogram | lower | start | yes | everyone | How often each value of the selected issues was offered by you and by the partner. Bar charts for discrete issues with at most 25 values, histograms otherwise. Options: which issues, include your offers, two columns. |
+| Value Histogram | lower | start | yes | everyone | How often each value of the selected issues was offered by you and by the opponent. Bar charts for discrete issues with at most 25 values, histograms otherwise. Options: which issues, include your offers, two columns. |
 | Utility Plot | lower | start | no | everyone | The utility (for you) of every offer over time, one line per party, with a dotted line labelled *No deal* at your value on disagreement. You can choose the X axis (relative time, step, time) and Y axis. Admins (or everyone, see below) can also plot the opponent's utility. |
 | Negotiation Plot | lower | load | yes | admins only | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
 | Outcome Plot | lower | start | no | everyone | The offers placed in the outcome space: any two issues, relative time or step on the axes, with an option to hide your own offers. |
@@ -45,11 +45,11 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
 | Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table. |
-| Opponent Preferences | upper | load | yes | admins only | The partner's private preferences, in the same layout as Preferences. |
+| Opponent Preferences | upper | load | yes | admins only | The opponent's private preferences, in the same layout as Preferences. |
 
-Every tool has a help text that says what it does and how it works. Participants read it from the **?** button next to the tool's tabs, and a support agent with **Use tools** gets it at the top of what `read_tool` returns.
+Every tool has a help text that says what it does and how it works. Participants read it from the **?** button next to the tool's tabs, and an Assistant with **Use tools** gets it at the top of what `read_tool` returns.
 
-"Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the support agent) switches them on.
+"Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the Assistant) switches them on.
 
 "Admins only" means a logged-in admin account. Opening a page with `?admin=1` turns on the admin badge and the opponent picker in the UI but does not give a session the admin-only tools, and the admin-only options inside tools stay hidden.
 
@@ -132,11 +132,11 @@ Two admin settings in the per-session settings drawer also affect tools (see [Ad
 - `allow_tool_switch`: when off, participants do not see the enable switch, and tools that are off by default render anyway.
 - `allow_moving_tools`: when off, the "Move to ..." entries disappear from the tool menu and move requests are ignored.
 
-## Tools and the support agent
+## Tools and the Assistant
 
-The support agent sees the list of tools in its context and, depending on its capabilities, can switch tools on or off (`tool_enable`), hide and show them (`tool_visibility`) and move them or bring one to the front (`tool_order`). Both the participant's buttons and the agent go through the same server-side controller, so permanent tools cannot be hidden or switched off by either.
+The Assistant sees the list of tools in its context and, depending on its capabilities, can switch tools on or off (`tool_enable`), hide and show them (`tool_visibility`) and move them or bring one to the front (`tool_order`). Both the participant's buttons and the agent go through the same server-side controller, so permanent tools cannot be hidden or switched off by either.
 
-With **Use tools** (`tool_use`) the agent can also read any tool's help text and what it shows, as text, and operate its inputs, buttons and selectable tables, exactly as the participant would; whatever the tool then does to the offer follows the agent's own permissions. With **Add tools** (`tool_add`) it can put new tools on the screen during the session: its own tools, tools from its `toolbox` setting, registered tools the participant does not have yet, and tools whose `timing` is `"agent"` (these appear only when an agent adds them). A tool added this way carries a small assistant mark on its tab. See [Tools the agent can find, use and add](support-agent.md#tools-the-agent-can-find-use-and-add).
+With **Use tools** (`tool_use`) the agent can also read any tool's help text and what it shows, as text, and operate its inputs, buttons and selectable tables, exactly as the participant would; whatever the tool then does to the offer follows the agent's own permissions. With **Add tools** (`tool_add`) it can put new tools on the screen during the session: its own tools, tools from its `toolbox` setting, registered tools the participant does not have yet, and tools whose `timing` is `"agent"` (these appear only when an agent adds them). A tool added this way carries a small assistant mark on its tab. See [Tools the agent can find, use and add](assistant.md#tools-the-agent-can-find-use-and-add).
 
 ## Extra tools from the command line
 

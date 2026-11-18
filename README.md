@@ -1,6 +1,6 @@
 # HANI2
 
-HANI2 is a web interface for human–agent negotiation studies. People negotiate in the browser against automated agents built with [negmas](https://github.com/yasserfarouk/negmas), optionally helped by an AI support agent, while HANI2 records every offer, message, click and questionnaire answer. It runs the human–agent negotiation and hybrid intelligence tracks of the [ANAC competition](https://anac.cs.brown.edu).
+HANI2 is a web interface for human–agent negotiation studies. People negotiate in the browser against automated agents built with [negmas](https://github.com/yasserfarouk/negmas), optionally helped by an AI Assistant, while HANI2 records every offer, message, click and questionnaire answer. It runs the human–agent negotiation and hybrid intelligence tracks of the [ANAC competition](https://anac.cs.brown.edu).
 
 HANI2 is a Python package: a FastAPI backend plus a React frontend that ships pre-built inside the wheel.
 
@@ -25,7 +25,7 @@ One port (default 5006) serves:
 | `/admin` | The admin console. |
 | `/api` | The REST and WebSocket API. |
 
-The support agent and LLM opponents need a language model. The defaults use a local [Ollama](https://ollama.com) model:
+The Assistant and LLM opponents need a language model. The defaults use a local [Ollama](https://ollama.com) model:
 
 ```bash
 ollama pull qwen3:4b-instruct
@@ -35,10 +35,10 @@ Any provider supported by litellm works too; see [Language models](https://auton
 
 ## Features
 
-- **Negotiation desk**: the partner's offer on the table, a counter-offer editor, utility gauges with a no-deal marker, a conversation-style history, confirmation before accepting or ending, three layouts and a phone layout.
+- **Negotiation desk**: the opponent's offer on the table, a counter-offer editor, utility gauges with a no-deal marker, a conversation-style history, confirmation before accepting or ending, three layouts and a phone layout.
 - **Tools**: preferences, plots, histograms, the offer trace, an offer picker and more, in panes participants can rearrange. Write new ones in Python.
-- **Support agent**: an assistant that chats, highlights and annotates the interface, rearranges tools, shows interactive panels and, with permission, makes offers. It can also find, use and add tools. Sixteen capabilities and three autonomy levels.
-- **Autopilot**: the support agent or any negotiator plays the human's seat.
+- **Assistant**: an AI helper that chats, highlights and annotates the interface, rearranges tools, shows interactive panels and, with permission, makes offers. It can also find, use and add tools. Sixteen capabilities and three autonomy levels.
+- **Autopilot**: the Assistant or any negotiator plays the human's seat.
 - **WebMCP**: browser AI agents can read and (optionally) negotiate through the page's tools.
 - **Opponents**: any negmas, Genius or negmas-llm negotiator, your own classes, and named groups.
 - **Studies**: self-contained experiments, questionnaires, results CSV files and an event log with analytics.
@@ -48,7 +48,7 @@ Any provider supported by litellm works too; see [Language models](https://auton
 
 ## A custom opponent agent
 
-The opponent (the participant's *partner*) is any negmas `SAONegotiator`. This one concedes over time and says why; text in the `data` of an offer shows in the participant's history.
+The opponent is any negmas `SAONegotiator`. This one concedes over time and says why; text in the `data` of an offer shows in the participant's history.
 
 ```python
 # my_opponent.py
@@ -84,14 +84,14 @@ hani2 --opponents file:my_opponent.Haggler
 
 Or list it in `opponents` in `env.json`, next to built-in agents and groups such as `:template` or `helpers.AgentK`. See [Opponents](https://autoneg.github.io/hani2/guide/opponents/).
 
-## A custom support agent
+## A custom Assistant
 
 ```python
 # my_agent.py
-from hani2.support_agent.runtime import SupportAgent
+from hani2.assistant.runtime import Assistant
 
 
-class RulesAgent(SupportAgent):
+class RulesAgent(Assistant):
     def handle_user_message(self, text: str) -> None:
         actions = self.session_state.get("actions")
         if not actions:
@@ -99,14 +99,14 @@ class RulesAgent(SupportAgent):
             return
         ctx = self.run_on_doc(actions["context"])
         if ctx["partner_offer"] is None:
-            self.post("Your partner has not made an offer yet.")
+            self.post("Your opponent has not made an offer yet.")
         elif ctx["partner_offer_utility"] < ctx["reserved_value"]:
             self.post("That offer is worse than walking away.")
         else:
             self.post("That offer beats your reserved value.")
 ```
 
-Point `agent_class` in `~/negmas/hani2/settings/support_agent_settings.json` at it and start the server from the folder that holds `my_agent.py`:
+Point `agent_class` in `~/negmas/hani2/settings/assistant_settings.json` at it and start the server from the folder that holds `my_agent.py`:
 
 ```json
 {"agent_class": "my_agent:RulesAgent"}
@@ -116,7 +116,7 @@ Point `agent_class` in `~/negmas/hani2/settings/support_agent_settings.json` at 
 PYTHONPATH=$PWD hani2 --page play
 ```
 
-The [support agent tutorial](https://autoneg.github.io/hani2/tutorials/support-agent/) goes from this to LLM agents that highlight the interface and show their own panels.
+The [Assistant tutorial](https://autoneg.github.io/hani2/tutorials/assistant/) goes from this to LLM agents that highlight the interface and show their own panels.
 
 ## A custom tool
 
@@ -135,7 +135,7 @@ class OfferCounter(Tool):
         trace = self.trace()
         me = self.session_state.get("human_id")
         mine = sum(1 for row in trace if row[3] == me)
-        return [ui.stats(ui.stat("Your offers", mine), ui.stat("Partner offers", len(trace) - mine))]
+        return [ui.stats(ui.stat("Your offers", mine), ui.stat("Opponent offers", len(trace) - mine))]
 ```
 
 Register it in `~/negmas/hani2/settings/env.json`:

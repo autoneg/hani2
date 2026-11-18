@@ -19,17 +19,17 @@ Each browser keeps one session per page. Reloading reconnects to the same sessio
 From left to right the header shows:
 
 - the title (from `title` in `env.json`, default "HANI2");
-- the scenario title, "You are the ⟨role⟩", the round label ("Negotiation 2", or "Practice negotiation" in a Prolific practice round), the partner's name when it may be shown, and an **Admin** badge for administrators;
+- the scenario title, "You are the ⟨role⟩", the round label ("Negotiation 2", or "Practice negotiation" in a Prolific practice round), the opponent's name when it may be shown, and an **Admin** badge for administrators;
 - the timer: a progress bar, the time left (or "No limit"), and "Round n of N". The timer turns red in the last ten seconds;
 - the **Autopilot** button and driver selector, when autopilot is allowed (see [Autopilot](autopilot.md));
-- the **Assistant** button, when a support agent is attached to the session. Its dot is green when the assistant is on, amber while it works and grey when it is off;
+- the **Assistant** button, when an Assistant is attached to the session. Its dot is green when the assistant is on, amber while it works and grey when it is off;
 - the layout menu, the settings button, the theme button (system, light, dark), and the account menu with your name, a link to **Administration** for admins, and **Log out** on `/app`.
 
-The partner's (opponent agent's) name appears when the session is in admin mode or when the admin setting `show_opponent_type` is on.
+The opponent's (opponent agent's) name appears when the session is in admin mode or when the admin setting `show_opponent_type` is on.
 
 ## Layout views
 
-The layout menu offers three views. The current view is part of the session state, so a support agent can change it too.
+The layout menu offers three views. The current view is part of the session state, so an Assistant can change it too.
 
 | View | Desktop layout |
 | --- | --- |
@@ -39,7 +39,7 @@ The layout menu offers three views. The current view is part of the session stat
 
 ![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
 
-Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the support agent's layout control sets it.
+Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the Assistant's layout control sets it.
 
 ### Resizing the panes
 
@@ -51,7 +51,7 @@ to return to the default size; with the keyboard, focus a divider with **Tab** a
 the arrow keys. Panes stop at sensible minimums, so the offer area never becomes too narrow to use.
 
 The sizes are part of the session layout (`layout.sizes`, each a fraction of its container), so they
-survive a page reload and a support agent can set them through its layout control:
+survive a page reload and an Assistant can set them through its layout control:
 
 | Key | What it sizes |
 | --- | --- |
@@ -72,7 +72,7 @@ The page picks one of three layouts from the screen:
 | --- | --- | --- |
 | Desktop | 1024 pixels wide or more with a mouse; touch screens 1400 pixels or wider | The views above. |
 | Tablet | 640–1023 pixels wide, or a touch screen narrower than 1400 pixels | **Landscape:** the thread and action dock, with one tools column (all tools as tabs, offer generators first) on the right. **Portrait:** the thread and action dock fill the screen and a **Tools** tray along the bottom expands to show the tools. The assistant slides over from the right. *Focus* hides the tools. |
-| Phone | narrower than 640 pixels | A bottom bar with **Negotiate**, **Tools** and, when there is a support agent, **Assistant**; one of them at a time. |
+| Phone | narrower than 640 pixels | A bottom bar with **Negotiate**, **Tools** and, when there is an Assistant, **Assistant**; one of them at a time. |
 
 <div class="grid" markdown>
 
@@ -94,7 +94,7 @@ Each pane shows its tools as tabs with an icon and a name. Hover a tab to see th
 
 ### Help
 
-The **?** button next to the tabs opens the active tool's help: what the tool shows or does and how it works. It works while the tool is switched off too, so participants can read what a tool does before turning it on. The support agent reads the same help texts.
+The **?** button next to the tabs opens the active tool's help: what the tool shows or does and how it works. It works while the tool is switched off too, so participants can read what a tool does before turning it on. The Assistant reads the same help texts.
 
 Tools are added at different times: some exist from the start, others appear when a scenario loads, when the negotiation starts, or when it ends. Admin-only tools appear only for administrators, and tools not marked for guests do not appear in the playground.
 
@@ -127,17 +127,17 @@ The **⋯** menu next to the tabs acts on the active tool:
 
 When a pane has hidden tools, a **+** button appears next to the tabs. Hover or focus it to see the hidden tools and click one to bring it back.
 
-The server also supports restoring every hidden tool at once and bringing a tool to the front (`restore` and `focus`); the support agent uses these (see [Support agent](support-agent.md)).
+The server also supports restoring every hidden tool at once and bringing a tool to the front (`restore` and `focus`); the Assistant uses these (see [Assistant](assistant.md)).
 
 ## The history thread
 
 The thread in the middle lists the negotiation:
 
-- **Offer bubbles**: yours on the right, your partner's on the left. Each shows who made it, the round number, the share of time that had passed, the message (rendered as Markdown), the offer, any extra data the partner attached, and a small utility gauge of the offer's worth to you. An entry without offer or text reads "No offer".
+- **Offer bubbles**: yours on the right, your opponent's on the left. Each shows who made it, the round number, the share of time that had passed, the message (rendered as Markdown), the offer, any extra data the opponent attached, and a small utility gauge of the offer's worth to you. An entry without offer or text reads "No offer".
 - **System lines**: centred lines that state how the negotiation ended, green on agreement.
-- **Thinking indicator**: "Setting up the negotiation…" or "Your partner is thinking…" while the partner moves.
+- **Thinking indicator**: "Setting up the negotiation…" or "Your opponent is thinking…" while the opponent moves.
 
-The display settings change the thread: newest on top or at the bottom, your own offers shown or hidden, offers as sentences or as issue chips, and the full history or only your partner's latest offer.
+The display settings change the thread: newest on top or at the bottom, your own offers shown or hidden, offers as sentences or as issue chips, and the full history or only your opponent's latest offer.
 
 ## The action dock
 
@@ -152,18 +152,18 @@ Buttons: **Start negotiation** and, outside Prolific, **Different scenario** (lo
 Two pickers appear in a dashed box when they apply:
 
 - **Scenario**: a scenario type ("Next in order" or a type) and, after choosing a type, a scenario name, with a **Load** button. Shown to admins, or to everyone when the admin setting `allow_scenario_selection` is on.
-- **Opponent for the next negotiation**: a text field with suggestions from the opponent groups (suggestions load only for admins). Empty means a random partner from the pool. Shown in admin mode. See [Opponents](opponents.md).
+- **Opponent for the next negotiation**: a text field with suggestions from the opponent groups (suggestions load only for admins). Empty means a random opponent from the pool. Shown in admin mode. See [Opponents](opponents.md).
 
 ### During the negotiation
 
 The dock shows the **offer on the table** with its utility gauge, then the **Accept**, **Counter-offer** and **End** buttons, and the counter-offer editor when it is open. The buttons work only on your turn; otherwise "Waiting…" appears.
 
-The utility gauge is a bar from 0% to 100% with a dark tick at your value on disagreement. The fill is blue for your offers and orange for your partner's; it turns red when the value is below the tick.
+The utility gauge is a bar from 0% to 100% with a dark tick at your value on disagreement. The fill is blue for your offers and orange for your opponent's; it turns red when the value is below the tick.
 
-The counter-offer editor opens when you press **Counter-offer**, when there is no offer on the table yet, when the display setting "Keep the offer editor open" is on, or when the support agent highlights the counter-offer controls. It contains:
+The counter-offer editor opens when you press **Counter-offer**, when there is no offer on the table yet, when the display setting "Keep the offer editor open" is on, or when the Assistant highlights the counter-offer controls. It contains:
 
 - one field per issue (buttons for up to six values, a drop-down for longer lists, a number box for numeric ranges), laid out in `n_issue_columns` columns from the scenario (one to three);
-- a gauge of what you get if your partner accepts the draft;
+- a gauge of what you get if your opponent accepts the draft;
 - the message box, when the participant may write messages (admin setting `allow_text_human`);
 - **Send offer**. Ctrl+Enter or Cmd+Enter in the message box also sends.
 
@@ -182,11 +182,11 @@ Accepting and ending always go through a dialog.
 - **Accept this offer?** shows the offer, a large gauge of what you will receive, and a warning when the offer is worth less than ending the negotiation.
 - **End without agreement?** states the value on disagreement you will receive.
 
-The support agent can open the same dialogs, optionally with a message of its own at the top, so the participant still confirms the action.
+The Assistant can open the same dialogs, optionally with a message of its own at the top, so the participant still confirms the action.
 
 ## The assistant dock
 
-When a support agent is attached, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab.
+When an Assistant is attached, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab.
 
 The dock contains:
 
@@ -205,15 +205,15 @@ The sliders button opens **Assistant settings**:
 - **Unprompted messages appear as**: Notifications (toasts), Status board, or Chat.
 - **Clear the conversation**.
 
-The [support agent](support-agent.md) page explains autonomy, capabilities and proactive messages.
+The [Assistant](assistant.md) page explains autonomy, capabilities and proactive messages.
 
 ### Agent panels
 
-A support agent can build its own panels from the same components tools use. A panel has a title and a close button, and appears in one of three places: inside the assistant dock, above the thread ("side"), or as a modal dialog. Closing a modal or a panel tells the server, and the agent receives the panel's button presses.
+An Assistant can build its own panels from the same components tools use. A panel has a title and a close button, and appears in one of three places: inside the assistant dock, above the thread ("side"), or as a modal dialog. Closing a modal or a panel tells the server, and the agent receives the panel's button presses.
 
 ### Highlights and notes
 
-A support agent (or a tool) can highlight a part of the page with a pulse, glow or spotlight effect, optionally with a message under it and a dismiss button, and attach short notes (info, tip, warning) under elements such as an issue field. Highlights clear when you act. The names of the elements that can be highlighted are listed on the [support agent](support-agent.md) page.
+An Assistant (or a tool) can highlight a part of the page with a pulse, glow or spotlight effect, optionally with a message under it and a dismiss button, and attach short notes (info, tip, warning) under elements such as an issue field. Highlights clear when you act. The names of the elements that can be highlighted are listed on the [Assistant](assistant.md) page.
 
 ## The status board
 
@@ -237,7 +237,7 @@ The settings drawer (gear button) holds per-session display preferences any part
 
 | Setting | Key | Default | Effect |
 | --- | --- | --- | --- |
-| Show the whole history | `show_history` | on | Off: the thread shows only your partner's latest offer and system lines. |
+| Show the whole history | `show_history` | on | Off: the thread shows only your opponent's latest offer and system lines. |
 | Show my offers in the history | `show_human_offers` | on | Off: your own offers are not added to the thread. |
 | Newest offer on top | `last_offer_on_top` | off | Order of the thread. Off: oldest first, and the thread scrolls to the newest message as it arrives. |
 | Keep the offer editor open | `offer_panel_always_visible` | off | The counter-offer editor stays open. |
@@ -249,4 +249,4 @@ Administrators see further sections in the drawer; see [Admin console](admin.md)
 
 ## Admin mode
 
-A session is in admin mode when the user is an administrator, or when the page is opened with `?admin=1` (any truthy value: `1`, `true`, `yes`, `on`) by anyone except a Prolific participant. This works on `/play` and on `/app`. Admin mode shows the partner's name and the opponent picker. It does not grant the admin settings drawer, the admin-only tools, the admin row in the counter-offer editor, or access to the admin console; those need an administrator account.
+A session is in admin mode when the user is an administrator, or when the page is opened with `?admin=1` (any truthy value: `1`, `true`, `yes`, `on`) by anyone except a Prolific participant. This works on `/play` and on `/app`. Admin mode shows the opponent's name and the opponent picker. It does not grant the admin settings drawer, the admin-only tools, the admin row in the counter-offer editor, or access to the admin console; those need an administrator account.
