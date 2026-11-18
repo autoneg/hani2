@@ -72,13 +72,15 @@ export function Renderer({ components, ctx }: { components: Component[]; ctx: Om
     },
     onAction: (a, p) => ctx.onAction(a, { ...values, ...p }),
   };
-  return (
-    <fieldset disabled={!!ctx.disabled} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
-      {components.map((c, i) => (
-        <Node key={i} c={c} ctx={full} />
-      ))}
-    </fieldset>
-  );
+  const body = components.map((c, i) => <Node key={i} c={c} ctx={full} />);
+  // a fieldset only where something can be disabled (offer controls); tool panes keep a plain div
+  if (ctx.disabled !== undefined)
+    return (
+      <fieldset disabled={ctx.disabled} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
+        {body}
+      </fieldset>
+    );
+  return <div className="flex flex-col gap-3">{body}</div>;
 }
 
 function Node({ c, ctx }: { c: Component; ctx: RenderCtx }) {

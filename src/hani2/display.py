@@ -41,10 +41,25 @@ from typing import Any, ClassVar
 
 from negmas import Outcome, Scenario
 
-__all__ = ["DefaultOutcomeDisplay", "OfferContext", "OfferDisplay", "OutcomeDisplay", "format_value"]
+__all__ = [
+    "DefaultOutcomeDisplay",
+    "OfferContext",
+    "OfferDisplay",
+    "OutcomeDisplay",
+    "format_value",
+    "value_key",
+]
 
 #: The surfaces an offer is shown on.
 SURFACES = ("text", "history", "table", "controls")
+
+
+def value_key(value: Any) -> str:
+    """A value as a lookup key, the way the browser writes it (``100.0`` → ``"100"``),
+    so labels match whether a value is stored as an int or a float."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
 
 
 def format_value(info: dict[str, Any] | None, issue: str, value: Any) -> str:
@@ -54,16 +69,16 @@ def format_value(info: dict[str, Any] | None, issue: str, value: Any) -> str:
     labels = (info.get("value_labels") or {}).get(issue) or {}
     if isinstance(labels, dict):
         for k, shown in labels.items():
-            if str(k) == str(value):
+            if value_key(k) == value_key(value):
                 return str(shown)
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)  # 100.0 → "$100", not "$100.0"
     fmt = (info.get("issue_format") or {}).get(issue)
     if fmt:
         try:
             return str(fmt).format(value)
         except (ValueError, TypeError, IndexError, KeyError):
             pass
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
     return str(value)
 
 

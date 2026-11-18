@@ -177,3 +177,40 @@ def test_scenario_check_exercises_the_display(tmp_path):
     )
     _, errors, _ = store.check_scenario(p)
     assert any("broken controls" in e for e in errors)
+
+
+def test_template_folder_display_is_used_for_generated_scenarios(tmp_path):
+    import shutil
+
+    from hani2.config import DEFAULT_SCENARIOS
+    from hani2.scenarios import iago, registry
+    from hani2.scenarios.story import Story
+
+    folder = tmp_path / "MyEstate"
+    shutil.copytree(DEFAULT_SCENARIOS / "Estate", folder)
+    (folder / "display.py").write_text(
+        "from hani2.display import OfferDisplay\n"
+        "class EstateText(OfferDisplay):\n"
+        "    def text(self, offer, ctx):\n"
+        "        return 'estate:' + ','.join(str(v) for v in offer.values())\n"
+    )
+    story = Story.from_folder(folder, roles=dict(iago.ESTATE_STORY.roles), setup=iago.ESTATE_STORY.setup)
+    assert type(story.display).__name__ == "EstateText"
+    registry.register_story(story)
+    try:
+        s, _, sdir = store.load_scenario("MyEstate", 0, load_existing=False)
+        d = store.display_for(s, sdir)
+        assert type(d).__name__ == "EstateText"
+        assert d.text(_offer(s), OfferContext(s)).startswith("estate:")
+    finally:
+        registry.unregister("MyEstate")
+
+
+def test_labels_match_float_values():
+    s = make_session()  # the generated Trade type stores prices as floats
+    s.scenario.info = dict(s.scenario.info or {}, issue_format={"Price": "${:,}"})
+    price = next(i for i in s.snapshot()["scenario"]["issues"] if i["name"] == "Price")
+    v = price["values"][0]
+    assert isinstance(v, float) and price["labels"][str(int(v))] == f"${int(v):,}"
+    s.scenario.info["value_labels"] = {"Price": {int(v): "cheap"}}
+    assert OfferDisplay().text({"Quantity": 1, "Price": v}, OfferContext(s.scenario)) == "Quantity: 1, Price: cheap"

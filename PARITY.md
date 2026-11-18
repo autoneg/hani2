@@ -71,7 +71,7 @@ This file is a development note; it is not part of the user documentation or the
 ## Scenarios
 - [x] Pools `<base>/<Type>/NNNN<Type>/` (+ cached inverters), named scenario folders, single-scenario categories, on-the-fly generation
 - [x] Scenario order / random / Prolific PID hash; per-user index
-- [x] OutcomeDisplay per scenario (built-in + display.py)
+- [x] OutcomeDisplay per scenario (built-in + display.py), extended: OfferDisplay with text, history, on-the-table and controls views; no-code `_info.yaml` keys (offer_template, value_labels, issue_widget)
 - [x] `hani2 generate` with opposition filtering
 
 ## Experiments & Prolific

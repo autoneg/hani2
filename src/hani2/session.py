@@ -1886,11 +1886,11 @@ class NegotiationSession:
             else:
                 d["values"] = ui.jsonable(list(i.all))
             if d.get("values"):
-                from hani2.display import format_value
+                from hani2.display import format_value, value_key
                 from hani2.naming import relabel_value
 
                 # the shown names: the scenario's value_labels / issue_format, then side words relabelled
-                shown = {str(v): relabel_value(format_value(info, i.name, v), self.labels) if self.labels
+                shown = {value_key(v): relabel_value(format_value(info, i.name, v), self.labels) if self.labels
                          else format_value(info, i.name, v) for v in d["values"]}
                 if any(str(k) != str(v) for k, v in shown.items()):
                     d["labels"] = shown
