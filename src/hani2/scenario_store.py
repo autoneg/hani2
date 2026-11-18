@@ -143,7 +143,8 @@ def write_info(info: dict, path: Path | str) -> Path:
     ordered = {k: info[k] for k in INFO_KEY_ORDER if k in info}
     ordered.update({k: v for k, v in info.items() if k not in ordered})
     path = Path(path)
-    path.write_text(yaml.dump(ordered, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110))
+    path.write_text(yaml.dump(ordered, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=110),
+                    encoding="utf-8")
     return path
 
 

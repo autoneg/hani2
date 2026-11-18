@@ -152,3 +152,50 @@ def test_cli_scenario_new_and_check(tmp_path):
     (tmp_path / "L" / "_info.yaml").write_text("human_role: Nobody\n")
     res = r.invoke(app, ["scenario", "check", str(tmp_path / "L")])
     assert res.exit_code == 1 and "human_role" in res.output
+
+
+@pytest.mark.parametrize("kind", STORY_TYPES)
+def test_template_hints_match_its_utility_functions(kind):
+    from hani2.scenarios.story import derived_hints
+
+    s = store._load_dir(DEFAULT_SCENARIOS / kind)
+    for role, computed in derived_hints(s).items():
+        written = s.info["hints"][role]
+        assert {k: written.get(k) for k in computed} == computed, role
+
+
+def test_bare_names_are_bundled_templates_whatever_the_cwd(tmp_path, monkeypatch):
+    _gen(tmp_path, ["Lease"], 1, seed=0)  # a pool folder with a Lease category
+    monkeypatch.chdir(tmp_path)
+    story = Story.from_folder("Lease", roles=registry.get("Lease").story.roles)
+    assert story.folder == DEFAULT_SCENARIOS / "Lease"
+
+
+def test_issue_types_in_the_template_are_kept(tmp_path):
+    builtin = registry.get("Estate").story
+    folder = tmp_path / "Estate"
+    shutil.copytree(DEFAULT_SCENARIOS / "Estate", folder)
+    dom = yaml.safe_load((folder / "Estate.yml").read_text())
+    dom["issues"][0] = {"name": dom["issues"][0]["name"], "type": "DiscreteOrdinalIssue",
+                        "values": list(range(7))}
+    (folder / "Estate.yml").write_text(yaml.safe_dump(dom, sort_keys=False))
+    story = Story.from_folder(folder, roles=builtin.roles, setup=builtin.setup)
+    s = make_story_scenario(story, 0, random.Random(0))
+    assert type(s.outcome_space.issues[0]).__name__ == "DiscreteOrdinalIssue"
+    assert s.outcome_space.name == "Estate"
+
+
+def test_the_results_keep_the_exact_scenario_played(hani2_home):
+    from hani2.testing import make_session
+
+    _gen(None, ["Lease"], 1, seed=3)
+    slot = store.base_dir() / "Lease" / "0000Lease"
+    s = make_session(scenario_type="Lease", n_steps=4)
+    s.start()
+    assert s.wait_for_turn()
+    s.play_counters(6)
+    assert s.wait_until_done()
+    saved = list((hani2_home / "db" / "tester" / "scenarios").iterdir())
+    assert len(saved) == 1
+    assert _files(saved[0]) == {k: v for k, v in _files(slot).items() if not k.endswith(".pkl")}
+    assert any((hani2_home / "db" / "tester" / "mechanisms").iterdir())  # written after the scenario copy

@@ -187,6 +187,7 @@ All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and
 | `issue_format` | A Python format string per issue for writing values in offers, e.g. `Rent: "${:,}/month"` turns `3400` into `$3,400/month`. Used by the built-in story display. |
 | `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets, and offers read "You get 2 clocks; your opponent gets 1 clock". |
 | `story` | The scenario type that generated the scenario (set by the generators). |
+| `role_descriptions` | A one-line description per role (`role: text`). Written by the generators for reference; the participant reads the roles in `long_description` and in the *Your role* hint. |
 
 The keys of `hints` and of role-specific `issue_description` must match the utility function `name` exactly, including case.
 
@@ -232,7 +233,7 @@ HANI2 uses the first subclass it finds in the file. A scenario's own `display.py
 
 HANI2 can generate random scenarios of 19 types. Every type is two things:
 
-- a **template folder** in the [on-disk format](#the-on-disk-format) (`hani2/sample_scenarios/Default/<Type>/`, copied to `<settings>/scenarios/Examples/<Type>/` by `hani2 setup`). It is a complete scenario you can play as it is, and it holds everything a participant reads: the title, the descriptions, the issues and their options, issue descriptions and formats, the roles and their hints. Edit the YAML and every scenario generated from it changes, with no code.
+- a **template folder** in the [on-disk format](#the-on-disk-format) (`hani2/sample_scenarios/Default/<Type>/`, copied to `<settings>/scenarios/Examples/<Type>/` by `hani2 setup`). It is a complete scenario you can play as it is, and it holds everything a participant reads: the title, the descriptions, the issues and their options, issue descriptions and formats, the roles and their hints. The built-in generators read the folder inside the installed package, so editing the `Examples` copy changes that one scenario, not the generator. To change what a generator produces, copy the template, edit it and register it as your own type with [`Story.from_folder`](#writing-your-own-scenario-type).
 - a **generator**, a few lines of Python per role that draw new preferences, for variations of the template.
 
 Each type has a fixed story: the same title, descriptions, issues and roles every time. Every call draws new utility functions (issue weights and value curves) and the hints that come from them (the most and least important issues, the ideal deal, and drawn facts such as an estimate or a power need), and redraws until the opposition level lies in the type's band, so even scenarios generated on the fly have real but not hopeless conflict.
@@ -270,7 +271,7 @@ hani2 scenario check ~/my-scenarios/HearingAid               # validate every sc
 hani2 --scenarios ~/my-scenarios --scenario-set Pilot        # run with them
 ```
 
-with `Pilot: [HearingAid]` in `scenario_sets.yaml`. `hani2 scenario new TYPE DEST --generate --seed N` writes a fresh draw of the type's generator instead of the template. Several hand-written scenarios in one category folder (`HearingAid/Base`, `HearingAid/Hard`, …) are served in turn, like a pool.
+with `Pilot: [HearingAid]` in `scenario_sets.yaml`. `hani2 scenario new TYPE DEST --generate --seed N` writes a fresh draw of the type's generator instead of the template. A hand-written folder without Python is a fixed scenario: it is served exactly as written, never varied. Several hand-written scenarios in one category folder (`HearingAid/Base`, `HearingAid/Hard`, …) are served in turn, like a pool. To get variations, add a generator (next section).
 
 `hani2 scenario check` takes scenario folders, categories or whole scenario directories (a generated pool too). For every scenario it:
 
@@ -437,7 +438,7 @@ hani2 scenario check ./anac2027-pool        # loads, shows and round-trips every
 hani2 --scenarios ./anac2027-pool --scenario-set ANAC2027
 ```
 
-Anyone can rebuild the same pool from the seed. Hand-written scenarios can sit next to the generated categories in the same folder. HANI2 also saves the scenario of every negotiation next to its results (`<user>/scenarios/<negotiation id>/`) in the same files as the pool slot, so you can check later which scenario each negotiation used.
+The saved folder is the reference: keep it (or ship it to the participants) rather than relying on the seed, which gives the same pool only with the same versions of hani2, negmas and Python. Without `--seed` the seed is `0`, so two runs give the same pool; pass another seed for a different one. Hand-written scenarios can sit next to the generated categories in the same folder. HANI2 also saves the scenario of every negotiation next to its results (`<user>/scenarios/<negotiation id>/`) in the same files as the pool slot, so you can check later which scenario each negotiation used.
 
 ### Cached inverters
 

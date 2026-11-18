@@ -137,6 +137,8 @@ class Story:
     folder: Path | None = None
     #: the template's info: its texts are used as written in every generated scenario
     base_info: dict[str, Any] | None = None
+    #: the template's issues (their negmas types are kept in generated scenarios)
+    issue_objects: Sequence[Any] | None = None
 
     @classmethod
     def from_folder(cls, folder: str | Path, roles: dict[str, RoleFn], **kwargs: Any) -> "Story":
@@ -158,9 +160,10 @@ class Story:
 
         from hani2.config import DEFAULT_SCENARIOS
 
-        p = Path(folder).expanduser()
-        if not p.is_absolute() and not p.is_dir():
-            p = DEFAULT_SCENARIOS / str(folder)
+        if isinstance(folder, str) and "/" not in folder and "\\" not in folder and not folder.startswith("~"):
+            p = DEFAULT_SCENARIOS / folder  # a bare name is always a bundled template, never a folder in the cwd
+        else:
+            p = Path(folder).expanduser()
         if not p.is_dir():
             raise FileNotFoundError(f"no scenario folder {folder!r}")
         base = _Scenario.load(p, load_stats=False)
@@ -182,7 +185,8 @@ class Story:
                    short_description=str(info.get("short_description", "")),
                    long_description=str(info.get("long_description", "")), roles=dict(roles),
                    role_descriptions=role_desc, issues=issues, human_role=info.get("human_role"),
-                   n_issue_columns=int(info.get("n_issue_columns", 2)), folder=p, base_info=info, **kwargs)
+                   n_issue_columns=int(info.get("n_issue_columns", 2)), folder=p, base_info=info,
+                   issue_objects=tuple(base.outcome_space.issues), **kwargs)
 
 
 def _read_info(folder: Path) -> dict[str, Any]:
@@ -264,7 +268,8 @@ def _rescale(d: dict[Any, float]) -> dict[Any, float]:
 def _draw(story: Story, rng: Rng):
     ctx = dict(story.setup(rng)) if story.setup else {}
     issues = list(story.issues)
-    os = make_os([make_issue(list(i.values), name=i.name) for i in issues], name=story.type)
+    objs = story.issue_objects or [make_issue(list(i.values), name=i.name) for i in issues]
+    os = make_os(list(objs), name=story.type)
     assert isinstance(os, EnumerableCartesianOutcomeSpace)
     sides: dict[str, Side] = {}
     ufuns = []
