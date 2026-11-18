@@ -198,11 +198,14 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
 
 def find_file(kind: str, key: str, ref: Any = None) -> Group | None:
     """The first group file named ``key`` along :func:`search_dirs` (``None``: no file)."""
-    k = key.strip().lstrip(":")
+    k = key.strip().lstrip(":@")
     if not valid_key(k):
         return None
     for d, source in search_dirs(kind, ref):
         g = load_file(d / f"{k}.json", kind, k, source)
+        if g is None and d.is_dir():  # names are case-insensitive: the exact file first, then any case
+            f = next((x for x in sorted(d.glob("*.json")) if x.stem.lower() == k.lower() and valid_key(x.stem)), None)
+            g = load_file(f, kind, f.stem, source) if f is not None else None
         if g is not None:
             return g
     return None
@@ -315,44 +318,60 @@ def resolve(kind: str, key: str, ref: Any = None) -> Group | None:
     return Group(key=k, kind=check_kind(kind), members=members, description=BUILTIN_DESCRIPTIONS.get((kind, k), ""))
 
 
-def expand_assistants(items: Any, ref: Any = None, errors: list[str] | None = None) -> list[str]:
-    """Expand Assistant specs and group tokens into a flat, de-duplicated list of
-    class specs: ``:key`` is an Assistant group; a bare word without ``.``/``:``
-    that names an Assistant group file is that group; anything else is a class spec.
-    Problems of the group files used are appended to ``errors``."""
-    if isinstance(items, str):
-        items = [s for s in items.split(",") if s.strip()]
-    out: list[str] = []
+def assistant_lookup(ref: Any = None, errors: list[str] | None = None):
+    """The :mod:`hani2.composition` lookup of Assistant groups: ``@key`` / ``:key``
+    is a group file, else a built-in group (``:default``, ``:tutorial``); a bare
+    word without ``.``/``:`` is a group file only. Problems of the group files
+    used are appended to ``errors``."""
 
-    def add(spec: str) -> None:
-        if spec and spec not in out:
-            out.append(spec)
-
-    for item in list(items or []):
-        t = str(item).strip()
-        if not t:
-            continue
-        if t.startswith(":"):
-            g = resolve(ASSISTANT, t, ref)
-            if g is None:
-                print(f"⚠️ Unknown Assistant group '{t}'")
-                continue
+    def lookup(name: str, explicit: bool):
+        if not explicit and ("." in name or ":" in name):
+            return None
+        g = find_file(ASSISTANT, name, ref)
+        if g is not None:
             if g.error and errors is not None:
                 errors.append(g.error)
-            for m in g.members:
-                for x in expand_assistants([m], ref, errors) if m.startswith(":") else [m]:
-                    add(x)
-            continue
-        if "." not in t and ":" not in t:
-            g = find_file(ASSISTANT, t, ref)
-            if g is not None:
-                if g.error and errors is not None:
-                    errors.append(g.error)
-                for m in g.members:
-                    add(m)
-                continue
-        add(t)
-    return out
+            return g.key, list(g.members)
+        if explicit:
+            members = builtin_members(ASSISTANT, name)
+            if members is not None:
+                return name.strip().lower(), members, True
+            print(f"⚠️ Unknown Assistant group ':{name}'")
+        return None
+
+    return lookup
+
+
+def expand_assistants(items: Any, ref: Any = None, errors: list[str] | None = None) -> list[str]:
+    """Expand Assistant specs and group tokens into a flat, de-duplicated list of
+    class specs: ``@key`` / ``:key`` is an Assistant group; a bare word without
+    ``.``/``:`` that names an Assistant group file is that group; anything else is
+    a class spec. Groups may hold other groups (see :mod:`hani2.composition`).
+    Problems of the group files used are appended to ``errors``."""
+    from hani2.composition import expand_entries
+
+    if isinstance(items, str):
+        items = [s for s in items.split(",") if s.strip()]
+    return [str(x) for x in expand_entries(list(items or []), assistant_lookup(ref, errors), label="Assistant group")]
+
+
+def expand_members(kind: str, key: str, ref: Any = None) -> list[Any] | None:
+    """The expanded members of group ``key`` of ``kind`` (``None``: no such group)."""
+    from hani2.composition import expand_entries
+
+    kind = check_kind(kind)
+    if kind == ASSISTANT:
+        lk = assistant_lookup(ref)
+    else:
+        from hani2.agents import opponent_lookup
+
+        lk = opponent_lookup
+    hit = lk(key.strip().lstrip(":@"), True)
+    if hit is None:
+        return None
+    if len(hit) > 2 and hit[2]:
+        return list(hit[1])
+    return expand_entries(hit[1], lk, name=hit[0], label=f"{kind} group")
 
 
 def list_groups(kind: str, *, project: str | None = None, ref: Any = None,
@@ -405,7 +424,14 @@ def list_groups(kind: str, *, project: str | None = None, ref: Any = None,
 
 def prime_syspaths(ref: Any = None) -> None:
     """Add the ``syspath`` of every group file reachable from the current study to
-    ``sys.path``, so a dotted spec imports however the session reached it."""
+    ``sys.path``, so a dotted spec imports however the session reached it (and
+    those of the library's uploaded and linked packages, see :mod:`hani2.library`)."""
+    try:
+        from hani2 import library
+
+        library.prime_syspaths(ref)
+    except Exception as e:  # noqa: BLE001 - a broken library must not break sessions
+        print(f"[hani2] library syspaths: {e}")
     for kind in KINDS:
         try:
             dirs = search_dirs(kind, ref)

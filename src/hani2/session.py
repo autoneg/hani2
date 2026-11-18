@@ -455,21 +455,29 @@ class NegotiationSession:
             present = {t.name.lower() for t in self.tools}
             new = [(spec, tool) for spec, tool in new if tool.name.lower() not in present]
             for spec, tool in new:
-                pane = spec.pane
-                order = spec.order + (0 if spec.at_front else 1000)
+                shift = 0 if spec.at_front else 1000
+                # where the tool goes in each view (see hani2.tool_groups); the current view's applies now
+                views = {v: dict(pane=p.get("pane", spec.pane), order=int(p.get("order", spec.order)) + shift,
+                                 visible=bool(p.get("visible", True)))
+                         for v, p in (spec.placement or {}).items()}
+                here = views.get(self.layout.get("view") or "full") or dict(pane=spec.pane, order=spec.order + shift,
+                                                                             visible=True)
+                pane = here["pane"]
                 self.tools.append(tool)
                 self._tool_states[id(tool)] = dict(
                     id=uuid.uuid4().hex[:10],
                     pane=pane,
-                    order=order,
-                    visible=True,
+                    order=here["order"],
+                    visible=here["visible"],
                     enabled=bool(tool.enabled),
+                    # only a tool placed differently per view moves when the view changes
+                    views=views if len({tuple(sorted(p.items())) for p in views.values()}) > 1 else None,
                 )
                 try:
                     tool.init(self.ss)
                 except Exception:
                     traceback.print_exc()
-                if spec.at_front or self.active_tabs.get(pane) is None:
+                if here["visible"] and (spec.at_front or self.active_tabs.get(pane) is None):
                     self.active_tabs[pane] = tool.name
                 if timing in ("load", "start", "end") and self.scenario is not None:
                     try:
@@ -826,8 +834,11 @@ class NegotiationSession:
             collapsed = [c for c in (self.layout.get("collapsed") or []) if c != region]
             self.layout["collapsed"] = collapsed
             if self.layout.get("view") == "focus":
-                self.layout["view"] = "full"
-                self.ss["view_mode"] = "full"
+                self._switch_view("full")
+                st = self.tool_state(tool)
+                st["visible"] = True
+                self.active_tabs[st["pane"]] = tool.name
+                self.active_tabs["all"] = tool.name
             self._reveal_seq = getattr(self, "_reveal_seq", 0) + 1
             self.reveal = {"tool": tool.name, "pane": st["pane"], "seq": self._reveal_seq}
         try:
@@ -1674,10 +1685,43 @@ class NegotiationSession:
                             if math.isfinite(f) and 0.05 <= f <= 0.95:
                                 clean[str(name)[:32]] = round(f, 3)
                         v = clean
+                    if k == "view":
+                        self._switch_view(v)
+                        continue
                     self.layout[k] = v
             self.ss["view_mode"] = self.layout.get("view")
         self.push_state()
         return {"ok": True, "layout": dict(self.layout)}
+
+    def _switch_view(self, view: str) -> None:
+        """Change ``layout["view"]`` and move every tool to its place in the new
+        view (see :mod:`hani2.tool_groups`). Where the participant moved or hid a
+        tool is remembered per view. Call with the lock held."""
+        old = self.layout.get("view") or "full"
+        self.layout["view"] = view
+        self.ss["view_mode"] = view
+        if view == old:
+            return
+        moved = False
+        for t in self.tools:
+            st = self._tool_states.get(id(t))
+            views = (st or {}).get("views")
+            if not views:
+                continue
+            views[old] = dict(pane=st["pane"], order=st["order"], visible=st["visible"])
+            nxt = views.get(view)
+            if nxt is None:
+                continue
+            st["pane"], st["order"], st["visible"] = nxt["pane"], nxt["order"], nxt["visible"]
+            moved = True
+        if not moved:
+            return
+        for pane in PANES:
+            active = self.active_tabs.get(pane)
+            if active is not None and not any(
+                    t.name == active and self._tool_states[id(t)]["pane"] == pane and self._tool_states[id(t)]["visible"]
+                    for t in self.tools):
+                self.active_tabs[pane] = None
 
     def show_panel(self, panel_id: str, title: str, components: list, *, placement: str = "assistant",
                    owner: Any = None) -> dict:

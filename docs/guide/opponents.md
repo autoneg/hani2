@@ -89,9 +89,21 @@ A group file has one of two shapes:
     }
     ```
 
+Group files may list other groups: `@key` or `:key` always names a group (a group file, else a
+built-in group), and a bare `key` names a group file when one exists. Groups expand in place,
+duplicates are dropped (the first one keeps its place), names are case-insensitive, and a cycle
+(a group that ends up listing itself, such as `llm.json` listing `:llm`) is reported and broken.
+The same rule holds for scenario sets, Assistant groups and tool groups; see
+[Groups and composition](library.md#groups-and-composition).
+
 In the object form, every directory in `syspath` (relative folders are relative to the file) is appended to `sys.path` before the agents are imported, so you can drop unpacked agent packages anywhere on disk. HANI2 adds the `syspath` entries of all group files at server start-up, so an agent from a group file imports even in a session that never named the group. Group files may contain group tokens and other group keys. HANI2 only reads these files; other tools can write them.
 
 A group file takes priority over a negmas class with the same bare name. The object form may also carry a `description`, and an `assistant` (old name `support_agent`): the Assistant for the participants who arrive with `?group=<key>` (see [Assistant pools and assignment](assistant.md#the-group-files-assistant-key)).
+
+Upload or link your own negotiators with the [library](library.md)
+(`hani2 library add opponents my_team.py --group qualified --layer project:HAN2027`) and edit
+groups with `hani2 library group-set opponents …`; the group files it writes hold the class specs
+and their `syspath`, so they work without the library.
 
 `hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can list, read and write a project's group files through the [admin API](projects.md#admin-api).
 

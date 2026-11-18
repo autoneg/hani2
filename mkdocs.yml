@@ -98,6 +98,7 @@ nav:
       - Opponents: guide/opponents.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
+      - Library and groups: guide/library.md
       - Projects and studies: guide/projects.md
       - Scheduling methods: guide/scheduling.md
       - Studies and results: guide/studies.md
@@ -114,4 +115,5 @@ nav:
   - Reference:
       - Architecture: reference/architecture.md
       - Python API: reference/api.md
+      - Library API: reference/library-api.md
   - Changelog: changelog.md

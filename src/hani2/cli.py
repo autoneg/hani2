@@ -31,6 +31,7 @@ app.add_typer(tools_app, name="tools")
 app.add_typer(scenario_app, name="scenario")
 groups_app = typer.Typer(help="List opponent and Assistant groups (named pools).")
 app.add_typer(groups_app, name="groups")
+app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
 
 
 def _open_when_ready(url: str) -> None:

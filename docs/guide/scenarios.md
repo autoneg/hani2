@@ -6,9 +6,27 @@ A scenario defines what is negotiated (the issues and their values) and what eac
 
 HANI2 looks for scenarios in the *scenarios directory*, chosen in this order:
 
-1. `<experiment>/scenarios` when an experiment is active and has that folder.
+1. `<study>/scenarios` when a study (or experiment) is active and has that folder.
 2. The directory in the `HANI2_SCENARIOS_BASE` environment variable.
-3. `~/negmas/hani2/settings/scenarios` (`$HANI2_HOME/settings/scenarios`).
+3. `projects/<project>/scenarios` when the study's project has that folder.
+4. `~/negmas/hani2/settings/scenarios` (`$HANI2_HOME/settings/scenarios`).
+
+A category is looked up by name, first hit wins: the scenarios directory above, then a link in
+`scenario_links.yaml` (study, then project, then settings folder), then the other scenarios
+folders (the study's, the project's, the settings'). So a project or study with its own
+`scenarios/` folder still serves the categories of the settings folder that it does not have.
+
+Add scenarios with the [library](library.md): `hani2 library add scenarios Rentals.zip` copies a
+zip of scenario folders into the chosen layer's `scenarios/` folder (after checking every
+scenario), and `--link` records a folder that stays where it is:
+
+```yaml title="scenario_links.yaml"
+links:
+  Rentals: /data/scenarios/rentals      # a category or one scenario folder
+```
+
+A new type's name must not equal or start like a registered scenario type (`TradeExtra`), which
+would show it with that type's display.
 
 `hani2 setup` copies the three bundled sample scenarios into an `Examples` category: `settings/scenarios/Examples/Trade`, `.../Island` and `.../Grocery`. They do not shadow the `Trade`, `Island` and `Grocery` types, which are generated fresh for every round until you create a pool for them with `hani2 generate`. To present the samples, pick the `Examples` category in the scenario picker or add `Examples` to a scenario set. `hani2 info` prints the scenarios directory in use.
 
@@ -24,7 +42,7 @@ Sub-folders are sorted by name and used in that order. When a category has scena
 
 A folder counts as a scenario folder when it contains at least one `.yml` or `.yaml` file whose name does not start with `_`. Folders whose names start with `.` or `_` are skipped.
 
-The list of types HANI2 offers is the active [scenario set](#scenario-sets) in order, then the other registered generators, then any other category folder in the scenarios directory.
+The list of types HANI2 offers is the active [scenario set](#scenario-sets) in order, then the other registered generators, then any other category folder in the scenarios folders and the linked categories.
 
 ### Which scenario a participant gets
 
@@ -89,7 +107,7 @@ sets:
   Everything: [HAN2026, Pilot, "@ANAC2027", Energy]   # sets made of sets
 ```
 
-A set can list other sets as well as scenario types. Write `@Name` to always mean the set `Name`, or just the name: an entry that names a set (in any case) is that set, otherwise it is a scenario type. A set's types are inserted where it is listed, and each type is kept only at its first occurrence, so `Everything` above is Trade, Island, Grocery, Lease, Examples, then the ANAC2027 types not seen yet, then Energy if it was not already there. A cycle (a set that includes itself) is reported and broken. `hani2 sets` shows what each composed set is made of.
+A set can list other sets as well as scenario types. Write `@Name` to always mean the set `Name`, or just the name: an entry that names a set (in any case) is that set, otherwise it is a scenario type. A set's types are inserted where it is listed, and each type is kept only at its first occurrence, so `Everything` above is Trade, Island, Grocery, Lease, Examples, then the ANAC2027 types not seen yet, then Energy if it was not already there. A cycle (a set that includes itself) is reported and broken. `hani2 sets` shows what each composed set is made of. Opponent, Assistant and tool groups follow the same rule (see [Groups and composition](library.md#groups-and-composition)); `hani2 library group-set scenarios NAME ENTRY...` writes a set into the settings, project or study file.
 
 ### `scenario_order.txt`
 

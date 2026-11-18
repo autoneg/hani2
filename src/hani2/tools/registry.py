@@ -18,6 +18,12 @@ Tools come from these places, in this order:
    the classes given to ``hani2 --tools`` (``HANI2_TOOLS``);
    ``path/to/file.py:Class`` works too.
 
+6. the library (:mod:`hani2.library`): tools uploaded or linked in the
+   settings, project or study ``library.yaml``.
+
+Which of them a session gets, and where each goes in every view, comes from
+``tools.yaml`` (``offer``, ``groups``, ``placement``; see :mod:`hani2.tool_groups`).
+
 A tool whose ``timing`` is ``"agent"`` never appears on its own; a support
 agent adds it when it chooses (see :func:`addable_tool_specs`).
 
@@ -59,6 +65,10 @@ class ToolSpec:
     guest: bool
     order: int
     at_front: bool = False
+    #: the tool's groups (its ``groups`` plus ``admin`` / ``assistant``), see :mod:`hani2.tool_groups`
+    groups: tuple[str, ...] = ()
+    #: ``{view: {pane, visible, order}}`` for the views full, simple and focus
+    placement: dict[str, dict[str, Any]] | None = None
 
 
 def builtin_tool_classes() -> list[type[Tool]]:
@@ -270,32 +280,62 @@ def discover_tool_classes() -> list[type[Tool]]:
             add(import_tool(spec), f"tools.extra / --tools ({spec})")
         except Exception as e:  # noqa: BLE001
             _report(f"extra:{spec}", f"[hani2] could not load tool {spec!r}: {e}")
+    try:  # tools uploaded or linked in the library (settings, project and study layers)
+        from hani2 import library
+
+        for cls, source in library.tool_classes():
+            add(cls, source)
+    except Exception as e:  # noqa: BLE001 - a broken library must not break the server
+        _report(f"library:{e}", f"[hani2] could not load library tools: {e}")
     return classes
 
 
-def tool_specs() -> list[ToolSpec]:
+def tool_specs(offered_only: bool = True) -> list[ToolSpec]:
+    """Every registered tool with its defaults (env.json ``tools.overrides`` and
+    the layers' ``tools.yaml`` applied). With ``offered_only`` (the default), only
+    the tools ``tools.yaml`` → ``offer`` selects (all of them when not set)."""
+    from hani2 import tool_groups
+
     cfg = get_env("tools", {}) or {}
     disabled = {str(x).lower() for x in cfg.get("disabled", []) or []}
     overrides: dict[str, dict[str, Any]] = {str(k).lower(): v for k, v in (cfg.get("overrides", {}) or {}).items()}
+    layered = tool_groups.load_config()
     specs = []
     for cls in discover_tool_classes():
         name = cls.name or cls.__name__
         if name.lower() in disabled:
             continue
         o = overrides.get(name.lower(), {})
+        pane = o.get("pane", cls.pane)
+        order = int(o.get("order", cls.order))
+        timing = o.get("timing", cls.timing)
+        admin_only = bool(o.get("admin_only", cls.admin_only))
+        try:
+            placement = tool_groups.resolve_placement(
+                cls, pane, order, override=tool_groups.check_placement(o.get("placement") or {}),
+                layers=layered["placement"].get(name.lower()))
+        except ValueError as e:
+            _report(f"placement:{name}:{e}", f"[hani2] tools.overrides placement of {name!r} ignored: {e}")
+            placement = tool_groups.resolve_placement(cls, pane, order, layers=layered["placement"].get(name.lower()))
         specs.append(
             ToolSpec(
                 cls=cls,
                 name=name,
-                pane=o.get("pane", cls.pane),
-                timing=o.get("timing", cls.timing),
+                pane=pane,
+                timing=timing,
                 enabled=bool(o.get("enabled", cls.enabled)),
-                admin_only=bool(o.get("admin_only", cls.admin_only)),
+                admin_only=admin_only,
                 guest=bool(o.get("guest", cls.guest)),
-                order=int(o.get("order", cls.order)),
+                order=order,
                 at_front=bool(o.get("at_front", cls.order <= 1)),
+                groups=tuple(tool_groups.tool_groups_of(cls, admin_only=admin_only, timing=timing)),
+                placement=placement,
             )
         )
+    if offered_only:
+        keep = tool_groups.offered(specs, layered)
+        if keep is not None:
+            specs = [s for s in specs if s.name.lower() in keep]
     return specs
 
 
@@ -322,9 +362,13 @@ def addable_tool_specs(session: "NegotiationSession") -> list[ToolSpec]:
     """Registered tools the Assistant may add to ``session`` now: tools not
     already present that this participant is allowed to have (admin-only and
     guest rules and ``tools.disabled`` still apply)."""
+    from hani2 import projects
+
     present = {t.name.lower() for t in session.tools}
     out = []
-    for spec in tool_specs():
+    with projects.use_study(getattr(session, "study_ref", None)):  # the session's study decides what is offered
+        specs = tool_specs()
+    for spec in specs:
         if spec.name.lower() in present:
             continue
         if spec.admin_only and not session.is_admin:

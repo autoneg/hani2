@@ -41,6 +41,30 @@
   and the web app render math with KaTeX; the app's `Markdown` component takes `math` to render
   `$...$` and `$$...$$` (a `$` followed by a space or a closing `$` before a digit stays text, `\$`
   is a literal dollar).
+- **Library and groups.** Scenarios, opponents, Assistants and tools now share one model: list
+  them with their source (built-in, registered, uploaded, linked) and groups, add your own by
+  uploading a `.zip` or `.py` or by linking a path or class spec, remove what you added, and
+  manage groups, per layer (settings, project or study). New `hani2 library` commands and admin
+  API under `/api/admin/library` ([Library API](reference/library-api.md)). Uploaded code is
+  checked by loading it the way HANI2 will, archives are unpacked safely, and scenario names that
+  equal or start like a registered type are refused. Scenario links live in
+  `scenario_links.yaml`; uploaded and linked code in `library.yaml`; and a category is now found
+  in the study's, the project's or the settings' scenarios folder, so a project with its own
+  `scenarios/` folder still serves the settings' categories. See
+  [Library and groups](guide/library.md).
+- **Groups of groups everywhere.** Opponent, Assistant and tool groups may list other groups
+  (`@key`, or `:key` as before), like scenario sets: expanded in place, duplicates dropped,
+  case-insensitive, cycles reported and broken (an opponent group that listed itself used to
+  recurse forever). One implementation serves every kind.
+- **Tool groups and placement per view.** Tools have `groups` (built-in: `information`,
+  `visualization`, `recommendation`, plus `admin`, `assistant` and `all` from their metadata) and
+  `tools.yaml` defines more groups and the tools a study `offer`s (default: every tool). Tools
+  also have a `placement` per view (full, simple, focus: pane, order, shown or hidden), set on the
+  class, in `env.json` → `tools.overrides` or per layer in `tools.yaml`; sessions move the tools
+  when the view changes and remember the participant's arrangement per view. Nothing moves
+  unless a placement is configured.
+- New dependency: `python-multipart` (uploads).
+
 - **Groups and assignment.** Opponent groups (`groups/<key>.json`) and the new Assistant groups
   (`assistant_groups/<key>.json`, members under `assistants`) can live in a project, shared by its
   studies; a token `:key` or `?group=key` is looked up in the study's results folder, the study

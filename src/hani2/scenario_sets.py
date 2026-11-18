@@ -76,39 +76,16 @@ def raw_sets() -> tuple[dict[str, list[str]], str]:
 
 
 def expand(raw: dict[str, list[str]]) -> dict[str, list[str]]:
-    """Resolve sets made of other sets.
+    """Resolve sets made of other sets (see :mod:`hani2.composition`, shared by
+    every kind of group).
 
-    An entry ``@Name`` is always the set ``Name``; a bare entry that names a set
-    (case-insensitively) is that set too, otherwise it is a scenario type. Sets
-    expand recursively in place, duplicates are dropped (the first occurrence
-    keeps its position), and a cycle is reported and broken."""
-    lower = {k.lower(): k for k in raw}
-    reported: set[frozenset] = set()
+    An entry ``@Name`` (or ``:Name``) is always the set ``Name``; a bare entry
+    that names a set (case-insensitively) is that set too, otherwise it is a
+    scenario type. Sets expand recursively in place, duplicates are dropped (the
+    first occurrence keeps its position), and a cycle is reported and broken."""
+    from hani2.composition import expand_groups
 
-    def resolve_set(name: str, stack: tuple[str, ...]) -> list[str]:
-        if name in stack:
-            cycle = frozenset(stack[stack.index(name):])
-            if cycle not in reported:
-                reported.add(cycle)
-                print(f"[hani2] scenario set cycle: {' -> '.join(stack + (name,))}; ignoring the last step")
-            return []
-        types: list[str] = []
-        for entry in raw.get(name, []):
-            ref = entry[1:] if entry.startswith("@") else entry
-            target = lower.get(ref.lower())
-            if target is not None and (entry.startswith("@") or target != name):
-                parts = resolve_set(target, stack + (name,))
-            elif entry.startswith("@"):
-                print(f"[hani2] scenario set {name!r}: unknown set {ref!r}")
-                parts = []
-            else:
-                parts = [entry]
-            types += [t for t in parts if t not in types]
-        return types
-
-    # Each set is expanded on its own (sets are small), so a cycle never leaves
-    # a half-expanded set behind.
-    return {k: resolve_set(k, ()) for k in raw}
+    return expand_groups(raw, label="scenario set")
 
 
 def _order_lines(text: str) -> list[str]:

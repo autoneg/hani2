@@ -178,6 +178,35 @@ Assistant groups
       members: hani2.assistant:Assistant
 ```
 
+## `hani2 library`
+
+Scenarios, opponents, Assistants and tools, and their groups (see
+[Library and groups](../guide/library.md)). `KIND` is `scenarios`, `opponents`, `assistants` or
+`tools`; `--layer` is `settings` (default), `project:<P>` or `study:<P>/<S>`.
+
+```bash
+hani2 library list KIND [--layer L]
+hani2 library add KIND PATH|SPEC [--link] [--group G] [--name N] [--classes A,B] [--syspath DIR]
+                  [--allow-code] [--replace] [--layer L]
+hani2 library remove KIND NAME [--layer L]
+hani2 library groups KIND [--expanded] [--layer L]
+hani2 library group-set KIND NAME ENTRY... [--description D] [--rename-from OLD] [--layer L]
+hani2 library group-delete KIND NAME [--layer L]
+hani2 library offer [ENTRY...] [--all] [--layer L]
+hani2 library placement [TOOL] [--view V] [--pane P] [--visible|--hidden] [--order N] [--clear] [--layer L]
+```
+
+`add` copies a `.zip` or `.py` file into the library, or links a path (`--link`) or a class spec
+(`pkg.module:Class`). Added code runs inside the server. `group-set` entries may be other groups
+(`@name`). `offer` chooses the tools sessions get (tools and `@groups`); `placement` shows or sets
+where a tool goes in each view.
+
+```text
+$ hani2 library add opponents my_team.py --group qualified --layer project:HAN2027
+added MyAgent (uploaded, project:HAN2027): file:/home/me/negmas/hani2/projects/HAN2027/library/opponents/my_team/my_team.MyAgent
+Uploaded code runs inside the HANI2 server with its permissions.
+```
+
 ## `hani2 project` and `hani2 study`
 
 Create and inspect [projects and studies](../guide/projects.md):

@@ -240,45 +240,52 @@ def _resolve_builtin(token: str) -> list:
     return []
 
 
+def _builtin_known(token: str) -> bool:
+    low = token.strip().lower()
+    return low in AGENT_GROUPS or low in (":pan", ":notext", ":custom")
+
+
+def opponent_lookup(name: str, explicit: bool):
+    """The :mod:`hani2.composition` lookup of opponent groups: a group file
+    ``<key>.json`` (results, study, project, settings folders; names are
+    case-insensitive), else — for ``@key`` / ``:key`` only — the built-in group
+    (``:llm``, ``:template``, ``:pan``, …)."""
+    fromfile = _read_group_file_full(name)
+    if fromfile is not None:
+        return fromfile
+    if explicit and _builtin_known(":" + name):
+        return name.strip().lower(), _resolve_builtin(":" + name), True
+    return None
+
+
+def _read_group_file_full(key: str):
+    from hani2 import groups
+
+    try:
+        g = groups.find_file(groups.OPPONENT, key)
+    except Exception as e:  # noqa: BLE001
+        print(f"⚠️ Could not read agent group file for '{key}': {e}")
+        return None
+    return (g.key, list(g.members)) if g is not None else None
+
+
 def _resolve_agent_token(item) -> list:
     """Resolve ONE agent-list item to a list of agent specs:
-      - ':key' -> a group file <key>.json (results, study, project, settings
-                  folders), else the built-in group (:llm, :template, :pan, …)
-      - a bare key with a group file             -> that list
+      - '@key' / ':key' -> a group file <key>.json (results, study, project,
+                  settings folders), else the built-in group (:llm, :template, :pan, …)
+      - a bare key with a group file             -> that group
       - anything else                            -> a single literal agent
         spec (class name / dotted path), returned unchanged.
-    """
-    if not isinstance(item, str):
-        return [item]
-    t = item.strip()
-    if not t:
-        return []
-    if t.startswith(":"):
-        fromfile = _read_group_file(t[1:])
-        if fromfile is not None:
-            return _expand_agent_items(fromfile)
-        return _resolve_builtin(t)
-    # Bare token: a group file takes priority, otherwise treat it as a
-    # literal agent class / dotted path.
-    fromfile = _read_group_file(t)
-    if fromfile is not None:
-        return _expand_agent_items(fromfile)
-    return [t]
+    Groups may contain other groups; cycles are reported and broken."""
+    return _expand_agent_items([item])
 
 
 def _expand_agent_items(items) -> list:
     """Expand a list of agent-list items (group tokens + literals) into a
     flat, de-duplicated, order-preserving list of agent specs."""
-    out = []
-    seen = set()
-    for item in items:
-        for spec in _resolve_agent_token(item):
-            key = spec if isinstance(spec, str) else getattr(spec, "__name__", repr(spec))
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(spec)
-    return out
+    from hani2.composition import expand_entries
+
+    return expand_entries(list(items or []), opponent_lookup, label="opponent group")
 
 
 def resolve_agent_group(key: str) -> list:
@@ -288,11 +295,10 @@ def resolve_agent_group(key: str) -> list:
     if not key:
         return []
     k = key.strip()
-    fromfile = _read_group_file(k)
-    if fromfile is not None:
-        return _expand_agent_items(fromfile)
-    token = k if k.startswith(":") else ":" + k.lower()
-    return _expand_agent_items([token])
+    name = k.lstrip(":@")
+    if _read_group_file_full(name) is not None:
+        return _expand_agent_items(["@" + name])
+    return _expand_agent_items([":" + name.lower()])
 
 
 def _prime_group_syspaths() -> None:

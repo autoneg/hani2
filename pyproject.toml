@@ -23,6 +23,7 @@ dependencies = [
     "negmas-llm>=0.4.3",
     "litellm>=1.0.0",
     "fastapi>=0.110",
+    "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.27",
     "itsdangerous>=2.1",
     "httpx>=0.27",

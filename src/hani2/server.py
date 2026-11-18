@@ -137,6 +137,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="HANI2", version=__version__, lifespan=lifespan)
+app.include_router(__import__("hani2.api_library", fromlist=["router"]).router)  # /api/admin/library (hani2.library)
 
 
 # --------------------------------------------------------------------------- #

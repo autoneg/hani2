@@ -16,6 +16,12 @@ $HANI2_HOME/                      default ~/negmas/hani2
 │   ├── scenario_order.txt        order of scenario categories
 │   ├── questionnaires/           per_negotiation.yaml (optional)
 │   ├── scenarios/                scenario categories
+│   ├── scenario_sets.yaml        scenario sets (groups of scenario types)
+│   ├── scenario_links.yaml       linked scenario categories (library)
+│   ├── tools.yaml                tool groups, offered tools, placement per view
+│   ├── library.yaml              uploaded and linked opponents, Assistants, tools
+│   ├── library/<kind>/           uploaded code (library)
+│   ├── groups/                   opponent groups; assistant_groups/: Assistant groups
 │   ├── users.json                password hashes
 │   ├── users_meta.json           user metadata
 │   └── .cookie_secret            generated cookie secret
@@ -25,7 +31,7 @@ $HANI2_HOME/                      default ~/negmas/hani2
     └── studies/<study>/          and their studies: study.yaml, settings files, results/
 ```
 
-See [Projects and studies](projects.md) for the project and study files.
+See [Projects and studies](projects.md) for the project and study files. A project or study folder may hold the same library files (`scenario_links.yaml`, `tools.yaml`, `library.yaml`, `library/`, `scenarios/`); they apply to its sessions, a more specific layer winning (see [Library and groups](library.md#layers)).
 
 ## Precedence
 
@@ -191,7 +197,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.paths` | Extra folders (or `.py` files) to load tools from, besides `$HANI2_HOME/tools`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
-| `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`. |
+| `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |
 | `webmcp.actions` | Also register tools that act in the negotiation (default `true`). |
 | `webmcp.studies` | Register them for Prolific participants too (default `false`). |
@@ -207,6 +213,24 @@ or the assistant write to the opponent are sent as written.
 ```
 
 See [Tools](tools.md).
+
+### `tools.yaml`
+
+Tool groups, the tools sessions get and where tools go in each view, read from the settings
+folder, then the project folder, then the study folder (groups merge by name; `offer` comes from
+the most specific layer that sets it; placements merge per tool and view):
+
+```yaml title="tools.yaml"
+groups:
+  core: ["@information", "Utility-based Selector"]
+offer: ["@core", "Utility Plot"]        # default: every tool
+placement:
+  Trace: {pane: side}                   # every view
+  Value Histogram:
+    simple: {visible: false}
+```
+
+See [Library and groups](library.md#tool-groups).
 
 ### `recording`, `evaluation` and `questionnaire`
 

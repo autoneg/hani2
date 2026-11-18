@@ -16,6 +16,8 @@ old experiment (``HANI2_EXPERIMENT``) is a study of the default project.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import os
 import secrets
@@ -75,8 +77,26 @@ def project_dir() -> Path | None:
     return project_layer_dir(ref.project if ref else None)
 
 
+_LAYERS_OVERRIDE: "contextvars.ContextVar[list[Path] | None]" = contextvars.ContextVar("hani2_layers", default=None)
+
+
+@contextlib.contextmanager
+def use_layers(dirs: "list[Path] | None"):
+    """Run a block with :func:`settings_layers` fixed to ``dirs`` (most specific
+    first; ``None``: the current study's, as usual). The library uses it to read
+    a project's settings without one of its studies."""
+    tok = _LAYERS_OVERRIDE.set(None if dirs is None else list(dirs))
+    try:
+        yield
+    finally:
+        _LAYERS_OVERRIDE.reset(tok)
+
+
 def settings_layers() -> list[Path]:
     """The study and project folders of the current study, most specific first."""
+    fixed = _LAYERS_OVERRIDE.get()
+    if fixed is not None:
+        return list(fixed)
     return [d for d in (experiment_dir(), project_dir()) if d is not None]
 
 

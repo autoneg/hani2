@@ -161,6 +161,12 @@ the settings folder, in that order; the first file found wins. Two groups are bu
 | `:default` | The configured Assistant: `agent_class` in `assistant_settings.json`, else the built-in Assistant (`hani2.assistant:Assistant`). |
 | `:tutorial` | The ten Assistants of the [tutorial](../tutorials/assistant.md) (`level1_hello:HelloAgent`, …), when the `examples/support_agent_tutorial` folder is present (a source checkout); empty otherwise. |
 
+Assistant groups may list other groups (`@key` or `:key`, or a bare `key` that names a group
+file), expanded in place without duplicates; see
+[Groups and composition](library.md#groups-and-composition). Upload or link Assistants with
+`hani2 library add assistants coach.zip --group finalists --layer project:HI2027` (see
+[Library and groups](library.md)).
+
 `hani2 groups list --kind assistant` shows every group with its members and the file it comes from.
 
 ### The group file's `assistant` key

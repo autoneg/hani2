@@ -65,6 +65,40 @@ The LLM tool uses the language model configured in `llm_settings.json` (see [Lan
 
 Save a tool's Python file in the **tools folder**, `$HANI2_HOME/tools` (by default `~/negmas/hani2/tools`), and every new session gets the tools it defines. No restart is needed: changed files are read again when the next session starts. `hani2 tools new "My Tool"` creates a file there to start from, `hani2 tools list` shows every tool and where it comes from, and `hani2 tools path` shows the folders searched. More folders can be added with `hani2 --tools DIR` or `tools.paths` in `env.json`. The [tools tutorial](../tutorials/tools.md) explains how to write the file, and the `examples/tools` folder of the repository holds five examples, including two that use a language model.
 
+You can also add a tool through the [library](library.md): `hani2 library add tools offer_counter.py`
+(or a `.zip`, or `--link` to a file or folder that stays where it is), for every study or only for
+one project or study (`--layer project:P`, `--layer study:P/S`). The admin API does the same
+([Library API](../reference/library-api.md)).
+
+## Tool groups
+
+Every tool belongs to groups: the ones its class lists in `groups` (for example
+`groups = ("visualization",)`), plus `admin` for admin-only tools, `assistant` for tools with
+timing `"agent"` and `all`. The built-in tools are in `information` (Preferences, Opponent
+Preferences, Scenario Info, Trace, My Results, All Results), `visualization` (Utility Plot,
+Negotiation Plot, Outcome Plot, Value Histogram) and `recommendation` (Utility-based Selector,
+LLM, Random; every `OutcomeSelector` is in it). You can define your own groups, made of tools and
+other groups, in `tools.yaml`, and choose the tools a study offers with `offer`:
+
+```yaml title="projects/HI2027/tools.yaml"
+groups:
+  core: ["@information", "Utility-based Selector"]
+offer: ["@core", "Utility Plot"]
+```
+
+Without `offer` every tool is offered, as before. See
+[Tool groups](library.md#tool-groups).
+
+## Placement per view
+
+The page has a full, a simple and a focus view. A tool can sit in another pane, at another
+place, or be hidden, depending on the view: set `placement` on the class
+(`placement = {"simple": {"pane": "upper", "visible": False}}`) or per tool in `tools.yaml`. A
+view not given uses the tool's `pane` and `order`, shown. When the view changes, every tool moves
+to its place in the new view; where the participant moved or hid a tool is remembered per view.
+Tools without a placement never move. See
+[Where tools go in each view](library.md#where-tools-go-in-each-view).
+
 ## Configuring tools in env.json
 
 The `"tools"` section of `env.json` (see [Configuration reference](configuration.md)) controls which tools exist and their defaults. It has these keys:

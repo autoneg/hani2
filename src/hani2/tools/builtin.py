@@ -48,6 +48,7 @@ def preference_view(tool: Tool, ufun, *, title_prefix: str = "", help_card: bool
 
 class PreferencesTool(Tool):
     name = "Preferences"
+    groups = ("information",)
     description = "Your issue weights, the value of every option and your value on disagreement."
     help = """
     **What it shows.** How much every possible deal is worth to *you*, from 0% (worst) to 100% (best).
@@ -73,6 +74,7 @@ class PreferencesTool(Tool):
 
 class OpponentPreferencesTool(Tool):
     name = "Opponent Preferences"
+    groups = ("information",)
     description = "The opponent's private preferences (admins only)."
     help = """
     **What it shows.** The same charts as *Preferences*, for the opponent: its issue
@@ -101,6 +103,7 @@ AgentPreferencesTool = OpponentPreferencesTool
 # --------------------------------------------------------------------------- #
 class ScenarioInfoTool(Tool):
     name = "Scenario Info"
+    groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
     **What it shows.** The story of the scenario, the role you play, a table of the
@@ -165,6 +168,7 @@ class ScenarioInfoTool(Tool):
 # --------------------------------------------------------------------------- #
 class UtilityPlotTool(Tool):
     name = "Utility Plot"
+    groups = ("visualization",)
     description = "How the utility of the offers evolves over time."
     help = """
     **What it shows.** A line chart of every offer so far: by default the round on the
@@ -232,6 +236,7 @@ class NegotiationPlotTool(Tool):
     points, both no-deal values, the offer trajectories and the agreement."""
 
     name = "Negotiation Plot"
+    groups = ("visualization",)
     description = "All outcomes in utility space with the Pareto frontier, Nash point and both sides' offers."
     help = """
     **What it shows.** Every possible deal as a grey dot, placed by its value for you (x)
@@ -326,6 +331,7 @@ class NegotiationPlotTool(Tool):
 
 class OutcomePlotTool(Tool):
     name = "Outcome Plot"
+    groups = ("visualization",)
     description = "Offers placed in the outcome space (any two issues or time)."
     help = """
     **What it shows.** Every offer as a point placed by two issues of your choice (or by
@@ -376,6 +382,7 @@ class OutcomePlotTool(Tool):
 
 class TraceTool(Tool):
     name = "Trace"
+    groups = ("information",)
     description = "A table of every offer with its utility."
     help = """
     **What it shows.** One row per offer: the round, the share of the time used, who made
@@ -414,6 +421,7 @@ class TraceTool(Tool):
 
 class ValueHistogramTool(Tool):
     name = "Value Histogram"
+    groups = ("visualization",)
     description = "How often each value of each issue has been offered."
     help = """
     **What it shows.** For each chosen issue, a bar chart counting how often each option has
@@ -505,6 +513,7 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
 
 class UserResultsTool(Tool):
     name = "My Results"
+    groups = ("information",)
     description = "Your score and every negotiation you completed."
     help = """
     **What it shows.** Your score (the average of your best result in each scenario), how
@@ -532,6 +541,7 @@ class UserResultsTool(Tool):
 
 class AllResultsTool(Tool):
     name = "All Results"
+    groups = ("information",)
     description = "Every participant's results and a leaderboard (admins only)."
     help = """
     **What it shows.** Every negotiation of every participant, the overall scores and a
@@ -557,6 +567,7 @@ class AllResultsTool(Tool):
 # --------------------------------------------------------------------------- #
 class UtilitySelectorTool(OutcomeSelector):
     name = "Utility-based Selector"
+    groups = ("recommendation",)
     description = "Browse every outcome whose utility for you is in a chosen range and use one as your offer."
     help = """
     **What it shows.** A table of the deals whose value *for you* lies in a range you
@@ -671,6 +682,7 @@ class UtilitySelectorTool(OutcomeSelector):
 
 class RandomOutcomeTool(OutcomeSelector):
     name = "Random"
+    groups = ("recommendation",)
     description = "Fill the offer with a random outcome (admins only)."
     help = """
     **What it does.** Puts a random deal into your counter-offer when you press
@@ -696,6 +708,7 @@ class RandomOutcomeTool(OutcomeSelector):
 
 class ResponseGeneratorTool(OutcomeSelector):
     name = "LLM"
+    groups = ("recommendation",)
     description = "Describe what you want in plain words and let an LLM write the offer and message."
     help = """
     **What it does.** Turns an instruction in plain words ("propose a fair middle ground",

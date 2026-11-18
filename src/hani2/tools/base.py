@@ -68,6 +68,13 @@ class Tool:
     ``order``       Sort key inside its pane (smaller first).
     ``agent_hint``  Extra advice for the Assistant on when and how to use
                     the tool (added to what it reads with ``read_tool``).
+    ``groups``      Tool groups the tool belongs to (e.g. ``("visualization",)``;
+                    see :mod:`hani2.tool_groups`). ``admin`` (admin-only tools)
+                    and ``assistant`` (timing ``"agent"``) are added for you.
+    ``placement``   Where the tool goes in each view of the page (``full``,
+                    ``simple``, ``focus``): ``{"simple": {"pane": "upper",
+                    "visible": False, "order": 5}}``. A view (or key) not
+                    given falls back to ``pane``, ``order`` and visible.
     ============== ===========================================================
 
     The Assistant can read any tool (:meth:`describe_for_agent`) and use its
@@ -87,6 +94,8 @@ class Tool:
     enabled: bool = True
     order: int = 100
     agent_hint: str = ""
+    groups: tuple[str, ...] = ()
+    placement: dict[str, dict[str, Any]] = {}
 
     def __init__(self, session_state: dict[str, Any], enabled: bool | None = None, **params: Any):
         self.session_state = session_state
@@ -330,6 +339,7 @@ class OutcomeSelector(Tool):
 
     pane = "side"
     icon = "wand-sparkles"
+    groups = ("recommendation",)
     button_label = "Set Offer"
 
     def get_outcome(self) -> Outcome | None:

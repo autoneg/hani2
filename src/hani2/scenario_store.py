@@ -61,6 +61,39 @@ def base_dir() -> Path:
     return scenarios_dir()
 
 
+def scenario_roots() -> list[Path]:
+    """Every folder a category may come from, first hit wins: :func:`base_dir`,
+    then the scenarios folders of the study, the project and the settings."""
+    from hani2.config import settings_dir, settings_layers
+
+    out = [base_dir()] + [d / "scenarios" for d in settings_layers()] + [settings_dir() / "scenarios"]
+    seen: list[Path] = []
+    for p in out:
+        if p not in seen:
+            seen.append(p)
+    return seen
+
+
+def category_dir(type_: str) -> Path | None:
+    """The folder of category ``type_``: in :func:`base_dir` (as always), else a
+    link (``scenario_links.yaml``), else the first other of :func:`scenario_roots`
+    that has it (``None``: no folder)."""
+    from hani2 import scenario_links
+
+    if not type_ or "/" in type_ or "\\" in type_ or type_.startswith("."):
+        return None
+    roots = scenario_roots()
+    if (roots[0] / type_).is_dir():
+        return roots[0] / type_
+    link = scenario_links.find(type_)
+    if link is not None:
+        return link
+    for root in roots[1:]:
+        if (root / type_).is_dir():
+            return root / type_
+    return None
+
+
 def scenario_order(scenario_set: str | None = None) -> list[str]:
     """Scenario types of the active set (or of ``scenario_set``), in order."""
     registry.load_plugins()
@@ -75,11 +108,16 @@ def available_types(scenario_set: str | None = None) -> list[str]:
     for t in MAKER_MAP:
         if t not in types:
             types.append(t)
-    b = base_dir()
-    if b.is_dir():
-        for d in sorted(b.iterdir()):
-            if d.is_dir() and not d.name.startswith((".", "_")) and d.name not in types:
-                types.append(d.name)
+    from hani2 import scenario_links
+
+    for b in scenario_roots():
+        if b.is_dir():
+            for d in sorted(b.iterdir()):
+                if d.is_dir() and not d.name.startswith((".", "_")) and d.name not in types:
+                    types.append(d.name)
+    for name in scenario_links.load_links():
+        if name not in types and scenario_links.find(name) is not None:
+            types.append(name)
     return types
 
 
@@ -90,8 +128,8 @@ def _is_scenario_dir(d: Path) -> bool:
 def _pool(type_: str) -> list[Path]:
     """Scenario folders of a category: numbered pool slots or named scenarios.
     A category folder that is itself a scenario counts as a one-scenario pool."""
-    d = base_dir() / type_
-    if not d.is_dir():
+    d = category_dir(type_)
+    if d is None:
         return []
     subs = sorted(p for p in d.iterdir() if p.is_dir() and not p.name.startswith((".", "_")) and _is_scenario_dir(p))
     if subs:
