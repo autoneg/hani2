@@ -254,6 +254,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `assistant_class` | The class that actually ran (`module.Class`). |
 | `assistant_error` | Why the assigned Assistant could not be started, if it failed. |
 | `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
+| `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.

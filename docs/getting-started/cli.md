@@ -30,8 +30,6 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--assistant` | none | Who gets the Assistant: `on`, `off`, `auto` (admins only), or a Assistant class for everyone (`package.module:Class` or `path/to/file.py:Class`). Sets `HANI2_ASSISTANT` (and `HANI2_ASSISTANT_CLASS` for a class), overriding `mode` and `agent_class` in `assistant_settings.json`. |
 | `--no-assistant` | off | Run without an Assistant; the same as `--assistant off`. |
 | `--assistants` | none | The Assistant pool: comma-separated Assistant classes and Assistant groups (`:default`, `:tutorial`, `:<key>` for a group file). With more than one, each human keeps one Assistant for the whole study, balanced across the study's humans. Every member is loaded before the server starts. Sets `HANI2_ASSISTANTS`. See [Assistant pools and assignment](../guide/assistant.md#assistant-pools-and-assignment). |
-
-The old names `--support-agent` and `--no-support-agent` still work, here and in `hani2 experiment create` (see [Old names](../guide/assistant.md#old-names)).
 | `--tools` | none | Extra tools: comma-separated `package.module:Class`, `path/to/file.py:Class`, or a folder or `.py` file (every tool in it, see [Build a tool](../tutorials/tools.md#set-up)). Each is loaded before the server starts. Sets `HANI2_TOOLS`. Tools with `timing = "agent"` appear only when the Assistant adds them. |
 | `--study` | none | The default study, as `project/study`, for URLs without one (see `hani2 study create`). Every study is still reachable at `/s/<project>/<study>/`. Sets `HANI2_STUDY`. |
 | `--experiment` | none | Old name: the default study is this experiment, `default/<name>` (see `hani2 experiment create`). Sets `HANI2_EXPERIMENT`. |
@@ -43,6 +41,17 @@ The old names `--support-agent` and `--no-support-agent` still work, here and in
 | `--verbose` / `--no-verbose` | off | Ask negotiators to print what they do (sets `HANI2_VERBOSE=1`). Opponents whose constructor accepts `verbose` get `verbose=True`. |
 | `--dev` / `--no-dev` | off | Auto-reload the server when Python files change. |
 | `--version` | | Print the version and exit. |
+
+The old names `--support-agent`, `--no-support-agent`, `--agents`, `--experiment` and `--set` still work, here and in `hani2 experiment create` (see [Old names](../guide/assistant.md#old-names)).
+
+**Confusing combinations are refused.** `hani2` stops before starting the server, with a message saying which option to use, when it is given:
+
+- `--assistant <class>` together with `--assistants` (use `--assistants` alone, a pool may hold one class, or `--assistant <class>` alone; `--assistant on|auto` may be combined with `--assistants`);
+- `--assistant off`, `--no-assistant` or `--no-support-agent` (its old name) together with `--assistants`, or `--no-assistant` together with `--assistant on|auto|<class>`;
+- a new name together with its old name: `--assistant` and `--support-agent`, `--study` and `--experiment`, `--opponents` and `--agents`, `--scenario-set` and `--set`;
+- an option that contradicts the environment, for example `--assistant <class>` while `HANI2_ASSISTANTS` is set.
+
+The same environment pairs are refused when the server starts without the command line (see [Confusing combinations](../guide/configuration.md#confusing-combinations)).
 
 The server always runs a single worker process, because sessions live in memory. See [Architecture](../reference/architecture.md).
 
@@ -180,9 +189,13 @@ hani2 project list
 hani2 project show HI2027
 hani2 study create HI2027/hi-2027-01 --type prolific --title "January run" --completion-code C1A2B3 \
     --prolific-study-id 65a0c0ffee
+hani2 study create HI2027/hi-2027-01 --opponent-scheduling random --assistant-scheduling round_robin \
+    --scenario-scheduling latin_square
 hani2 study list [PROJECT]
 hani2 study show HI2027/hi-2027-01
 ```
+
+`--opponent-scheduling`, `--assistant-scheduling` and `--scenario-scheduling` (on `study create` and on `project create`, as defaults for the project's studies) choose the [scheduling methods](../guide/scheduling.md); each is merged into the file's `scheduling:` mapping, so the others stay as they were. An unknown name is refused with the list of valid ones. `study show` prints the methods in use (and marks the defaults).
 
 `project create` writes `projects/NAME/project.yaml` (`--description` is `short_description`). `study create PROJECT/STUDY` writes `projects/PROJECT/studies/STUDY/study.yaml` and `results/`, creating the project when it is missing; the other options are `--completion-url`, `--link`, `--start`, `--end`, `--n-required`, `--end-text` and `--type prolific|online|lab` (default `prolific`). Running `create` again updates the given fields. `study create` and `study show` print the links to give participants, for example:
 
@@ -219,6 +232,8 @@ Scaffolds `<experiments>/NAME` (by default `~/negmas/hani2/experiments/NAME`) wi
 hani2 --experiment NAME
 ```
 
+`--assistants SPECS` writes the Assistant pool to the experiment's `study.yaml` (`assistants`). `--assistant <class>` and `--assistants` cannot be combined, nor `--no-assistant` with either.
+
 ### `hani2 experiment list`
 
 ```bash
@@ -226,6 +241,14 @@ hani2 experiment list
 ```
 
 Lists the experiments with the number of participants who have a `results.csv` in each.
+
+## `hani2 scheduling`
+
+```bash
+hani2 scheduling list [--details] [--dimension opponents|assistants|scenarios]
+```
+
+Lists the [scheduling methods](../guide/scheduling.md) of each dimension, marking the default; `--details` prints each method's description with its example, rule, advantages and disadvantages.
 
 ## `hani2 replay`
 

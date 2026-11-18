@@ -180,6 +180,47 @@ def _check_assistants(value: str) -> str:
     return ",".join(items)
 
 
+def _refuse_confusing(cli: dict, env: dict | None = None) -> None:
+    """Stop with a clear message when options (or the environment they produce) are confusing."""
+    try:  # typer bundles its own click
+        from typer._click.exceptions import UsageError
+    except ImportError:  # pragma: no cover - older typer uses click itself
+        from click.exceptions import UsageError
+
+    from hani2 import conflicts
+
+    problems = conflicts.cli_problems(**cli)
+    if env is not None and not problems:
+        problems = conflicts.startup_problems(env)
+    if problems:
+        raise UsageError("\n".join(problems))
+
+
+def _planned_env(*, experiment: Optional[str] = None, study: Optional[str] = None, opponents: Optional[str] = None,
+                 assistants: Optional[str] = None, assistant: Optional[str] = None) -> dict:
+    """The environment the server would see with these options (checked before anything is set)."""
+    env = dict(os.environ)
+    if experiment:
+        env["HANI2_EXPERIMENT"] = experiment
+    if study:
+        env["HANI2_STUDY"] = study
+    if opponents:
+        env["HANI2_OPPONENTS"] = opponents
+    if assistants:
+        env["HANI2_ASSISTANTS"] = assistants
+    if assistant:
+        from hani2.support_agent.settings import parse_assistant_choice
+
+        try:
+            mode, klass = parse_assistant_choice(assistant)
+        except ValueError:
+            return env  # reported by --assistant's own check
+        env["HANI2_ASSISTANT"] = env["HANI2_SUPPORT_AGENT"] = mode
+        if klass:
+            env["HANI2_ASSISTANT_CLASS"] = env["HANI2_SUPPORT_AGENT_CLASS"] = klass
+    return env
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -196,7 +237,8 @@ def main(
     root_path: Annotated[str, typer.Option("--root-path", help="Sub-path the server is mounted under behind a reverse proxy, e.g. /hanplay. Works whether or not the proxy strips the prefix.")] = "",
     study: Annotated[Optional[str], typer.Option("--study", help="Default study for URLs without one, as project/study (see `hani2 study create`). Every study can still be reached at /s/<project>/<study>/.")] = None,
     experiment: Annotated[Optional[str], typer.Option(help="Old name of --study for a study of the default project (an experiment folder).")] = None,
-    scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", "--set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
+    scenario_set: Annotated[Optional[str], typer.Option("--scenario-set", help="Scenario set to use (see `hani2 sets`), e.g. HAN2026 or ANAC2027. Admins can still change it per session.")] = None,
+    set_alias: Annotated[Optional[str], typer.Option("--set", hidden=True, help="Old name of --scenario-set.")] = None,
     scenario_types: Annotated[Optional[str], typer.Option("--scenario-types", help="Extra scenario types: comma-separated Python files or modules that register them (see the Scenarios guide).")] = None,
     scenarios: Annotated[Optional[Path], typer.Option("--scenarios", help="Folder to load saved scenarios from (instead of the settings' scenarios folder).")] = None,
     open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open the browser.")] = True,
@@ -209,6 +251,15 @@ def main(
     if version:
         typer.echo(__version__)
         raise typer.Exit()
+    _refuse_confusing(
+        cli=dict(assistant=assistant, support_agent=support_agent, assistants=assistants, no_assistant=no_assistant,
+                 no_support_agent=no_support_agent, study=study, experiment=experiment, opponents=opponents,
+                 agents=agents, scenario_set=scenario_set, set_alias=set_alias),
+        # the environment is checked when the server is started (the server checks it again)
+        env=None if ctx.invoked_subcommand is not None else _planned_env(
+            experiment=experiment, study=study, opponents=opponents or agents, assistants=assistants,
+            assistant="off" if (no_assistant or no_support_agent) else (assistant or support_agent)))
+    scenario_set = scenario_set or set_alias
     if root_path:
         os.environ["HANI2_ROOT_PATH"] = root_path
     if experiment:
@@ -454,6 +505,10 @@ def experiment_create(
     """Scaffold a self-contained experiment folder."""
     from hani2.config import DEFAULT_SCENARIOS, DEFAULT_SETTINGS_DIR, experiments_root, get_settings_file, scenarios_dir
 
+    _refuse_confusing(cli=dict(assistant=assistant, support_agent=support_agent, assistants=assistants,
+                               no_assistant=no_assistant, no_support_agent=no_support_agent))
+    pool = _check_assistants(assistants) if assistants else None
+
     exp = experiments_root() / name
     (exp / "results").mkdir(parents=True, exist_ok=True)
     (exp / "questionnaires").mkdir(parents=True, exist_ok=True)
@@ -494,6 +549,14 @@ def experiment_create(
             typer.echo("  assistant: off (assistant_settings.json), autopilot: off")
         else:
             typer.echo(f"  assistant: {mode}{' using ' + klass if klass else ''} (assistant_settings.json)")
+    if pool:
+        from hani2 import projects
+
+        sf = exp / projects.STUDY_FILE
+        data = projects.read_yaml(sf)
+        data["assistants"] = [x for x in pool.split(",") if x]
+        projects.write_yaml(sf, data)
+        typer.echo(f"  assistants: {', '.join(data['assistants'])} (study.yaml)")
     if no_webmcp or opponents or tools:
         envf = exp / "env.json"
         env = _json.loads(envf.read_text()) if envf.exists() else {}
@@ -918,13 +981,17 @@ def project_create(
     year: Annotated[Optional[int], typer.Option(help="Year of the project.")] = None,
     organizer: Annotated[Optional[str], typer.Option(help="Who runs it.")] = None,
     contact: Annotated[Optional[str], typer.Option(help="Contact for participants (e-mail).")] = None,
+    opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, round_robin, external.")] = None,
+    scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
 ):
     """Create a project (or update its project.yaml)."""
     from hani2 import projects
 
+    sched = _scheduling_options(opponent_scheduling, assistant_scheduling, scenario_scheduling)
     try:
         pr = projects.create_project(name, full_name=full_name, kind=kind, short_description=description, link=link,
-                                     year=year, organizer=organizer, contact=contact)
+                                     year=year, organizer=organizer, contact=contact, scheduling=sched)
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Project {pr.name} at {projects.project_dir(pr.name)}")
@@ -953,6 +1020,8 @@ def project_show(name: str):
     pr = projects.load_project(name)
     typer.echo(f"{name}  ({pr.path or 'no folder: uses the settings folder'})")
     _echo_mapping({k: v for k, v in pr.to_dict().items() if k != "name"})
+    for e in pr.errors:
+        typer.secho(f"  ERROR: {e}", fg="red")
     for st in projects.list_studies(name):
         typer.echo(f"  study {st}")
 
@@ -971,19 +1040,39 @@ def study_create(
     n_required: Annotated[Optional[int], typer.Option("--n-required", help="Counted negotiations per participant.")] = None,
     end_text: Annotated[Optional[str], typer.Option("--end-text", help="Text of the end page (may use {{variables}}).")] = None,
     base_url: Annotated[Optional[str], typer.Option("--base-url", help="Public address of this server for the printed links (default: HANI2_PUBLIC_URL).")] = None,
+    opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, round_robin, external.")] = None,
+    scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
 ):
     """Create a study (or update its study.yaml) and print the links to give participants."""
     from hani2 import projects
 
     r = _ref(ref)
+    sched = _scheduling_options(opponent_scheduling, assistant_scheduling, scenario_scheduling)
     try:
         st = projects.create_study(r, type=type, title=title, completion_code=completion_code,
                                    completion_url=completion_url, prolific_study_id=prolific_study_id, link=link,
-                                   start=start, end=end, n_required=n_required, end_text=end_text)
+                                   start=start, end=end, n_required=n_required, end_text=end_text, scheduling=sched)
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Study {r} ({st.type}) at {st.path}")
     _print_links(r, base_url)
+
+
+def _scheduling_options(opponents: Optional[str], assistants: Optional[str], scenarios: Optional[str]) -> Optional[dict]:
+    """The ``scheduling`` mapping of the --*-scheduling options (``None``: none given); bad names stop here."""
+    from hani2 import scheduling
+
+    out = {}
+    for dim, value, flag in (("opponents", opponents, "--opponent-scheduling"),
+                             ("assistants", assistants, "--assistant-scheduling"),
+                             ("scenarios", scenarios, "--scenario-scheduling")):
+        if value:
+            try:
+                out[dim] = scheduling.check_method(dim, value)
+            except ValueError as e:
+                raise typer.BadParameter(str(e), param_hint=flag) from None
+    return out or None
 
 
 def _print_links(r, base_url: Optional[str]) -> None:
@@ -1026,6 +1115,14 @@ def study_show(
     st = projects.load_study(r)
     typer.echo(f"{r}  ({st.path})")
     _echo_mapping({k: v for k, v in st.to_dict().items() if k not in ("name", "project")})
+    from hani2 import scheduling
+
+    effective, explicit, errors = scheduling.resolve(r)
+    typer.echo("  scheduling (in use):")
+    for d in scheduling.DIMENSIONS:
+        typer.echo(f"    {d}: {effective[d]}" + ("" if d in explicit else "  (default)"))
+    for e in dict.fromkeys([*st.errors, *errors]):
+        typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)
 
 
@@ -1064,3 +1161,32 @@ def groups_list(
 
 if __name__ == "__main__":  # pragma: no cover
     app()
+
+
+scheduling_app = typer.Typer(help="List the scheduling methods for opponents, Assistants and scenarios.")
+app.add_typer(scheduling_app, name="scheduling")
+
+
+@scheduling_app.command("list")
+def scheduling_list(
+    details: Annotated[bool, typer.Option("--details", help="Print each method's full description (Markdown).")] = False,
+    dimension: Annotated[Optional[str], typer.Option("--dimension", help="Only opponents, assistants or scenarios.")] = None,
+):
+    """List the scheduling methods a study or project can choose (``scheduling:`` in study.yaml / project.yaml)."""
+    from hani2 import scheduling
+
+    try:
+        dims = [scheduling.check_dimension(dimension)] if dimension else list(scheduling.DIMENSIONS)
+    except ValueError as e:
+        raise typer.BadParameter(str(e), param_hint="--dimension") from None
+    for d in dims:
+        typer.secho(f"{d}  (default: {scheduling.DEFAULTS[d]})", bold=True)
+        for m in scheduling.methods(d):
+            mark = "*" if m.key == scheduling.DEFAULTS[d] else " "
+            typer.echo(f" {mark} {m.key:16s} {m.title}: {m.summary}")
+            if details:
+                typer.echo("")
+                for line in m.details.splitlines():
+                    typer.echo(f"      {line}".rstrip())
+                typer.echo("")
+        typer.echo("")

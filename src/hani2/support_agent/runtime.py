@@ -783,7 +783,10 @@ Assistant = SupportAgent
 def resolve_agent_class(settings: dict) -> type[SupportAgent]:
     """Resolve ``agent_class`` (``module:Class``, ``module.Class`` or
     ``path/to/file.py:Class``); fall back to :class:`SupportAgent` (with a
-    warning) if it cannot be loaded."""
+    warning) if it cannot be loaded.
+
+    Kept for scripts that call it; sessions no longer use it: they load the
+    class strictly (:func:`load_assistant_class`) and fail loudly."""
     path = (settings.get("agent_class") or "").strip()
     if not path:
         return SupportAgent
@@ -812,6 +815,16 @@ def load_assistant_class(spec: str) -> type[SupportAgent]:
     return klass
 
 
+_SOURCES = {"settings": "agent_class in assistant_settings.json", "env": "--assistant / HANI2_ASSISTANT_CLASS "
+             "or --assistants / HANI2_ASSISTANTS", "study": "assistants in study.yaml / project.yaml",
+             "schedule": "schedule.json", "group": "the group file", "query": "the page URL"}
+
+
+def _where(choice: Any) -> str:
+    src = _SOURCES.get(getattr(choice, "source", ""), "")
+    return f" (from {src})" if src else ""
+
+
 def _assistant_failed(session: "NegotiationSession", choice: Any, message: str) -> None:
     """Fail loudly: no Assistant, a visible error for the participant and admins, an event and a log line."""
     print(f"[hani2] ERROR: {message}")
@@ -833,11 +846,11 @@ def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
     """Create the session's Assistant.
 
     The class comes from the session's Assistant pool (see :mod:`hani2.assignment`):
-    an assigned Assistant (URL, group file, schedule.json, ``--assistants``, study.yaml /
-    project.yaml) that cannot be imported or created leaves the session without an
-    Assistant and shows the error (no silent fallback); the configured
-    ``agent_class`` of assistant_settings.json keeps its old behaviour (a warning and
-    the built-in Assistant)."""
+    an Assistant (URL, group file, schedule.json, ``--assistants``, study.yaml /
+    project.yaml, or ``agent_class`` in assistant_settings.json) that cannot be
+    imported or created leaves the session without an Assistant and shows the error
+    (a banner, a toast, an ``ERROR`` event, the ``assistant_error`` column); there is
+    no silent fallback to the built-in Assistant."""
     from hani2 import assignment
 
     settings = settings or getattr(session, "assistant_settings", None) or load_support_agent_settings()
@@ -861,24 +874,17 @@ def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
     if choice.source == "group":
         # a group file naming an Assistant is there to try that Assistant: start it switched on
         session.ss["support_agent_default_enabled"] = True
-    if not choice.strict:
-        klass = resolve_agent_class(settings)
-        try:
-            agent = klass(session.ss, settings)
-        except Exception:  # noqa: BLE001
-            traceback.print_exc()
-            agent = SupportAgent(session.ss, settings)
-    else:
-        try:
-            klass = load_assistant_class(choice.spec)
-            agent = klass(session.ss, settings)
-        except AssistantLoadError as e:
-            _assistant_failed(session, choice, str(e))
-            return None
-        except Exception as e:  # noqa: BLE001
-            traceback.print_exc()
-            _assistant_failed(session, choice, f"the Assistant {choice.spec!r} failed to start: {type(e).__name__}: {e}")
-            return None
+    try:
+        klass = load_assistant_class(choice.spec)
+        agent = klass(session.ss, settings)
+    except AssistantLoadError as e:
+        _assistant_failed(session, choice, str(e) + _where(choice))
+        return None
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        _assistant_failed(session, choice, f"the Assistant {choice.spec!r} failed to start: "
+                                           f"{type(e).__name__}: {e}{_where(choice)}")
+        return None
     session.ss["support_agent"] = agent
     return agent
 

@@ -707,6 +707,7 @@ class NegotiationSession:
             assistant_source=c.source if c is not None else "",
             assistant_class=f"{type(sa).__module__}.{type(sa).__qualname__}" if sa is not None else "",
             assistant_error=self.__dict__.get("assistant_error") or "",
+            assistant_scheduling=(c.scheduling or "") if c is not None else "",
         )
 
     def can_choose_scenario(self) -> bool:
@@ -792,6 +793,8 @@ class NegotiationSession:
         self._tools_hook("negotiation_started")
         ev.log_event(self.sid, ev.EventType.SCENARIO_STARTED, user=self.user, scenario_id=self._scenario_name(),
                      value={"partner": self.ss.get("last_partner_type"), "opponent_group": self.ss.get("opponent_group", ""),
+                            "opponent_scheduling": self.ss.get("opponent_scheduling", ""),
+                            "scenario_scheduling": self.ss.get("scenario_scheduling", ""),
                             **(self.ss.get("assistant_attribution") or {})})
         self._schedule_timeout()
         self._agent_event("negotiation_started")
@@ -845,6 +848,10 @@ class NegotiationSession:
         self.ss["last_partner_type"] = partner if isinstance(partner, str) else getattr(partner, "__name__", str(partner))
         self.ss["opponent_group"] = self.opponent_group
         self.ss["assistant_attribution"] = self.assistant_attribution()
+        # the scheduling methods that chose this negotiation's opponent and scenario type ("" when
+        # HANI2 did not schedule it: outside a study, admins, guests, test links, an admin's choice)
+        self.ss["opponent_scheduling"] = str(plan.get("opponent_scheduling") or "") if plan.get("partner") else ""
+        self.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
         time_limit = plan.get("time_limit", p.get("time_limit"))
         mech_params = dict(
             n_steps=p.get("n_steps") or None,

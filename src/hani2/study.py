@@ -38,6 +38,9 @@ from hani2.config import settings_layers
 if TYPE_CHECKING:  # pragma: no cover
     from hani2.session import NegotiationSession
 
+SCHED_EXTERNAL = "external"
+#: appended to a recorded ``external`` method when no outside input was found
+MISSING = ":missing"
 PROLIFIC_PREFIX = "prolific_"
 #: results folder prefix of online / lab participants (``?pid=``, ``?participant=``, ``?code=``)
 PARTICIPANT_PREFIX = "participant_"
@@ -142,12 +145,78 @@ class Study:
         s = self.session
         q = s.query or {}
         url_pool = any(str(q.get(k) or "").strip() for k in ("opponents", "agents", "group"))
+        sched = self.scheduling_methods()
         # a pool from the URL (a test link) or an admin-mode session keeps the random choice
-        partner = None if (url_pool or s.admin_mode) else self.latin_square_partner(s.round_number)
-        if partner is not None:
-            plan["partner"] = partner
-            plan["opponent_group"] = self.session.opponent_group
+        if sched is not None and not (url_pool or s.admin_mode):
+            method = sched[0]["opponents"]
+            pool = list(s.opponent_pool())
+            if len(pool) >= 2:
+                if method == SCHED_EXTERNAL:  # nothing outside names it: rotate, and say so
+                    self._scheduling_missing("opponents")
+                    partner = self._pick_opponent("cyclic", pool, s.round_number)
+                    method += MISSING
+                else:
+                    partner = self._pick_opponent(method, pool, s.round_number)
+                plan["partner"] = partner
+                plan["opponent_group"] = s.opponent_group
+                plan["opponent_scheduling"] = method
+        if sched is not None and scenario_type is None and name is None:
+            method = sched[1].get("scenarios")
+            if method:  # chosen explicitly by the study or project (else: the set order, as always)
+                counter = store.next_index(s.ss["user_path"])
+                plan["index"] = counter
+                if method == SCHED_EXTERNAL:
+                    self._scheduling_missing("scenarios")
+                    pick, method = "by_participant", method + MISSING
+                else:
+                    pick = method
+                plan["type"] = self._pick_scenario(pick, s.round_number, counter)
+                plan["scenario_scheduling"] = method
+            else:
+                plan["scenario_scheduling"] = "set_order" if s.admin_prefs.get("predefined_order", True) else "random"
         return plan
+
+    # -- scheduling (see hani2.scheduling) -------------------------------------
+    def scheduling_methods(self) -> tuple[dict[str, str], dict[str, str]] | None:
+        """``(effective, explicit)`` scheduling methods of this human's study; ``None``
+        when HANI2 does not schedule this session (outside a study, admins, playground guests)."""
+        from hani2 import assignment, scheduling
+
+        s = self.session
+        if s.study_ref is None or not assignment.counts_as_human(s):
+            return None
+        eff, explicit, _ = scheduling.resolve(s.study_ref)
+        return eff, explicit
+
+    def _seed(self) -> str:
+        return f"{self.session.study_ref}|{self.session.user}"
+
+    def _pick_opponent(self, method: str, pool: list, slot: int) -> Any:
+        from hani2 import scheduling
+
+        idx = self.participant_index() or 0
+        return scheduling.pick_opponent(method, pool, idx, slot, self._seed())
+
+    def _pick_scenario(self, method: str, slot: int, counter: int) -> str | None:
+        from hani2 import scheduling
+
+        idx = self.participant_index() or 0
+        types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
+        return scheduling.pick_scenario_type(method, types, idx, slot, self._seed(), counter=counter)
+
+    def _scheduling_missing(self, dimension: str) -> None:
+        """``external`` scheduling found no outside input for this negotiation: log it loudly."""
+        from hani2 import events as ev
+
+        s = self.session
+        msg = (f"the study's {dimension} scheduling is 'external' but no schedule.json names one for "
+               f"{s.user}'s next negotiation; HANI2 filled in")
+        print(f"[hani2] ERROR: {msg}")
+        try:
+            ev.log_event(s.sid, ev.EventType.ERROR, user=s.user, component="scheduling",
+                         action="scheduling_missing", value={"dimension": dimension, "error": msg})
+        except Exception:  # pragma: no cover
+            pass
 
     def participant_index(self) -> int | None:
         """This human's index within the study (``None`` outside a study, for admins and guests)."""
@@ -418,21 +487,42 @@ class ProlificStudy(Study):
         return self.has_practice and not self.is_returning() and not self.practice_done()
 
     # -- Study API ----------------------------------------------------------
+    def _scenario_type(self, entry: dict, slot: int, counter: int, practice: bool = False) -> tuple[str, str]:
+        """The scenario type of the next negotiation and the scheduling method that chose it."""
+        types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
+        own = self.meta.get("scenario_type") or random.choice(types)
+        if entry.get("scenario_type"):  # the outside system's schedule.json wins
+            return entry["scenario_type"], SCHED_EXTERNAL
+        sched = self.scheduling_methods()
+        if sched is None:
+            return own, ""
+        method = sched[0]["scenarios"]
+        if method == "by_participant":
+            return own, method
+        if method == SCHED_EXTERNAL and practice:  # schedules name counted negotiations only
+            return own, "practice"
+        if method == SCHED_EXTERNAL:
+            self._scheduling_missing("scenarios")
+            return own, method + MISSING
+        return self._pick_scenario(method, slot, counter) or own, method
+
     def plan_round(self, scenario_type: str | None, name: str | None) -> dict[str, Any]:
         practice = self.is_practice_next()
         slot = self.counted()
         sched = self.schedule()
         entry = sched[slot] if 0 <= slot < len(sched) and not practice else {}
-        stype = entry.get("scenario_type") or self.meta.get("scenario_type") or random.choice(store.scenario_order(self.session.admin_prefs.get("scenario_set")))
         idx = entry.get("scenario_index") if isinstance(entry.get("scenario_index"), int) else None
         if idx is None:
             idx = store.next_index(self.user_path)
+        stype, scen_method = self._scenario_type(entry, slot, idx, practice)
         partner = None
         group: str | None = None
+        opp_method = ""
         if practice:
             practice_pool = expand_agents(os.environ.get("PROLIFIC_PRACTICE_OPPONENTS") or os.environ.get("PROLIFIC_PRACTICE_AGENTS", ":pan")) or self.session.opponent_pool()
             partner = random.choice(practice_pool)
             group = ""
+            opp_method = "practice"
         else:
             want = entry.get("agent_class_name")
             pool = self.finalists()
@@ -441,12 +531,25 @@ class ProlificStudy(Study):
                 partner = next((p for p in pool if str(p) == want or str(p).endswith("." + str(want).split(".")[-1])), None)
                 if partner is None:  # not a pool member: used as written, from no group
                     partner, group = want, ""
+                opp_method = SCHED_EXTERNAL
             elif pool:
-                # a study run by HANI2 itself (no schedule.json): balanced Latin square over the pool,
-                # by participant index within the study; otherwise the old rotation
+                # a study run by HANI2 itself: the study's opponents scheduling method (default: a
+                # balanced Latin square by participant index); outside a study, when schedule.json
+                # leaves the slot open, or for participants who started with it: the old rotation
+                methods = self.scheduling_methods()
+                method = methods[0]["opponents"] if methods is not None else ""
                 legacy = (self.user_path / "fallback_rotation.txt").exists()
-                latin = None if (sched or legacy) else self.latin_square_partner(slot, pool)
-                partner = latin if latin is not None else pool[(self._rotation_offset() + slot) % len(pool)]
+                if method == SCHED_EXTERNAL:
+                    self._scheduling_missing("opponents")
+                    partner = self._pick_opponent("cyclic", pool, slot)
+                    opp_method = method + MISSING
+                elif not method or sched or legacy:
+                    partner = pool[(self._rotation_offset() + slot) % len(pool)]
+                    opp_method = "cyclic" if method else ""
+                elif len(pool) == 1:
+                    partner, opp_method = pool[0], method
+                else:
+                    partner, opp_method = self._pick_opponent(method, pool, slot), method
         plan = {
             "type": stype,
             "index": idx,
@@ -455,6 +558,8 @@ class ProlificStudy(Study):
             "practice": practice,
             "time_limit": entry.get("time_limit") or (self.practice_time if practice else self.counted_time),
             "load_existing": True,
+            "opponent_scheduling": opp_method,
+            "scenario_scheduling": scen_method,
         }
         assistant = self.schedule_assistant(slot, practice)
         if assistant:

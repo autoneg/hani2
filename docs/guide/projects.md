@@ -214,11 +214,32 @@ and [Assistant groups](assistant.md#assistant-groups)). Within a study HANI2 ass
 - **Scenario types** by participant index over the active scenario set; each negotiation takes the
   participant's next slot of that type.
 
+These are the default [scheduling methods](scheduling.md). A study (or its project, for all its
+studies) can choose another method per dimension:
+
+```yaml
+scheduling:
+  opponents: latin_square   # random, cyclic, fixed_order, external
+  assistants: balanced      # random_fixed, random_each, round_robin, external
+  scenarios: by_participant # set_order, random, latin_square, external
+```
+
+`hani2 scheduling list --details` explains each one with examples; `hani2 study create
+--opponent-scheduling M --assistant-scheduling M --scenario-scheduling M` sets them. The methods
+used are recorded in the `opponent_scheduling`, `assistant_scheduling` and `scenario_scheduling`
+columns.
+
 Participants are counted per study (their index is kept in the study's `assignments.json`), so
 each study is balanced on its own. A `schedule.json` (and a group file named in the URL) still wins
 over all of this. The assigned Assistant, its group and the opponent's group are written to every
 results row (`assistant`, `assistant_group`, `assistant_class`, `assistant_error`,
-`opponent_group`), to the `scenario_started` event and to the recordings.
+`opponent_group`, plus the three `*_scheduling` columns), to the `scenario_started` event and to
+the recordings.
+
+A setting given twice in `study.yaml` or `project.yaml` with different values (at the top level
+and again under `overrides:` / `defaults:`) is refused when the file is saved through the admin
+API or the command line, and reported (server log, `hani2 study show`, the admin study page's
+`errors`) when a hand-edited file has it; the value under `overrides:` / `defaults:` is then used.
 
 ## Two ways to run HANI2
 
@@ -242,10 +263,12 @@ hani2 project show NAME
 hani2 study create PROJECT/STUDY [--type prolific|online|lab] [--title TEXT] [--completion-code CODE]
                                  [--completion-url URL] [--prolific-study-id ID] [--link URL]
                                  [--start DATE] [--end DATE] [--n-required N] [--end-text TEXT] [--base-url URL]
+                                 [--opponent-scheduling M] [--assistant-scheduling M] [--scenario-scheduling M]
 hani2 study list [PROJECT]
 hani2 study show PROJECT/STUDY [--base-url URL]
 hani2 --study PROJECT/STUDY         # the default study of this server
 hani2 groups list [--project P | --study P/S] [--kind opponent|assistant] [--no-builtin]
+hani2 scheduling list [--details]   # the scheduling methods
 ```
 
 `create` on an existing project or study updates the given fields. `study create` also creates the project when it is missing, and prints the links to give participants. The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in `env.json`, else `http://localhost:5006` plus the root path. A bare study name (`hani2 study create pilot`) is a study of the `default` project.

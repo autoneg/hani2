@@ -113,6 +113,12 @@ human. The pool of a session comes from the first of these that names one:
 4. **`assistants`** in the study's `study.yaml`, else in the project's `project.yaml`.
 5. **`agent_class`** in `assistant_settings.json`: the single configured class, as before.
 
+Give either one class or a pool, not both: `hani2 --assistant <class>` together with
+`--assistants` (or `HANI2_ASSISTANT_CLASS` together with `HANI2_ASSISTANTS`) is refused at
+startup with a message saying which to use. A pool may hold a single class
+(`--assistants pkg.mod:Class`), and `--assistant on|off|auto` may be combined with `--assistants`
+(except `off`, which contradicts a pool). See [Confusing combinations](configuration.md#confusing-combinations).
+
 Each of these is a comma-separated text or a list of Assistant classes (`package.module:Class`,
 `package.module.Class` or `path/to/file.py:Class`) and Assistant group tokens:
 
@@ -178,7 +184,14 @@ and sends the team to the link.
 
 ### Fixed per human, balanced
 
-With a pool of more than one Assistant:
+Which pool member a human gets is the study's `assistants` [scheduling method](scheduling.md#assistants)
+(`scheduling: {assistants: ...}` in study.yaml or project.yaml). The default, `balanced`, is
+described here; the others are `random_fixed` (kept per human, drawn at random),
+`round_robin` (kept per human, member `index mod size`), `random_each` (a new draw every
+negotiation) and `external` (only `schedule.json` names the Assistant; without one the session
+fails loudly). The method used is recorded in the `assistant_scheduling` column.
+
+With a pool of more than one Assistant and the default method:
 
 - **Each human keeps one Assistant** for every negotiation of the study, across sessions and visits.
 - **A new human gets the Assistant with the fewest humans** assigned so far in that study. Ties go to
@@ -210,14 +223,17 @@ so humans arriving at the same moment never get the same slot twice. Admins can 
 
 ### When an Assistant does not load
 
-An Assistant from the URL, a group file, `schedule.json`, `--assistants` or `study.yaml` /
-`project.yaml` that cannot be imported or created **fails loudly**: the session runs without an
-Assistant, the participant sees a red banner above the negotiation saying so (it stays until the problem is fixed), an
-`error` event with action `assistant_failed` is logged, the server log has the reason, the admin
-sessions list (`GET /api/admin/sessions`) shows it, and the results rows carry it in
-`assistant_error`. HANI2 never silently swaps in the default Assistant. Only the configured
-`agent_class` of `assistant_settings.json` keeps its old behaviour (a warning in the log and the
-built-in Assistant). `hani2 --assistants` checks every member before the server starts.
+An Assistant that cannot be imported or created **fails loudly**, wherever it comes from: the
+URL, a group file, `schedule.json`, `--assistants`, `study.yaml` / `project.yaml`, and also the
+configured `agent_class` of `assistant_settings.json` (which `hani2 experiment create --assistant
+<class>` writes). The session runs without an Assistant, the participant sees a red banner above
+the negotiation saying so (it stays until the problem is fixed), a toast appears, an `error` event
+with action `assistant_failed` is logged, the server log has the reason (and where the class came
+from), the admin sessions list (`GET /api/admin/sessions`) shows it, and the results rows carry it
+in `assistant_error`. HANI2 never silently swaps in the default Assistant. `hani2 --assistant
+<class>`, `hani2 --assistants` and `hani2 experiment create --assistant <class>` check every class
+before anything starts. A group file whose `assistant` and old `support_agent` keys name different
+Assistants fails the same way (keep only `assistant`).
 
 ### Changing Assistant between negotiations
 
@@ -370,11 +386,13 @@ class MyAgent(Assistant):
 PYTHONPATH=$PWD hani2 --page play
 ```
 
-`agent_class` accepts `module:Class` or a dotted `package.module.Class`. The class must subclass `Assistant`. If it cannot be imported, is not a subclass, or its constructor raises, the server prints a warning and uses the default agent instead:
+`agent_class` accepts `module:Class` or a dotted `package.module.Class`. The class must subclass `Assistant`. If it cannot be imported, is not a subclass, or its constructor raises, the session runs **without an Assistant** and shows the error (see [When an Assistant does not load](#when-an-assistant-does-not-load)); the server log says:
 
 ```text
-[hani2] WARNING: could not load custom agent_class 'my_agent:MyAgent' (No module named 'my_agent'); using the default agent
+[hani2] ERROR: cannot import the Assistant 'my_agent:MyAgent': ModuleNotFoundError: No module named 'my_agent' (from agent_class in assistant_settings.json)
 ```
+
+Earlier versions fell back to the built-in Assistant here; leave `agent_class` empty (`null`) to use it on purpose.
 
 A ready-to-copy starting point lives in `examples/agent_template` in the source repository (`my_agent.py`, `settings.example.json` and an offline test).
 

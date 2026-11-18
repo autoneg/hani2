@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- **Scheduling methods.** A study (`study.yaml`) or a project (`project.yaml`, for all its
+  studies) chooses how HANI2 schedules each dimension, merged per dimension:
+  `scheduling: {opponents: ..., assistants: ..., scenarios: ...}`. Opponents: `latin_square`
+  (default, balanced Williams design), `random`, `cyclic`, `fixed_order`, `external`. Assistants:
+  `balanced` (default, fixed per human, fewest first), `random_fixed`, `random_each`,
+  `round_robin`, `external`. Scenarios: `by_participant` (default), `set_order`, `random`,
+  `latin_square`, `external`. A `schedule.json` still wins; `external` uses only it (a missing
+  opponent or scenario is filled in and flagged `external:missing` with a `scheduling_missing`
+  error event; a missing Assistant fails loudly). Results rows gain `opponent_scheduling`,
+  `assistant_scheduling` and `scenario_scheduling`. New `hani2 scheduling list [--details]`,
+  `--opponent-scheduling`, `--assistant-scheduling` and `--scenario-scheduling` on `hani2 study
+  create` / `hani2 project create`, `GET /api/admin/scheduling-methods`, and `scheduling`,
+  `scheduling_effective` and `errors` in the admin study endpoints (unknown names are refused).
+  The docs render maths (KaTeX). See [Scheduling methods](guide/scheduling.md).
+- **The configured Assistant fails loudly too.** An `agent_class` in `assistant_settings.json`
+  (also written by `hani2 experiment create --assistant <class>`) that cannot be loaded or
+  created no longer falls back to the built-in Assistant: the session runs without one and shows
+  the error (banner, toast, `assistant_failed` event, `assistant_error` column), as for assigned
+  Assistants.
+- **Confusing combinations are refused.** `--assistant <class>` with `--assistants`,
+  `--assistant off` / `--no-assistant` with `--assistants`, a new option with its
+  old name (`--support-agent`, `--experiment`, `--agents`, `--set`), the matching environment variables
+  (`HANI2_ASSISTANT_CLASS` + `HANI2_ASSISTANTS`, `HANI2_STUDY` + `HANI2_EXPERIMENT`, old and new
+  names with different values), `opponents` + `agents` in `env.json`, a setting given twice in
+  `study.yaml` / `project.yaml`, and group files whose `assistant` and `support_agent` disagree
+  are refused with a message saying which to use. Old names alone keep working.
+  `hani2 experiment create --assistants` now writes the pool to the experiment's `study.yaml`
+  (it was ignored). See [Confusing combinations](guide/configuration.md#confusing-combinations).
 - **Groups and assignment.** Opponent groups (`groups/<key>.json`) and the new Assistant groups
   (`assistant_groups/<key>.json`, members under `assistants`) can live in a project, shared by its
   studies; a token `:key` or `?group=key` is looked up in the study's results folder, the study

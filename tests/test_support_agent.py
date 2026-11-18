@@ -25,9 +25,14 @@ def test_level2_reads_state():
     assert "Opponent offer:" in s.chat[-1]["text"]
 
 
-def test_bad_agent_class_falls_back():
+def test_bad_agent_class_fails_loudly():
     s = make_session(agent_class="nope.nothing:Missing")
-    assert type(s.support_agent) is SupportAgent
+    assert s.support_agent is None and "nope.nothing:Missing" in s.assistant_error
+
+
+def test_default_agent_class_is_the_built_in_assistant():
+    s = make_session(agent_class="")
+    assert type(s.support_agent) is SupportAgent and not s.assistant_error
 
 
 def test_level6_hides_and_reveals_tools():

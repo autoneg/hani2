@@ -38,6 +38,12 @@ This page is generated from the docstrings in the source. It covers the modules 
 
 ::: hani2.recording.format
 
+## Scheduling
+
+::: hani2.scheduling
+    options:
+      members: [register, methods, check_method, check_scheduling, resolve, methods_for, rng, pick_opponent, pick_scenario_type, pick_assistant_fixed]
+
 ## Evaluation
 
 ::: hani2.evaluation

@@ -96,6 +96,13 @@ def require_admin(request: Request) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from hani2 import conflicts
+
+    problems = conflicts.startup_problems()
+    if problems:  # refuse to start: say which setting to use
+        for p in problems:
+            print(f"[hani2] ERROR: {p}")
+        raise conflicts.ConflictError("confusing settings: " + "; ".join(problems))
     hub.attach_loop(asyncio.get_running_loop())
     auth.ensure_default_users()
     try:
@@ -744,12 +751,27 @@ def admin_put_settings(kind: str, body: dict = Body(...), study: str | None = No
 
 # -- projects and studies ------------------------------------------------------
 def _study_info(ref: "projects.StudyRef") -> dict:
+    from hani2 import scheduling
+
     st = projects.load_study(ref)
     results = projects.study_dir(ref) / "results"
     n = len(list(results.glob("*/results.csv"))) if results.is_dir() else 0
+    effective, _, sched_errors = scheduling.resolve(ref)
     return {**st.to_dict(), "path": str(st.path), "legacy": st.legacy, "participants": n,
             "default": ref == projects.default_study(),
+            # the study's own choice (as in study.yaml), and what it uses (study, then project, then defaults)
+            "scheduling": dict(st.overrides.get("scheduling") or {}) if isinstance(st.overrides.get("scheduling"), dict) else {},
+            "scheduling_effective": effective,
+            "errors": list(dict.fromkeys([*st.errors, *sched_errors])),
             "links": projects.participant_links(ref, projects.public_base_url())}
+
+
+@app.get("/api/admin/scheduling-methods")
+def admin_scheduling_methods(_: str = Depends(require_admin)):
+    """The scheduling methods of each dimension (key, title, summary, Markdown details) and the defaults."""
+    from hani2 import scheduling
+
+    return scheduling.api_payload()
 
 
 def _ref_or_404(project: str, study: str) -> "projects.StudyRef":
@@ -779,7 +801,9 @@ def admin_project(project: str, _: str = Depends(require_admin)):
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     f = projects.project_dir(project) / projects.PROJECT_FILE
+    sched = pr.defaults.get("scheduling")
     return {**pr.to_dict(), "path": str(pr.path) if pr.path else None, "yaml": f.read_text() if f.exists() else "",
+            "scheduling": dict(sched) if isinstance(sched, dict) else {}, "errors": list(pr.errors),
             "studies": [_study_info(projects.StudyRef(project, s)) for s in projects.list_studies(project)]}
 
 
@@ -797,14 +821,33 @@ def _yaml_body(body: dict) -> dict:
     return dict(body.get("data") or {})
 
 
+#: keys the GET endpoints add that are not part of project.yaml / study.yaml (dropped on PUT, so a
+#: client may send back what it read)
+_READ_ONLY_KEYS = ("path", "legacy", "participants", "default", "links", "yaml", "studies",
+                   "scheduling_effective", "errors")
+
+
+def _writable(data: dict, nested: str) -> dict:
+    """``data`` as sent back by a client: without the read-only keys, and with a top-level
+    ``scheduling`` winning over the copy the GET endpoints show under ``overrides`` / ``defaults``."""
+    out = {k: v for k, v in data.items() if k not in _READ_ONLY_KEYS}
+    inner = out.get(nested)
+    if "scheduling" in out and isinstance(inner, dict) and "scheduling" in inner:
+        out[nested] = {k: v for k, v in inner.items() if k != "scheduling"}
+        if not out[nested]:
+            out.pop(nested)
+    return out
+
+
 @app.put("/api/admin/projects/{project}")
 def admin_put_project(project: str, body: dict = Body(...), _: str = Depends(require_admin)):
     """Create or replace ``project.yaml``: ``{"data": {...}}`` or ``{"yaml": "..."}``."""
-    data = _yaml_body(body)
+    data = _yaml_body(body) if "yaml" in body else _writable(_yaml_body(body), "defaults")
     try:
         projects.check_name(project, "project")
         if data.get("kind", "none") not in projects.KINDS:
             raise HTTPException(400, f"kind must be one of {', '.join(projects.KINDS)}")
+        projects.check_file_data(data, "defaults")
         projects.write_yaml(projects.project_dir(project) / projects.PROJECT_FILE, data)
         (projects.project_dir(project) / "studies").mkdir(exist_ok=True)
     except ValueError as e:
@@ -825,9 +868,13 @@ def admin_study(project: str, study: str, _: str = Depends(require_admin)):
 def admin_put_study(project: str, study: str, body: dict = Body(...), _: str = Depends(require_admin)):
     """Create or replace ``study.yaml`` (the project is created when missing)."""
     ref = _ref_or_404(project, study)
-    data = _yaml_body(body)
+    data = _yaml_body(body) if "yaml" in body else _writable(_yaml_body(body), "overrides")
     if data.get("type", "prolific") not in projects.STUDY_TYPES:
         raise HTTPException(400, f"type must be one of {', '.join(projects.STUDY_TYPES)}")
+    try:
+        projects.check_file_data(data, "overrides")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
     if ref.project != projects.DEFAULT_PROJECT and not projects.project_dir(ref.project).is_dir():
         projects.create_project(ref.project)
     folder = projects.study_dir(ref)

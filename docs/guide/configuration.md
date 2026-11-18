@@ -242,7 +242,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `mode` | `"on"` | Who gets the Assistant: `on` (everyone), `off` (nobody) or `auto` (admins only). Overridden by `--assistant`/`HANI2_ASSISTANT`. |
-| `agent_class` | `null` | Your `Assistant` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. Used when nothing else names an Assistant pool (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)); the `:default` Assistant group. |
+| `agent_class` | `null` | Your `Assistant` subclass, as `"module:Class"` or `"module.Class"`. `null`: the built-in agent. Used when nothing else names an Assistant pool (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)); the `:default` Assistant group. A class that cannot be loaded leaves the session without an Assistant and shows the error ([no fallback](assistant.md#when-an-assistant-does-not-load)). |
 | `provider` | `"ollama"` | Any litellm provider. |
 | `model` | `"qwen3:4b-instruct"` | Model name. |
 | `api_key_env` | `"OPENAI_API_KEY"` | Name of the environment variable holding the key. |
@@ -291,13 +291,13 @@ See [Autopilot](autopilot.md).
 | `HANI2_HOME` | `~/negmas/hani2` | Root folder for settings, results and experiments. |
 | `HANI2_EXPERIMENTS` | `$HANI2_HOME/experiments` | Folder that holds experiments (the studies of the `default` project). |
 | `HANI2_EXPERIMENT` | none | Old name: the server's default study is this experiment (`default/<name>`). Set by `--experiment`. |
-| `HANI2_STUDY` | none | The server's default study, as `project/study`, for URLs without one. Set by `--study`. Wins over `HANI2_EXPERIMENT`. |
+| `HANI2_STUDY` | none | The server's default study, as `project/study`, for URLs without one. Set by `--study`. Setting both with different studies is refused at startup. |
 | `HANI2_PROJECTS` | `$HANI2_HOME/projects` | Folder that holds projects. |
 | `HANI2_PUBLIC_URL` | none | The address participants use to reach the server, for the links `hani2 study create` prints (else `public_url` in `env.json`). |
-| `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read. |
+| `HANI2_OPPONENTS` | none | Opponent agents (comma-separated specs and group tokens). Set by `--opponents`. The old name `HANI2_AGENTS` is still read (both with different values: refused at startup). |
 | `HANI2_TOOLS` | none | Extra tool classes, folders and `.py` files, comma separated. Set by `--tools`. |
-| `HANI2_ASSISTANTS` | none | The Assistant pool: comma-separated Assistant classes and Assistant group tokens (`:default`, `:tutorial`, `:<key>`). With more than one, each human keeps one Assistant, balanced across the study. Wins over `HANI2_ASSISTANT_CLASS`, `assistants` in study.yaml / project.yaml and `agent_class`; loses to a group file's `assistant` and to `schedule.json`. Set by `--assistants`. See [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment). |
-| `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. Wins over `assistants` in study.yaml / project.yaml and `agent_class`. |
+| `HANI2_ASSISTANTS` | none | The Assistant pool: comma-separated Assistant classes and Assistant group tokens (`:default`, `:tutorial`, `:<key>`). With more than one, each human keeps one Assistant (as the study's [`assistants` scheduling method](scheduling.md#assistants) says, by default balanced across the study). Wins over `assistants` in study.yaml / project.yaml and `agent_class`; loses to a group file's `assistant` and to `schedule.json`. Cannot be combined with `HANI2_ASSISTANT_CLASS` or `HANI2_ASSISTANT=off` (refused at startup). Set by `--assistants`. See [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment). |
+| `HANI2_ASSISTANT_CLASS` | none | Assistant class for everyone. Set by `--assistant <class>`. Wins over `assistants` in study.yaml / project.yaml and `agent_class`. Cannot be combined with `HANI2_ASSISTANTS`. |
 | `HANI2_ASSISTANT` | none | `on`, `off` or `auto`; overrides `mode` in `assistant_settings.json`. Set by `--assistant`. Also accepts `1`/`true`/`yes`/`enabled`, `0`/`false`/`no`/`disabled` and `admin`/`admins`. |
 | `HANI2_VERBOSE` | none | `1` asks opponents to print what they do. Set by `--verbose`. |
 | `HANI2_CUSTOM_AGENTS` | none | Comma-separated opponent specs for the `:custom` group. |
@@ -329,4 +329,30 @@ See [Autopilot](autopilot.md).
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the default completion link. |
 | `SCMLWEB_PROLIFIC_PATH` | `/prolific` | Path of the default completion link. |
 
-The [Prolific guide](prolific.md) explains the `PROLIFIC_*` variables in detail. API keys for language models are read from the variables you name in `api_key_env`, or, for LLM opponents, from each provider's standard variable.
+The [Prolific guide](prolific.md) explains the `PROLIFIC_*` variables in detail.
+
+## Confusing combinations
+
+Settings that mean the same thing (a new name and its old one) or contradict each other are
+refused with a message that says which one to keep. Each old name alone keeps working.
+
+| Where | Refused | Use |
+| --- | --- | --- |
+| Command line | `--assistant <class>` with `--assistants` | `--assistants` alone (a pool may hold one class) or `--assistant <class>` alone; `--assistant on` / `auto` may be combined with `--assistants` |
+| Command line | `--assistant off`, `--no-assistant` or `--no-support-agent` (its old name) with `--assistants`; `--no-assistant` with `--assistant on` / `auto` / a class | one of them |
+| Command line | a new name with its old name: `--assistant` with `--support-agent`, `--study` with `--experiment`, `--opponents` with `--agents`, `--scenario-set` with `--set` | the new name |
+| Command line | an option that contradicts the environment (e.g. `--assistant <class>` while `HANI2_ASSISTANTS` is set) | unset the variable or drop the option |
+| Environment (at startup) | `HANI2_ASSISTANT_CLASS` (or `HANI2_SUPPORT_AGENT_CLASS`) with `HANI2_ASSISTANTS` | one of them |
+| Environment (at startup) | `HANI2_ASSISTANT=off` (or `HANI2_SUPPORT_AGENT=off`) with `HANI2_ASSISTANTS` | one of them |
+| Environment (at startup) | different values in `HANI2_ASSISTANT` / `HANI2_SUPPORT_AGENT`, `HANI2_ASSISTANT_CLASS` / `HANI2_SUPPORT_AGENT_CLASS`, `HANI2_OPPONENTS` / `HANI2_AGENTS`, `PROLIFIC_PRACTICE_OPPONENTS` / `PROLIFIC_PRACTICE_AGENTS`, `HANI2_PER_NEG_YAML` / `PROLIFIC_PER_NEG_YAML` | the first (new) name |
+| Environment (at startup) | `HANI2_STUDY` and `HANI2_EXPERIMENT` naming different studies | `HANI2_STUDY` |
+| `env.json` (at startup) | `opponents` and its old name `agents` with different values | `opponents` |
+| `study.yaml` / `project.yaml` | a setting at the top level and under `overrides:` / `defaults:` with different values; an unknown scheduling method | one place; a method from `hani2 scheduling list` |
+| Group files | `assistant` and its old name `support_agent` naming different Assistants; members under both `assistants` and `agents` (Assistant groups) with different lists | `assistant`; `assistants` |
+
+The startup checks run in `hani2` before anything is set and again when the server starts, so a
+server launched another way (for example `uvicorn hani2.server:app`) is checked too. Files are
+refused when saved through the admin API (400) or the command line; a hand-edited file that has
+a problem is reported in the server log, `hani2 study show` and the admin study page (`errors`),
+and a conflicting group file makes the Assistant fail loudly. The same pair given with *equal*
+values (as `hani2` itself sets `HANI2_ASSISTANT` and `HANI2_SUPPORT_AGENT`) is fine. API keys for language models are read from the variables you name in `api_key_env`, or, for LLM opponents, from each provider's standard variable.

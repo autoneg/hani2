@@ -40,7 +40,7 @@ STUDY_TYPES = ("prolific", "online", "lab")
 #: settings a project gives its studies (a study may override each one)
 DEFAULT_KEYS = (
     "scenario_set", "n_required", "practice", "practice_time_limit", "counted_time_limit", "time_limit",
-    "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants",
+    "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -185,6 +185,8 @@ class Project:
     #: any other key of project.yaml (available to texts as ``project_<key>``)
     extra: dict[str, Any] = field(default_factory=dict)
     path: Path | None = None
+    #: problems found when reading project.yaml (conflicting keys, unknown scheduling methods)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def file(self) -> Path:
@@ -219,6 +221,8 @@ class Study:
     path: Path | None = None
     #: an old experiment folder (no study.yaml)
     legacy: bool = False
+    #: problems found when reading study.yaml (conflicting keys, unknown scheduling methods)
+    errors: list[str] = field(default_factory=list)
 
     @property
     def ref(self) -> StudyRef:
@@ -245,6 +249,51 @@ def _split(data: dict, fields: tuple[str, ...], nested: str) -> tuple[dict, dict
     return known, settings, extra
 
 
+def file_problems(data: dict, nested: str) -> list[str]:
+    """What is wrong with a project.yaml (``nested="defaults"``) or study.yaml
+    (``nested="overrides"``) mapping: a setting given both at the top level and under
+    ``nested`` with different values (they mean the same thing), and unknown
+    scheduling methods."""
+    from hani2 import scheduling
+
+    out: list[str] = []
+    inner = data.get(nested)
+    if inner is not None and not isinstance(inner, dict):
+        out.append(f"'{nested}' must be a mapping")
+        inner = {}
+    inner = inner or {}
+    for k in DEFAULT_KEYS:
+        if k in data and k in inner and data[k] != inner[k]:
+            out.append(f"'{k}' is given twice with different values (top level: {data[k]!r}, "
+                       f"under '{nested}': {inner[k]!r}); keep one")
+    for where, d in (("scheduling", data.get("scheduling")), (f"{nested}.scheduling", inner.get("scheduling"))):
+        try:
+            scheduling.check_scheduling(d, where)
+        except ValueError as e:
+            out.append(str(e))
+    return out
+
+
+def check_file_data(data: dict, nested: str) -> dict:
+    """``data`` when :func:`file_problems` finds nothing, else a ValueError naming every problem."""
+    problems = file_problems(data, nested)
+    if problems:
+        raise ValueError("; ".join(problems))
+    return data
+
+
+def _report(problems: list[str], where: Path) -> list[str]:
+    for p in problems:
+        key = f"{where}: {p}"
+        if key not in _REPORTED:
+            _REPORTED.add(key)
+            print(f"[hani2] ERROR: {key}")
+    return problems
+
+
+_REPORTED: set[str] = set()
+
+
 def _no_none(known: dict[str, Any]) -> dict[str, Any]:
     """Text fields given as ``null`` in the YAML read as ``""`` (``year`` may stay ``None``)."""
     return {k: ("" if v is None and k != "year" else v) for k, v in known.items()}
@@ -266,7 +315,9 @@ def load_project(name: str) -> Project:
     known = _no_none(known)
     kind = str(known.pop("kind", "none") or "none").lower()
     return Project(name=name, kind=kind if kind in KINDS else "none", defaults=defaults, extra=extra,
-                   path=path if path.is_dir() else None, **{k: v for k, v in known.items()})
+                   path=path if path.is_dir() else None,
+                   errors=_report(file_problems(data, "defaults"), path / PROJECT_FILE),
+                   **{k: v for k, v in known.items()})
 
 
 def load_study(ref: "StudyRef | str") -> Study:
@@ -283,7 +334,8 @@ def load_study(ref: "StudyRef | str") -> Study:
         if k in known and not isinstance(known[k], str):
             known[k] = str(known[k])
     return Study(name=ref.study, project=ref.project, type=stype if stype in STUDY_TYPES else "prolific",
-                 overrides=overrides, extra=extra, path=folder, legacy=not f.exists(), **known)
+                 overrides=overrides, extra=extra, path=folder, legacy=not f.exists(),
+                 errors=_report(file_problems(data, "overrides"), f), **known)
 
 
 def list_projects() -> list[str]:
@@ -307,16 +359,28 @@ def list_studies(project: str) -> list[str]:
     return sorted(names, key=str.lower)
 
 
+def _merge_fields(data: dict, fields: dict) -> None:
+    """``data.update(fields)`` without ``None`` values; ``scheduling`` merges per dimension."""
+    for k, v in fields.items():
+        if v is None:
+            continue
+        if k == "scheduling" and isinstance(v, dict) and isinstance(data.get(k), dict):
+            data[k] = {**data[k], **v}
+        else:
+            data[k] = v
+
+
 def create_project(name: str, **fields: Any) -> Project:
     """Create (or update) ``projects/<name>/project.yaml``."""
     check_name(name, "project")
     f = project_dir(name) / PROJECT_FILE
     data = read_yaml(f)
-    data.update({k: v for k, v in fields.items() if v is not None})
+    _merge_fields(data, fields)
     if not data.get("kind"):
         data["kind"] = "none"
     if data["kind"] not in KINDS:
         raise ValueError(f"kind must be one of {', '.join(KINDS)}")
+    check_file_data(data, "defaults")
     write_yaml(f, data)
     (f.parent / "studies").mkdir(exist_ok=True)
     return load_project(name)
@@ -330,11 +394,12 @@ def create_study(ref: "StudyRef | str", **fields: Any) -> Study:
         create_project(ref.project)
     folder = study_dir(ref)
     data = read_yaml(folder / STUDY_FILE)
-    data.update({k: v for k, v in fields.items() if v is not None})
+    _merge_fields(data, fields)
     if not data.get("type"):
         data["type"] = "prolific"
     if data["type"] not in STUDY_TYPES:
         raise ValueError(f"type must be one of {', '.join(STUDY_TYPES)}")
+    check_file_data(data, "overrides")
     write_yaml(folder / STUDY_FILE, data)
     (folder / "results").mkdir(parents=True, exist_ok=True)
     return load_study(ref)

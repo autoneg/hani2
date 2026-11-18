@@ -63,13 +63,19 @@ def _stamp(ss: dict[str, Any]) -> dict[str, str]:
 
 #: columns naming who took part besides the human (added after the existing ones)
 ATTRIBUTION_COLUMNS = ["assistant", "assistant_group", "assistant_class", "assistant_error", "opponent_group"]
+#: the scheduling methods that chose the opponent, the Assistant and the scenario type
+#: (see hani2.scheduling; "" when HANI2 did not schedule that part)
+SCHEDULING_COLUMNS = ["opponent_scheduling", "assistant_scheduling", "scenario_scheduling"]
 
 
 def _attribution(ss: dict[str, Any]) -> dict[str, str]:
-    """The Assistant (spec, group, class, error) and the opponent's group of this negotiation."""
+    """The Assistant (spec, group, class, error), the opponent's group and the scheduling methods."""
     a = dict(ss.get("assistant_attribution") or {})
-    out = {k: str(a.get(k) or "") for k in ATTRIBUTION_COLUMNS[:-1]}
+    out = {k: str(a.get(k) or "") for k in ATTRIBUTION_COLUMNS if k != "opponent_group"}
     out["opponent_group"] = str(ss.get("opponent_group") or "")
+    out["opponent_scheduling"] = str(ss.get("opponent_scheduling") or "")
+    out["assistant_scheduling"] = str(a.get("assistant_scheduling") or "")
+    out["scenario_scheduling"] = str(ss.get("scenario_scheduling") or "")
     return out
 
 

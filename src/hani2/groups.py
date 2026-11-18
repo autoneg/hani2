@@ -76,12 +76,16 @@ class Group:
     #: results | study | project | settings | builtin
     source: str = "builtin"
     path: Path | None = None
+    #: why the file cannot be used as written (conflicting keys); its members / Assistant are then empty
+    error: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         out = dict(key=self.key, kind=self.kind, members=list(self.members), syspath=list(self.syspath),
                    description=self.description, source=self.source, path=str(self.path) if self.path else None)
         if self.kind == OPPONENT:
             out["assistant"] = self.assistant
+        if self.error:
+            out["error"] = self.error
         return out
 
 
@@ -135,6 +139,26 @@ def _add_syspath(dirs: list[str]) -> None:
             sys.path.append(d)
 
 
+def group_problems(data: Any, kind: str) -> list[str]:
+    """Keys of a group file that mean the same thing but disagree (``[]``: none)."""
+    kind = check_kind(kind)
+    if not isinstance(data, dict):
+        return []
+    out = []
+    names = [k for k in (MEMBERS_KEY[kind], "agents", "members") if k in data]
+    names = list(dict.fromkeys(names))
+    vals = {k: data[k] for k in names}
+    if len({repr(v) for v in vals.values()}) > 1:
+        out.append(f"the members are given under {', '.join(repr(k) for k in names)} with different values; "
+                   f"keep only '{MEMBERS_KEY[kind]}'")
+    if kind == OPPONENT:
+        given = {k: data[k] for k in ASSISTANT_KEYS if data.get(k)}
+        if len({repr(v) for v in given.values()}) > 1:
+            out.append(f"'assistant' ({data['assistant']!r}) and its old name 'support_agent' "
+                       f"({data['support_agent']!r}) disagree; keep only 'assistant'")
+    return out
+
+
 def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -> Group | None:
     """Read one group file (``None`` when missing or broken); its ``syspath`` is added to ``sys.path``."""
     kind = check_kind(kind)
@@ -146,6 +170,10 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
         print(f"⚠️ Could not read group file {path}: {e}")
         return None
     g = Group(key=key or path.stem, kind=kind, source=source, path=path)
+    problems = group_problems(data, kind)
+    if problems:
+        g.error = f"group file {path}: " + "; ".join(problems)
+        print(f"[hani2] ERROR: {g.error}")
     members: Any = data
     if isinstance(data, dict):
         for d in data.get("syspath", []) or []:
@@ -156,8 +184,10 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
         if members is None:
             members = data.get("agents", [])
         g.description = str(data.get("description") or "")
-        if kind == OPPONENT:
+        if kind == OPPONENT and not g.error:
             g.assistant = next((data[k] for k in ASSISTANT_KEYS if data.get(k)), None)
+        if g.error and kind == ASSISTANT:
+            members = []
     if not isinstance(members, list):
         print(f"⚠️ Group file {path} has no member list")
         members = []
@@ -285,10 +315,11 @@ def resolve(kind: str, key: str, ref: Any = None) -> Group | None:
     return Group(key=k, kind=check_kind(kind), members=members, description=BUILTIN_DESCRIPTIONS.get((kind, k), ""))
 
 
-def expand_assistants(items: Any, ref: Any = None) -> list[str]:
+def expand_assistants(items: Any, ref: Any = None, errors: list[str] | None = None) -> list[str]:
     """Expand Assistant specs and group tokens into a flat, de-duplicated list of
     class specs: ``:key`` is an Assistant group; a bare word without ``.``/``:``
-    that names an Assistant group file is that group; anything else is a class spec."""
+    that names an Assistant group file is that group; anything else is a class spec.
+    Problems of the group files used are appended to ``errors``."""
     if isinstance(items, str):
         items = [s for s in items.split(",") if s.strip()]
     out: list[str] = []
@@ -306,13 +337,17 @@ def expand_assistants(items: Any, ref: Any = None) -> list[str]:
             if g is None:
                 print(f"⚠️ Unknown Assistant group '{t}'")
                 continue
+            if g.error and errors is not None:
+                errors.append(g.error)
             for m in g.members:
-                for x in expand_assistants([m], ref) if m.startswith(":") else [m]:
+                for x in expand_assistants([m], ref, errors) if m.startswith(":") else [m]:
                     add(x)
             continue
         if "." not in t and ":" not in t:
             g = find_file(ASSISTANT, t, ref)
             if g is not None:
+                if g.error and errors is not None:
+                    errors.append(g.error)
                 for m in g.members:
                     add(m)
                 continue
@@ -398,6 +433,9 @@ def validate_data(kind: str, data: Any) -> dict[str, Any]:
         data = {MEMBERS_KEY[kind]: data}
     if not isinstance(data, dict):
         raise ValueError("a group is a list of specs or an object")
+    problems = group_problems(data, kind)
+    if problems:
+        raise ValueError("; ".join(problems))
     members = data.get(MEMBERS_KEY[kind], data.get("agents", data.get("members")))
     if not isinstance(members, list) or not all(isinstance(x, str) and x.strip() for x in members):
         raise ValueError(f"'{MEMBERS_KEY[kind]}' must be a list of non-empty strings")

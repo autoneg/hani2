@@ -12,13 +12,21 @@
   4. ``assistants`` in study.yaml, else in project.yaml;
   5. ``agent_class`` in assistant_settings.json (the single configured class).
 
-  Levels 1–4 are *assigned* Assistants: when one cannot be imported or created the
-  session shows an error and runs without an Assistant (never the default one).
-  Level 5 keeps its old behaviour (a warning and the built-in Assistant).
+  At every level an Assistant that cannot be imported or created leaves the session
+  without an Assistant and shows the error (a banner, a toast, an ``ERROR`` event,
+  the ``assistant_error`` column); there is no silent fallback to the built-in one.
 
-* **Fixed per human, balanced.** Each human keeps one Assistant for every
-  negotiation in the study; a new human gets the pool member with the fewest humans
-  assigned so far in that study, ties going to the earlier member in pool order.
+* **Scheduling.** Who gets which pool member is the study's ``assistants``
+  scheduling method (:mod:`hani2.scheduling`; default ``balanced``):
+
+  - ``balanced``: each human keeps one Assistant for every negotiation in the
+    study; a new human gets the pool member with the fewest humans assigned so far
+    in that study, ties going to the earlier member in pool order;
+  - ``random_fixed``: kept per human, drawn at random on arrival;
+  - ``round_robin``: kept per human, member ``index mod size``;
+  - ``random_each``: drawn again for every negotiation (not recorded as fixed);
+  - ``external``: only ``schedule.json`` names the Assistant (else an error).
+
   This holds for pools from a group file (with more than one Assistant),
   ``--assistants``, study.yaml / project.yaml and the settings; an admin's
   ``?assistant=``, a schedule.json entry and a group file naming one Assistant are
@@ -162,8 +170,16 @@ def _least(pool: list[str], counts: dict[str, int]) -> str:
     return min(pool, key=lambda p: (counts.get(p, 0), pool.index(p)))
 
 
-def assign_assistant(session: "NegotiationSession", pool: list[str], group: str | None = None) -> str:
-    """The human's Assistant from ``pool`` (fixed per human, balanced; see the module docs)."""
+def _seed(session: Any) -> str:
+    return f"{session.study_ref or ''}|{session.user}"
+
+
+def assign_assistant(session: "NegotiationSession", pool: list[str], group: str | None = None,
+                     method: str = "balanced") -> str:
+    """The human's Assistant from ``pool``, kept per human (``method``: ``balanced``,
+    ``random_fixed`` or ``round_robin``; see the module docs)."""
+    from hani2 import scheduling
+
     if not pool:
         raise ValueError("empty Assistant pool")
     path = store_path(session.study_ref)
@@ -173,6 +189,8 @@ def assign_assistant(session: "NegotiationSession", pool: list[str], group: str 
             return prev
         if len(pool) == 1:
             choice = pool[0]
+        elif method == "random_fixed":
+            choice = scheduling.pick_assistant_fixed(method, pool, 0, {}, _seed(session))
         else:
             with _locked(path):
                 choice = _least(pool, assistant_counts(_read(path), pool))
@@ -189,8 +207,10 @@ def assign_assistant(session: "NegotiationSession", pool: list[str], group: str 
             return choice
         if h.get("assistant"):
             h.setdefault("previous_assistants", []).append(h["assistant"])
-        choice = _least(pool, assistant_counts(data, pool))
-        h.update(assistant=choice, assistant_group=group or "", assigned_at=datetime.now().isoformat())
+        seed = _seed(session) + (f"|{len(h['previous_assistants'])}" if h.get("previous_assistants") else "")
+        choice = scheduling.pick_assistant_fixed(method, pool, int(h["index"]), assistant_counts(data, pool), seed)
+        h.update(assistant=choice, assistant_group=group or "", assistant_scheduling=method,
+                 assigned_at=datetime.now().isoformat())
         _write(path, data)
         return choice
 
@@ -238,15 +258,18 @@ class AssistantChoice:
     source: str = "settings"
     pool: list[str] = field(default_factory=list)
     error: str | None = None
+    #: the scheduling method that picked ``spec`` ("external" for schedule.json, "" for an explicit choice)
+    scheduling: str = ""
 
     @property
     def strict(self) -> bool:
-        """Assigned Assistants fail loudly; the configured ``agent_class`` keeps its old fallback."""
-        return self.source != "settings"
+        """Every Assistant fails loudly (kept for callers of the old API; always ``True``)."""
+        return True
 
     def to_dict(self) -> dict[str, Any]:
         return dict(assistant=self.spec or "", assistant_group=self.group, assistant_source=self.source,
-                    assistant_pool=list(self.pool), assistant_error=self.error or "")
+                    assistant_pool=list(self.pool), assistant_error=self.error or "",
+                    assistant_scheduling=self.scheduling)
 
 
 def _query_val(query: dict, *names: str) -> str:
@@ -276,6 +299,34 @@ def _group_of(items: list[str]) -> str:
     return ""
 
 
+def _negotiations_done(session: Any) -> int:
+    """How many negotiations the human has finished (their results rows): the same number in a
+    reconnect, a new session or a later visit, until the next negotiation ends."""
+    ss = getattr(session, "ss", None) or {}
+    path = ss.get("user_path")
+    try:
+        import csv
+
+        with open(Path(path) / "results.csv", newline="") as fh:
+            return max(0, sum(1 for _ in csv.reader(fh)) - 1)
+    except (OSError, TypeError):
+        return int(getattr(session, "round_number", 0) or 0)
+
+
+def _missing() -> str:
+    from hani2.scheduling import MISSING_SUFFIX
+
+    return MISSING_SUFFIX
+
+
+def _assistant_method(session: Any) -> str:
+    """The study's ``assistants`` scheduling method (``balanced`` outside a study)."""
+    from hani2 import scheduling
+
+    ref = getattr(session, "study_ref", None)
+    return scheduling.methods_for(ref)["assistants"] if ref is not None else scheduling.DEFAULTS["assistants"]
+
+
 def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | None = None) -> AssistantChoice:
     """The Assistant pool of a session (without picking a member); see the module docs."""
     ref = session.study_ref
@@ -288,6 +339,8 @@ def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | N
     gkey = _query_val(q, "group")
     if gkey and not levels:
         g = groups.find_file(groups.OPPONENT, gkey, ref)
+        if g is not None and g.error:
+            return AssistantChoice(spec=None, group=gkey.lstrip(":"), source="group", error=g.error)
         if g is not None and g.assistant:
             levels.append(("group", _items(g.assistant), gkey.lstrip(":")))
     if not levels:
@@ -298,6 +351,18 @@ def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | N
         if sched:
             items = _items(sched)
             levels.append(("schedule", items, _group_of(items)))
+    if not levels and _assistant_method(session) == "external":
+        st = getattr(session, "study", None)
+        if callable(getattr(st, "is_practice_next", None)) and st.is_practice_next():
+            # a practice round: the Assistant of the first counted negotiation
+            first = st.schedule_assistant(0, False)
+            if first:
+                items = _items(first)
+                levels.append(("schedule", items, _group_of(items)))
+    if not levels and _assistant_method(session) == "external":
+        return AssistantChoice(spec=None, source="schedule", scheduling="external" + _missing(),
+                               error="the study's Assistant scheduling is 'external' but no schedule.json "
+                                     "names an Assistant for this negotiation")
     if not levels:
         raw = (os.environ.get(ASSISTANTS_ENV) or "").strip()
         if not raw:
@@ -316,15 +381,19 @@ def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | N
         spec = groups.default_assistant_spec(settings)
         return AssistantChoice(spec=None, source="settings", pool=[spec])
     source, items, group = levels[0]
-    pool = groups.expand_assistants(items, ref)
+    problems: list[str] = []
+    pool = groups.expand_assistants(items, ref, errors=problems)
     if not pool:
         return AssistantChoice(spec=None, group=group, source=source, pool=[],
-                               error=f"{', '.join(items)} names no Assistant ({source})")
+                               error=f"{', '.join(items)} names no Assistant ({source})"
+                                     + (f": {'; '.join(problems)}" if problems else ""))
     return AssistantChoice(spec=None, group=group, source=source, pool=pool)
 
 
 def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict | None = None) -> AssistantChoice:
     """The Assistant this session should run now (pool + fixed, balanced pick)."""
+    from hani2 import scheduling
+
     c = assistant_pool(session, settings, plan)
     if c.error or not c.pool:
         return c
@@ -332,6 +401,13 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
         # an explicit choice (an admin's URL, the outside system's schedule, a test link's group
         # file naming one Assistant): used as given, not recorded
         c.spec = c.pool[0]
+        c.scheduling = "external" if c.source == "schedule" else ""
         return c
-    c.spec = assign_assistant(session, c.pool, c.group)
+    method = _assistant_method(session)
+    c.scheduling = method
+    if method == "random_each":
+        slot = _negotiations_done(session)
+        c.spec = c.pool[0] if len(c.pool) == 1 else scheduling.pick_assistant_each(c.pool, slot, _seed(session))
+        return c
+    c.spec = assign_assistant(session, c.pool, c.group, method)
     return c

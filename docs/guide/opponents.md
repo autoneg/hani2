@@ -128,7 +128,7 @@ http://localhost:5006/play?group=finalists
 
 The opponent is then chosen at random from the pool, with these exceptions:
 
-- In a study, every participant faces the pool in a balanced order (see [Latin squares](#latin-squares)).
+- In a study, every participant faces the pool in a balanced order (see [Latin squares](#latin-squares)), or as the study's [scheduling method](scheduling.md#opponents) says.
 - A `schedule.json` fixes the opponent per round. The [Prolific](prolific.md) study also fixes the practice opponent.
 - In admin mode, the *Opponent for the next negotiation* field on the start screen overrides the random choice (see below).
 
@@ -154,6 +154,16 @@ counted per study, so each study is balanced on its own. A participant with a `s
 gets the schedule's opponents; participants of a study started before this rule (with a
 `fallback_rotation.txt`) and sessions outside a study keep the older rotation. Each participant
 of a study also gets the scenario type `i mod t` of the active scenario set's `t` types.
+
+The Latin square is the default `opponents` [scheduling method](scheduling.md#opponents). A study
+or project can choose another one in its YAML file (`scheduling: {opponents: random}`): `random`
+(a uniform draw per negotiation), `cyclic` (the older rotation by participant index), `fixed_order`
+(everyone in pool order) or `external` (only `schedule.json`; a missing slot is filled with the
+rotation and flagged as `external:missing`). The method used is written to the
+`opponent_scheduling` column of every result row.
+
+`--opponents` and its old name `--agents` (and `HANI2_OPPONENTS` / `HANI2_AGENTS`) cannot be given
+together with different values; HANI2 refuses to start and says to keep `--opponents`.
 
 ## The admin opponent picker
 

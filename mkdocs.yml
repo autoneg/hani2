@@ -69,6 +69,16 @@ markdown_extensions:
   - pymdownx.snippets:
       base_path: ["."]
       check_paths: true
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js
+
+extra_css:
+  - https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css
 
 nav:
   - Home: index.md
@@ -89,6 +99,7 @@ nav:
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
       - Projects and studies: guide/projects.md
+      - Scheduling methods: guide/scheduling.md
       - Studies and results: guide/studies.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md

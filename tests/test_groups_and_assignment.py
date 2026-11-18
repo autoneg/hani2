@@ -349,9 +349,14 @@ def test_unknown_assistant_group_fails(study):
     assert s.support_agent is None and "names no Assistant" in s.assistant_error
 
 
-def test_configured_agent_class_keeps_its_fallback(hani2_home):
+def test_configured_agent_class_fails_loudly(hani2_home):
+    """agent_class in assistant_settings.json (also written by ``hani2 experiment create
+    --assistant <class>``) fails like an assigned Assistant: no silent fallback."""
     s = make_session(agent_class="nope.nothing:Missing")
-    assert s.support_agent is not None and not s.assistant_error
+    assert s.support_agent is None
+    assert "nope.nothing:Missing" in s.assistant_error and "assistant_settings.json" in s.assistant_error
+    assert s.snapshot()["assistant_error"] == s.assistant_error
+    assert any(m.get("type") == "toast" and m.get("level") == "error" for m in s.hub.messages)
 
 
 # --------------------------------------------------------------------------- #

@@ -356,13 +356,13 @@ The `examples/agent_template` folder has a copyable agent with a matching offlin
 
 ## Troubleshooting
 
-**The default agent answers instead of mine.** The class could not be loaded. The server log shows a line like:
+**The Assistant shows an error instead of my agent.** The class could not be loaded or created, so the session runs without an Assistant: a red banner and a toast say why, and the server log shows a line like:
 
 ```text
-[hani2] WARNING: could not load custom agent_class 'level1_hello:HelloAgent' (No module named 'level1_hello'); using the default agent
+[hani2] ERROR: cannot import the Assistant 'level1_hello:HelloAgent': ModuleNotFoundError: No module named 'level1_hello' (from agent_class in assistant_settings.json)
 ```
 
-Check that you started `hani2` from the folder holding the module with `PYTHONPATH=$PWD`, that the name is `module:Class` (or `module.Class`), and that the class subclasses `Assistant`. An exception in your constructor also falls back to the default agent, with a traceback in the log.
+Check that you started `hani2` from the folder holding the module with `PYTHONPATH=$PWD`, that the name is `module:Class` (or `module.Class`), and that the class subclasses `Assistant`. An exception in your constructor fails the same way, with a traceback in the log. HANI2 never swaps in the built-in Assistant silently; `hani2 --assistant <class>` checks the class before the server starts.
 
 **My change has no effect.** Restart the server. Each session builds its agent once, and sessions stay in memory.
 
