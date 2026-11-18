@@ -6,11 +6,10 @@ from negmas import (
     UtilityFunction,
     make_issue,
     make_os,
-    Outcome,
     Scenario,
 )
 from hani2.config import DEFAULT_SCENRIOS, INFO_FILE_NAME
-from hani2.display import DefaultOutcomeDisplay
+from hani2.display import OfferContext, OfferDisplay
 from .common import IntRange, float_in, int_in, FloatRange
 
 
@@ -145,21 +144,16 @@ def make_island_scenario(
     return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=info)
 
 
-class IslandOutcomeDisplay(DefaultOutcomeDisplay):
+class IslandOutcomeDisplay(OfferDisplay):
     def __init__(self, *args, for_agent=False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._for_agent = for_agent
 
-    def str(
-        self,
-        outcome: Outcome | None,
-        scenario: Scenario,
-        is_done: bool,
-        from_human: bool,
-    ) -> str:
-        if outcome is None:
-            return super().str(outcome, scenario, is_done, from_human)
-        issues = scenario.outcome_space.issues
+    def text(self, offer, ctx: OfferContext) -> str:
+        if offer is None:
+            return super().text(offer, ctx)
+        outcome, from_human = ctx.outcome(offer), ctx.from_human
+        issues = ctx.issues
         items = sorted(
             [
                 issues[i].name

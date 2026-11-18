@@ -6,6 +6,7 @@ import { Anchor } from "../ui/Anchor";
 import { Gauge } from "../ui/Gauge";
 import { fmtValue, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
+import { Renderer, STATIC_CTX } from "../ui/Renderer";
 
 function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" | "opponent" }) {
   const issues = useStore((s) => s.state?.scenario?.issues);
@@ -40,7 +41,14 @@ function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: numb
           )}
         </div>
         {h.text && <Markdown text={h.text} size="sm" />}
-        {h.offer && (display === "text" && h.offer_str ? <div className="text-sm font-medium">{h.offer_str}</div> : <OfferChips offer={h.offer} tone={tone} />)}
+        {h.offer &&
+          (h.view ? (
+            <Renderer components={h.view} ctx={STATIC_CTX} />
+          ) : display === "text" && h.offer_str ? (
+            <div className="text-sm font-medium">{h.offer_str}</div>
+          ) : (
+            <OfferChips offer={h.offer} tone={tone} />
+          ))}
         {h.data && Object.keys(h.data).length > 0 && (
           <div className="text-[11px] text-muted">
             {Object.entries(h.data)

@@ -73,6 +73,7 @@ __all__ = [
     "progress",
     "html",
     "outcome",
+    "issue",
     "jsonable",
 ]
 
@@ -169,6 +170,14 @@ def progress(value: float, label: str | None = None, kind: str | None = None) ->
 def outcome(values: dict[str, Any], utility: float | None = None, label: str | None = None) -> Component:
     """A compact outcome card (issue → value chips plus an optional utility)."""
     return _c("outcome", values=jsonable(values), utility=utility, label=label)
+
+
+def issue(name: str, *, widget: str | None = None, label: str | None = None) -> Component:
+    """The default control of one issue, for custom offer controls (see
+    :meth:`hani2.display.OfferDisplay.controls`). ``widget`` overrides its kind
+    (``buttons``, ``select``, ``slider``, ``number``); ``label`` its title
+    (``""`` hides it)."""
+    return _c("issue", name=str(name), widget=widget, label=label)
 
 
 # -- plots & tables ---------------------------------------------------------

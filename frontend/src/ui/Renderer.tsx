@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useUiState } from "../store";
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { Component } from "../types";
+import { Anchor } from "./Anchor";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { Plot } from "./Plot";
@@ -13,6 +14,12 @@ export interface RenderCtx {
   onAction: (action: string, payload: Record<string, any>) => void;
   values: Record<string, any>;
   reserved?: number | null;
+  /** disables every input and button (e.g. offer controls while it is not your turn) */
+  disabled?: boolean;
+  /** draws an ``issue`` component (the default control of one issue) */
+  renderIssue?: (c: Component) => React.ReactNode;
+  /** an anchor id for an input with this name (so highlights and notes can target it) */
+  anchorFor?: (name: string) => string | undefined;
 }
 
 const ALERT: Record<string, string> = {
@@ -39,6 +46,10 @@ const BTN: Record<string, string> = {
 };
 const GAP = (g?: number) => ({ gap: `${(g ?? 3) * 0.25}rem` });
 
+const noop = () => {};
+/** The context of views that only show something (an offer in the history or on the table). */
+export const STATIC_CTX = { onInput: noop, onAction: noop };
+
 function collectNames(cs: Component[], out: Record<string, any>) {
   for (const c of cs) {
     if (c.name !== undefined && "value" in c) out[c.name] = c.value;
@@ -62,17 +73,25 @@ export function Renderer({ components, ctx }: { components: Component[]; ctx: Om
     onAction: (a, p) => ctx.onAction(a, { ...values, ...p }),
   };
   return (
-    <div className="flex flex-col gap-3">
+    <fieldset disabled={!!ctx.disabled} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
       {components.map((c, i) => (
         <Node key={i} c={c} ctx={full} />
       ))}
-    </div>
+    </fieldset>
   );
 }
 
 function Node({ c, ctx }: { c: Component; ctx: RenderCtx }) {
+  const node = <NodeBody c={c} ctx={ctx} />;
+  const id = c.name !== undefined && c.type !== "issue" ? ctx.anchorFor?.(String(c.name)) : undefined;
+  return id ? <Anchor id={id}>{node}</Anchor> : node;
+}
+
+function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
   const v = c.name !== undefined ? ctx.values[c.name] ?? c.value : undefined;
   switch (c.type) {
+    case "issue":
+      return ctx.renderIssue ? <>{ctx.renderIssue(c)}</> : null;
     case "markdown":
       return <Markdown text={c.text} size={c.size} />;
     case "text":

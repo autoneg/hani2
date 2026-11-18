@@ -124,7 +124,7 @@ A scenario folder contains:
 | `<Name>.yml` | The outcome space: the issues and their values (negmas format). |
 | One `.yml` per side | A utility function in negmas format, with a `name` (the role) and an optional `reserved_value`. |
 | `_info.yaml` | Texts for the participant (optional). `_info.yml` and `_info.yaml.yml` also work. |
-| `display.py` | How to write an offer as text (optional). |
+| `display.py` | How offers are shown: as text, in the history, on the table and in the editor (optional; see [Showing offers](#showing-offers)). |
 | `inverter_h<i>.pkl` | A cached utility inverse (optional, written by `hani2 generate`). |
 
 The bundled `Trade` sample (installed as `Examples/Trade`) looks like this:
@@ -204,8 +204,11 @@ All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and
 | `hints` | A mapping `role: {label: value}`, shown as a *Hints* list in the *Scenario Info* tool for the participant's role only. |
 | `n_issue_columns` | The number of columns in the counter-offer editor (default `2`). |
 | `human_role` | The role a participant plays by default (see [Which side the participant plays](#which-side-the-participant-plays)). |
-| `issue_format` | A Python format string per issue for writing values in offers, e.g. `Rent: "${:,}/month"` turns `3400` into `$3,400/month`. Used by the built-in story display. |
-| `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets, and offers read "You get 2 clocks; your opponent gets 1 clock". |
+| `issue_format` | A Python format string per issue for writing values in offers and on the editor's buttons, e.g. `Rent: "${:,}/month"` turns `3400` into `$3,400/month`. See [Showing offers](#showing-offers). |
+| `value_labels` | Shown names of issue values (`issue: {value: label}`), e.g. `Pickup: {0: "I collect it", 1: "You deliver it"}`. The value itself is what is stored and sent. |
+| `offer_template` | The one-line text of an offer, with an issue name in braces for each value, e.g. `"{Quantity} items at {Price}"`. Values are formatted with `value_labels` and `issue_format` first. |
+| `issue_widget` | The control of an issue in the counter-offer editor: `buttons`, `select`, `slider` or `number` (`issue: widget`). By default issues with up to six values get buttons, longer lists a menu, and wide numeric ranges a number field. |
+| `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets; offers read "You get 2 clocks; your opponent gets 1 clock", the history and the offer on the table show what each side gets, and the editor asks how many of each item *you* get, with a *Split evenly* button. |
 | `story` | The scenario type that generated the scenario (set by the generators). |
 | `role_descriptions` | A one-line description per role (`role: text`). Written by the generators for reference; the participant reads the roles in `long_description` and in the *Your role* hint. |
 
@@ -228,26 +231,117 @@ long_description: |
   **The domain** A buyer and a seller negotiate the quantity and the price of one trade.
 ```
 
-### `display.py`
+## Showing offers
 
-By default an offer is written as `Issue: value, Issue: value`. To write offers in domain language, add a `display.py` that defines a subclass of `hani2.display.DefaultOutcomeDisplay`:
+An offer appears in four places, and a scenario can shape each one. Every place has a default, so a scenario only changes what it needs.
 
-```python title="display.py"
-from negmas import Outcome, Scenario
+| Where | Method | Default |
+|-------|--------|---------|
+| One line of text: toasts, the result, the confirmation dialog, the Assistant, tools, logs and the history when the participant prefers text | `text` | `Issue: value, Issue: value` |
+| A bubble in the history | `history` | issue chips (or the text) |
+| The *Offer on the table* card | `on_table` | the text |
+| The counter-offer editor | `controls` | one field per issue |
 
-from hani2.display import DefaultOutcomeDisplay
+Around the offer, HANI2 always draws the same frame: who made it, the round, the *Worth to you* gauge, the *Accept*, *Counter-offer* and *End* buttons, the message box and *Send offer*. A scenario changes what is inside the frame, not the frame.
 
+### Without code
 
-class TradeOutcomeDisplay(DefaultOutcomeDisplay):
-    def str(self, outcome: Outcome | None, scenario: Scenario, is_done: bool, from_human: bool) -> str:
-        if outcome is None:
-            return super().str(outcome, scenario, is_done, from_human)
-        return f"{outcome[0]} items at {outcome[1]}$"
+Four `_info.yaml` keys cover most needs:
+
+```yaml title="_info.yaml"
+issue_format:
+  Price: "${:,}"            # 3400 → $3,400 (in offers and on the editor's buttons)
+value_labels:
+  Pickup: {0: I collect it, 1: You deliver it}
+offer_template: "{Quantity} items at {Price}, {Pickup}"
+issue_widget:
+  Quantity: slider          # buttons | select | slider | number
 ```
 
-`str()` receives the outcome as a tuple in issue order, the scenario, whether the negotiation is over (`is_done`) and whether the offer came from the participant (`from_human`). You can also override `table()`, which returns a list of row dictionaries.
+`value_labels` and `issue_format` change how a value is shown everywhere (offers, the editor, the history chips); `offer_template` writes the one-line text; `issue_widget` picks the control of an issue in the editor. `hani2 scenario check` warns about keys that name unknown issues or widgets.
 
-HANI2 uses the first subclass it finds in the file. A scenario's own `display.py` always wins. Scenarios without one whose outcome-space name is (or starts with) a registered scenario type use that type's display; scenarios with an `issue_format` or `story` entry in their info use the story display, which formats values with `issue_format`.
+### With a `display.py`
+
+For anything else, put a `display.py` next to the scenario files with a subclass of `hani2.display.OfferDisplay` and override the methods you need. Every method except `text` returns a list of interface components (the same [`ui` helpers](../tutorials/tools.md#component-reference) tools use), or `None` to keep the default. This is the bundled `Trade` sample:
+
+```python title="display.py"
+from hani2.display import OfferContext, OfferDisplay
+from hani2.tools import ui
+
+
+class TradeDisplay(OfferDisplay):
+    # the default control of each issue, unless controls() draws its own
+    widgets = {"Quantity": "slider"}
+
+    def text(self, offer, ctx: OfferContext) -> str:
+        """One line: toasts, the result, the Assistant, the history in text mode."""
+        if offer is None:
+            return super().text(offer, ctx)
+        return f"{offer['Quantity']} items at {offer['Price']}$"
+
+    def _deal(self, offer, ctx: OfferContext):
+        q, p = offer["Quantity"], offer["Price"]
+        return [ui.markdown(f"**{q}** items × **{p}$** = **{q * p:,}$**")]
+
+    def history(self, offer, ctx: OfferContext):
+        """The offer in a history bubble."""
+        return self._deal(offer, ctx)
+
+    def on_table(self, offer, ctx: OfferContext):
+        """The opponent's current offer."""
+        return self._deal(offer, ctx)
+
+    def controls(self, draft, ctx: OfferContext):
+        """The counter-offer editor: the default fields plus a running total and
+        a button that meets the opponent halfway on the price."""
+        q, p = draft.get("Quantity"), draft.get("Price")
+        total = f"{q * p:,}$" if q is not None and p is not None else "—"
+        return [
+            ui.grid(ui.issue("Quantity"), ui.issue("Price", widget="buttons"), cols=2),
+            ui.row(ui.badge(f"Total: {total}", "primary"),
+                   ui.button("Meet halfway on price", action="halfway", icon="split"), align="center"),
+        ]
+
+    def on_action(self, action, payload, draft, ctx: OfferContext):
+        """A button in controls() was clicked: return the issue values to set."""
+        if action != "halfway" or not ctx.opponent_offer:
+            return None
+        prices = sorted(next(i for i in ctx.issues if i.name == "Price").all)
+        mine, theirs = draft.get("Price") or prices[0], ctx.opponent_offer["Price"]
+        middle = (mine + theirs) / 2
+        return {"Price": min(prices, key=lambda v: abs(v - middle))}
+```
+
+**Arguments.** `offer` and `draft` are dictionaries `{issue name: value}` with the stored values (a draft may hold `None` for an issue not chosen yet). `ctx` is an `OfferContext`:
+
+| Field | Meaning |
+|-------|---------|
+| `scenario`, `info`, `issues`, `issue_names` | The scenario, its `_info.yaml` contents and its issues. |
+| `surface` | Where the offer is shown: `text`, `history`, `table` or `controls`. |
+| `from_human` | Whether the participant made the offer (always true for `controls`). |
+| `is_done` | Whether the negotiation is over (true for the agreement). |
+| `role` | The participant's role (the `name` of their utility function). |
+| `utility`, `reserved_value` | What the offer is worth to the participant (`None` for an incomplete draft) and their value on disagreement. |
+| `opponent_offer` | The opponent's current offer, if any. |
+| `is_my_turn`, `step` | Whether the participant may act now, and the round. |
+| `fmt(issue, value)` | A value as the participant reads it (`value_labels`, then `issue_format`). |
+| `outcome(offer)` | The offer as a negmas outcome (a tuple in issue order). |
+
+**Custom controls** edit the same draft as the default editor, and every change is checked against the issues the same way:
+
+- an input whose `name` is an issue name sets that issue directly;
+- `ui.issue(name, widget=None, label=None)` places the default field of one issue (with its description and its highlight target, so the Assistant can still point at `issue:<name>`); `label=""` hides its title;
+- any other input calls `on_input(name, value, draft, ctx)`, and a button calls `on_action(action, payload, draft, ctx)`. Both return the issue values to change (`{issue: value}`) or `None`.
+
+The controls are drawn again after every change of the draft, whoever made it (the participant, a tool or the Assistant), and disabled while it is not the participant's turn. In text-only mode the editor shows the message box only, as before.
+
+**Views in the history** are computed once, when the offer is made, and are stored with it, so recordings replay them as they were. Keep them small: a line of Markdown, a few chips (`ui.outcome`) or a short row.
+
+**Errors.** A method that raises, or returns something that is not a list of components, is reported once in the server log and its default is used, so a broken `display.py` never stops a negotiation. `hani2 scenario check` calls every method once on a sample offer and reports the ones that fail.
+
+**Which display a scenario gets.** A scenario's own `display.py` wins: HANI2 uses a module-level `display` instance if the file has one, else the first `OfferDisplay` subclass *defined in the file* (imported classes, such as a base you extend, do not count). Scenarios without one whose outcome-space name is (or starts with) a registered scenario type use that type's display; scenarios with a `story` or `split` entry in their info use the story display; everything else uses `OfferDisplay`. A template folder registered with [`Story.from_folder`](#writing-your-own-scenario-type) also picks up its `display.py`, so every generated scenario of the type uses it; a type registered in Python passes its display to `register(name, maker, display)`.
+
+**Older display files.** Displays written as a subclass of `hani2.display.DefaultOutcomeDisplay` that override `str(outcome, scenario, is_done, from_human)` (with `outcome` a tuple in issue order) still work: their `str` becomes the text and the other surfaces use the defaults. Every display still answers `str(...)` too.
 
 ## Built-in generators
 

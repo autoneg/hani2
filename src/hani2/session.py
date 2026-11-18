@@ -425,14 +425,117 @@ class NegotiationSession:
             return None
         return {i.name: ui.jsonable(v) for i, v in zip(self.issues, outcome)}
 
-    def outcome_str(self, outcome, from_human: bool = False, done: bool = False) -> str:
-        disp = self.ss.get("outcome_display")
-        if disp is None or self.scenario is None:
-            return str(outcome)
+    # ------------------------------------------------------------------ #
+    # How offers are shown (the scenario's OfferDisplay, see hani2.display)
+    # ------------------------------------------------------------------ #
+    @property
+    def offer_display(self):
+        from hani2.display import OfferDisplay
+
+        return self.ss.get("outcome_display") or OfferDisplay()
+
+    def offer_context(self, surface: str, *, from_human: bool = False, done: bool = False, outcome=None):
+        from hani2.display import OfferContext
+
+        m = self.mechanism
+        return OfferContext(
+            self.scenario, surface=surface, from_human=from_human, is_done=done,
+            role=str(self.ss.get("human_id", "")).replace(" (You)", ""),
+            utility=self.utility(outcome) if outcome is not None and all(v is not None for v in outcome) else None,
+            reserved_value=self.reserved_value(), is_my_turn=self.is_my_turn(),
+            step=getattr(m.state, "step", None) if m is not None else None,
+            opponent_offer=self.outcome_to_dict(self.partner_offer()),
+        )
+
+    def _display_call(self, method: str, *args):
+        """Call a display method; a failing custom display is reported once and
+        the default is used instead, so a broken ``display.py`` never stops a
+        negotiation."""
+        disp = self.offer_display
         try:
-            return disp.str(outcome, self.scenario, done, from_human)
-        except Exception:
+            return getattr(disp, method)(*args)
+        except Exception:  # noqa: BLE001
+            key = (id(disp), method)
+            failed = self.__dict__.setdefault("_display_failures", set())
+            if key not in failed:
+                failed.add(key)
+                print(f"[hani2] {type(disp).__name__}.{method} failed; using the default")
+                traceback.print_exc()
+            return None
+
+    def outcome_str(self, outcome, from_human: bool = False, done: bool = False) -> str:
+        """The offer as one line of text (:meth:`OfferDisplay.text`)."""
+        if self.scenario is None:
             return str(outcome)
+        ctx = self.offer_context("text", from_human=from_human, done=done, outcome=outcome)
+        r = self._display_call("text", ctx.as_dict(outcome), ctx)
+        if r is None:
+            from hani2.display import OfferDisplay
+
+            try:
+                r = OfferDisplay().text(ctx.as_dict(outcome), ctx)
+            except Exception:  # noqa: BLE001
+                r = str(outcome)
+        return str(r)
+
+    def _view(self, components) -> list[dict] | None:
+        if not components:
+            return None
+        if isinstance(components, dict):
+            components = [components]
+        if not isinstance(components, (list, tuple)) or not all(isinstance(c, dict) for c in components):
+            return None
+        return self.relabel(ui.jsonable(list(components)))
+
+    def offer_view(self, surface: str, outcome, from_human: bool = False) -> list[dict] | None:
+        """Custom components for an offer in the ``history`` or on the
+        ``table``, or ``None`` for the default view."""
+        if outcome is None or self.scenario is None:
+            return None
+        ctx = self.offer_context(surface, from_human=from_human, outcome=outcome)
+        method = "history" if surface == "history" else "on_table"
+        return self._view(self._display_call(method, ctx.as_dict(outcome), ctx))
+
+    def draft_controls(self) -> list[dict] | None:
+        """Custom counter-offer controls, or ``None`` for the default editor."""
+        if self.scenario is None:
+            return None
+        ctx = self.offer_context("controls", from_human=True, outcome=self.draft_outcome())
+        return self._view(self._display_call("controls", dict(self.draft), ctx))
+
+    def issue_widget(self, name: str) -> str | None:
+        if self.scenario is None:
+            return None
+        try:
+            return self.offer_display.widget_for(name, self.offer_context("controls", from_human=True))
+        except Exception:  # noqa: BLE001
+            return None
+
+    def draft_input(self, name: str, value: Any) -> dict:
+        """A custom control changed: an issue name sets that issue, any other
+        name goes to :meth:`OfferDisplay.on_input`."""
+        if self._resolve_issue(name) is not None:
+            return self.set_draft({name: value})
+        ctx = self.offer_context("controls", from_human=True, outcome=self.draft_outcome())
+        updates = self._display_call("on_input", str(name), value, dict(self.draft), ctx)
+        if not updates:
+            self.push_draft()
+            return {"ok": True, "applied": {}}
+        return self.set_draft(dict(updates))
+
+    def draft_action(self, action: str, payload: dict | None = None) -> dict:
+        """A button of the custom controls was clicked (:meth:`OfferDisplay.on_action`)."""
+        ctx = self.offer_context("controls", from_human=True, outcome=self.draft_outcome())
+        updates = self._display_call("on_action", str(action), dict(payload or {}), dict(self.draft), ctx)
+        if not updates:
+            self.push_draft()
+            return {"ok": True, "applied": {}}
+        return self.set_draft(dict(updates))
+
+    def push_draft(self, by_agent: bool = False) -> None:
+        """Send the draft (and the custom controls drawn from it) to the browser."""
+        self.emit({"type": "draft", "draft": self.draft, "utility": self.utility(self.draft_outcome()),
+                   "controls": self.draft_controls(), "by_agent": by_agent})
 
     # ------------------------------------------------------------------ #
     # Tools                                                               #
@@ -949,6 +1052,7 @@ class NegotiationSession:
                     name=str(neg),
                     offer=self.outcome_to_dict(offer),
                     offer_str=self.relabel_text(self.outcome_str(offer, by_human)) if offer is not None else None,
+                    view=self.offer_view("history", offer, by_human),
                     text=self._shown_text(text, data, by_human),
                     data=extra or None,
                     utility=util,
@@ -1146,7 +1250,8 @@ class NegotiationSession:
                 self.draft[issue.name] = ui.jsonable(v)
                 applied[issue.name] = ui.jsonable(v)
         util = self.utility(self.draft_outcome())
-        self.emit({"type": "draft", "draft": self.draft, "utility": util, "by_agent": by_agent})
+        self.emit({"type": "draft", "draft": self.draft, "utility": util, "controls": self.draft_controls(),
+                   "by_agent": by_agent})
         if self.recorder is not None and applied:
             # by_agent means "filled in from outside the editor" (a tool or the assistant);
             # who actually did it is the acting thread's actor
@@ -1780,12 +1885,17 @@ class NegotiationSession:
                     d["values"] = list(range(int(i.min_value), int(i.max_value) + 1))
             else:
                 d["values"] = ui.jsonable(list(i.all))
-                if self.labels:
-                    from hani2.naming import relabel_value
+            if d.get("values"):
+                from hani2.display import format_value
+                from hani2.naming import relabel_value
 
-                    shown = {str(v): relabel_value(v, self.labels) for v in d["values"]}
-                    if any(str(k) != str(v) for k, v in shown.items()):
-                        d["labels"] = shown
+                # the shown names: the scenario's value_labels / issue_format, then side words relabelled
+                shown = {str(v): relabel_value(format_value(info, i.name, v), self.labels) if self.labels
+                         else format_value(info, i.name, v) for v in d["values"]}
+                if any(str(k) != str(v) for k, v in shown.items()):
+                    d["labels"] = shown
+            if (w := self.issue_widget(i.name)):
+                d["widget"] = w
             desc = descs.get(role, {}).get(i.name) if isinstance(descs.get(role), dict) else descs.get(i.name)
             if desc:
                 d["description"] = str(desc)
@@ -1854,11 +1964,12 @@ class NegotiationSession:
                 "partner_offer": None
                 if partner is None
                 else dict(values=self.outcome_to_dict(partner), text=self.relabel_text(self.outcome_str(partner)),
-                          utility=self.utility(partner),
+                          utility=self.utility(partner), view=self.offer_view("table", partner),
                           message=(pdata or {}).get("text") if isinstance(pdata, dict) else None),
                 "reserved_value": self.reserved_value(),
                 "draft": dict(values=dict(self.draft), text=self.draft_text,
-                              utility=self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None),
+                              utility=self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None,
+                              controls=self.draft_controls()),
                 "result": None if self.result is None else {
                     **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str"))},
                 "history": list(self.history),  # a copy: the list grows while the state is sent

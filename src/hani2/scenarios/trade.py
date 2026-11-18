@@ -8,11 +8,10 @@ from negmas import (
     UtilityFunction,
     make_issue,
     make_os,
-    Outcome,
     Scenario,
 )
 from hani2.config import DEFAULT_SCENRIOS, INFO_FILE_NAME
-from hani2.display import DefaultOutcomeDisplay
+from hani2.display import OfferContext, OfferDisplay
 from .common import IntRange, FloatIssueRange, FloatRange, float_in, int_in, range_in
 
 
@@ -142,14 +141,9 @@ def make_trade_scenario(
     return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=info)
 
 
-class TradeOutcomeDisplay(DefaultOutcomeDisplay):
-    def str(
-        self,
-        outcome: Outcome | None,
-        scenario: Scenario,
-        is_done: bool,
-        from_human: bool,
-    ) -> str:
-        if outcome is None:
-            return super().str(outcome, scenario, is_done, from_human)
-        return f"{outcome[0]} items at {outcome[1]}$"
+class TradeOutcomeDisplay(OfferDisplay):
+    def text(self, offer, ctx: OfferContext) -> str:
+        if offer is None:
+            return super().text(offer, ctx)
+        q, p = ctx.outcome(offer)[:2]  # type: ignore[index]
+        return f"{q} items at {p}$"

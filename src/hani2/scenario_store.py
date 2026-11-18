@@ -25,7 +25,7 @@ from negmas.helpers.inout import load
 
 from hani2 import scenario_sets
 from hani2.config import DEFAULT_SCENARIOS, scenarios_dir
-from hani2.display import DefaultOutcomeDisplay
+from hani2.display import OfferDisplay
 from hani2.scenarios import registry
 
 #: ``{type: maker}`` / ``{type: display}`` of the registered generators (live views of the registry).
@@ -273,21 +273,43 @@ def load_scenario(
     return s, info, None
 
 
+def load_display_file(f: str | Path):
+    """The display a ``display.py`` defines: a module-level ``display``
+    instance, else the first :class:`~hani2.display.OfferDisplay` subclass
+    defined in the file itself (imported bases do not count). ``None`` when
+    the file has none or fails to import (reported)."""
+    f = Path(f)
+    try:
+        spec = importlib.util.spec_from_file_location(f"hani2_display_{abs(hash(str(f)))}", f)
+        mod = importlib.util.module_from_spec(spec)  # type: ignore
+        spec.loader.exec_module(mod)  # type: ignore
+    except Exception as e:  # noqa: BLE001 - a broken display must not stop the server
+        print(f"[hani2] could not load {f}: {e!r}")
+        return None
+    inst = getattr(mod, "display", None)
+    if isinstance(inst, OfferDisplay):
+        return inst
+    for v in vars(mod).values():
+        if (isinstance(v, type) and issubclass(v, OfferDisplay) and v.__module__ == mod.__name__):
+            try:
+                return v()
+            except Exception as e:  # noqa: BLE001
+                print(f"[hani2] could not create {v.__name__} from {f}: {e!r}")
+                return None
+    return None
+
+
 def display_for(scenario: Scenario, scenario_dir: str | None = None):
-    """The OutcomeDisplay for a scenario: its own ``display.py`` first, then the
-    built-in display matching the outcome-space name, else the default."""
+    """The :class:`~hani2.display.OfferDisplay` for a scenario: its own
+    ``display.py`` first, then the display of the registered scenario type
+    matching the outcome-space name, then the story display for scenarios with
+    story info, else the default."""
     if scenario_dir:
         f = Path(scenario_dir) / "display.py"
         if f.exists():
-            try:
-                spec = importlib.util.spec_from_file_location(f"hani2_display_{abs(hash(str(f)))}", f)
-                mod = importlib.util.module_from_spec(spec)  # type: ignore
-                spec.loader.exec_module(mod)  # type: ignore
-                for v in vars(mod).values():
-                    if isinstance(v, type) and issubclass(v, DefaultOutcomeDisplay) and v is not DefaultOutcomeDisplay:
-                        return v()
-            except Exception as e:  # pragma: no cover
-                print(f"[hani2] could not load {f}: {e}")
+            d = load_display_file(f)
+            if d is not None:
+                return d
     name = str(getattr(scenario.outcome_space, "name", "") or "")
     base = name.split("/")[-1]
     if name in DISPLAY_MAP or base in DISPLAY_MAP:
@@ -296,11 +318,11 @@ def display_for(scenario: Scenario, scenario_dir: str | None = None):
     for key in sorted(DISPLAY_MAP, key=len, reverse=True):
         if name.startswith(key) or base.startswith(key):
             return DISPLAY_MAP[key]
-    if (scenario.info or {}).get("story") or (scenario.info or {}).get("issue_format"):
+    if (scenario.info or {}).get("story") or (scenario.info or {}).get("split"):
         from hani2.scenarios.story import StoryOutcomeDisplay
 
         return StoryOutcomeDisplay()
-    return DefaultOutcomeDisplay()
+    return OfferDisplay()
 
 
 def next_index(user_path: Path, advance: bool = True) -> int:
@@ -461,10 +483,13 @@ def check_scenario(path: Path | str) -> tuple[Scenario | None, list[str], list[s
     for r in role_names(s):
         if names and not hints.get(r):
             warnings.append(f"role {r!r} has no hints (hani2 scenario check --fill-hints adds the computed ones)")
-    for key in ("issue_description", "issue_format"):
+    for key in ("issue_description", "issue_format", "value_labels", "issue_widget"):
         extra = sorted(set(info.get(key) or {}) - {i.name for i in s.outcome_space.issues})
         if extra:
             warnings.append(f"{key} names unknown issues {extra}")
+    bad = {k: w for k, w in (info.get("issue_widget") or {}).items() if w not in ("buttons", "select", "slider", "number")}
+    if bad:
+        warnings.append(f"issue_widget has unknown widgets {bad} (use buttons, select, slider or number)")
     extra = sorted(set(hints) - set(role_names(s)))
     if extra:
         warnings.append(f"hints name unknown roles {extra}")
@@ -486,8 +511,15 @@ def check_scenario(path: Path | str) -> tuple[Scenario | None, list[str], list[s
             else:
                 errors += [f"changes when saved and loaded again: {d}" for d in same_scenario(s, back)]
         try:
+            from hani2.display import OfferContext
+
             o = next(iter(s.outcome_space.enumerate_or_sample(max_cardinality=10)))
-            display_for(s, str(p)).str(o, s, False, True)
+            d = display_for(s, str(p))
+            offer = dict(zip([i.name for i in s.outcome_space.issues], o))
+            d.text(offer, OfferContext(s, surface="text", from_human=True))
+            d.history(offer, OfferContext(s, surface="history", from_human=True))
+            d.on_table(offer, OfferContext(s, surface="table"))
+            d.controls(offer, OfferContext(s, surface="controls", from_human=True))
         except Exception as e:  # noqa: BLE001
             errors.append(f"an offer cannot be shown: {e!r}")
     return s, errors, warnings

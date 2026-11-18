@@ -14,6 +14,10 @@ This page is generated from the docstrings in the source. It covers the modules 
 
 ::: hani2.tools.registry
 
+## Showing offers
+
+::: hani2.display
+
 ## UI components
 
 ::: hani2.tools.ui

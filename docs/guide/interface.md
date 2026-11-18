@@ -241,7 +241,7 @@ The settings drawer (gear button) holds per-session display preferences any part
 | Show my offers in the history | `show_human_offers` | on | Off: your own offers are not added to the thread. |
 | Newest offer on top | `last_offer_on_top` | off | Order of the thread. Off: oldest first, and the thread scrolls to the newest message as it arrives. |
 | Keep the offer editor open | `offer_panel_always_visible` | off | The counter-offer editor stays open. |
-| Offers shown as | `offer_display` | `text` | `text` (sentences) or `table` (issue chips). |
+| Offers shown as | `offer_display` | `text` | `text` (sentences) or `table` (issue chips). A scenario with its own history view shows that view either way. |
 | Text size | `font_scale` | 1.0 | Scales the page text, from 0.85 to 1.3. |
 | (no control) | `compact` | off | Stored but not used by the interface. |
 

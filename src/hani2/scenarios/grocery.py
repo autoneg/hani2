@@ -8,11 +8,10 @@ from negmas import (
     UtilityFunction,
     make_issue,
     make_os,
-    Outcome,
     Scenario,
 )
 from hani2.config import DEFAULT_SCENRIOS, INFO_FILE_NAME
-from hani2.display import DefaultOutcomeDisplay
+from hani2.display import OfferContext, OfferDisplay
 from .common import IntRange, float_in, int_in, FloatRange
 
 Agent = "agent"
@@ -138,22 +137,17 @@ def make_grocery_scenario(
     return scenario
 
 
-class GroceryOutcomeDisplay(DefaultOutcomeDisplay):
+class GroceryOutcomeDisplay(OfferDisplay):
     def __init__(self, *args, for_agent=False, n_per_item=N_PER_ITEM, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._for_agent = for_agent
         self._n_per_item = n_per_item
 
-    def str(
-        self,
-        outcome: Outcome | None,
-        scenario: Scenario,
-        is_done: bool,
-        from_human: bool,
-    ) -> str:
-        if outcome is None:
-            return super().str(outcome, scenario, is_done, from_human)
-        issues = scenario.outcome_space.issues
+    def text(self, offer, ctx: OfferContext) -> str:
+        if offer is None:
+            return super().text(offer, ctx)
+        outcome, from_human = ctx.outcome(offer), ctx.from_human
+        issues = ctx.issues
         counts = [
             int(item) if from_human else int(4 - item) for i, item in enumerate(outcome)
         ]

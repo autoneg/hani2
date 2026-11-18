@@ -497,6 +497,10 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         return s.start()
     if t == "draft":
         return s.set_draft(msg.get("values") or {})
+    if t == "draft_input":
+        return s.draft_input(str(msg.get("name", "")), msg.get("value"))
+    if t == "draft_action":
+        return s.draft_action(str(msg.get("action", "")), msg.get("payload") or {})
     if t == "draft_text":
         return s.set_draft_text(str(msg.get("text", "")))
     if t == "send":

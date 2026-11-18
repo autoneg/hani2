@@ -69,7 +69,7 @@ def register(name: str, maker: Callable[[int], Scenario], display: Any = None, *
 
 def register_story(story: Story, *, replace: bool = True, builtin: bool = False) -> ScenarioType:
     """Register a :class:`Story` as a scenario type."""
-    return register(story.type, partial(make_story_scenario, story), StoryOutcomeDisplay(), replace=replace,
+    return register(story.type, partial(make_story_scenario, story), story.display or StoryOutcomeDisplay(), replace=replace,
                     story=story, builtin=builtin)
 
 

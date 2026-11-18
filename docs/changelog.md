@@ -107,6 +107,21 @@
   renders the formulas. A `PUT` of a study or project with `scheduling: {}` inherits every
   dimension again.
 
+||||||| parent of 3cc753ae2 (feat: scenarios shape how offers are shown — text, history, the offer on the table and the controls)
+- **Scenarios shape how offers are shown.** A scenario's display (`hani2.display.OfferDisplay`, in
+  its `display.py` or passed to `register`) can now define four views: the one-line `text`, the
+  offer in the `history`, the offer `on_table` and the counter-offer `controls`. Views are lists
+  of `ui` components; `None` keeps the default. Custom controls edit the normal draft: inputs
+  named after an issue set it, other inputs and buttons call `on_input` / `on_action`, which return
+  the issue values to set, and the new `ui.issue(name)` places the default field of one issue in a
+  custom layout. New `_info.yaml` keys need no code: `offer_template`, `value_labels` and
+  `issue_widget` (`buttons`, `select`, `slider` — new in the default editor — or `number`), and
+  `issue_format` now applies to every scenario and to the editor's buttons. Split scenarios
+  (Estate, Resources) show what each side gets in the history and on the table, and their editor
+  asks how many items *you* get, with a *Split evenly* button (also right when the participant
+  plays the other role). A failing display falls back to the defaults; `hani2 scenario check`
+  exercises every view. Old `DefaultOutcomeDisplay.str(...)` displays still work. See
+  [Showing offers](guide/scenarios.md#showing-offers).
 - **Groups and assignment.** Opponent groups (`groups/<key>.json`) and the new Assistant groups
   (`assistant_groups/<key>.json`, members under `assistants`) can live in a project, shared by its
   studies; a token `:key` or `?group=key` is looked up in the study's results folder, the study

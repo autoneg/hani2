@@ -9,6 +9,8 @@ export interface IssueSpec {
   description?: string;
   /** shown names of some values (e.g. "agent" → "Opponent"); the value itself is what is sent */
   labels?: Record<string, string>;
+  /** the control the scenario asks for in the editor */
+  widget?: "buttons" | "select" | "slider" | "number";
 }
 
 export interface HistoryItem {
@@ -18,6 +20,8 @@ export interface HistoryItem {
   name?: string;
   offer?: Record<string, Json> | null;
   offer_str?: string | null;
+  /** the scenario's own view of the offer (components); absent = the default view */
+  view?: Component[] | null;
   text?: string | null;
   data?: Record<string, Json> | null;
   utility?: number | null;
@@ -139,9 +143,10 @@ export interface SessionState {
     time_limit: number | null;
     server_time: number;
   };
-  partner_offer: null | { values: Record<string, Json>; text: string; utility: number | null; message?: string | null };
+  partner_offer: null | { values: Record<string, Json>; text: string; utility: number | null; message?: string | null; view?: Component[] | null };
   reserved_value: number;
-  draft: { values: Record<string, Json>; text: string; utility: number | null };
+  /** ``controls``: the scenario's own counter-offer controls (components); absent = one field per issue */
+  draft: { values: Record<string, Json>; text: string; utility: number | null; controls?: Component[] | null };
   result: Result | null;
   history: HistoryItem[];
   tools: ToolInfo[];

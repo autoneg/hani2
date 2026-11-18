@@ -9,18 +9,53 @@ import { Gauge } from "../ui/Gauge";
 import { clock, fmtValue, pct, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
+import { Renderer, STATIC_CTX } from "../ui/Renderer";
 
 /* ------------------------------------------------------------------ */
 /* Issue field                                                          */
 /* ------------------------------------------------------------------ */
-function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; disabled: boolean }) {
-  const set = (v: any) => {
-    useStore.getState().patchDraft({ [issue.name]: v });
-    send({ type: "draft", values: { [issue.name]: v } });
-  };
+function setIssue(name: string, v: any) {
+  useStore.getState().patchDraft({ [name]: v });
+  send({ type: "draft", values: { [name]: v } });
+}
+
+/** A range slider over an issue's values (or its numeric range); the draft is set on release. */
+function IssueSlider({ issue, value, disabled, set }: { issue: IssueSpec; value: any; disabled: boolean; set: (v: any) => void }) {
   const values = issue.values;
+  const indexOf = (x: any) => Math.max(0, values ? values.findIndex((y) => String(y) === String(x)) : 0);
+  const fromLocal = (n: number) => (values ? values[n] : n);
+  const initial = values ? indexOf(value) : Number(value ?? issue.min ?? 0);
+  const [local, setLocal] = useState<number>(initial);
+  useEffect(() => setLocal(values ? indexOf(value) : Number(value ?? issue.min ?? 0)), [value]);
+  const commit = () => set(fromLocal(local));
+  return (
+    <div className="flex items-center gap-3">
+      <input
+        type="range"
+        className="min-w-0 flex-1 accent-[rgb(var(--you))]"
+        aria-label={issue.name}
+        min={values ? 0 : issue.min}
+        max={values ? values.length - 1 : issue.max}
+        step={values || issue.kind === "int" ? 1 : "any"}
+        value={local}
+        disabled={disabled}
+        onChange={(e) => setLocal(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+      />
+      <b className="tnum min-w-[3rem] text-right text-sm">{value === null || value === undefined ? "—" : showValue(issue, fromLocal(local))}</b>
+    </div>
+  );
+}
+
+function IssueField({ issue, value, disabled, widget, label }: { issue: IssueSpec; value: any; disabled: boolean; widget?: string; label?: string }) {
+  const set = (v: any) => setIssue(issue.name, v);
+  const values = issue.values;
+  const w = widget ?? issue.widget ?? (values && values.length > 0 ? (values.length <= 6 ? "buttons" : "select") : "number");
   let input: React.ReactNode;
-  if (values && values.length <= 6 && values.length > 0) {
+  if (w === "slider" && ((values && values.length > 1) || (issue.min !== undefined && issue.max !== undefined))) {
+    input = <IssueSlider issue={issue} value={value} disabled={disabled} set={set} />;
+  } else if (w === "buttons" && values && values.length > 0) {
     input = (
       <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={issue.name}>
         {values.map((v) => {
@@ -40,7 +75,7 @@ function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; 
         })}
       </div>
     );
-  } else if (values && values.length > 0) {
+  } else if (w !== "number" && values && values.length > 0) {
     input = (
       <select className="field tnum" value={JSON.stringify(value)} disabled={disabled} onChange={(e) => set(JSON.parse(e.target.value))} aria-label={issue.name}>
         {values.map((v) => (
@@ -68,8 +103,8 @@ function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; 
   return (
     <Anchor id={`issue:${issue.name}`} className="min-w-0">
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="text-sm font-medium">{issue.name}</span>
-        {issue.min !== undefined && !values && (
+        {label !== "" && <span className="text-sm font-medium">{label ?? issue.name}</span>}
+        {issue.min !== undefined && !values && w !== "slider" && (
           <span className="tnum text-[11px] text-muted">
             {fmtValue(issue.min)}–{fmtValue(issue.max)}
           </span>
@@ -78,6 +113,31 @@ function IssueField({ issue, value, disabled }: { issue: IssueSpec; value: any; 
       {input}
       {issue.description && <div className="mt-1 text-[11px] text-muted">{issue.description}</div>}
     </Anchor>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The scenario's own offer controls                                    */
+/* ------------------------------------------------------------------ */
+function CustomControls({ st, disabled }: { st: SessionState; disabled: boolean }) {
+  const issues = st.scenario?.issues ?? [];
+  const byName = useMemo(() => new Map(issues.map((i) => [i.name, i])), [issues]);
+  return (
+    <Renderer
+      components={st.draft.controls ?? []}
+      ctx={{
+        disabled,
+        reserved: st.reserved_value,
+        // an input named after an issue edits it directly; anything else goes to the scenario's display
+        onInput: (name, value) => (byName.has(name) ? setIssue(name, value) : send({ type: "draft_input", name, value })),
+        onAction: (action, payload) => send({ type: "draft_action", action, payload }),
+        anchorFor: (name) => (byName.has(name) ? `issue:${name}` : undefined),
+        renderIssue: (c) => {
+          const issue = byName.get(c.name);
+          return issue ? <IssueField issue={issue} value={st.draft.values[issue.name]} disabled={disabled} widget={c.widget} label={c.label} /> : null;
+        },
+      }}
+    />
   );
 }
 
@@ -193,7 +253,13 @@ function Running({ st }: { st: SessionState }) {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <div className="min-w-[10rem] flex-1">
                 <div className="text-xs font-medium text-opponent">Offer on the table</div>
-                <div className="font-semibold">{po.text}</div>
+                {po.view ? (
+                  <div className="mt-1">
+                    <Renderer components={po.view} ctx={STATIC_CTX} />
+                  </div>
+                ) : (
+                  <div className="font-semibold">{po.text}</div>
+                )}
               </div>
               <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
                 <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
@@ -228,7 +294,8 @@ function Running({ st }: { st: SessionState }) {
       {showEditor && (
         <Anchor id="offer" className="enter">
           <div className="rounded-xl border border-line bg-surface p-3 sm:p-4">
-            {!textOnly && (
+            {!textOnly && st.draft.controls && <CustomControls st={st} disabled={!myTurn} />}
+            {!textOnly && !st.draft.controls && (
               <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${cols === 1 ? 600 : cols === 2 ? 220 : 160}px), 1fr))` }}>
                 {issues.map((i) => (
                   <IssueField key={i.name} issue={i} value={st.draft.values[i.name]} disabled={!myTurn} />

@@ -489,6 +489,7 @@ Every helper in `hani2.tools.ui` returns a plain dict (a `Component`) that the w
 | `kv(data, title=None)` | A two-column list of keys and values from a dict or a list of pairs. |
 | `progress(value, label=None, kind=None)` | A progress bar; `value` from 0 to 1. `kind` `success` or `error` changes the colour. |
 | `outcome(values, utility=None, label=None)` | A compact outcome card: one chip per issue, plus a utility gauge (with the participant's value on disagreement marked) when `utility` is given. |
+| `issue(name, *, widget=None, label=None)` | The default editor field of one issue. Only in a scenario's [custom offer controls](../guide/scenarios.md#showing-offers); elsewhere it renders nothing. |
 | `html(content)` | Sanitised HTML. Prefer `markdown`. |
 | `divider()` | A horizontal rule. |
 

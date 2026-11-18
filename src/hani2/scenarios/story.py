@@ -27,7 +27,6 @@ from typing import Any, Callable, Sequence
 from negmas import (
     EnumerableCartesianOutcomeSpace,
     LinearAdditiveUtilityFunction,
-    Outcome,
     Scenario,
     make_issue,
     make_os,
@@ -35,7 +34,8 @@ from negmas import (
 )
 from negmas.preferences.value_fun import TableFun
 
-from hani2.display import DefaultOutcomeDisplay
+from hani2.display import OfferContext, OfferDisplay
+from hani2.tools import ui
 
 __all__ = [
     "Issue",
@@ -139,6 +139,9 @@ class Story:
     base_info: dict[str, Any] | None = None
     #: the template's issues (their negmas types are kept in generated scenarios)
     issue_objects: Sequence[Any] | None = None
+    #: how offers are shown (:class:`~hani2.display.OfferDisplay`); ``None`` uses
+    #: :class:`StoryOutcomeDisplay`. :meth:`from_folder` reads the folder's ``display.py``.
+    display: Any = None
 
     @classmethod
     def from_folder(cls, folder: str | Path, roles: dict[str, RoleFn], **kwargs: Any) -> "Story":
@@ -181,6 +184,10 @@ class Story:
                         tuple(units[i.name]) if i.name in units else None)  # type: ignore[arg-type]
                   for i in base.outcome_space.issues]
         role_desc = dict(info.get("role_descriptions") or {})
+        if "display" not in kwargs and (p / "display.py").exists():
+            from hani2.scenario_store import load_display_file
+
+            kwargs["display"] = load_display_file(p / "display.py")
         return cls(type=type_, title=str(info.get("title", type_)),
                    short_description=str(info.get("short_description", "")),
                    long_description=str(info.get("long_description", "")), roles=dict(roles),
@@ -430,47 +437,104 @@ def make_story_scenario(story: Story, index: int = 0, rng: Rng | None = None) ->
 # --------------------------------------------------------------------------- #
 # Display                                                                     #
 # --------------------------------------------------------------------------- #
-class StoryOutcomeDisplay(DefaultOutcomeDisplay):
-    """Writes an offer in the story's terms, using the formats saved in the
-    scenario info (so it also works for scenarios loaded from disk)."""
+class StoryOutcomeDisplay(OfferDisplay):
+    """Shows an offer in the story's terms, using the formats saved in the
+    scenario info (so it also works for scenarios loaded from disk).
 
-    def str(self, outcome: Outcome | None, scenario: Scenario, is_done: bool, from_human: bool) -> str:
-        if outcome is None:
-            return super().str(outcome, scenario, is_done, from_human)
-        info = scenario.info or {}
-        issues = scenario.outcome_space.issues
-        split = info.get("split") or {}
-        if split:
-            units, totals = split.get("units", {}), split.get("totals", {})
-            mine, theirs = [], []
-            for issue, v in zip(issues, outcome):
-                one, many = units.get(issue.name, (issue.name, issue.name))
-                n_mine = int(v)
-                n_theirs = int(totals.get(issue.name, n_mine)) - n_mine
-                if n_mine:
-                    mine.append(f"{n_mine} {one if n_mine == 1 else many}")
-                if n_theirs:
-                    theirs.append(f"{n_theirs} {one if n_theirs == 1 else many}")
-            return f"You get {', '.join(mine) or 'nothing'}; your opponent gets {', '.join(theirs) or 'nothing'}."
-        fmts = info.get("issue_format", {}) or {}
-        parts = []
-        for issue, v in zip(issues, outcome):
-            f = fmts.get(issue.name, "{}")
-            try:
-                txt = f.format(v)
-            except (ValueError, TypeError, IndexError):
-                txt = str(v)
-            parts.append(f"{issue.name}: {txt}")
-        return ", ".join(parts)
+    For item splits (a ``split`` entry in the info) every surface is custom:
+    the text reads "You get 2 clocks; your opponent gets 1 clock", history and
+    the offer on the table show what each side gets, and the editor asks how
+    many of each item *you* get, with a "Split evenly" button. Other stories
+    use the default views with ``issue_format`` values.
+    """
 
-    def table(self, outcome: Outcome | None, scenario: Scenario, is_done: bool, from_human: bool):
-        if not outcome:
-            return []
-        fmts = (scenario.info or {}).get("issue_format", {}) or {}
-        row = {}
-        for issue, v in zip(scenario.outcome_space.issues, outcome):
-            try:
-                row[issue.name] = fmts.get(issue.name, "{}").format(v)
-            except (ValueError, TypeError, IndexError):
-                row[issue.name] = v
-        return [row]
+    # -- item splits ----------------------------------------------------------
+    @staticmethod
+    def _split(ctx: OfferContext) -> dict[str, Any]:
+        return ctx.info.get("split") or {}
+
+    @staticmethod
+    def _flipped(ctx: OfferContext) -> bool:
+        """Issue values count the items of the ``human`` role; a participant
+        playing the other role gets the rest."""
+        roles = {str(u.name).lower() for u in ctx.scenario.ufuns}
+        return "human" in roles and bool(ctx.role) and ctx.role.lower() != "human"
+
+    def _shares(self, offer: dict[str, Any], ctx: OfferContext) -> list[tuple[str, int, int, str, str]]:
+        """``(issue, mine, theirs, singular, plural)`` per item kind."""
+        split = self._split(ctx)
+        units, totals = split.get("units", {}) or {}, split.get("totals", {}) or {}
+        out = []
+        for name in ctx.issue_names:
+            v = offer.get(name)
+            if v is None:
+                continue
+            one, many = (list(units.get(name) or []) + [name, name])[:2]
+            total = int(totals.get(name, v))
+            mine = int(v)
+            if self._flipped(ctx):
+                mine = total - mine
+            out.append((name, mine, total - mine, str(one), str(many)))
+        return out
+
+    @staticmethod
+    def _count(n: int, one: str, many: str) -> str:
+        return f"{n} {one if n == 1 else many}"
+
+    def text(self, offer: dict[str, Any] | None, ctx: OfferContext) -> str:
+        if offer is None or not self._split(ctx):
+            return super().text(offer, ctx)
+        mine = [self._count(m, one, many) for _, m, _, one, many in self._shares(offer, ctx) if m]
+        theirs = [self._count(t, one, many) for _, _, t, one, many in self._shares(offer, ctx) if t]
+        return f"You get {', '.join(mine) or 'nothing'}; your opponent gets {', '.join(theirs) or 'nothing'}."
+
+    def _sides(self, offer: dict[str, Any], ctx: OfferContext) -> list[dict] | None:
+        if not self._split(ctx):
+            return None
+        shares = self._shares(offer, ctx)
+        mine = {many: m for _, m, _, _, many in shares if m}
+        theirs = {many: t for _, _, t, _, many in shares if t}
+        return [ui.row(ui.outcome(mine, label="You get" + ("" if mine else " nothing")),
+                       ui.outcome(theirs, label="Your opponent gets" + ("" if theirs else " nothing")), gap=2)]
+
+    def history(self, offer: dict[str, Any], ctx: OfferContext) -> list[dict] | None:
+        return self._sides(offer, ctx)
+
+    def on_table(self, offer: dict[str, Any], ctx: OfferContext) -> list[dict] | None:
+        return self._sides(offer, ctx)
+
+    def controls(self, draft: dict[str, Any], ctx: OfferContext) -> list[dict] | None:
+        split = self._split(ctx)
+        if not split:
+            return None
+        units, totals = split.get("units", {}) or {}, split.get("totals", {}) or {}
+        fields = []
+        for name in ctx.issue_names:
+            many = str((list(units.get(name) or []) + [name, name])[1])
+            total = int(totals.get(name, 0))
+            label = f"{many[:1].upper()}{many[1:]} you get (of {total})"
+            widget = "buttons" if total <= 8 else "slider"
+            if self._flipped(ctx):  # the issue counts the opponent's items: edit "mine" through on_input
+                v = draft.get(name)
+                mine = None if v is None else total - int(v)
+                fields.append(ui.slider(f"mine:{name}", 0, total, mine if mine is not None else 0, label=label)
+                              if widget == "slider" else
+                              ui.radio(f"mine:{name}", list(range(total + 1)), mine, label=label))
+            else:
+                fields.append(ui.issue(name, widget=widget, label=label))
+        return [ui.grid(*fields, cols=2),
+                ui.row(ui.button("Split evenly", action="split_evenly", icon="scale"), align="center")]
+
+    def on_input(self, name: str, value: Any, draft: dict[str, Any], ctx: OfferContext) -> dict[str, Any] | None:
+        if name.startswith("mine:") and value is not None:
+            issue = name[5:]
+            total = int((self._split(ctx).get("totals") or {}).get(issue, 0))
+            return {issue: total - int(value)}
+        return None
+
+    def on_action(self, action: str, payload: dict[str, Any], draft: dict[str, Any],
+                  ctx: OfferContext) -> dict[str, Any] | None:
+        if action == "split_evenly":
+            totals = self._split(ctx).get("totals") or {}
+            return {k: int(t) // 2 for k, t in totals.items() if k in ctx.issue_names}
+        return None
