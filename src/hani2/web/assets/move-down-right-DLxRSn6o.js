@@ -1,0 +1,1 @@
+import{c as o}from"./index-DzM_aKt6.js";const e={name:"move-down-right",size:24,node:[["path",{d:"M19 13V19H13",key:"10vkzq"}],["path",{d:"M5 5L19 19",key:"5zm2fv"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

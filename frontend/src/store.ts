@@ -209,6 +209,12 @@ const UNSET = Symbol("unset");
  *  `useState`, the value resets when the component unmounts. */
 export function useUiState<T>(key: string | undefined, initial: T): [T, (v: T | ((p: T) => T)) => void] {
   const init = useRef(initial);
+  const lastKey = useRef(key);
+  if (lastKey.current !== key) {
+    // a new key is a new piece of state: it starts from the current initial value
+    lastKey.current = key;
+    init.current = initial;
+  }
   const [local, setLocal] = useState<T>(initial);
   const stored = useStore((s) => (key !== undefined && key in s.ui ? s.ui[key] : UNSET)) as T | typeof UNSET;
   const value = key === undefined ? local : stored === UNSET ? init.current : stored;

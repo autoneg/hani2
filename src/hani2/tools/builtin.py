@@ -136,8 +136,9 @@ class ScenarioInfoTool(Tool):
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
-    **What it shows.** A picture of the scenario (switch it off with *Picture*; *Small*
-    shows it beside the story, *Large* above it, *Watermark* faintly behind it), the
+    **What it shows.** A picture of the scenario (switch it off with *Picture*, or in your
+    settings; *Small* shows it beside the story, *Large* above it, *Watermark* faintly
+    behind it), the
     story of the scenario, the role you play, a table of the issues with their possible
     options and what they mean, any hints for your role and (collapsed at the bottom) the
     full description.
@@ -177,13 +178,15 @@ class ScenarioInfoTool(Tool):
         badge = ([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
                  else [ui.badge(f"You act as {role}", "primary")])
         light, dark = self._picture()
-        show = bool(self.values.get("show_picture", True))
-        style = self._picture_style(info)
+        prefs = getattr(self.session, "prefs", None) or {}
+        show = bool(prefs.get("show_scenario_picture", True))
+        style = self._picture_style(info, prefs)
+        may = getattr(self.session, "may_adjust", lambda k: True)
+        controls = [ui.switch("show_picture", show, label="Picture")] if light and may("show_scenario_picture") else []
+        if light and show and may("scenario_picture_style"):
+            controls.append(ui.select("picture_style", PICTURE_STYLES, style))
         comps: list[ui.Component] = [ui.heading(title, 3)]
-        if badge or light:
-            controls = [ui.switch("show_picture", show, label="Picture")] if light else []
-            if light and show:
-                controls.append(ui.select("picture_style", PICTURE_STYLES, style))
+        if badge or controls:
             comps.append(ui.row(*badge, *controls, align="center"))
         shown = getattr(self.session, "relabel_text", lambda t: t)
         story = ui.markdown(shown(info["short_description"])) if info.get("short_description") else None
@@ -213,9 +216,25 @@ class ScenarioInfoTool(Tool):
         if hints:
             comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
         if info.get("long_description"):
-            comps.append(ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
-                                 collapsible=True, collapsed=True))
+            opened = bool(prefs.get("open_scenario_description", False))
+            loaded = self.session_state.get("load_at_dt")
+            card = ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
+                           collapsible=True, collapsed=not opened)
+            # a new id for every loaded scenario (and setting value), so it starts opened or closed as set
+            card["id"] = f"scenario-description-{loaded.timestamp() if loaded else 0}-{int(opened)}"
+            comps.append(card)
         return comps
+
+    def on_input(self, name: str, value: Any) -> None:
+        prefs = {"show_picture": ("show_scenario_picture", bool),
+                 "picture_style": ("scenario_picture_style", lambda v: str(v).lower())}
+        if name in prefs:  # the participant's own settings (refused when the admin does not allow them)
+            key, conv = prefs[name]
+            setter = getattr(self.session, "set_pref", None)
+            if setter is None or not setter(key, conv(value)):
+                self.refresh()  # refused: show the control as it was
+            return
+        super().on_input(name, value)
 
     def _picture(self) -> tuple[str | None, str | None]:
         """``(light, dark)`` picture URLs of the loaded scenario, looked up once per scenario."""
@@ -236,10 +255,11 @@ class ScenarioInfoTool(Tool):
             self.__dict__["_picture_cache"] = cached
         return cached[1]
 
-    def _picture_style(self, info: dict) -> str:
+    def _picture_style(self, info: dict, prefs: dict) -> str:
         """``small`` (beside the story), ``large`` (above it) or ``watermark`` (behind it):
-        the participant's choice, else the scenario's ``picture_style``, else ``small``."""
-        for v in (self.values.get("picture_style"), info.get("picture_style")):
+        the ``scenario_picture_style`` setting (the participant's, else the layered default),
+        else the scenario's ``picture_style``, else ``small``."""
+        for v in (prefs.get("scenario_picture_style"), info.get("picture_style")):
             if str(v or "").lower() in PICTURE_STYLE_NAMES:
                 return str(v).lower()
         return "small"

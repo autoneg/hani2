@@ -300,7 +300,16 @@ evaluated with the criteria it was played with. Criteria for every scenario with
 
 A scenario can have one picture that sets the scene. It is shown under the title of the
 *Scenario Info* tool; participants hide it with the *Picture* switch next to their role
-(it is on by default) and choose how it is shown with the menu beside the switch:
+or in **My settings** (it is on by default). Whether it is shown at first, and whether
+participants may change that, is set per project or study like the other participant
+settings (`interface.prefs.show_scenario_picture` and
+`interface.participant_settings.show_scenario_picture`, the console's **Participant
+interface** page; see [`interface`](configuration.md#interface)). The same goes for
+whether the *Full description* card starts open (`open_scenario_description`, closed by
+default).
+
+Participants choose how the picture is shown with the menu beside the switch (or
+**Scenario picture** in **My settings**):
 
 | Style | Shown |
 |-------|-------|
@@ -308,8 +317,14 @@ A scenario can have one picture that sets the scene. It is shown under the title
 | **Large** | Full width above the story. |
 | **Watermark** | Faintly behind the story. |
 
-A scenario sets its own default with `picture_style: small` (or `large`, `watermark`) in
-`_info.yaml`; the participant's choice is kept for the next scenario. Every bundled scenario has one, drawn as vector graphics in a light
+The style is the participant setting `scenario_picture_style`: its default and whether
+participants may change it are set per project or study as well
+(`interface.prefs.scenario_picture_style`, `interface.participant_settings.scenario_picture_style`;
+the menu is hidden when they may not). When it is not set, the scenario's own
+`picture_style: small` (or `large`, `watermark`) in `_info.yaml` decides, and otherwise
+*Small*.
+
+Every bundled scenario has one picture, drawn as vector graphics in a light
 and a dark version.
 
 Put the picture in the scenario folder:

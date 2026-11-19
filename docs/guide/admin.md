@@ -278,8 +278,8 @@ The links at the top open the opponent pool, the scenario sets and the Participa
 
 `env.json` → `interface` (and the two tool keys of `negotiation`), per layer:
 
-- **Participants may change**: one switch per participant setting: the display settings, **Layout for**, the theme, the layout view, and the Assistant's on/off switch, autonomy, abilities and delivery. Off: participants of that layer do not see the control and the server refuses the change (`interface.participant_settings.<key>`).
-- **Defaults of the participant's settings** (`interface.prefs.<key>`).
+- **Participants may change**: one switch per participant setting: the display settings (including the scenario's picture and whether the full scenario description opens), **Layout for**, the theme, the layout view, and the Assistant's on/off switch, autonomy, abilities and delivery. Off: participants of that layer do not see the control and the server refuses the change (`interface.participant_settings.<key>`).
+- **Defaults of the participant's settings** (`interface.prefs.<key>`), among them **Show the scenario's picture** (`show_scenario_picture`, on), **Scenario picture style** (`scenario_picture_style`: small, large or watermark; unset: the scenario's, else small) and **Open the full scenario description** (`open_scenario_description`, off: the *Scenario Info* tool shows it collapsed when a scenario loads).
 - **Tools**: participants may move tools between panes (`negotiation.allow_moving_tools`) and switch them on and off (`negotiation.allow_tool_switch`).
 - **Notifications**: how long they stay (`interface.notifications.toast_seconds`) and the notification list in the header (`interface.notifications.center`).
 

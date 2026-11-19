@@ -11,7 +11,7 @@ import { useTheme } from "./Header";
 export const mayAdjust = (st: SessionState | null | undefined, key: string) => st?.interface?.participant_settings?.[key] !== false;
 
 /** The participant settings shown in the drawer. */
-const DRAWER_KEYS = ["show_history", "show_human_offers", "last_offer_on_top", "offer_panel_always_visible", "offer_display", "device", "font_scale", "theme"];
+const DRAWER_KEYS = ["show_history", "show_human_offers", "last_offer_on_top", "offer_panel_always_visible", "offer_display", "show_scenario_picture", "scenario_picture_style", "open_scenario_description", "device", "font_scale", "theme"];
 
 /** Whether the drawer has anything for this user (the header hides the settings button otherwise). */
 export const drawerHasControls = (st: SessionState | null | undefined) =>
@@ -108,6 +108,11 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
             {may("offer_display") && (
               <Choice label="Offers shown as" value={String(p.offer_display ?? "text")} onChange={(v) => setP("offer_display", v)} options={[["text", "Sentences"], ["table", "Issue chips"]]} extra={h("offer_display")} />
             )}
+            {may("show_scenario_picture") && <Toggle label="Show the scenario's picture" hint="In the Scenario Info tool" value={p.show_scenario_picture !== false} onChange={(v) => setP("show_scenario_picture", v)} extra={h("show_scenario_picture")} />}
+            {may("scenario_picture_style") && (
+              <Choice label="Scenario picture" hint="In the Scenario Info tool" value={String(p.scenario_picture_style ?? "")} onChange={(v) => setP("scenario_picture_style", v || null)} options={[["", "As set"], ["small", "Small"], ["large", "Large"], ["watermark", "Watermark"]]} extra={h("scenario_picture_style")} />
+            )}
+            {may("open_scenario_description") && <Toggle label="Open the full scenario description" hint="Expanded in the Scenario Info tool when a scenario loads" value={!!p.open_scenario_description} onChange={(v) => setP("open_scenario_description", v)} extra={h("open_scenario_description")} />}
             {may("device") && (
               <Choice
                 label="Layout for"

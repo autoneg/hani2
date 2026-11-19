@@ -118,3 +118,99 @@ def test_installed_example_copy_without_pictures_uses_bundled_one(tmp_path):
     assert pics.find(copy, "Examples")["dark"] == DEFAULT_SCENARIOS / "Lease" / "picture_dark.svg"
     assert pics.find(tmp_path / "Mine" / "s1", "Mine", {"story": "Island"})["light"] == \
         DEFAULT_SCENARIOS / "Island" / "picture.svg"
+
+
+# --------------------------------------------------------------------------- #
+# Layered settings: picture shown and full description opened                  #
+# --------------------------------------------------------------------------- #
+def _flat(comps):
+    return list(_all(comps))
+
+
+def _info_view(s):
+    return _flat(s.tool_controller.find("Scenario Info").view())
+
+
+def _desc(s):
+    return next(c for c in _info_view(s) if c["type"] == "card" and c.get("title") == "Full description")
+
+
+def test_defaults_picture_on_description_closed():
+    s = make_session(scenario_type="UsedCar")
+    assert any(c["type"] == "image" for c in _info_view(s))
+    assert _desc(s)["collapsed"] is True
+    assert s.set_pref("open_scenario_description", True)
+    assert _desc(s)["collapsed"] is False  # the tool is re-rendered at once
+    old = _desc(s)["id"]
+    s.load()
+    assert _desc(s)["collapsed"] is False and _desc(s)["id"] != old  # a new card: starts opened
+
+
+def test_project_and_study_layers_set_the_defaults(hani2_home):
+    import json
+
+    from hani2 import projects
+
+    projects.create_project("P")
+    projects.create_study("P/s1")
+    projects.create_study("P/s2")
+    (projects.project_dir("P") / "env.json").write_text(json.dumps(
+        {"interface": {"prefs": {"show_scenario_picture": False, "open_scenario_description": True}}}))
+    (projects.study_dir(projects.StudyRef("P", "s1")) / "env.json").write_text(json.dumps(
+        {"interface": {"prefs": {"show_scenario_picture": True}}}))
+    s1, s2 = make_session(study="P/s1"), make_session(study="P/s2")
+    assert any(c["type"] == "image" for c in _info_view(s1))  # the study beats its project
+    assert not any(c["type"] == "image" for c in _info_view(s2))  # the project's default
+    assert _desc(s1)["collapsed"] is False and _desc(s2)["collapsed"] is False
+
+
+def test_admin_can_lock_the_settings_for_participants(hani2_home):
+    import json
+
+    from hani2 import projects
+
+    projects.create_project("P")
+    projects.create_study("P/locked")
+    (projects.study_dir(projects.StudyRef("P", "locked")) / "env.json").write_text(json.dumps({"interface": {
+        "participant_settings": {"show_scenario_picture": False, "open_scenario_description": False},
+        "prefs": {"show_scenario_picture": False}}}))
+    s = make_session(study="P/locked")
+    ui = s.snapshot()["interface"]["participant_settings"]
+    assert ui["show_scenario_picture"] is False and ui["open_scenario_description"] is False
+    assert not any(c["type"] in ("image", "switch") for c in _info_view(s))  # no picture, no switch
+    assert not s.set_pref("show_scenario_picture", True)  # refused by the server
+    assert not s.set_pref("open_scenario_description", True)
+    s.tool_controller.find("Scenario Info").on_input("show_picture", True)  # nor through the tool
+    assert s.prefs["show_scenario_picture"] is False
+    a = make_session(study="P/locked", is_admin=True)  # administrators may change everything
+    assert a.set_pref("show_scenario_picture", True)
+    assert {"show_scenario_picture", "open_scenario_description"} <= set(a.snapshot()["interface"]["hidden_from_participants"])
+
+
+def test_picture_style_is_a_layered_participant_setting(hani2_home):
+    import json
+
+    from hani2 import projects
+
+    projects.create_project("P")
+    projects.create_study("P/wm")
+    projects.create_study("P/locked")
+    (projects.study_dir(projects.StudyRef("P", "wm")) / "env.json").write_text(json.dumps(
+        {"interface": {"prefs": {"scenario_picture_style": "watermark"}}}))
+    (projects.study_dir(projects.StudyRef("P", "locked")) / "env.json").write_text(json.dumps({"interface": {
+        "prefs": {"scenario_picture_style": "large"},
+        "participant_settings": {"scenario_picture_style": False}}}))
+    s = make_session(study="P/wm")
+    assert next(c for c in _info_view(s) if c["type"] == "figure")["placement"] == "watermark"
+    assert s.set_pref("scenario_picture_style", "small")  # the participant's own choice
+    assert next(c for c in _info_view(s) if c["type"] == "figure")["placement"] == "side"
+    assert not s.set_pref("scenario_picture_style", "huge")  # unknown styles are refused
+    s.tool_controller.find("Scenario Info").on_input("picture_style", "large")  # the menu writes the pref
+    assert s.prefs["scenario_picture_style"] == "large"
+    locked = make_session(study="P/locked")
+    view = _info_view(locked)
+    assert not any(c.get("name") == "picture_style" for c in view)  # no menu
+    assert any(c["type"] == "image" for c in view) and not any(c["type"] == "figure" for c in view)  # large
+    assert not locked.set_pref("scenario_picture_style", "watermark")
+    locked.tool_controller.find("Scenario Info").on_input("picture_style", "watermark")
+    assert locked.prefs["scenario_picture_style"] == "large"
