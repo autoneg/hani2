@@ -58,6 +58,8 @@ details are.
 | Hybrid Intelligence, a team's assistant | `hani2 --assistant team.py:TeamAgent` (or `package.module:Class`) | [Submitting tools and agents](guide/assistant.md#hybrid-intelligence-submitting-tools-and-agents) |
 | A team's tools | `hani2 --tools team.py:TeamTool` | [Submitting tools and agents](guide/assistant.md#hybrid-intelligence-submitting-tools-and-agents) |
 | Opponent agents | `hani2 --opponents BoulwareTBNegotiator,:template` (also `?opponents=` per link and `opponents` in `env.json`) | [Opponents](guide/opponents.md) |
+| Leaderboards of both tracks | `hani2 replay leaderboard --track han\|hi`, or **Leaderboard** in the replay tool | [Tracks and leaderboards](guide/evaluation.md#tracks-and-leaderboards) |
+| Pass/fail criteria per scenario | an `evaluation` block in `_info.yaml` | [Evaluation criteria](guide/scenarios.md#evaluation-criteria) |
 | Saved competition setups | `hani2 experiment create NAME --no-assistant --opponents ... --tools ... --no-webmcp`, then `hani2 --experiment NAME` | [Command line](getting-started/cli.md#hani2-experiment-create) |
 
 The **opponent agent** negotiates against the participant; the **Assistant** helps the

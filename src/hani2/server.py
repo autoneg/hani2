@@ -1223,6 +1223,32 @@ def replay_compare(body: dict = Body(...), _: str = Depends(require_admin)):
                                  use_llm=bool(body.get("llm")), options=body.get("options") or {}))
 
 
+@app.post("/api/replay/leaderboard")
+def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
+    """Leaderboards of a competition track: ``{"keys", "track": "han"|"hi", "board": "outcome"|"interaction"|null,
+    "metrics", "llm", "options", "success", "success_threshold", "relative", "min_coverage", "practice"}``;
+    without ``board`` both boards (``{"boards": {"outcome": ..., "interaction": ...}}``)."""
+    from hani2.evaluation import TRACKS, evaluate_keys, leaderboard
+
+    keys = [str(k) for k in body.get("keys") or []]
+    if not keys:
+        raise HTTPException(400, "no recordings selected")
+    track = str(body.get("track") or "hi")
+    if track not in TRACKS:
+        raise HTTPException(400, f"unknown track {track!r}")
+    boards = [str(body["board"])] if body.get("board") else ["outcome", "interaction"]
+    if any(b not in ("outcome", "interaction") for b in boards):
+        raise HTTPException(400, "board is outcome or interaction")
+    opts = body.get("options") or {}
+    ev = evaluate_keys(keys, metrics=body.get("metrics"), use_llm=bool(body.get("llm")), options=opts)
+    kw = dict(options=opts, success=body.get("success") or None, success_threshold=body.get("success_threshold"),
+              relative=bool(body.get("relative")),
+              min_coverage=0.5 if body.get("min_coverage") is None else float(body["min_coverage"]),
+              include_practice=bool(body.get("practice")))
+    return jsonable({"track": track, "boards": {b: leaderboard(ev["rows"], track, b, **kw) for b in boards},
+                     "errors": ev["errors"]})
+
+
 @app.get("/api/admin/users")
 def admin_users(_: str = Depends(require_admin)):
     meta = auth.load_users_meta()

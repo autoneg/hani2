@@ -134,7 +134,7 @@ other line has `t` (seconds since `t0`) and `k` (its kind):
 | `chat` | An assistant chat message. |
 | `llm` | A language-model call: `role`, `model`, `latency`, `usage`, `cost`, `prefix` (messages shared with the previous call of that role) and the new `messages`, `response`. |
 | `fn` | A function the assistant called: `name`, `args`, `result`, `latency`. |
-| `scenario` | Issues, `outcomes`, `utilities` (one list per party), `reserved`, `human_index`, serialized utility functions. |
+| `scenario` | Issues, `outcomes`, `utilities` (one list per party), `reserved`, `human_index`, serialized utility functions, and the scenario's [evaluation criteria](scenarios.md#evaluation-criteria) (`evaluation`, when it has any). |
 | `start`, `trace`, `result`, `questionnaire`, `end` | The negotiation's start (opponent, settings, assistant), its full trace, its result, the questionnaire and its answers, and the end of the recording. |
 
 Deltas map a key to `{"s": value}` (set), `{"a": [items]}` (append to a list), `{"d": 1}`

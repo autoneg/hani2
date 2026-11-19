@@ -1643,6 +1643,95 @@ The share of function calls that worked. A call counts as failed when its result
 or when the result is not an object (e.g. an error text). Empty without calls; the calls per function
 are in the details.
 
+### `rule_checks` — Rule checks
+
+*hard*
+
+Mistakes the utility table proves (accepting or suggesting a deal worth
+less than no deal) and failed sessions.
+
+$$
+\text{irrational\_accept} = \mathbb{1}\big[\omega^* \neq \varnothing \wedge h \text{ accepted} \wedge u_h(\omega^*) < r_h\big]
+$$
+
+Mistakes that need no judgement because the utility table proves them: accepting a deal worth less
+than walking away, the Assistant suggesting such an offer, and sessions that failed because of the
+Opponent agent or of the system. A scenario's `evaluation` block can require some of them to be 0
+(`rules`), and the combined scores use them.
+
+**Example.** The reservation value of the Human is $r_h = 0.2$. The Assistant suggests offers worth
+0.6, 0.15 and 0.3 to the Human; the Human then accepts the Opponent's offer worth 0.18. Then
+`irrational_suggestions` $= 1$ and `irrational_accept` $= 1$.
+
+Empty without a utility table (e.g. continuous issues), except the two failure flags.
+
+#### `irrational_accept` — Accepted below reservation
+
+*1 if the Human seat accepted a deal worth less than no deal*
+
+**Range:** 0 or 1 · **Direction:** lower is better
+
+$$
+\mathbb{1}\big[\omega^* \neq \varnothing \wedge h \text{ accepted} \wedge u_h(\omega^*) < r_h\big]
+$$
+
+1 when the negotiation ended because the Human seat (the Human, the Assistant or the autopilot acting
+for them) accepted an offer whose utility for the Human is below their reservation value $r_h$: the
+Human would have done better without a deal. 0 otherwise, also when there was no deal.
+
+#### `opponent_irrational_accept` — Opponent accepted below reservation
+
+*1 if the Opponent accepted a deal worth less to it than no deal*
+
+**Range:** 0 or 1 · **Direction:** lower is better
+
+$$
+\mathbb{1}\big[\omega^* \neq \varnothing \wedge o \text{ accepted} \wedge u_o(\omega^*) < r_o\big]
+$$
+
+The same for the Opponent: it accepted an offer worth less to it than its reservation value $r_o$. A
+well-built negotiation agent never does this.
+
+#### `irrational_suggestions` — Suggestions below reservation
+
+*Assistant suggestions worth less to the Human than no deal*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{\sigma \in \Sigma : u_h(\sigma) < r_h\} \rvert
+$$
+
+How many of the Assistant's suggestions $\Sigma$ (offers it filled into the Human's seat) are worth less
+to the Human than their reservation value. Empty when there was no Assistant activity.
+
+#### `opponent_failed` — Opponent failed
+
+*1 if the session ended because the Opponent agent raised an error*
+
+**Range:** 0 or 1 · **Direction:** lower is better
+
+$$
+\mathbb{1}\left[\text{status} = \text{agent\_failed}\right]
+$$
+
+1 when the negotiation ended because the Opponent agent failed. In the Human-Agent Negotiation track
+this counts against the Opponent; in the Hybrid Intelligence track the session is left out of the
+leaderboard (it is not the Assistant's fault).
+
+#### `infrastructure_failure` — System failure
+
+*1 if the negotiation mechanism failed*
+
+**Range:** 0 or 1 · **Direction:** lower is better
+
+$$
+\mathbb{1}\left[\text{status} = \text{erred}\right]
+$$
+
+1 when the negotiation ended because the mechanism (the system) failed. Such sessions are left out of
+every leaderboard.
+
 ## Subjective metrics
 
 The participant's own answers to the questionnaire.
@@ -2540,6 +2629,435 @@ $$
 
 Who made the earliest critical error (by the mm:ss time the judge gave; errors without a readable
 time come last), or none. It shows who first put the outcome at risk.
+
+### `task_judge` — LLM judge: scenario criteria
+
+*soft · needs a language model*
+
+A language model checks the facts the Assistant had to convey and the
+scenario's own assertions.
+
+$$
+c_i, a_j \in \{\text{true}, \text{false}, \text{null}\} \ \text{for every fact } i \text{ and assertion } j
+$$
+
+A language model checks the judged parts of the scenario's evaluation criteria (its `evaluation`
+block, see [Scenarios](scenarios.md#evaluation-criteria)):
+
+* **communicate** — facts the Assistant should have conveyed to the Human (for example "Price is your
+  most important issue"). A fact counts when the Assistant's messages state it or something that
+  clearly means the same; the judge gives one verdict per fact.
+* **assertions** — statements about the session specific to this scenario, each met, not met or not
+  applicable (like `nl_assertions`, whose statements apply to every scenario).
+
+**Example.** Three facts, two conveyed: `task_communicated` $= 2/3$. Two assertions, one met and one
+not applicable: `task_assertions_met` $= 1$.
+
+Not computed when the criteria define neither facts nor assertions.
+
+**Options:**
+
+* `criteria` — Evaluation criteria for scenarios without their own (a dict with communicate, assertions, …).
+
+#### `task_communicated` — Facts communicated
+
+*Share of the scenario's facts the Assistant conveyed to the Human*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\lvert \{i : c_i = \text{true}\} \rvert}{\lvert \{i : c_i \neq \text{null}\} \rvert}
+$$
+
+The share of the facts of the scenario's `communicate` list that the Assistant told the Human. 1 is
+needed for the `communicate` component of `task_success`.
+
+#### `task_assertions_met` — Scenario assertions met
+
+*Share of the scenario's applicable assertions that were met*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\lvert \{j : a_j = \text{true}\} \rvert}{\lvert \{j : a_j \neq \text{null}\} \rvert}
+$$
+
+The share of the scenario's applicable `assertions` that the judge found met (not-applicable ones are
+left out). 1 is needed for the `assertions` component of `task_success`.
+
+## Task success and combined scores
+
+Computed after the other metrics, from their columns: whether the session met its scenario's evaluation criteria, and the combined scores of the Human-Agent Negotiation and Hybrid Intelligence tracks.
+
+### `task_success` — Task success
+
+*score*
+
+Pass/fail against the scenario's evaluation criteria (the product of its
+components: targets, rules, facts communicated, assertions).
+
+$$
+\text{task\_success} = \prod_{c \in B} \mathbb{1}[c \text{ holds}], \qquad B \subseteq \{\text{targets}, \text{rules}, \text{communicate}, \text{assertions}\}
+$$
+
+Whether the session did what its scenario asks, as a pass/fail result: the product of the components
+of the scenario's evaluation criteria (its `evaluation` block, or `env.json` `evaluation.criteria`):
+
+* **targets** — every condition on the session's columns holds (e.g. `agreement: 1`,
+  `human_advantage: ">= 0.4"`, `pareto_distance: "<= 0.15"`); a target on a column without a value
+  leaves `task_success` empty (unless another component already failed);
+* **rules** — every named rule check (`rule_checks`) is 0;
+* **communicate** — the Assistant conveyed every fact (`task_communicated` $= 1$, needs the judge);
+* **assertions** — every applicable scenario assertion was met (`task_assertions_met` $= 1$, needs the
+  judge).
+
+`basis` lists the components that count. Without it, every component the criteria define counts if it
+was evaluated (the judged ones only with the language-model judge) and `task_components` tells how
+many did; any failed component makes it 0. With an explicit `basis`, a component that was not evaluated leaves `task_success` empty
+instead of passing. Its mean is the success rate, and it is the default success criterion of the
+leaderboards' pass^k.
+
+**Example.** Targets `agreement: 1` and `human_advantage: ">= 0.4"`, rules `[irrational_accept]`.
+A deal with `human_advantage` $= 0.5$, accepted above the reservation value: `task_targets_met` $= 1$,
+`task_rules_ok` $= 1$ and `task_success` $= 1$. With `human_advantage` $= 0.3$ instead,
+`task_targets_met` $= 1/2$ and `task_success` $= 0$.
+
+Empty for scenarios without criteria.
+
+**Options:**
+
+* `criteria` — Evaluation criteria for scenarios without their own (a dict with targets, rules, communicate, assertions, basis).
+
+#### `task_success` — Task success
+
+*1 if the session met every component of its scenario's evaluation criteria*
+
+**Range:** 0 or 1 · **Direction:** higher is better
+
+$$
+\prod_{c \in B} \mathbb{1}[c \text{ holds}]
+$$
+
+1 when every component of the basis holds, 0 when one fails. Empty when the scenario has no criteria or
+a component of an explicit `basis` was not evaluated.
+
+#### `task_targets_met` — Targets met
+
+*Share of the scenario's targets the session met*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\lvert \{t \in T : t \text{ holds}\} \rvert}{\lvert T \rvert}
+$$
+
+The share of the conditions of `targets` that hold. A target on a column that has no value (for
+example a questionnaire scale without a questionnaire, or a misspelled column) makes the share empty.
+
+#### `task_rules_ok` — Rules respected
+
+*1 if every rule check the scenario names is 0*
+
+**Range:** 0 or 1 · **Direction:** higher is better
+
+$$
+\prod_{\rho \in R} \mathbb{1}[\rho = 0]
+$$
+
+1 when none of the rule checks named in `rules` fired (missing checks count as respected: e.g.
+`irrational_suggestions` without an Assistant).
+
+#### `task_components` — Components checked
+
+*How many components the task success was computed from*
+
+**Range:** count · **Direction:** no better direction
+
+$$
+\lvert B \rvert
+$$
+
+The number of components (targets, rules, communicate, assertions) that `task_success` multiplied.
+
+### `scores` — Combined scores (HAN and HI tracks)
+
+*score*
+
+The combined scores of the HAN and HI tracks, from the other metrics.
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}, \qquad P = \{i : x_i \text{ has a value}\}
+$$
+
+A few numbers in $[0, 1]$ (higher is better) that summarise a session for the two competition tracks.
+Each is a weighted mean of components $x_i$ taken from the other metrics, each normalised to $[0, 1]$
+by $\phi_i$ (ratings of 1–7 become $(x - 1)/6$, error counts $1/(1 + x)$, flags $1 - x$). Components
+without a value (no questionnaire, no language-model judge) are left out, and the coverage column tells
+how much of the weight was present.
+
+* **Human-Agent Negotiation** (no Assistant; the entrants are Opponent agents): `han_outcome` (what the
+  agent obtained) and `han_interaction` (how well it behaved as an opponent).
+* **Hybrid Intelligence** (with an Assistant; the entrants are Assistants): `hi_outcome` (what the team
+  obtained) and `hi_interaction`, the mean of `hi_assistant` (how well it worked as an Assistant) and
+  `hi_team` (how well the team worked).
+
+Change the weights with `env.json` `evaluation.scores` or the option `scores`. The
+[leaderboards](evaluation.md#tracks-and-leaderboards) rank entrants by these scores.
+
+**Example.** `hi_outcome` of a session with `human_advantage` $= 0.375$ is $0.375$. A session with
+`ja_overall` $= 6$ (normalised $5/6$) and one critical Assistant error (normalised $1/2$), and no other
+component of `hi_assistant`, has `hi_assistant` $= (1 \cdot 5/6 + 1 \cdot 1/2)/2 = 0.667$ and a coverage
+of $2/9.5 = 0.21$.
+
+**Options:**
+
+* `scores` — Weight overrides: {score: {weights: {column: weight}}} (0 drops a component).
+
+#### `han_outcome` — HAN outcome
+
+*What the Opponent agent obtained against the Human (Human-Agent Negotiation track)*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The outcome board of the Human-Agent Negotiation track ranks Opponent agents by the share of their
+largest possible gain over no deal that they obtained against human participants. No deal scores 0,
+and so does a session that the agent ended by failing.
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `opponent_advantage` | the Opponent's advantage | 1 | an advantage clipped to [0, 1] (no better than no deal = 0): $\min(1, \max(0, x))$ |
+
+The score is 0 when `opponent_failed` is 1.
+
+Components without a value are left out (see `han_outcome_coverage`).
+
+#### `han_outcome_coverage` — HAN outcome coverage
+
+*Share of the weight of han_outcome that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `han_outcome` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `han_interaction` — HAN interaction
+
+*How well the Opponent agent behaved as an opponent (Human-Agent Negotiation track)*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The interaction board of the Human-Agent Negotiation track: how the participants experienced the
+agent (questionnaire), how a language-model judge rates its behaviour and messages, and whether it
+negotiated soundly (no failure, no deal accepted below its own reservation value).
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `scale_opponent_kindness_norm` | questionnaire: kindness | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_opponent_intelligence_norm` | questionnaire: intelligence | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_opponent_humanlike_norm` | questionnaire: human-likeness | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_relationship_norm` | questionnaire: wanting to negotiate again | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_satisfaction_norm` | questionnaire: the participant's satisfaction | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `jo_overall` | judge: overall | 1 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `jo_communication` | judge: communication | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `jo_consistency` | judge: consistency | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `jo_human_likeness` | judge: human-likeness | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `opponent_failed` | did not fail | 1 | one minus a [0, 1] value where lower is better (e.g. a 0/1 flag): $1 - \min(1, \max(0, x))$ |
+| `opponent_irrational_accept` | did not accept below its reservation value | 0.5 | one minus a [0, 1] value where lower is better (e.g. a 0/1 flag): $1 - \min(1, \max(0, x))$ |
+
+Components without a value are left out (see `han_interaction_coverage`).
+
+#### `han_interaction_coverage` — HAN interaction coverage
+
+*Share of the weight of han_interaction that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `han_interaction` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `hi_outcome` — HI outcome
+
+*What the human–Assistant team obtained (Hybrid Intelligence track)*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The outcome board of the Hybrid Intelligence track ranks Assistants by the share of the largest
+possible gain over no deal that the team (the Human with the Assistant) obtained. No deal scores 0.
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `human_advantage` | the Human side's advantage | 1 | an advantage clipped to [0, 1] (no better than no deal = 0): $\min(1, \max(0, x))$ |
+
+Components without a value are left out (see `hi_outcome_coverage`).
+
+#### `hi_outcome_coverage` — HI outcome coverage
+
+*Share of the weight of hi_outcome that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `hi_outcome` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `hi_assistant` — HI Assistant
+
+*How well the Assistant worked as an Assistant (Hybrid Intelligence track)*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The Assistant itself: how a language-model judge rates its help, whether it conveyed what the
+scenario requires and met the assertions, its errors, unsound suggestions, technical reliability and
+responsiveness, and how the participant experienced it.
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `ja_overall` | judge: overall | 1 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `ja_helpfulness` | judge: helpfulness | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `ja_autonomy_respect` | judge: left the Human in control | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `assertions_met` | judge: assertions met | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `task_communicated` | judge: scenario facts conveyed | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `assistant_critical_errors` | judge: critical errors | 1 | a count where lower is better: $1 / (1 + x)$ |
+| `assistant_errors` | judge: errors | 0.5 | a count where lower is better: $1 / (1 + x)$ |
+| `irrational_suggestions` | suggestions below the reservation value | 1 | a count where lower is better: $1 / (1 + x)$ |
+| `fn_success_rate` | function calls that worked | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `unanswered_messages` | unanswered messages | 0.5 | a count where lower is better: $1 / (1 + x)$ |
+| `scale_ueq_pragmatic_norm` | questionnaire: UEQ pragmatic quality | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_tam_usefulness_norm` | questionnaire: usefulness | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_felt_heard_norm` | questionnaire: felt heard | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `scale_intention_to_use_norm` | questionnaire: would use it again | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+
+Empty for sessions without an Assistant.
+
+Components without a value are left out (see `hi_assistant_coverage`).
+
+#### `hi_assistant_coverage` — HI Assistant coverage
+
+*Share of the weight of hi_assistant that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `hi_assistant` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `hi_team` — HI team
+
+*How well the human–Assistant team worked together (Hybrid Intelligence track)*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The team: appropriate reliance on the Assistant (neither ignoring it harmfully nor following it
+blindly), the Human's engagement and critical errors, a sound final decision and an efficient result.
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `human_overrode_harmfully` | judge: harmful overrides of the Assistant | 1 | a count where lower is better: $1 / (1 + x)$ |
+| `human_critical_errors` | judge: the Human's critical errors | 1 | a count where lower is better: $1 / (1 + x)$ |
+| `jh_use_of_assistant` | judge: use of the Assistant | 1 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `jh_engagement` | judge: engagement | 0.5 | a 1–7 rating mapped to [0, 1]: $(x - 1) / 6$ |
+| `always_follows` | did not blindly follow every suggestion | 0.5 | one minus a [0, 1] value where lower is better (e.g. a 0/1 flag): $1 - \min(1, \max(0, x))$ |
+| `click_through` | did not click through | 0.5 | one minus a [0, 1] value where lower is better (e.g. a 0/1 flag): $1 - \min(1, \max(0, x))$ |
+| `irrational_accept` | did not accept below the reservation value | 1 | one minus a [0, 1] value where lower is better (e.g. a 0/1 flag): $1 - \min(1, \max(0, x))$ |
+| `welfare_optimality` | efficiency of the result | 0.5 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+
+Empty for sessions without an Assistant.
+
+Components without a value are left out (see `hi_team_coverage`).
+
+#### `hi_team_coverage` — HI team coverage
+
+*Share of the weight of hi_team that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `hi_team` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `hi_interaction` — HI interaction
+
+*The Assistant and the team together: the ranked score of the HI interaction board*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The interaction board of the Hybrid Intelligence track ranks Assistants by the mean of how well they
+worked as an Assistant (`hi_assistant`) and how well their teams worked (`hi_team`).
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `hi_assistant` | the HI Assistant score | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+| `hi_team` | the HI team score | 1 | the value, clipped to [0, 1]: $\min(1, \max(0, x))$ |
+
+Empty for sessions without an Assistant.
+
+Components without a value are left out (see `hi_interaction_coverage`).
+
+#### `hi_interaction_coverage` — HI interaction coverage
+
+*Share of the weight of hi_interaction that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `hi_interaction` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
 
 ## Comparing groups
 

@@ -227,6 +227,7 @@ All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and
 | `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets; offers read "You get 2 clocks; your opponent gets 1 clock", the history and the offer on the table show what each side gets, and the editor asks how many of each item *you* get, with a *Split evenly* button. |
 | `story` | The scenario type that generated the scenario (set by the generators). |
 | `role_descriptions` | A one-line description per role (`role: text`). Written by the generators for reference; the participant reads the roles in `long_description` and in the *Your role* hint. |
+| `evaluation` | What a good session of this scenario looks like, for evaluation only (see [Evaluation criteria](#evaluation-criteria)). Never shown to the participant, the Assistant or the opponent. |
 
 The keys of `hints` and of role-specific `issue_description` must match the utility function `name` exactly, including case.
 
@@ -246,6 +247,49 @@ short_description: >-
 long_description: |
   **The domain** A buyer and a seller negotiate the quantity and the price of one trade.
 ```
+
+### Evaluation criteria
+
+A scenario can say what a successful session is, so that every recording of it can be checked
+pass/fail and the [leaderboards](evaluation.md#tracks-and-leaderboards) can report reliability
+(pass^k). Add an `evaluation` block to `_info.yaml`:
+
+```yaml title="_info.yaml"
+evaluation:
+  targets:                     # conditions on evaluation columns of the session
+    agreement: 1
+    human_advantage: ">= 0.4"  # also <=, >, <, ==, != or a [low, high] range
+    pareto_distance: "<= 0.15"
+  rules: [irrational_accept, irrational_suggestions]  # rule checks that must be 0
+  communicate:                 # facts the Assistant must tell the participant (language-model judge)
+    - Price is your most important issue
+    - The buyer cares little about the founders' equity
+  assertions:                  # statements about the session (language-model judge)
+    - The Assistant warned the participant before they accepted a deal below their reservation value.
+  basis: [targets, rules, communicate]  # optional: what success requires (default: every part given)
+```
+
+| Part | Checked by | Holds when |
+| --- | --- | --- |
+| `targets` | the recording | every condition holds; a target can name any numeric column of [the metric reference](metrics.md), e.g. `agreement`, `human_advantage`, `welfare_optimality`, `n_offers` |
+| `rules` | the recording | every named check of `rule_checks` is 0: `irrational_accept`, `opponent_irrational_accept`, `irrational_suggestions`, `opponent_failed`, `infrastructure_failure` |
+| `communicate` | the judge (`--llm`) | the Assistant conveyed every fact to the participant |
+| `assertions` | the judge (`--llm`) | every applicable statement was met |
+
+`task_success` is 1 only when every part of the basis holds. Without `basis`, every part given
+counts if it was evaluated (the judged ones only with the language-model judge); with `basis`, a
+part that was not evaluated leaves `task_success` empty rather than passing.
+
+The block is taken out of the scenario when it is loaded, so neither the opponent agent, the
+Assistant nor the browser sees it, and it is stored in the recording: a recording is always
+evaluated with the criteria it was played with. Criteria for every scenario without its own go in
+`env.json`:
+
+```json
+{"evaluation": {"criteria": {"targets": {"agreement": 1}, "rules": ["irrational_accept"]}}}
+```
+
+`hani2 scenario check` reports unknown parts, rules and components and conditions it cannot read.
 
 ## Showing offers
 

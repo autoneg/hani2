@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, BarChart3, Download, FileDown, Loader2, Play, RefreshCw, Scale, Upload } from "lucide-react";
+import { ArrowDown, ArrowUp, BarChart3, Download, FileDown, Loader2, Play, RefreshCw, Scale, Trophy, Upload } from "lucide-react";
 import { api, apiRaw } from "../api";
 import { navigate, withBase } from "../router";
 import { useStore } from "../store";
@@ -31,7 +31,7 @@ export interface RecInfo {
 }
 export interface MetricInfo {
   name: string;
-  kind: "hard" | "soft" | "subjective";
+  kind: "hard" | "soft" | "subjective" | "score";
   title: string;
   description: string;
   needs_llm: boolean;
@@ -97,13 +97,77 @@ function Table({ cols, rows, empty }: { cols: Col[]; rows: Record<string, any>[]
 }
 
 /* ---------------- evaluation / comparison panel ---------------- */
-function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | "compare"; onClose: () => void }) {
+type Mode = "evaluate" | "compare" | "leaderboard";
+
+/** One board of a track leaderboard (``POST /api/replay/leaderboard``). */
+function Board({ lb }: { lb: any }) {
+  const ks: string[] = [...new Set<string>((lb.entries || []).flatMap((e: any) => Object.keys(e.pass_hat_k || {})))].sort();
+  const cols: Col[] = [
+    { name: "rank", title: "Rank" },
+    { name: "entrant", title: lb.entrant_title },
+    { name: "n", title: "n" },
+    { name: "participants", title: "Participants" },
+    ...lb.scores.map((n: string) => ({ name: n, title: n, info: n, higher_is_better: true })),
+    ...ks.map((k) => ({ name: `pass${k}`, title: `pass^${k}`, info: "pass_hat_k" })),
+    { name: "cost_usd", title: "Cost (USD)", info: "llm_cost_usd" },
+    { name: "tied", title: "Tied with leader" },
+  ];
+  const ci = (s: any) => (s?.mean == null ? null : s.lo == null ? fmtNum(s.mean) : `${fmtNum(s.mean)} [${fmtNum(s.lo)}, ${fmtNum(s.hi)}]`);
+  const rows = (lb.entries || []).map((e: any) => ({
+    rank: e.rank ?? "–",
+    entrant: e.entrant,
+    n: e.n,
+    participants: e.participants,
+    ...Object.fromEntries(lb.scores.map((n: string) => [n, ci(e.scores[n])])),
+    ...Object.fromEntries(ks.map((k) => [`pass${k}`, e.pass_hat_k?.[k]])),
+    cost_usd: e.cost_usd,
+    tied: e.tied_with_leader ? "yes" : "",
+  }));
+  const exportBoard = () =>
+    downloadText(`leaderboard_${lb.track}_${lb.board}.csv`, toCsv(cols.map((c) => c.name), rows.map((r: any) => cols.map((c) => r[c.name]))));
+  const excl = Object.entries(lb.excluded || {}).map(([k, v]) => `${k} ${v}`).join(", ");
+  return (
+    <div>
+      <div className="mb-2 flex items-center">
+        <div className="flex-1 text-sm font-medium">
+          {lb.track_title} — {lb.board} board <span className="text-muted">(ranked by {lb.ranked_by}{lb.relative ? ", relative to the cell means" : ""})</span>
+        </div>
+        <button className="btn-secondary px-2 py-1 text-xs" onClick={exportBoard}>
+          <FileDown size={14} /> CSV
+        </button>
+      </div>
+      <Table cols={cols} rows={rows} empty="No sessions of this track among the selected recordings" />
+      <div className="mt-1 space-y-0.5 text-xs text-muted">
+        <div>Scores: cell-balanced mean [95% bootstrap interval over participants]. Cells: {lb.cells.join(" × ")}.</div>
+        <div>
+          Components used:{" "}
+          {Object.entries(lb.components || {})
+            .map(([n, c]: [string, any]) => `${n} (${Math.round(100 * (lb.weight_share?.[n] ?? 0))}% of its weight): ${c.length ? c.join(", ") : "–"}`)
+            .join("; ")}
+        </div>
+        {(lb.warnings || []).map((w: string) => (
+          <div key={w} className="text-warn">
+            ⚠ {w}
+          </div>
+        ))}
+        <div>
+          {lb.sessions} session(s); pass^k success = {lb.success}
+          {excl ? `; excluded: ${excl}` : ""}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Analysis({ keys, mode, onClose }: { keys: string[]; mode: Mode; onClose: () => void }) {
   const [metrics, setMetrics] = useState<MetricInfo[] | null>(null);
   const [llm, setLlm] = useState<{ configured: boolean; model?: string }>({ configured: false });
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [useLlm, setUseLlm] = useState(false);
   const [refresh, setRefresh] = useState(false);
   const [by, setBy] = useState("opponent");
+  const [track, setTrack] = useState<"hi" | "han">("hi");
+  const [relative, setRelative] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [res, setRes] = useState<any>(null);
@@ -126,6 +190,7 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
     ["hard", "Hard (computed from the recording)"],
     ["soft", "Soft (LLM)"],
     ["subjective", "Subjective (questionnaire)"],
+    ["score", "Scores (task success, tracks)"],
   ];
   const toggle = (n: string) =>
     setSel((s) => {
@@ -138,7 +203,13 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
     setError(null);
     try {
       const names = [...sel];
-      const body = mode === "evaluate" ? { keys, metrics: names.length ? names : null, llm: useLlm, refresh } : { keys, metrics: names.length ? names : null, by, llm: useLlm };
+      const metricsSel = names.length ? names : null;
+      const body =
+        mode === "evaluate"
+          ? { keys, metrics: metricsSel, llm: useLlm, refresh }
+          : mode === "compare"
+            ? { keys, metrics: metricsSel, by, llm: useLlm }
+            : { keys, metrics: metricsSel, track, relative, llm: useLlm };
       setRes(await api(`/api/replay/${mode}`, { body }));
     } catch (e: any) {
       setError(e.message || String(e));
@@ -169,9 +240,9 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
   return (
     <section className="panel mt-4 p-4">
       <div className="mb-3 flex items-center gap-2">
-        {mode === "evaluate" ? <BarChart3 size={17} className="text-you" /> : <Scale size={17} className="text-you" />}
+        {mode === "evaluate" ? <BarChart3 size={17} className="text-you" /> : mode === "compare" ? <Scale size={17} className="text-you" /> : <Trophy size={17} className="text-you" />}
         <h2 className="flex-1 text-base font-semibold">
-          {mode === "evaluate" ? "Evaluate" : "Compare"} {keys.length} recording{keys.length === 1 ? "" : "s"}
+          {mode === "evaluate" ? "Evaluate" : mode === "compare" ? "Compare" : "Leaderboard of"} {keys.length} recording{keys.length === 1 ? "" : "s"}
         </h2>
         <ReferenceButton />
         <button className="btn-ghost px-2 py-1 text-xs" onClick={onClose}>
@@ -183,7 +254,7 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
           <Loader2 size={15} className="animate-spin" /> Loading metrics…
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {groups.map(([kind, title]) => {
             const ms = metrics.filter((m) => m.kind === kind);
             return (
@@ -217,6 +288,20 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
             <input type="checkbox" checked={refresh} onChange={(e) => setRefresh(e.target.checked)} className="accent-[rgb(var(--you))]" />
             Refresh
           </label>
+        ) : mode === "leaderboard" ? (
+          <>
+            <label className="flex items-center gap-2" title="HAN ranks Opponent agents in sessions without an Assistant; HI ranks Assistants">
+              Track
+              <select className="field w-auto" value={track} onChange={(e) => setTrack(e.target.value as "hi" | "han")}>
+                <option value="hi">Hybrid Intelligence (Assistants)</option>
+                <option value="han">Human-Agent Negotiation (Opponents)</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2" title="Subtract each scenario (and opponent) cell's mean over all entrants first">
+              <input type="checkbox" checked={relative} onChange={(e) => setRelative(e.target.checked)} className="accent-[rgb(var(--you))]" />
+              Relative to cell means
+            </label>
+          </>
         ) : (
           <label className="flex items-center gap-2">
             Group by
@@ -247,6 +332,13 @@ function Analysis({ keys, mode, onClose }: { keys: string[]; mode: "evaluate" | 
               <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(res.errors, null, 1)}</pre>
             </details>
           )}
+        </div>
+      )}
+      {res && mode === "leaderboard" && (
+        <div className="mt-4 flex flex-col gap-5">
+          {Object.values(res.boards || {}).map((lb: any) => (
+            <Board key={lb.board} lb={lb} />
+          ))}
         </div>
       )}
       {res && mode === "compare" && (
@@ -295,7 +387,7 @@ export function Library() {
   const [f, setF] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<{ k: SortKey; dir: 1 | -1 }>({ k: "started", dir: -1 });
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [panel, setPanel] = useState<null | "evaluate" | "compare">(null);
+  const [panel, setPanel] = useState<null | Mode>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -382,6 +474,9 @@ export function Library() {
         </button>
         <button className="btn-secondary" disabled={keys.length < 2} onClick={() => setPanel("compare")}>
           <Scale size={15} /> Compare selected
+        </button>
+        <button className="btn-secondary" disabled={!keys.length} onClick={() => setPanel("leaderboard")} title="Rank the Assistants (HI) or Opponents (HAN) of the selected recordings">
+          <Trophy size={15} /> Leaderboard
         </button>
       </div>
       {error && <div className="mb-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</div>}

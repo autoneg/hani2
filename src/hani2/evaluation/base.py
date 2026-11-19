@@ -12,8 +12,12 @@ returns column values (and optionally ``"_details"``). Register one with
         return {"my_value": len(ctx.human_offers)}
 
 ``kind`` is ``hard`` (computed from the log), ``soft`` (judged by a language
-model; ``needs_llm=True``) or ``subjective`` (from the participant's
-questionnaire answers).
+model; ``needs_llm=True``), ``subjective`` (from the participant's
+questionnaire answers) or ``score`` (a combination of other columns).
+
+A metric with ``stage=1`` (or higher) runs after the others of its recording
+and can read their values in ``ctx.row``; ``requires`` names the metrics it
+needs (they are added when the caller selects metrics explicitly).
 """
 
 from __future__ import annotations
@@ -88,6 +92,10 @@ class Metric:
     patterns: list[Column] = field(default_factory=list)
     figures: list[str] = field(default_factory=list)
     options: dict[str, str] = field(default_factory=dict)
+    stage: int = 0
+    requires: list[str] = field(default_factory=list)
+    #: extra inputs of a judged metric that must be part of its cache key: ``fn(ctx, options) -> str``
+    cache_extra: Callable[["EvalContext", dict], str] | None = None
 
     def info(self, full: bool = False) -> dict:
         """The metric's description; ``full`` adds the reference texts
@@ -96,7 +104,8 @@ class Metric:
         if not full:
             cols = [{k: c[k] for k in ("name", "title", "description", "higher_is_better")} for c in cols]
         out = dict(name=self.name, kind=self.kind, title=self.title, description=self.description,
-                   needs_llm=self.needs_llm, default=self.default, version=self.version, columns=cols)
+                   needs_llm=self.needs_llm, default=self.default, version=self.version, columns=cols,
+                   stage=self.stage, requires=list(self.requires))
         if full:
             out.update(formula=self.formula, details=self.details, patterns=[c.info() for c in self.patterns],
                        figures=list(self.figures), options=dict(self.options))
@@ -114,22 +123,26 @@ class Metric:
 
 
 REGISTRY: dict[str, Metric] = {}
+#: the kinds of metrics, in the order they are listed
+KINDS = ("hard", "subjective", "soft", "score")
 
 
 def metric(name: str, *, kind: str, title: str, columns: list[Column], description: str = "",
            needs_llm: bool = False, default: bool = True, version: str = "1", formula: str = "",
            details: str = "", patterns: list[Column] | None = None, figures: list[str] | None = None,
-           options: dict[str, str] | None = None):
+           options: dict[str, str] | None = None, stage: int = 0, requires: list[str] | None = None,
+           cache_extra: Callable[["EvalContext", dict], str] | None = None):
     """Register a metric (decorator). ``description`` defaults to the first
     paragraph of the function's docstring."""
-    if kind not in ("hard", "soft", "subjective"):
+    if kind not in KINDS:
         raise ValueError(f"unknown metric kind {kind!r}")
 
     def deco(fn):
         REGISTRY[name] = Metric(name, kind, title, description or inspect.cleandoc(fn.__doc__ or ""), columns, fn,
                                 needs_llm=needs_llm, default=default, version=version, formula=formula,
                                 details=details.strip(), patterns=list(patterns or []),
-                                figures=list(figures or []), options=dict(options or {}))
+                                figures=list(figures or []), options=dict(options or {}), stage=stage,
+                                requires=list(requires or []), cache_extra=cache_extra)
         return fn
 
     return deco
@@ -158,6 +171,8 @@ class EvalContext:
 
     def __init__(self, rec: Recording):
         self.rec = rec
+        #: the values computed so far for this recording (read by metrics with ``stage >= 1``)
+        self.row: dict[str, Any] = {}
 
     # -- scenario -------------------------------------------------------------------
     @cached_property

@@ -1,6 +1,6 @@
 """Evaluate recorded negotiations (``.hrec`` files) with optional metrics.
 
-Three kinds of metrics:
+Four kinds of metrics:
 
 * **hard** — computed from the log: outcome, optimality (Pareto / Nash /
   Kalai–Smorodinsky distances, welfare), length, LLM usage and cost, move types
@@ -8,6 +8,10 @@ Three kinds of metrics:
   engagement flags, assistant interaction quality.
 * **soft** — judged by a language model from the transcript (opt-in).
 * **subjective** — the participant's questionnaire answers (UEQ, TAM, …).
+* **score** — combinations of the others: per-scenario task success and the
+  combined scores of the HAN and HI tracks (see :mod:`hani2.evaluation.scores`).
+
+Rank the entrants of a track with :func:`leaderboard` (``hani2 replay leaderboard``).
 
 Use it from Python::
 
@@ -31,7 +35,10 @@ import numpy as np
 from hani2.evaluation import hard as _hard  # noqa: F401  (registers metrics)
 from hani2.evaluation import llm_judge as _llm  # noqa: F401
 from hani2.evaluation import subjective as _subj  # noqa: F401
-from hani2.evaluation.base import REGISTRY, Column, EvalContext, Metric, metric
+from hani2.evaluation import tasks as _tasks  # noqa: F401
+from hani2.evaluation import scores as _scores  # noqa: F401
+from hani2.evaluation.base import KINDS, REGISTRY, Column, EvalContext, Metric, metric
+from hani2.evaluation.tracks import TRACKS, leaderboard, leaderboards
 from hani2.evaluation.llm_judge import llm_judge_status
 from hani2.evaluation.reference import metric_reference
 from hani2.recording.format import Recording, iter_recordings, recording_id
@@ -39,7 +46,7 @@ from hani2.recording.format import Recording, iter_recordings, recording_id
 __all__ = [
     "REGISTRY", "Column", "EvalContext", "Metric", "metric", "available_metrics", "evaluate_recording",
     "evaluate_paths", "evaluate_keys", "compare_rows", "compare_keys", "pass_hat_k", "llm_judge_status",
-    "metric_reference",
+    "metric_reference", "leaderboard", "leaderboards", "TRACKS",
 ]
 
 #: fields copied from the recording into every row (used to group and filter)
@@ -50,7 +57,7 @@ ID_FIELDS = ("key", "id", "user", "mode", "scenario", "opponent", "support_agent
 def available_metrics(full: bool = False) -> list[dict]:
     """Every registered metric (hard, subjective, soft); ``full`` adds the
     reference texts (formulas, details, dynamic columns, figures)."""
-    order = {"hard": 0, "subjective": 1, "soft": 2}
+    order = {k: i for i, k in enumerate(KINDS)}
     return sorted((m.info(full) for m in REGISTRY.values()), key=lambda m: order.get(m["kind"], 9))
 
 
@@ -60,10 +67,19 @@ def _select(metrics: Iterable[str] | None, use_llm: bool) -> list[Metric]:
         unknown = [n for n in names if n not in REGISTRY]
         if unknown:
             raise ValueError(f"unknown metric(s): {', '.join(unknown)}; known: {', '.join(REGISTRY)}")
+        # add what the selected metrics need (in front of them)
+        todo, names = names, []
+        while todo:
+            n = todo.pop(0)
+            if n in names:
+                continue
+            names.append(n)
+            todo += [r for r in REGISTRY[n].requires if r in REGISTRY]
         sel = [REGISTRY[n] for n in names]
     else:
         sel = [m for m in REGISTRY.values() if m.default]
-    return [m for m in sel if use_llm or not m.needs_llm]
+    sel = [m for m in sel if use_llm or not m.needs_llm]
+    return sorted(sel, key=lambda m: m.stage)  # stable: the given order within a stage
 
 
 def _ident(rec: Recording, key: str | None) -> dict:
@@ -119,6 +135,7 @@ def evaluate_recording(rec: Recording, metrics: Iterable[str] | None = None, *, 
     options = dict(options or {})
     ctx = EvalContext(rec)
     row = _ident(rec, key)
+    ctx.row = row  # later stages read the values computed so far
     details: dict[str, Any] = {}
     errors: dict[str, str] = {}
     cache = _load_cache(rec) if use_llm else {}
@@ -129,6 +146,8 @@ def evaluate_recording(rec: Recording, metrics: Iterable[str] | None = None, *, 
                 from hani2.evaluation.llm_judge import cache_key, stamp
 
                 ck = cache_key(m.name, m.version, options, rec.complete)
+                if m.cache_extra is not None:
+                    ck += "|" + m.cache_extra(ctx, options)
                 if not refresh and ck in cache:
                     vals = cache[ck]["values"]
                 else:

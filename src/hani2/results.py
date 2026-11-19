@@ -233,6 +233,11 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         sdir = user_path / "scenarios" / f"{m.id}"
         from hani2.scenario_store import save_scenario
 
+        if ss.get("scenario_evaluation") is not None:  # put back the evaluation criteria taken out at load
+            import copy
+
+            scenario = copy.copy(scenario)
+            scenario.info = {**(scenario.info or {}), "evaluation": ss["scenario_evaluation"]}
         save_scenario(scenario, sdir)  # the same files as the pool slot it came from
         (user_path / "mechanisms").mkdir(exist_ok=True, parents=True)
         dump(

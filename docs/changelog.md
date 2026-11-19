@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **Leaderboards for the Human-Agent Negotiation and Hybrid Intelligence tracks.** Each track has
+  an **outcome** board and an **interaction** board. HAN ranks opponent agents by what they
+  obtained (`han_outcome`) and by how well they behaved as opponents (`han_interaction`). HI ranks
+  Assistants by what the team obtained (`hi_outcome`) and by how well they worked as Assistants and
+  as a team (`hi_interaction` = `hi_assistant` + `hi_team`). Scores are cell-balanced means with
+  95 % confidence intervals that resample participants, with pass^k reliability and cost. Every
+  entrant is scored on the same components. Use `hani2 replay leaderboard`, **Leaderboard** in the
+  replay tool or `POST /api/replay/leaderboard`. See
+  [Tracks and leaderboards](guide/evaluation.md#tracks-and-leaderboards).
+- **Combined scores.** A new metric, `scores`, combines outcome, rule checks, judge, questionnaire
+  and log columns into six numbers in [0, 1] per session, each with its coverage. Weights can be
+  changed in `env.json → evaluation.scores`.
+- **Evaluation criteria per scenario.** An `evaluation` block in `_info.yaml` (targets on outcome
+  columns, rule checks, facts the Assistant must convey and assertions) makes every session
+  pass/fail (`task_success`, the default success criterion of the HI leaderboard's pass^k). The
+  block is hidden from the participant, the Assistant and the opponent, and stored in the
+  recording. See [Evaluation criteria](guide/scenarios.md#evaluation-criteria).
+- **Rule checks.** A new metric, `rule_checks`, flags mistakes that the utility table proves:
+  accepting a deal worth less than no deal, suggesting one, the opponent doing so, and sessions
+  that failed because of the opponent or the system. A new judged metric, `task_judge`, checks the
+  scenario's facts and assertions.
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

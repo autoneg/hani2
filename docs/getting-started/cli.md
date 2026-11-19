@@ -326,10 +326,12 @@ folders (default: the results folder).
 | `hani2 replay metrics --details [NAME]` | What a metric or column measures and how it is calculated (the [metric reference](../guide/metrics.md)). |
 | `hani2 replay evaluate [PATHS…] [-m a,b] [--llm] [--refresh] [-o file.csv] [--option k=v]` | One row of metrics per recording; `.json` output also works. |
 | `hani2 replay compare [PATHS…] --by opponent [-m …] [--llm] [-o file.csv]` | Means per group, and pass^k reliability. |
+| `hani2 replay leaderboard [PATHS…] --track hi\|han [--board outcome\|interaction] [--llm] [--relative] [-o file.csv\|.json]` | The [leaderboards](../guide/evaluation.md#tracks-and-leaderboards) of a competition track: Assistants (`hi`) or opponent agents (`han`) ranked by their outcome and interaction scores, with confidence intervals and pass^k. |
 
 ```bash
 hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metrics.csv
 hani2 replay compare --by support_agent --columns human_utility,suggestion_adoption,llm_tokens
+hani2 replay leaderboard results/ --track hi --llm -o hi.csv   # writes hi_outcome.csv and hi_interaction.csv
 ```
 
 ## `hani2 tools`

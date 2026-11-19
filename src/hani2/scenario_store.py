@@ -44,6 +44,40 @@ INFO_FILES = ("_info.yml", "_info.yaml", "_info.yaml.yml")
 LAST_SCENARIO_FILE = "last_scenario.txt"
 
 
+def evaluation_warnings(ev: Any) -> list[str]:
+    """Problems of a scenario's ``evaluation`` block (its evaluation criteria)."""
+    from hani2.evaluation.tasks import COMPONENTS, RULES, check_target
+
+    if not isinstance(ev, dict):
+        return ["evaluation must be a mapping (targets, rules, communicate, assertions, basis)"]
+    out = []
+    extra = sorted(set(ev) - set(COMPONENTS) - {"basis"})
+    if extra:
+        out.append(f"evaluation has unknown keys {extra} (use {', '.join(COMPONENTS)} and basis)")
+    t = ev.get("targets")
+    if t is not None and not isinstance(t, dict):
+        out.append("evaluation.targets must map column names to conditions (e.g. human_advantage: \">= 0.4\")")
+    elif isinstance(t, dict):
+        bad = [k for k, c in t.items() if check_target(0.5, c) is None]
+        if bad:
+            out.append(f"evaluation.targets has conditions that cannot be read: {bad}")
+        from hani2.evaluation import REGISTRY
+
+        known = [k for k in t if any(m.column_info(str(k)) is not None for m in REGISTRY.values())]
+        unknown_cols = sorted(set(map(str, t)) - set(map(str, known)))
+        if unknown_cols:
+            out.append(f"evaluation.targets names unknown columns {unknown_cols} (see hani2 replay metrics)")
+    rules = ev.get("rules") or []
+    unknown = sorted(set([rules] if isinstance(rules, str) else rules) - set(RULES))
+    if unknown:
+        out.append(f"evaluation.rules names unknown rule checks {unknown} (known: {', '.join(RULES)})")
+    basis = ev.get("basis") or []
+    bad_b = sorted(set([basis] if isinstance(basis, str) else basis) - set(COMPONENTS))
+    if bad_b:
+        out.append(f"evaluation.basis names unknown components {bad_b} (known: {', '.join(COMPONENTS)})")
+    return out
+
+
 def base_dir() -> Path:
     """Scenario pool root: study → ``HANI2_SCENARIOS_BASE`` / ``HANI_PROLIFIC_SCENARIOS_BASE``
     → project → settings."""
@@ -171,7 +205,7 @@ def _load_dir(path: Path) -> Scenario | None:
 
 #: Key order of a written info file (the texts first, the hints last); other keys follow in their own order.
 INFO_KEY_ORDER = ("Name", "title", "short_description", "long_description", "human_role", "role_descriptions",
-                  "n_issue_columns", "issue_description", "issue_format", "split", "story", "hints")
+                  "n_issue_columns", "issue_description", "issue_format", "split", "story", "hints", "evaluation")
 
 
 def write_info(info: dict, path: Path | str) -> Path:
@@ -537,6 +571,8 @@ def check_scenario(path: Path | str) -> tuple[Scenario | None, list[str], list[s
     extra = sorted(set(hints) - set(role_names(s)))
     if extra:
         warnings.append(f"hints name unknown roles {extra}")
+    if "evaluation" in info:
+        warnings += evaluation_warnings(info["evaluation"])
     if info.get("human_role") and str(info["human_role"]).lower() not in [r.lower() for r in role_names(s)]:
         errors.append(f"human_role {info['human_role']!r} is not one of the roles {role_names(s)}")
     for u in s.ufuns:

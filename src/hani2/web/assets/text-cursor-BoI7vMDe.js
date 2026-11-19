@@ -1,1 +1,0 @@
-import{c as e}from"./index-B9kaoElZ.js";const a={name:"text-cursor",size:24,node:[["path",{d:"M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1",key:"uvaxm9"}],["path",{d:"M7 22h1a4 4 0 0 0 4-4",key:"1l7xii"}],["path",{d:"M7 2h1a4 4 0 0 1 4 4",key:"1vrvvh"}]]};a.node;const o=e(a);export{a as __iconData,o as default};

@@ -525,7 +525,7 @@ def scenario_record(s: Any, max_outcomes: int = 100_000) -> dict:
         human_index=s.human_index, human_id=s.ss.get("human_id"), parties=[str(u.name) for u in sc.ufuns],
         issues=_clean(s.issues_spec()), issue_names=[i.name for i in s.issues],
         exhaustive=exhaustive, n_outcomes=n, outcomes=_clean([list(o) for o in outcomes]), utilities=utils,
-        reserved=reserved, ufuns=ufun_json,
+        reserved=reserved, ufuns=ufun_json, evaluation=_clean(s.ss.get("scenario_evaluation")),
     )
 
 

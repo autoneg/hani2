@@ -14,3 +14,6 @@ _support_docs/
 _support_docs/*
 
 PLAN.md
+
+# internal notes for coding agents (never published)
+coding_agents/

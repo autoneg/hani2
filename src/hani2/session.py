@@ -895,6 +895,12 @@ class NegotiationSession:
             self.round_plan = plan
             self.refresh_assistant(plan)  # a schedule slot or a new ?group= may name another Assistant
             self.ss["is_practice_round"] = bool(plan.get("practice", False))
+            # the scenario's evaluation criteria are for evaluation only: keep them out of what the
+            # opponent, the Assistant and the browser see (the recording stores them)
+            criteria = (scenario.info or {}).get("evaluation")
+            if criteria is not None:
+                scenario.info = {k: v for k, v in (scenario.info or {}).items() if k != "evaluation"}
+            self.ss["scenario_evaluation"] = criteria
             self.ss["scenario"] = scenario
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir

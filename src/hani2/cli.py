@@ -855,6 +855,84 @@ def replay_compare(
         _write_table(cmp["reliability"], ["group", "k", "pass_hat_k", "scenarios"], None)
 
 
+def _board_rows(lb: dict) -> tuple[list[dict], list[str]]:
+    """The entries of a leaderboard as flat table rows."""
+    ks = sorted({k for e in lb["entries"] for k in e["pass_hat_k"]})
+    rows = []
+    for e in lb["entries"]:
+        r = dict(rank=e["rank"], entrant=e["entrant"], n=e["n"], cells=e["cells"], participants=e["participants"])
+        for n in lb["scores"]:
+            sc = e["scores"][n]
+            r[n] = sc["mean"]
+            r[f"{n}_ci"] = (f"[{_fmt(sc['lo'])}, {_fmt(sc['hi'])}]" if sc["lo"] is not None else "-")
+            r[f"{n}_coverage"] = sc["coverage"]
+        for k in ks:
+            r[f"pass^{k}"] = e["pass_hat_k"].get(k)
+        r["cost_usd"] = e["cost_usd"]
+        r["tied"] = "yes" if e["tied_with_leader"] else ""
+        rows.append(r)
+    cols = ["rank", "entrant", "n", "cells", "participants"]
+    for n in lb["scores"]:
+        cols += [n, f"{n}_ci"] + ([f"{n}_coverage"] if n == lb["ranked_by"] else [])
+    cols += [f"pass^{k}" for k in ks] + ["cost_usd", "tied"]
+    return rows, cols
+
+
+@replay_app.command("leaderboard")
+def replay_leaderboard(
+    paths: PathsArg = None,
+    track: Annotated[str, typer.Option("--track", "-t", help="han (Human-Agent Negotiation: ranks Opponent agents in sessions without an Assistant) or hi (Hybrid Intelligence: ranks Assistants).")] = "hi",
+    board: Annotated[Optional[str], typer.Option("--board", "-b", help="outcome or interaction (default: both).")] = None,
+    metrics: MetricsOpt = None,
+    llm: LlmOpt = False,
+    success: Annotated[Optional[str], typer.Option(help="Success column of pass^k (default: task_success when the scenarios define criteria, else agreement).")] = None,
+    success_threshold: Annotated[Optional[float], typer.Option(help="A session succeeds when the success column is at least this (default 1).")] = None,
+    relative: Annotated[bool, typer.Option(help="Subtract each cell's mean over all entrants first (removes scenario/opponent difficulty).")] = False,
+    min_coverage: Annotated[float, typer.Option(help="Keep a score component only if every entrant has it in at least this share of sessions.")] = 0.5,
+    practice: Annotated[bool, typer.Option("--practice", help="Include practice rounds.")] = False,
+    out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the board(s) to a .json file (everything) or a .csv file (the table; with both boards, one file per board).")] = None,
+    option: OptionOpt = None,
+):
+    """Rank the entrants of a competition track on its outcome and interaction boards."""
+    import json
+
+    from hani2.evaluation import TRACKS, evaluate_paths, leaderboard
+
+    if track not in TRACKS:
+        typer.secho(f"unknown track {track!r}; use han or hi", fg="red", err=True)
+        raise typer.Exit(1)
+    boards = [board] if board else ["outcome", "interaction"]
+    if any(b not in ("outcome", "interaction") for b in boards):
+        typer.secho("--board is outcome or interaction", fg="red", err=True)
+        raise typer.Exit(1)
+    opts = _parse_options(option)
+    res = evaluate_paths(_paths(paths), metrics.split(",") if metrics else None, use_llm=llm, options=opts)
+    for k, errs in res["errors"].items():
+        typer.secho(f"{k}: {errs}", fg="yellow", err=True)
+    lbs = {b: leaderboard(res["rows"], track, b, options=opts, success=success, success_threshold=success_threshold,
+                          relative=relative, min_coverage=min_coverage, include_practice=practice) for b in boards}
+    if out is not None and out.suffix == ".json":
+        out.write_text(json.dumps(lbs if len(lbs) > 1 else lbs[boards[0]], indent=1, default=str))
+        typer.echo(f"wrote {out}", err=True)
+        return
+    for b, lb in lbs.items():
+        typer.secho(f"\n{lb['track_title']} — {b} board (ranked by {lb['ranked_by']}"
+                    f"{', relative to the cell means' if relative else ''})", bold=True)
+        rows, cols = _board_rows(lb)
+        if out is not None:
+            dest = out if len(lbs) == 1 else out.with_name(f"{out.stem}_{b}{out.suffix}")
+            _write_table(rows, cols, dest)
+        else:
+            _write_table(rows, cols, None)
+        comps = "; ".join(f"{n} ({lb['weight_share'][n]:.0%} of its weight): {', '.join(c) or '-'}"
+                          for n, c in lb["components"].items())
+        typer.echo(f"  components: {comps}")
+        for w in lb["warnings"]:
+            typer.secho(f"  warning: {w}", fg="yellow")
+        excl = ", ".join(f"{k} {v}" for k, v in lb["excluded"].items())
+        typer.echo(f"  {lb['sessions']} session(s); pass^k success = {lb['success']}" + (f"; excluded: {excl}" if excl else ""))
+
+
 @replay_app.command("export")
 def replay_export(path: Path, out: Annotated[Path, typer.Option("--out", "-o", help="JSON file to write.")]):
     """Write a recording as plain JSON (header + events)."""

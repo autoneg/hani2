@@ -25,6 +25,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
+from hani2.evaluation.base import KINDS as METRIC_KINDS
 from hani2.evaluation.base import REGISTRY, Column, Metric
 
 FIG_DIR = Path(__file__).parent / "figures"
@@ -35,6 +36,9 @@ KINDS = {
     "soft": ("Soft metrics (language-model judge)",
              "Judged by a language model from a transcript of the session. Opt-in, because every judgement costs "
              "calls."),
+    "score": ("Task success and combined scores",
+              "Computed after the other metrics, from their columns: whether the session met its scenario's evaluation "
+              "criteria, and the combined scores of the Human-Agent Negotiation and Hybrid Intelligence tracks."),
 }
 
 #: the symbols used by every formula
@@ -160,8 +164,8 @@ def figure_svg(name: str) -> str:
 
 
 def _metrics() -> list[Metric]:
-    order = {"hard": 0, "subjective": 1, "soft": 2}
-    return sorted(REGISTRY.values(), key=lambda m: order.get(m.kind, 9))
+    order = {k: i for i, k in enumerate(METRIC_KINDS)}
+    return sorted(REGISTRY.values(), key=lambda m: (order.get(m.kind, 9), m.stage))
 
 
 def metric_reference(figures: bool = True) -> dict:

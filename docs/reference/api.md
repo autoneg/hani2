@@ -54,6 +54,20 @@ This page is generated from the docstrings in the source. It covers the modules 
 
 ::: hani2.evaluation.base
 
+### Evaluation criteria, combined scores and leaderboards
+
+::: hani2.evaluation.tasks
+    options:
+      members: [criteria_of, check_target, COMPONENTS, RULES]
+
+::: hani2.evaluation.scores
+    options:
+      members: [SCORES, NORMALISERS, Score, Component, compute, score_row]
+
+::: hani2.evaluation.tracks
+    options:
+      members: [TRACKS, leaderboard, leaderboards]
+
 ## Models and connections
 
 ::: hani2.model_chain
