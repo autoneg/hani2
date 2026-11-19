@@ -72,6 +72,17 @@ def test_text_only_requires_message():
     assert mine[-1]["text"] == "just talking" and mine[-1]["offer"] is None
 
 
+def test_text_only_mode_holds_for_participants_whatever_the_client_sends():
+    s = make_session(is_admin=False)
+    s.admin_prefs["text_only_mode"] = True
+    s.start()
+    s.wait_for_turn()
+    assert s.send_counter(text="just talking", text_only=True)["ok"]  # the browser always sends the flag
+    s.wait_for_turn()
+    mine = [h for h in s.history if h.get("by") == "human"]
+    assert mine[-1]["offer"] is None  # never the hidden, pre-filled draft
+
+
 def test_timeout_sends_reject_and_finishes():
     s = make_session(n_steps=None, time_limit=2)
     s.start()

@@ -1818,7 +1818,8 @@ class NegotiationSession:
         if text is not None:
             self.set_draft_text(text)
         p = self.admin_prefs
-        text_only = bool(p.get("text_only_mode")) if text_only is None else (bool(text_only) and self.is_admin)
+        # the study's setting decides for participants; only an admin may switch it per message
+        text_only = bool(p.get("text_only_mode")) if text_only is None or not self.is_admin else bool(text_only)
         msg = (self.draft_text or "").strip() if p.get("allow_text_human", True) else ""
         if p.get("auto_extract") and not text_only and msg:
             try:
