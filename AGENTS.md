@@ -19,6 +19,8 @@
 ```bash
 uv venv && uv pip install -e ".[dev,docs]"
 .venv/bin/pytest -q                       # backend tests (headless sessions via hani2.testing)
+uv pip install -e ".[e2e]" && .venv/bin/playwright install chromium
+.venv/bin/pytest -q tests/e2e             # end-to-end: a real server + Chromium (skipped without Playwright)
 cd frontend && npm install && npm run build   # rebuild the web app after frontend changes
 .venv/bin/hani2 --dev                      # run with auto-reload
 .venv/bin/mkdocs serve                     # docs
