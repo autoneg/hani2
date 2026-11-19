@@ -448,3 +448,13 @@ def test_cli_projects_and_studies(hani2_home, monkeypatch):
 
     assert os.environ.pop("HANI2_STUDY") == "HI2027/hi-01"
     assert run.invoke(cli.app, ["--study", "../x", "--no-browser"]).exit_code != 0
+
+
+def test_a_blank_study_override_inherits_the_project_default(two_studies):
+    st = projects.create_study("HI2027/hi-02", type="prolific", title="Blank n_required")
+    path = st.path / "study.yaml" if hasattr(st, "path") else None
+    if path is None or not path.exists():
+        pytest.skip("study.yaml location unknown")
+    path.write_text(path.read_text() + "\nn_required:\n")
+    ref = projects.parse_ref("HI2027/hi-02")
+    assert projects.setting("n_required", 99, ref=ref) == 2

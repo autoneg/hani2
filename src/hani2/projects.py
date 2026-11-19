@@ -529,7 +529,7 @@ def setting(key: str, default: Any = None, env: str | None = None, cast: Callabl
         raw = os.environ[env]
     else:
         st = get_study(ref)
-        if st is not None and key in st.overrides:
+        if st is not None and st.overrides.get(key) is not None:  # a blank `key:` in study.yaml inherits
             raw = st.overrides[key]
         else:
             pr = get_project(ref)
