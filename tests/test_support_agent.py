@@ -170,6 +170,16 @@ def test_draft_below_reserved_warning():
         assert "offer" in s.annotations
 
 
+def test_below_reserved_warning_never_reveals_a_value_the_participant_may_not_know():
+    s = make_session()
+    s.information.human_reserved = False  # only the Assistant knows the value on disagreement
+    s.start()
+    s.wait_for_turn()
+    s.set_draft(s.outcome_to_dict(s.human_ufun.worst()))
+    s.support_agent.warn_if_draft_below_reserved()
+    assert not any(m.get("type") == "toast" and "reserved value" in m.get("message", "") for m in s.hub.messages)
+
+
 def test_turned_off_agent_does_not_answer():
     s = make_session(agent_class="level1_hello:HelloAgent")
     s.support_agent.set_user_enabled(False)

@@ -601,7 +601,7 @@ class SupportAgent:
         if not self.user_enabled:
             return
         try:
-            ctx = self.session.context()
+            ctx = self.session.context("human")  # the warning is shown to the participant: only what they may know
         except Exception:
             return
         util, reserved = ctx.get("draft_offer_utility"), ctx.get("reserved_value")

@@ -240,6 +240,8 @@ class Tool:
         participant and the message sent with it. Handy as input for an LLM.
         """
         hist = list(getattr(self.session, "history", []) or [])
+        sees = getattr(self.session, "sees_totals", None)
+        show_values = sees is None or bool(sees("shared"))  # the participant and the Assistant both read tools
         if max_turns:
             hist = hist[-max_turns:]
         lines = []
@@ -250,7 +252,7 @@ class Tool:
             who = "Participant" if h.get("by") == "human" else "Opponent"
             # explicit issue=value pairs: the display text ("I get everything.") reads like a quote to a model
             offer = ", ".join(f"{k}={v}" for k, v in (h.get("offer") or {}).items()) or h.get("offer_str") or "no offer"
-            u = h.get("utility")
+            u = h.get("utility") if show_values else None
             line = f"{who}: {offer}" + (f" (worth {u:.0%} to the participant)" if isinstance(u, (int, float)) else "")
             if h.get("text"):
                 line += f' - "{h["text"]}"'
