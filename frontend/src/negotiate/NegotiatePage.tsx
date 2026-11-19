@@ -303,7 +303,7 @@ function Mobile() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
         {current === "negotiate" && <Center />}
-        {current === "tools" && <ToolPane panes={["upper", "lower", "side"]} className="flex-1 bg-surface" label="Tools" />}
+        {current === "tools" && <ToolPane panes={["upper", "lower", "side"]} className="min-w-0 flex-1 bg-surface" label="Tools" />}
         {current === "assistant" && <Assistant />}
       </div>
       <nav className="grid shrink-0 grid-cols-3 border-t border-line bg-surface" aria-label="Sections">

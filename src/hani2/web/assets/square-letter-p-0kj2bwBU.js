@@ -1,0 +1,1 @@
+import{c as a}from"./index-Ys3TTe7N.js";const e={name:"square-letter-p",size:24,node:[["path",{d:"M9 12h4a2 2 0 0 0 0-4H9.5a.5.5 0 0 0-.5.5V16",key:"15uh3t"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["parking-square","square-parking"]};e.node;const r=a(e);export{e as __iconData,r as default};

@@ -1,1 +1,0 @@
-import{c as t}from"./index-BVxVlYuD.js";const e={name:"line-dot-top-vertical",size:24,node:[["path",{d:"M12 9v12",key:"10tdml"}],["circle",{cx:"12",cy:"6",r:"3",key:"1gm2ql"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

@@ -1,0 +1,1 @@
+import{c as e}from"./index-Ys3TTe7N.js";const a={name:"armenian-dram",size:24,node:[["path",{d:"M11 10h8",key:"cn0dty"}],["path",{d:"M11 14h8",key:"lksjnm"}],["path",{d:"M17 20V10a6 6 0 0 0-12 0",key:"1gdsmd"}]]};a.node;const d=e(a);export{a as __iconData,d as default};
