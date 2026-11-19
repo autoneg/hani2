@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, CircleCheck, CircleX, FileText, Handshake, Loader2, Plane, Play, RefreshCw, Send, Sparkles, Wand2, X } from "lucide-react";
 import { api } from "../api";
-import { send, useStore, useUiState } from "../store";
+import { send, sendOrWarn, useStore, useUiState } from "../store";
 import { now as clockNow } from "../clock";
 import type { IssueSpec, Questionnaire, SessionState } from "../types";
 import { Anchor } from "../ui/Anchor";
@@ -194,8 +194,7 @@ export function ConfirmDialog() {
           <button
             className={accept ? "btn-success" : "btn bg-bad text-white hover:bg-bad/90"}
             onClick={() => {
-              send({ type: accept ? "accept" : "end" });
-              setConfirm(null);
+              if (sendOrWarn({ type: accept ? "accept" : "end" })) setConfirm(null);
             }}
           >
             {accept ? "Accept offer" : "End negotiation"}
@@ -236,8 +235,10 @@ function Running({ st }: { st: SessionState }) {
   };
   const doSend = () => {
     window.clearTimeout(timer.current);
-    send({ type: "send", text, text_only: textOnly, values: useStore.getState().state?.draft.values });
-    setText("");
+    // text_only is the admin's per-message switch; for participants the study setting decides (server side)
+    const msg: Record<string, any> = { type: "send", text, values: useStore.getState().state?.draft.values };
+    if (st.is_admin) msg.text_only = textOnly;
+    if (sendOrWarn(msg)) setText("");
   };
 
   if (st.autopilot.active) {

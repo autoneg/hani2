@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Eraser, Send, SlidersHorizontal, X } from "lucide-react";
-import { send, useStore, useUiState } from "../store";
+import { send, sendOrWarn, useStore, useUiState } from "../store";
 import type { AgentPanel, SessionState } from "../types";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
@@ -118,8 +118,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
   const submit = () => {
     const t = text.trim();
     if (!t) return;
-    send({ type: asking ? "answer" : "chat", text: t });
-    setText("");
+    if (sendOrWarn({ type: asking ? "answer" : "chat", text: t })) setText("");
   };
   return (
     <aside className={`flex h-full w-full flex-col bg-surface ${fill ? "" : "border-l border-line lg:w-[360px]"}`} aria-label="Assistant">

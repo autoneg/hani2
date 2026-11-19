@@ -212,6 +212,14 @@ export const useStore = create<Store>((set, get) => ({
 
 export const send = (msg: Record<string, any>) => useStore.getState().send(msg);
 
+/** Send a decision or message the participant must not lose: when the socket is down it is
+ * not sent, a toast says so and ``false`` tells the caller to keep the dialog / typed text. */
+export const sendOrWarn = (msg: Record<string, any>) => {
+  if (send(msg)) return true;
+  useStore.getState().pushToast({ message: "Not connected: reconnecting. Nothing was sent; please try again in a moment.", level: "warning" });
+  return false;
+};
+
 const UNSET = Symbol("unset");
 
 /** Drop-in for `useState` whose value lives in the store, so it is recorded
