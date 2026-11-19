@@ -293,6 +293,8 @@ See [Library and groups](library.md#tool-groups).
 | `recording.enabled` | Record every negotiation (default `true`). See [Recording and replay](recordings.md). |
 | `evaluation.llm` | Language-model settings for the evaluation judge (same keys as `llm_settings.json`); default: the HANI2 language model. |
 | `evaluation.assertions` | Statements for the `nl_assertions` metric. See [Evaluation metrics](evaluation.md#language-model-judgements). |
+| `evaluation.reliability.pairs` | Judge column → questionnaire columns compared by `hani2 replay judge-reliability`, e.g. `{"jo_overall": ["scale_opponent_kindness_norm"]}`. See [Judge reliability](evaluation.md#judge-reliability). |
+| `evaluation.reliability.report` | The judge reliability report (`.json`) an official leaderboard (`--official`) uses to leave out the judged components that are not ready. Without one, an official board leaves out every judged component. |
 | `questionnaire` | The questionnaire after each negotiation, by name (`evaluation`) or path. |
 
 ## `llm_settings.json`

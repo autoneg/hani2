@@ -46,12 +46,19 @@ from hani2.recording.format import Recording, iter_recordings, recording_id
 __all__ = [
     "REGISTRY", "Column", "EvalContext", "Metric", "metric", "available_metrics", "evaluate_recording",
     "evaluate_paths", "evaluate_keys", "compare_rows", "compare_keys", "pass_hat_k", "llm_judge_status",
-    "metric_reference", "leaderboard", "leaderboards", "TRACKS",
+    "metric_reference", "leaderboard", "leaderboards", "TRACKS", "load_paths", "judge_reliability",
 ]
+
+
+def judge_reliability(*args, **kwargs):
+    """See :func:`hani2.evaluation.reliability.judge_reliability`."""
+    from hani2.evaluation.reliability import judge_reliability as f
+
+    return f(*args, **kwargs)
 
 #: fields copied from the recording into every row (used to group and filter)
 ID_FIELDS = ("key", "id", "user", "mode", "scenario", "opponent", "support_agent", "support_model", "experiment",
-             "started", "practice")
+             "started", "practice", "judge_model")
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -130,8 +137,17 @@ def _clean(v: Any) -> Any:
 
 
 def evaluate_recording(rec: Recording, metrics: Iterable[str] | None = None, *, use_llm: bool = False,
-                       refresh: bool = False, options: dict | None = None, key: str | None = None) -> dict:
-    """Evaluate one recording: ``{"row": {...}, "details": {metric: ...}, "errors": {metric: msg}}``."""
+                       refresh: bool = False, options: dict | None = None, key: str | None = None,
+                       judge: Any = None) -> dict:
+    """Evaluate one recording: ``{"row": {...}, "details": {metric: ...}, "errors": {metric: msg}}``.
+
+    ``judge``: judge the soft metrics with exactly this model (``"provider:model"``, see
+    :func:`hani2.evaluation.llm_judge.use_judge`) instead of the configured judge chain."""
+    if judge is not None:
+        from hani2.evaluation.llm_judge import use_judge
+
+        with use_judge(judge):
+            return evaluate_recording(rec, metrics, use_llm=use_llm, refresh=refresh, options=options, key=key)
     options = dict(options or {})
     ctx = EvalContext(rec)
     row = _ident(rec, key)
@@ -146,6 +162,10 @@ def evaluate_recording(rec: Recording, metrics: Iterable[str] | None = None, *, 
                 from hani2.evaluation.llm_judge import cache_key, stamp
 
                 ck = cache_key(m.name, m.version, options, rec.complete)
+                if "judge_model" not in row:
+                    from hani2.evaluation.llm_judge import judge_model
+
+                    row["judge_model"] = judge_model().short()  # who judged this row's soft metrics
                 if m.cache_extra is not None:
                     ck += "|" + m.cache_extra(ctx, options)
                 if not refresh and ck in cache:
@@ -190,7 +210,12 @@ def _columns(selected: list[Metric], rows: list[dict]) -> list[dict]:
 
 
 def evaluate_many(recs: list[tuple[str, Recording]], metrics=None, *, use_llm=False, refresh=False,
-                  options=None) -> dict:
+                  options=None, judge=None) -> dict:
+    if judge is not None:
+        from hani2.evaluation.llm_judge import use_judge
+
+        with use_judge(judge):
+            return evaluate_many(recs, metrics, use_llm=use_llm, refresh=refresh, options=options)
     rows, details, errors = [], {}, {}
     for key, rec in recs:
         r = evaluate_recording(rec, metrics, use_llm=use_llm, refresh=refresh, options=options, key=key)
@@ -201,7 +226,7 @@ def evaluate_many(recs: list[tuple[str, Recording]], metrics=None, *, use_llm=Fa
     return {"rows": rows, "columns": _columns(_select(metrics, use_llm), rows), "details": details, "errors": errors}
 
 
-def evaluate_keys(keys: list[str], metrics=None, *, use_llm=False, refresh=False, options=None) -> dict:
+def evaluate_keys(keys: list[str], metrics=None, *, use_llm=False, refresh=False, options=None, judge=None) -> dict:
     from hani2.recording import store
 
     recs, errors = [], {}
@@ -210,13 +235,19 @@ def evaluate_keys(keys: list[str], metrics=None, *, use_llm=False, refresh=False
             recs.append((k, store.load(k)))
         except Exception as e:  # noqa: BLE001
             errors[k] = {"load": str(e)}
-    out = evaluate_many(recs, metrics, use_llm=use_llm, refresh=refresh, options=options)
+    out = evaluate_many(recs, metrics, use_llm=use_llm, refresh=refresh, options=options, judge=judge)
     out["errors"].update(errors)
     return out
 
 
 def evaluate_paths(paths: Iterable[str | Path], metrics=None, *, use_llm=False, refresh=False,
-                   options=None, include_unstarted: bool = False) -> dict:
+                   options=None, include_unstarted: bool = False, judge=None) -> dict:
+    recs = load_paths(paths, include_unstarted)
+    return evaluate_many(recs, metrics, use_llm=use_llm, refresh=refresh, options=options, judge=judge)
+
+
+def load_paths(paths: Iterable[str | Path], include_unstarted: bool = False) -> list[tuple[str, Recording]]:
+    """The recordings under ``paths`` as ``(key, recording)`` (unreadable ones are skipped)."""
     recs = []
     for p in paths:
         for f in iter_recordings(p):
@@ -228,7 +259,7 @@ def evaluate_paths(paths: Iterable[str | Path], metrics=None, *, use_llm=False, 
             if not include_unstarted and rec.start is None:
                 continue
             recs.append((str(f), rec))
-    return evaluate_many(recs, metrics, use_llm=use_llm, refresh=refresh, options=options)
+    return recs
 
 
 # --------------------------------------------------------------------------- #

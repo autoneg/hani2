@@ -19,10 +19,12 @@ Metrics
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import re
 import time
-from typing import Any
+from typing import Any, Iterator
 
 from hani2.evaluation.base import Column as C
 from hani2.evaluation.base import EvalContext, metric, num
@@ -56,14 +58,49 @@ def judge_settings() -> dict:
     res = judge_model()
     s["provider"], s["model"] = res.provider, res.model
     s["temperature"] = temp
+    if _PINNED.get() is not None:
+        s["_resolution"] = res  # the call uses exactly this model (no chain fallback)
     return s
 
 
-def judge_model():
-    """The judge's resolved chain entry (a :class:`hani2.model_chain.Resolution`)."""
+#: a judge pinned for the current context (:func:`use_judge`): a one-entry chain
+_PINNED: contextvars.ContextVar[Any] = contextvars.ContextVar("hani2_judge_pinned", default=None)
+
+
+def pin_judge(spec: Any):
+    """Resolve ``spec`` (``"provider:model"``, ``"connection:model"``, a mapping or an
+    :class:`~hani2.model_chain.Entry`) as a one-entry judge chain. Raises ``ValueError`` when it
+    cannot be used; there is no fallback to another model."""
     from hani2 import model_chain
 
-    return model_chain.resolve("judge")
+    e = model_chain.parse_entry(spec)
+    res = model_chain.resolve("judge", chain=[e], source=model_chain.Source("judge-pinned", {}))
+    if not res.ok:
+        raise ValueError(f"judge {e.title} is not available: {res.error}")
+    return res
+
+
+@contextlib.contextmanager
+def use_judge(spec: Any) -> Iterator[Any]:
+    """Judge with exactly this model inside the block (every judge call and cache key of the
+    current thread / task); ``None`` keeps the configured ``judge`` chain."""
+    if spec is None:
+        yield None
+        return
+    res = spec if hasattr(spec, "purpose") and hasattr(spec, "entry") else pin_judge(spec)
+    tok = _PINNED.set(res)
+    try:
+        yield res
+    finally:
+        _PINNED.reset(tok)
+
+
+def judge_model():
+    """The judge's resolved chain entry (a :class:`hani2.model_chain.Resolution`): the pinned
+    judge (:func:`use_judge`) or the first available entry of the ``judge`` chain."""
+    from hani2 import model_chain
+
+    return _PINNED.get() or model_chain.resolve("judge")
 
 
 def llm_judge_status() -> dict:

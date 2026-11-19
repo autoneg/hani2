@@ -26,6 +26,7 @@ least ``min_coverage`` of the sessions of every entrant.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -89,9 +90,11 @@ def _filter(rows: list[dict], track: str, include_practice: bool) -> tuple[list[
     return kept, excluded
 
 
-def _active_components(rows: list[dict], track: str, names: list[str], min_coverage: float) -> dict[str, set[str]]:
+def _active_components(rows: list[dict], track: str, names: list[str], min_coverage: float,
+                       blocked: set[str] | None = None) -> dict[str, set[str]]:
     """Per score, the components present in at least ``min_coverage`` of the
-    sessions of every entrant (so every entrant is scored on the same things)."""
+    sessions of every entrant (so every entrant is scored on the same things);
+    ``blocked`` columns are never used."""
     groups: dict[str, list[dict]] = {}
     for r in rows:
         groups.setdefault(entrant_of(r, track), []).append(r)
@@ -103,6 +106,8 @@ def _active_components(rows: list[dict], track: str, names: list[str], min_cover
             if c.column in BY_NAME:  # a score of scores: keep it if that score has components
                 if out.get(c.column):
                     keep.add(c.column)
+                continue
+            if blocked and c.column in blocked:
                 continue
             if groups and all(sum(1 for r in rs if num(r.get(c.column)) is not None) / len(rs) >= min_coverage
                               for rs in groups.values()):
@@ -158,7 +163,7 @@ def _pass_hat_k(rows: list[dict], cells: tuple, success: str, threshold: float |
 def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, options: dict | None = None,
                 success: str | None = None, success_threshold: float | None = None, max_k: int = 4,
                 min_coverage: float = 0.5, relative: bool = False, n_boot: int = 1000, seed: int = 0,
-                include_practice: bool = False) -> dict:
+                include_practice: bool = False, reliability: Any = None, official: bool = False) -> dict:
     """Rank the entrants of ``track`` (``han`` or ``hi``) on ``board``
     (``outcome`` or ``interaction``) from evaluated rows (``evaluate_*()["rows"]``).
 
@@ -166,6 +171,12 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     the scenarios define criteria, else ``agreement``; in HAN ``agreement``). ``relative`` subtracts each
     cell's mean over all entrants first (removes the difficulty of the
     scenarios and opponents when entrants played different cells).
+
+    ``reliability``: a judge reliability report (a dict or the ``.json`` file of
+    ``hani2 replay judge-reliability``); the soft (language-model judged)
+    components it did not find ready are left out. ``official``: an official
+    ranking; without a report (argument or env.json
+    ``evaluation.reliability.report``) every soft component is left out.
     """
     if track not in TRACKS:
         raise ValueError(f"unknown track {track!r}; use one of {', '.join(TRACKS)}")
@@ -176,7 +187,8 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     kept, excluded = _filter(rows, track, include_practice)
     # the sub-scores first, so a score of scores knows which of them exist
     order = [s for s in BY_NAME if s in names or any(c.column == s for n in names for c in BY_NAME[n].components)]
-    active = _active_components(kept, track, order, min_coverage)
+    gate = _reliability_gate(reliability, official, {str(r["judge_model"]) for r in kept if r.get("judge_model")})
+    active = _active_components(kept, track, order, min_coverage, gate["blocked"])
     scored = []
     for r in kept:
         r2 = dict(r)
@@ -247,9 +259,47 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
         components={n: sorted(active.get(n, set())) for n in order},
         dropped_components={n: sorted({c.column for c in BY_NAME[n].components} - active.get(n, set())) for n in order},
         weight_share=(share := {n: _share(n, active, options) for n in order}),
-        warnings=_warnings(main, share, entries),
+        warnings=gate["warnings"] + _warnings(main, share, entries),
+        reliability=dict(report=gate["source"], judges=gate["judges"], official=official,
+                         left_out={n: sorted({c.column for c in BY_NAME[n].components} & gate["blocked"]) for n in order}),
         excluded=excluded, sessions=len(kept), entries=entries,
     )
+
+
+def _reliability_gate(reliability: Any, official: bool, row_judges: set[str]) -> dict:
+    """The soft components a board must leave out, given a reliability report and the judges that
+    scored the rows."""
+    from hani2.config import get_env, settings_dir
+    from hani2.evaluation.reliability import load_report, soft_columns
+
+    src = reliability
+    if src is None and official:
+        src = get_env("evaluation.reliability.report", None)
+        if src and not Path(str(src)).expanduser().is_absolute():
+            src = settings_dir() / str(src)  # a relative path is read from the settings folder
+    out: dict[str, Any] = dict(blocked=set(), warnings=[], source=None, judges=None)
+    if src is None:
+        if official:
+            out["blocked"] = soft_columns()
+            out["warnings"].append("official ranking without a judge reliability report: every language-model "
+                                   "judged component is left out (run `hani2 replay judge-reliability`)")
+        return out
+    rep = load_report(src)
+    soft = soft_columns()
+    out["blocked"] = soft - set(rep.get("ready") or [])
+    out["source"] = str(src) if not isinstance(src, dict) else "given"
+    out["judges"] = rep.get("judges")
+    other = sorted(row_judges - set(rep.get("judges") or []))
+    if other:
+        if official:
+            out["blocked"] = soft
+            out["warnings"].append(f"these sessions were judged by {', '.join(other)}, which the judge reliability "
+                                   f"report ({' vs '.join(rep['judges'])}) did not check: every language-model judged "
+                                   "component is left out of this official ranking")
+        else:
+            out["warnings"].append(f"these sessions were judged by {', '.join(other)}, but the judge reliability "
+                                   f"report compares {' and '.join(rep['judges'])}")
+    return out
 
 
 def _share(name: str, active: dict[str, set[str]], options: dict | None) -> float:

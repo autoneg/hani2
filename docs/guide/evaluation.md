@@ -119,6 +119,11 @@ with another one, and to set your own assertions:
 Judgements are cached next to each recording (`<id>.eval.json`) per metric, prompt version and
 model; use **Refresh** / `--refresh` to ask again.
 
+To judge with one particular model, pass `judge="provider:model"` (or `"connection:model"`) to
+`evaluate_paths` / `evaluate_recording`. That model is used alone, with no fallback to another
+entry of the judge chain. Before ranking on judged scores, check the judge: see
+[Judge reliability](#judge-reliability).
+
 ## Task success and combined scores
 
 | Metric | Columns | Measures |
@@ -214,6 +219,110 @@ scored on different things.
 
 `--relative` subtracts each cell's mean over all entrants before averaging. Use it when entrants
 played different scenarios or opponents.
+
+## Judge reliability
+
+The interaction scores mix log and questionnaire components with **soft** components that a
+language model judges. These are `jo_overall`, `jo_communication`, `jo_consistency` and
+`jo_human_likeness` in `han_interaction`; `ja_overall`, `ja_helpfulness`, `ja_autonomy_respect`,
+`assertions_met`, `task_communicated` and the Assistant's error counts in `hi_assistant`; and
+`jh_use_of_assistant`, `jh_engagement`, the Human's critical errors and harmful overrides in
+`hi_team`. Before a soft component counts in an official ranking, two things must hold. A second
+judge model must agree with the first, and where the participants were asked about the same thing,
+the judges must agree with the participants.
+
+```bash
+hani2 replay judge-reliability results/ --judge openai:gpt-5 --judge anthropic:claude-sonnet-5-5 -o reliability.json
+hani2 replay leaderboard results/ --track hi --judge openai:gpt-5 --reliability reliability.json --official
+```
+
+```python
+from hani2.evaluation import evaluate_paths, judge_reliability, leaderboard
+from hani2.evaluation.reliability import reliability_markdown
+
+rep = judge_reliability(["results/"], judges=["openai:gpt-5", "anthropic:claude-sonnet-5-5"])
+print(reliability_markdown(rep))      # rep["ready"]: the components that passed
+rows = evaluate_paths(["results/"], use_llm=True, judge="openai:gpt-5")["rows"]
+board = leaderboard(rows, "hi", "interaction", reliability=rep)
+```
+
+Each judge evaluates every recording on its own. A judge is used alone, with no fallback to
+another model, and each judge's answers are cached separately. Each component is compared only on
+the sessions of the track whose score uses it: HI components on sessions with an Assistant, HAN
+components on sessions without one. The report gives the following.
+
+**Agreement between the judges, per score component.** It uses the sessions both judges scored
+(`n`); `dropped` counts the sessions only one judge scored.
+
+- **Krippendorff's α**, which corrects for chance agreement. It is ordinal for the 1–7 ratings and
+  interval for shares and counts. Shares and counts are compared after the normalisation the score
+  applies, so an error count is compared as $1/(1+x)$. When the judges gave a single value
+  throughout, α is undefined and the report says "no variance".
+- **Spearman's ρ** between the two judges, and the **mean difference** (second judge minus first).
+  The mean difference shows a judge that rates higher or lower across the board, which correlation
+  alone hides.
+- For 1–7 ratings, the share of **exact** and **within-one** agreement.
+
+**Correlation between the judges and the questionnaire.** For each component, Spearman's ρ (and p)
+between the judges' mean score and each matching questionnaire scale, plus each judge's own ρ:
+
+| Judge component | Questionnaire column(s) |
+| --- | --- |
+| `jo_overall` | `scale_opponent_kindness_norm`, `scale_opponent_intelligence_norm`, `scale_relationship_norm` |
+| `jo_human_likeness` | `scale_opponent_humanlike_norm` |
+| `ja_overall` | `scale_ueq_pragmatic_norm`, `scale_tam_usefulness_norm`, `scale_intention_to_use_norm` |
+| `ja_helpfulness` | `scale_tam_usefulness_norm` |
+
+Set other pairs with `evaluation.reliability.pairs` in env.json, mapping each column to a list of
+questionnaire columns.
+
+**A verdict for each component.** A component is **ready** when all of these hold:
+
+- both judges scored at least `--min-n` sessions (default 10);
+- α ≥ `--alpha-min` (default 0.667, Krippendorff's lowest level for tentative conclusions; 0.8 is
+  "reliable");
+- if the component has a questionnaire counterpart, at least `--min-n` sessions also have
+  questionnaire answers, and the judges' mean correlates with one of the counterparts at
+  ρ ≥ `--rho-min` (default 0.3) with p < 0.05.
+
+Components without a counterpart (`jo_communication`, `jo_consistency`, `ja_autonomy_respect`,
+`assertions_met`, `task_communicated`, the error counts and the `jh_*` ratings) can only be checked
+for agreement. They are marked "ready on agreement only". Add `--require-validation` to treat them
+as not ready.
+
+**The scores and leaderboards under each judge.** For every combined score that contains a soft
+component, the report gives the agreement between the score computed with one judge and with the
+other. For each track's interaction board, it gives both rankings, whether they have the same
+leader and the same order, and the rank correlation of the entrants' scores.
+
+**Leaving out what is not ready.** Pass the report's JSON to a board with `--reliability FILE`
+(`reliability=` in Python, `"reliability"` in `POST /api/replay/leaderboard`). The board then leaves
+out every soft component that is not ready and lists them under `reliability.left_out`. The other
+components keep their weights. Rank with one of the judges the report compared: `--judge`
+(`"judge"` in the API) uses that model, and its cached answers, for the board.
+
+Every evaluated row records the model that judged it (`judge_model`). When a board's sessions were
+judged by a model that the report did not compare, the board warns. `--official` (`official=True`)
+is for an official ranking:
+
+- It reads the report given with `--reliability`, or else the one named by
+  `evaluation.reliability.report` in env.json. A relative path is read from the settings folder.
+- Without a report, it leaves out every soft component.
+- If the sessions were judged by a model the report did not compare, it also leaves out every soft
+  component.
+
+This way an unchecked judge never decides an official ranking.
+
+A few cautions:
+
+- With few sessions, a real but moderate correlation fails the p-value test. At `--min-n` 10,
+  p < 0.05 needs ρ of about 0.63. Such a component is reported as "not shown to follow the
+  questionnaire", with its ρ, p and n. That does not mean the judge contradicts the participants.
+- Sessions played by the same participant are not independent, so p is optimistic when
+  participants played several sessions.
+- With more than two judges, α uses all of them, while ρ, the mean difference and the boards
+  compare only the first two.
+- `--all-soft` also reports the soft columns that no score uses.
 
 ## Adding a metric
 

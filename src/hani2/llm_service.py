@@ -386,7 +386,7 @@ def _call_llm(prompt: str, settings: dict | None = None) -> str:
     if "_purpose" in settings:
         params = {k: v for k, v in (settings.get("_params") or {}).items() if v is not None}
         response = model_chain.completion(settings["_purpose"], messages, models=settings.get("_models"),
-                                          params=params)
+                                          resolution=settings.get("_resolution"), params=params)
     else:
         res = _one_off_entry(settings)
         response = model_chain.completion("text", messages, resolution=res)

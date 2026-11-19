@@ -1223,10 +1223,20 @@ def replay_compare(body: dict = Body(...), _: str = Depends(require_admin)):
                                  use_llm=bool(body.get("llm")), options=body.get("options") or {}))
 
 
+def _reliability_body(rep):
+    """A judge reliability report from a request (the report itself, never a server path)."""
+    if rep in (None, "", {}):
+        return None
+    if not isinstance(rep, dict):
+        raise HTTPException(400, "reliability is a judge reliability report (the JSON object), not a path")
+    return rep
+
+
 @app.post("/api/replay/leaderboard")
 def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
     """Leaderboards of a competition track: ``{"keys", "track": "han"|"hi", "board": "outcome"|"interaction"|null,
-    "metrics", "llm", "options", "success", "success_threshold", "relative", "min_coverage", "practice"}``;
+    "metrics", "llm", "options", "success", "success_threshold", "relative", "min_coverage", "practice",
+    "reliability" (a judge reliability report), "official", "judge" (provider:model)}``;
     without ``board`` both boards (``{"boards": {"outcome": ..., "interaction": ...}}``)."""
     from hani2.evaluation import TRACKS, evaluate_keys, leaderboard
 
@@ -1240,13 +1250,22 @@ def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
     if any(b not in ("outcome", "interaction") for b in boards):
         raise HTTPException(400, "board is outcome or interaction")
     opts = body.get("options") or {}
-    ev = evaluate_keys(keys, metrics=body.get("metrics"), use_llm=bool(body.get("llm")), options=opts)
+    judge = str(body["judge"]) if body.get("judge") else None
+    try:
+        ev = evaluate_keys(keys, metrics=body.get("metrics"), use_llm=bool(body.get("llm")) or judge is not None,
+                           options=opts, judge=judge)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
     kw = dict(options=opts, success=body.get("success") or None, success_threshold=body.get("success_threshold"),
               relative=bool(body.get("relative")),
               min_coverage=0.5 if body.get("min_coverage") is None else float(body["min_coverage"]),
-              include_practice=bool(body.get("practice")))
-    return jsonable({"track": track, "boards": {b: leaderboard(ev["rows"], track, b, **kw) for b in boards},
-                     "errors": ev["errors"]})
+              include_practice=bool(body.get("practice")), reliability=_reliability_body(body.get("reliability")),
+              official=bool(body.get("official")))
+    try:
+        out = {b: leaderboard(ev["rows"], track, b, **kw) for b in boards}
+    except (ValueError, OSError) as e:
+        raise HTTPException(400, str(e)) from None
+    return jsonable({"track": track, "boards": out, "errors": ev["errors"]})
 
 
 @app.get("/api/admin/users")

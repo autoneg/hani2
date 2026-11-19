@@ -891,6 +891,9 @@ def replay_leaderboard(
     min_coverage: Annotated[float, typer.Option(help="Keep a score component only if every entrant has it in at least this share of sessions.")] = 0.5,
     practice: Annotated[bool, typer.Option("--practice", help="Include practice rounds.")] = False,
     out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the board(s) to a .json file (everything) or a .csv file (the table; with both boards, one file per board).")] = None,
+    reliability: Annotated[Optional[Path], typer.Option(help="A judge reliability report (.json of `judge-reliability -o`): leave out the language-model judged components it did not find ready.")] = None,
+    judge: Annotated[Optional[str], typer.Option("--judge", "-j", help="Judge the soft metrics with exactly this model (provider:model), e.g. one the reliability report checked.")] = None,
+    official: Annotated[bool, typer.Option("--official", help="An official ranking: without a reliability report (--reliability or env.json evaluation.reliability.report) every language-model judged component is left out.")] = False,
     option: OptionOpt = None,
 ):
     """Rank the entrants of a competition track on its outcome and interaction boards."""
@@ -906,11 +909,21 @@ def replay_leaderboard(
         typer.secho("--board is outcome or interaction", fg="red", err=True)
         raise typer.Exit(1)
     opts = _parse_options(option)
-    res = evaluate_paths(_paths(paths), metrics.split(",") if metrics else None, use_llm=llm, options=opts)
+    try:
+        res = evaluate_paths(_paths(paths), metrics.split(",") if metrics else None, use_llm=llm or judge is not None,
+                             options=opts, judge=judge)
+    except ValueError as e:
+        typer.secho(str(e), fg="red", err=True)
+        raise typer.Exit(1) from None
     for k, errs in res["errors"].items():
         typer.secho(f"{k}: {errs}", fg="yellow", err=True)
-    lbs = {b: leaderboard(res["rows"], track, b, options=opts, success=success, success_threshold=success_threshold,
-                          relative=relative, min_coverage=min_coverage, include_practice=practice) for b in boards}
+    try:
+        lbs = {b: leaderboard(res["rows"], track, b, options=opts, success=success, success_threshold=success_threshold,
+                              relative=relative, min_coverage=min_coverage, include_practice=practice,
+                              reliability=reliability, official=official) for b in boards}
+    except (ValueError, OSError) as e:
+        typer.secho(str(e), fg="red", err=True)
+        raise typer.Exit(1) from None
     if out is not None and out.suffix == ".json":
         out.write_text(json.dumps(lbs if len(lbs) > 1 else lbs[boards[0]], indent=1, default=str))
         typer.echo(f"wrote {out}", err=True)
@@ -927,10 +940,48 @@ def replay_leaderboard(
         comps = "; ".join(f"{n} ({lb['weight_share'][n]:.0%} of its weight): {', '.join(c) or '-'}"
                           for n, c in lb["components"].items())
         typer.echo(f"  components: {comps}")
+        left = {n: c for n, c in lb["reliability"]["left_out"].items() if c}
+        if left:
+            typer.echo("  left out (judge reliability not shown): "
+                       + "; ".join(f"{n}: {', '.join(c)}" for n, c in left.items()))
         for w in lb["warnings"]:
             typer.secho(f"  warning: {w}", fg="yellow")
         excl = ", ".join(f"{k} {v}" for k, v in lb["excluded"].items())
         typer.echo(f"  {lb['sessions']} session(s); pass^k success = {lb['success']}" + (f"; excluded: {excl}" if excl else ""))
+
+
+@replay_app.command("judge-reliability")
+def replay_judge_reliability(
+    paths: PathsArg = None,
+    judge: Annotated[Optional[list[str]], typer.Option("--judge", "-j", help="A judge model (provider:model or connection:model); give two or more.")] = None,
+    all_soft: Annotated[bool, typer.Option("--all-soft", help="Also report the soft columns that no combined score uses.")] = False,
+    refresh: Annotated[bool, typer.Option(help="Ask the judges again instead of using cached judgements.")] = False,
+    out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the report to a .md or .json file (the .json is what `leaderboard --reliability` reads).")] = None,
+    alpha_min: Annotated[float, typer.Option(help="Minimum Krippendorff's alpha between the judges.")] = 0.667,
+    rho_min: Annotated[float, typer.Option(help="Minimum Spearman rho with the matching questionnaire scale.")] = 0.3,
+    min_n: Annotated[int, typer.Option(help="Minimum sessions judged by both judges (and questionnaire answers).")] = 10,
+    require_validation: Annotated[bool, typer.Option(help="Components without a questionnaire counterpart are never ready.")] = False,
+    option: OptionOpt = None,
+):
+    """Inter-judge agreement (two judge models) and judge–questionnaire correlation per soft
+    component of the combined scores, which components may be used in an official ranking, and
+    how the scores and leaderboards change with the judge."""
+    import json
+
+    from hani2.evaluation.reliability import judge_reliability, reliability_markdown
+
+    try:
+        rep = judge_reliability(_paths(paths), judge or [], all_soft=all_soft, refresh=refresh,
+                                options=_parse_options(option), alpha_min=alpha_min, rho_min=rho_min,
+                                min_n=min_n, require_validation=require_validation)
+    except ValueError as e:
+        typer.secho(str(e), fg="red", err=True)
+        raise typer.Exit(1) from None
+    md = reliability_markdown(rep)
+    if out is not None:
+        out.write_text(json.dumps(rep, indent=1, default=str) if out.suffix == ".json" else md)
+        typer.echo(f"wrote {out}", err=True)
+    typer.echo(md)
 
 
 @replay_app.command("export")

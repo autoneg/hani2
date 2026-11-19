@@ -68,6 +68,16 @@ This page is generated from the docstrings in the source. It covers the modules 
     options:
       members: [TRACKS, leaderboard, leaderboards]
 
+### Judge reliability
+
+::: hani2.evaluation.reliability
+    options:
+      members: [judge_reliability, reliability_markdown, load_report, score_components, soft_columns, krippendorff_alpha, spearman, DEFAULT_PAIRS]
+
+::: hani2.evaluation.llm_judge
+    options:
+      members: [use_judge, pin_judge, judge_model]
+
 ## Models and connections
 
 ::: hani2.model_chain

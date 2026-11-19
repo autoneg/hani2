@@ -99,6 +99,7 @@ hani2 replay export FILE.hrec -o out.json  # as plain JSON
 hani2 replay metrics                       # the evaluation metrics
 hani2 replay evaluate [PATHS…] [-m outcome,optimality] [--llm] [-o table.csv]
 hani2 replay compare  [PATHS…] --by opponent [-o groups.csv]
+hani2 replay judge-reliability [PATHS…] --judge openai:gpt-5 --judge anthropic:claude-sonnet-5-5
 ```
 
 `PATHS` are recording files or folders (searched recursively); the default is the results folder.

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Judge reliability for the combined scores.** `hani2 replay judge-reliability --judge A --judge B`
+  (or `judge_reliability()`) has two judge models score the same recordings. For every
+  language-model judged component of `han_interaction`, `hi_assistant` and `hi_team`, it reports
+  how far the judges agree (Krippendorff's α, Spearman's ρ, the mean difference, and exact and
+  within-one agreement) and how well the judges correlate with the matching questionnaire scale. It
+  says which components are ready for an official ranking, and shows how the scores and the
+  interaction leaderboards change with the judge. `hani2 replay leaderboard --reliability
+  report.json` leaves out the components that are not ready, and `--official` leaves out every
+  judged component unless there is a report. `evaluate_paths(..., judge="provider:model")` judges
+  with exactly one model. See [Judge reliability](guide/evaluation.md#judge-reliability).
 - **Leaderboards for the Human-Agent Negotiation and Hybrid Intelligence tracks.** Each track has
   an **outcome** board and an **interaction** board. HAN ranks opponent agents by what they
   obtained (`han_outcome`) and by how well they behaved as opponents (`han_interaction`). HI ranks
