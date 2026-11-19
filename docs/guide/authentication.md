@@ -65,7 +65,7 @@ HANI2 implements the authorization-code flow for GitHub and Google.
 }
 ```
 
-A provider counts as configured when it has a `key` and a `secret` and `enabled` is not `false`.
+A provider counts as configured when it has a `key` and a `secret` and `enabled` is `true` (the built-in default is `false`).
 
 `oauth.redirect_uri` is the public base URL of your server. HANI2 appends `/api/oauth/<provider>/callback` to it. When it is empty, the base URL of the incoming request is used, which is fine for local testing but often wrong behind a reverse proxy.
 
@@ -83,7 +83,7 @@ HANI2 asks for the `read:user user:email` scopes. A GitHub user `octocat` become
 2. Add `<base URL>/api/oauth/google/callback` as an authorized redirect URI.
 3. Copy the client ID into `key` and the client secret into `secret`.
 
-HANI2 asks for `openid email profile`. A Google user `jane.doe@example.org` becomes `g_jane.doe`.
+HANI2 asks for `openid email profile`. A Google user becomes `g_<their Google account id>` (the stable `sub` claim), for example `g_1043…`; the email is stored with the account.
 
 OAuth users are created on their first login and do not have a usable password. After a successful login they are sent to `/app`. Failures send them back to `/login` with an `error` parameter (`oauth_state`, `oauth_token` or `oauth_failed`).
 

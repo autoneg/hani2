@@ -206,3 +206,58 @@ def test_participant_view_needs_an_admin(client):
     r = client.post("/api/session", json={"mode": "main", "query": {"as_participant": "1"}})
     if r.status_code == 200:
         assert "~participant" not in r.json()["sid"]
+
+
+@pytest.fixture
+def oauth(client, hani2_home, monkeypatch):
+    """GitHub and Google configured; ``replies[provider]`` is what the provider's user API answers."""
+    import httpx
+
+    write_settings(hani2_home, "env.json", {"auth": {"mode": "dual"}, "oauth": {"providers": {
+        "github": {"enabled": True, "key": "k", "secret": "s"}, "google": {"enabled": True, "key": "k", "secret": "s"}}}})
+    replies: dict = {}
+
+    class R:
+        def __init__(self, data):
+            self.data = data
+
+        def json(self):
+            return self.data
+
+    monkeypatch.setattr(httpx, "post", lambda *a, **kw: R({"access_token": "tok"}))
+    monkeypatch.setattr(httpx, "get", lambda url, **kw: R(replies["emails"] if url.endswith("/emails") else replies["user"]))
+
+    def login_with(provider: str, user: dict, emails: list | None = None):
+        replies.update(user=user, emails=emails or [])
+        r = client.get(f"/api/oauth/{provider}/login", follow_redirects=False)
+        assert r.status_code in (302, 307)
+        state = client.cookies.get("hani2_oauth_state")
+        return client.get(f"/api/oauth/{provider}/callback", params={"code": "c", "state": state}, follow_redirects=False)
+
+    return login_with
+
+
+def test_github_and_google_sign_in(oauth, client):
+    from hani2 import auth
+
+    r = oauth("github", {"login": "octo", "name": "Octo Cat"}, [{"email": "o@x.org", "primary": True}])
+    assert r.headers["location"].endswith("/app")
+    assert client.get("/api/auth/me").json()["user"] == "gh_octo"
+    assert auth.get_meta("gh_octo")["email"] == "o@x.org"
+    client.post("/api/auth/logout")
+    oauth("google", {"sub": "123", "email": "g@x.org", "name": "Gee"})
+    assert client.get("/api/auth/me").json()["user"] == "g_123"
+
+
+def test_oauth_error_reply_creates_no_shared_account(oauth, client):
+    from hani2 import auth
+
+    r = oauth("github", {"message": "Bad credentials"})
+    assert "error=oauth_failed" in r.headers["location"]
+    assert not auth.user_exists("gh_None")
+    assert client.get("/api/auth/me").json()["user"] is None
+
+
+def test_oauth_rejects_a_wrong_state(oauth, client):
+    r = client.get("/api/oauth/github/callback", params={"code": "c", "state": "forged"}, follow_redirects=False)
+    assert "error=oauth_state" in r.headers["location"]
