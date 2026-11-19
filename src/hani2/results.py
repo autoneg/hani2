@@ -86,15 +86,17 @@ def _attribution(ss: dict[str, Any]) -> dict[str, str]:
 
 #: who sat in the human seat: ``mode`` (``simulated`` for a simulated participant, see
 #: :mod:`hani2.simulator`), ``participant_type`` (from the pre-questionnaire, or the persona's
-#: difficulty), ``persona`` and, for simulated participants, ``goal_met``
-PARTICIPANT_COLUMNS = ["mode", "participant_type", "persona", "goal_met"]
+#: difficulty), ``persona`` and, for simulated participants, ``goal_met`` and ``sim_invalid`` (why the
+#: trial says nothing about the Assistant, ``""`` when it is valid)
+PARTICIPANT_COLUMNS = ["mode", "participant_type", "persona", "goal_met", "sim_invalid"]
 
 
 def _participant(ss: dict[str, Any], ufun, utility: float, agreed: bool) -> dict[str, Any]:
     mode = str(ss.get("mode") or "")
     out: dict[str, Any] = {"mode": mode, "participant_type": str(ss.get("participant_type") or ""),
-                           "persona": str(ss.get("persona") or ""), "goal_met": ""}
-    if mode == "simulated":
+                           "persona": str(ss.get("persona") or ""), "goal_met": "",
+                           "sim_invalid": str(ss.get("sim_invalid") or "")}
+    if mode == "simulated" and not out["sim_invalid"]:
         rv = ss.get("persona_reservation")
         try:
             rv = float(ufun.reserved_value) if rv is None else float(rv)
@@ -382,14 +384,25 @@ def leaderboard_by_type(df: pd.DataFrame) -> dict[str, list[dict]]:
 
 
 def simulated_leaderboard(df: pd.DataFrame, max_k: int = 4) -> list[dict]:
-    """The qualifying table of simulated runs: per Assistant and persona, the trials, the goal rate
-    (a deal worth at least the persona's reservation value) and pass^k per scenario, averaged."""
+    """The qualifying table of simulated runs: per Assistant and persona, the valid trials, the goal
+    rate (a deal worth at least the persona's reservation value) and pass^k per scenario, averaged.
+    Every run of an Assistant spec is pooled; invalid trials are left out."""
     if df is None or len(df) == 0:
         return []
     df = df[is_simulated(df)]
     if len(df) == 0:
         return []
     from hani2.evaluation import pass_hat_k
+
+    # invalid trials (time-outs, simulator failures, failing opponents) say nothing about the Assistant
+    bad = pd.Series(False, index=df.index)
+    if "sim_invalid" in df:
+        bad |= df["sim_invalid"].fillna("").astype(str).replace("nan", "") != ""
+    if "status" in df:
+        bad |= df["status"].astype(str).isin(["agent_failed", "erred"])
+    df = df[~bad]
+    if len(df) == 0:
+        return []
 
     who = df["assistant"].fillna("").astype(str) if "assistant" in df else pd.Series("", index=df.index)
     persona = df["persona"].fillna("").astype(str) if "persona" in df else df["user"].astype(str).str[4:]

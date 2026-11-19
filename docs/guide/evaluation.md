@@ -130,7 +130,9 @@ model; use **Refresh** / `--refresh` to ask again.
 Recordings of [simulated participants](simulation.md) (`mode = simulated`) always form groups of
 their own (`<group> [simulated]`), so they are never averaged with human sessions; group by `mode`
 to compare the two directly, or by `participant_type` / `persona` to stratify. For simulated runs
-use `--option success=sim_goal_met` and evaluate with the `simulation` metric.
+use `--option success=sim_goal_met` and evaluate with the `simulation` metric. `--by` takes several
+fields separated by commas (`--by opponent,participant_type`): one group per combination, so you
+can see how each opponent or Assistant does with each type of participant.
 
 ## Adding a metric
 

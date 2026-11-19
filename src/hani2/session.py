@@ -875,6 +875,8 @@ class NegotiationSession:
                 return
             plan = self.study.plan_round(scenario_type if self.can_choose_scenario() else None, name)
             idx = plan.get("index")
+            if idx is None and self.ss.get("fixed_scenario_index") is not None:
+                idx = int(self.ss["fixed_scenario_index"])  # simulated trials replay the same task
             if idx is None:
                 idx = store.next_index(self.ss["user_path"])
             stype = plan.get("type") or store.pick_type(idx, bool(self.admin_prefs.get("predefined_order", True)),

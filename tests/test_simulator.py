@@ -34,6 +34,16 @@ class SilentAgent(SupportAgent):
         pass
 
 
+class SlowAgent(SupportAgent):
+    """Busy for longer than the runner waits (to test the Assistant time-out)."""
+
+    def on_event(self, event_name: str, nmi=None) -> None:
+        if event_name == "action_requested":
+            import time
+
+            self.session._track_agent(__import__("concurrent.futures").futures.ThreadPoolExecutor(1).submit(time.sleep, 3))
+
+
 def _view(**kw):
     base = dict(issues=[], partner_offer={"x": 1}, partner_offer_utility=0.5, partner_message=None, reserved_value=0.2,
                 relative_time=0.5, step=5, n_steps=10, history=[], suggestion=None, assistant_messages=[],
@@ -83,6 +93,8 @@ def test_follower_takes_the_assistants_filled_offer_and_is_tagged(hani2_home):
     t = simulate("follower", agent_class=AGENT, seed=1)
     assert t.valid and t.status == "success" and t.turns >= 1
     assert t.suggestions_seen >= 1 and t.suggestions_taken == t.suggestions_seen
+    # the Assistant fills in every opponent offer: no turn with an offer on the table lacks the suggestion
+    assert all(e["suggestion"] is not None for e in t.log if e["partner_offer_utility"] is not None)
     assert t.goal_met == (t.human_utility >= t.reservation)
     rec = Recording.load(t.recording)
     assert rec.header["session"]["mode"] == "simulated" and rec.header["session"]["user"] == "sim_follower"
@@ -303,3 +315,76 @@ def test_participant_type_mapping():
     assert participant_type_of(spec, {"exp": 3}) == "3"
     assert participant_type_of(spec, {}) == ""
     assert participant_type_of({}, {"expertise": "Pro"}) == "Pro"
+
+
+def test_trials_of_a_cell_repeat_the_same_scenario(hani2_home):
+    a = simulate("skeptic", agent_class=AGENT, seed=1, n_steps=4)
+    b = simulate("skeptic", agent_class=AGENT, seed=2, n_steps=4)
+    ra, rb = Recording.load(a.recording), Recording.load(b.recording)
+    assert ra.scenario["name"] == rb.scenario["name"] and a.reservation == b.reservation
+    c = simulate("skeptic", agent_class=AGENT, seed=1, n_steps=4, scenario_index=1)
+    assert c.reservation != a.reservation or Recording.load(c.recording).scenario != ra.scenario
+
+
+def test_invalid_trials_are_marked_and_left_out_of_the_qualifying_table(hani2_home):
+    from hani2.results import read_all_results, simulated_leaderboard
+
+    t = simulate("follower", agent_class="test_simulator:SlowAgent", n_steps=4, assistant_timeout=0.3)
+    assert not t.valid and t.invalid_reason == "assistant still busy" and t.goal_met is None
+    df = read_all_results()
+    assert df.iloc[-1]["sim_invalid"] == "assistant still busy"
+    assert simulated_leaderboard(df) == []
+    simulate("follower", agent_class=AGENT, n_steps=4)
+    sim = simulated_leaderboard(read_all_results())
+    assert [r["trials"] for r in sim] == [1]
+
+
+def test_compare_rows_groups_by_several_fields():
+    from hani2.evaluation import compare_rows
+
+    rows = [dict(opponent="B", participant_type="novice", scenario="s", agreement=1),
+            dict(opponent="B", participant_type="expert", scenario="s", agreement=0)]
+    assert {g["group"] for g in compare_rows(rows, by="opponent,participant_type")["groups"]} == {"B / novice", "B / expert"}
+
+
+def test_sim_and_guest_names_are_reserved():
+    from hani2.auth import validate_new_user
+
+    assert validate_new_user("sim_follower", "pass1") == "This username is reserved."
+    assert validate_new_user("guest_x", "pass1") == "This username is reserved."
+
+
+def test_llm_persona_calls_go_through_the_model_chain_as_the_simulator(hani2_home, monkeypatch):
+    """The real path (no CALL hook): the tools chain, recorded with role simulator, never billed
+    to the Assistant."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    write_settings(hani2_home, "models.json", json.dumps(["openai:gpt-5-mini"]))
+    answer = json.dumps({"action": "accept"})
+    p = LLMPersona(params={"mock_response": answer}, temperature=None)
+    t = simulate(p, agent_class=AGENT, n_steps=6)
+    assert t.valid, t.invalid_reason
+    rec = Recording.load(t.recording)
+    calls = rec.of("llm")
+    assert calls and {c["role"] for c in calls} == {"simulator"}
+
+    from hani2.evaluation import evaluate_recording
+
+    row = evaluate_recording(rec, ["llm_usage"])["row"]
+    assert row["llm_calls"] == len(calls) and row["support_llm_calls"] == 0
+
+
+def test_pre_questionnaire_in_a_participant_study_rearms_auto_start(hani2_home, monkeypatch):
+    from hani2.testing import make_session
+
+    monkeypatch.setenv("HANI2_PRE_YAML", "expertise")
+    s = make_session(user="prolific_p1", agent_class="test_simulator:SilentAgent", query={"PROLIFIC_PID": "p1"})
+    try:
+        assert s.phase == "questionnaire" and s.questionnaire["stage"] == "pre"
+        assert getattr(s.study, "auto_kind", None) != "start" or s.study.auto_deadline is None
+        assert s.study.submit_questionnaire({"expertise": "Never"})["ok"]
+        assert s.phase == "ready" and s.ss["participant_type"] == "novice"
+        assert s.study.no_auto or s.study.auto_kind == "start"
+        assert bool(s.ss.get("is_practice_round")) == s.study.has_practice
+    finally:
+        s.study._cancel()
+        s.close()

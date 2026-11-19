@@ -36,7 +36,10 @@ report = run_trials(["follower", Stubborn(max_concession=0.1)], k=4, agent_class
 print(report["reliability"])   # pass^k per persona
 ```
 
-`run_trials` runs every persona × scenario × opponent `k` times, one after the other.
+`run_trials` runs every persona × scenario × opponent `k` times, one after the other. All the
+trials of a cell play **the same scenario** (`scenario_index`, default 0, also for generated
+scenario types), so pass^k measures how consistently the Assistant handles one task. Trial *i* uses
+seed `seed + i` for the opponent's and the session's random choices.
 
 ## Personas
 
@@ -86,10 +89,11 @@ trial = simulate(p, agent_class="my_agent:MyAgent")
 
 The model sees only what a human would see: the issues, the opponent's offers and their
 utility *to the participant*, the history, the Assistant's messages and its current suggestion,
-and its own idea for a counter-offer. It never sees the opponent's preferences. Its private
-reservation value is in its prompt but not in the scenario, so the Assistant can only learn it by
-asking. That is the point of the `disclosure` instruction: information comes out gradually, as with
-a real participant.
+and its own idea for a counter-offer. It never sees the opponent's preferences. Give it a
+`reservation` to make its walk-away value **private**: it is then only in the persona's prompt, and
+the Assistant can learn it only by asking, which is what the `disclosure` instruction is for
+(information comes out gradually, as with a real participant). Without one the persona uses the
+scenario's reservation value, which the Assistant can already see.
 
 On every turn the persona may first talk to the Assistant (up to `max_chat_per_turn` messages),
 then accepts, counters, follows the suggestion or walks away. Writing `###STOP###` ends its
@@ -107,7 +111,9 @@ reservation value to it. That is the success criterion of pass^k for simulated r
 "a deal was reached": a follower with an Assistant that accepts everything would always succeed.
 
 A trial is **invalid** when it says nothing about the Assistant: it timed out, hit the turn cap,
-the simulator's model failed or the opponent failed. Invalid trials are left out of pass^k and
+the Assistant was still busy after `assistant_timeout` seconds (default 180), the simulator's
+model failed or the opponent failed. The reason is in the `sim_invalid` column of its results row
+(and its `goal_met` is empty). Invalid trials are left out of pass^k and of the qualifying table and
 counted separately.
 
 ## What is recorded
@@ -145,11 +151,15 @@ the persona's prompt needs work.
 
 - The results rows of simulated sessions have `mode = simulated`, a `participant_type` of
   `simulated-easy` or `simulated-hard`, the `persona` and `goal_met`. Their users start with `sim_`.
-- The leaderboard (admin console, *All Results* tool) ranks human participants only. Simulated
-  runs appear in a separate **Qualifying round** table: per Assistant and persona, the trials,
-  the goal rate and pass^k.
+- The leaderboard (admin console, *All Results* tool) and its summary rank human participants
+  only. Simulated runs appear in a separate **Qualifying round** table: per Assistant and persona,
+  the valid trials, the goal rate and pass^k. It pools every run of the same Assistant spec, so give
+  an entrant's version a new file or class name, or use `--temp`, to keep runs apart.
 - `hani2 replay compare` puts simulated recordings in their own groups (`<group> [simulated]`)
-  unless you group by `mode`.
+  unless you group by `mode`. Group by several fields to stratify:
+  `--by support_agent,participant_type` shows each Assistant on easy and on hard participants.
+- User names starting with `sim_` (and `guest_`) are reserved, so no account is mistaken for a
+  simulated participant.
 - Simulated sessions get no questionnaires (neither the
   [pre-questionnaire](studies.md#pre-questionnaire-and-participant-types) nor the per-negotiation
   one) and never count as study participants for balancing.

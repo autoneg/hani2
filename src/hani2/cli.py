@@ -831,7 +831,7 @@ def replay_evaluate(
 @replay_app.command("compare")
 def replay_compare(
     paths: PathsArg = None,
-    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent (the Assistant), user, scenario, experiment, …")] = "opponent",
+    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent (the Assistant), user, scenario, experiment, mode, participant_type, persona, …; several fields with commas (opponent,participant_type)")] = "opponent",
     metrics: MetricsOpt = None,
     llm: LlmOpt = False,
     out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the group table to a .csv or .json file.")] = None,

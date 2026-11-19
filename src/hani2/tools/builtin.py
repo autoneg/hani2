@@ -485,6 +485,11 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
 
     if df is None or len(df) == 0:
         return [ui.text_block("No negotiations yet.", muted=True)]
+    full = df
+    if leaderboard:  # every participant: the summary is of human participants only
+        from hani2.results import is_simulated
+
+        df = df[~is_simulated(df)]
     score, per = scenario_scores(df)
     comps: list[ui.Component] = [
         ui.stats(
@@ -520,6 +525,7 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
                            "Trials": r["trials"], "Goal rate": r["goal_rate"], **{k: r.get(k) for k in keys}}
                           for r in sim], formats={"Goal rate": "percent", **{k: "percent" for k in keys}}),
                 title="Qualifying round (simulated)"))
+    df = full
     all_cols = [str(c) for c in df.columns]
     default_cols = [c for c in DEFAULT_COLUMNS + (["user"] if leaderboard else []) if c in all_cols]
     cols = [c for c in tool.values.get("columns", default_cols) if c in all_cols] or default_cols

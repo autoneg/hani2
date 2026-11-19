@@ -44,6 +44,7 @@ import json
 import random
 import time
 import traceback
+import zlib
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
@@ -115,7 +116,6 @@ class Persona:
         #: the persona's own reservation value (default: the scenario's); private to the persona
         self.reservation = reservation
         self.seed = seed
-        self.rng = random.Random(seed)
         self.aspiration_exponent = aspiration_exponent
         if difficulty:
             self.difficulty = difficulty
@@ -285,11 +285,13 @@ class LLMPersona(Persona):
                  disclosure: str = ("Do not dump everything you know at once: reveal your goal and your limits "
                                     "only when the Assistant asks, one piece at a time."),
                  max_chat_per_turn: int = 1, provider: str | None = None, model: str | None = None,
-                 purpose: str = "tools", temperature: float | None = 0.7, **kw):
+                 purpose: str = "tools", temperature: float | None = 0.7, params: dict | None = None, **kw):
         super().__init__(**kw)
         self.goal, self.temperament, self.disclosure = goal, temperament, disclosure
         self.max_chat_per_turn = int(max_chat_per_turn)
         self.provider, self.model, self.purpose, self.temperature = provider, model, purpose, temperature
+        #: extra keyword arguments of the model call (``max_tokens``, …)
+        self.call_params = dict(params or {})
         self.session = None  # set by the runner (for the model chain and the recorder)
         self.stopped = False
         self.errors = 0
@@ -311,7 +313,7 @@ class LLMPersona(Persona):
         from hani2.llm_service import complete
         from hani2.recording import recorder as rec
 
-        over: dict[str, Any] = {}
+        over: dict[str, Any] = dict(self.call_params)
         if self.provider:
             over["provider"] = self.provider
         if self.model:
@@ -593,8 +595,13 @@ def _answer_pending_question(s, persona: Persona, watch, outcomes, best) -> bool
 
 
 def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, turn_timeout: float = 60.0,
-         trial: Trial | None = None) -> Trial:
-    """Play a started session (``s.start()`` was called) as ``persona`` until it ends."""
+         assistant_timeout: float = 180.0, trial: Trial | None = None) -> Trial:
+    """Play a started session (``s.start()`` was called) as ``persona`` until it ends.
+
+    A trial that says nothing about the Assistant is marked invalid (``s.ss["sim_invalid"]``,
+    written to the results row before the negotiation ends): the time-out or turn cap, an
+    opponent that does not answer, an Assistant still busy after ``assistant_timeout`` seconds,
+    or a failing persona / simulator model."""
     from hani2.recording import recorder as rec
 
     t = trial or Trial(persona=persona.name, difficulty=persona.difficulty, scenario=s._scenario_name(),
@@ -614,19 +621,36 @@ def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, t
         if s.recorder is not None:
             s.recorder.mark(kind, **fields)
 
+    def invalidate(reason: str, end_it: bool = True) -> None:
+        if t.valid:
+            t.valid, t.invalid_reason = False, reason
+            s.ss["sim_invalid"] = reason
+        if end_it and s.phase in ("running", "starting"):
+            with rec.acting("human"):
+                s.end()
+
+    def idle() -> bool:
+        ok = s.wait_agent_idle(timeout=assistant_timeout)
+        if not ok:
+            invalidate("assistant still busy")
+        return ok
+
     while s.phase in ("running", "starting"):
         if time.time() > end or t.turns >= max_turns:
-            t.valid, t.invalid_reason = False, "timeout" if time.time() > end else "turn cap"
-            s.end()
+            invalidate("timeout" if time.time() > end else "turn cap")
             break
         if not s.wait_for_turn(timeout=turn_timeout):
-            t.valid, t.invalid_reason = False, "opponent did not answer"
+            invalidate("opponent did not answer")
             break
         if s.phase != "running":
             break
-        s.wait_agent_idle(timeout=turn_timeout)
+        if not idle():
+            break
         while _answer_pending_question(s, persona, watch, outcomes, best):
-            s.wait_agent_idle(timeout=turn_timeout)
+            if not idle():
+                break
+        if not t.valid:
+            break
         if not s.is_my_turn():  # the Assistant acted for the human (semi / full autonomy)
             watch.mark()
             continue
@@ -635,11 +659,19 @@ def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, t
             msg = persona.chat(view, n)
             if not msg:
                 break
-            s.user_chat(msg)
-            s.wait_agent_idle(timeout=turn_timeout)
+            with rec.acting("human"):
+                s.user_chat(msg)
+            if not idle():
+                break
             while _answer_pending_question(s, persona, watch, outcomes, best):
-                s.wait_agent_idle(timeout=turn_timeout)
+                if not idle():
+                    break
             view = _view(s, persona, watch, outcomes, best)
+        if not t.valid:
+            break
+        if isinstance(persona, LLMPersona) and persona.errors:
+            invalidate("simulator model failed")
+            break
         if not s.is_my_turn():
             watch.mark()
             continue
@@ -647,8 +679,10 @@ def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, t
             act = persona.decide(view)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            t.valid, t.invalid_reason = False, f"persona failed: {e}"
-            s.end()
+            invalidate(f"persona failed: {e}")
+            break
+        if isinstance(persona, LLMPersona) and persona.errors:
+            invalidate("simulator model failed")
             break
         sug = view.suggestion
         t.turns += 1
@@ -685,11 +719,11 @@ def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, t
     t.status = str(res.get("status") or "")
     t.agreement = res.get("agreement")
     t.human_utility = res.get("human_utility")
-    if isinstance(persona, LLMPersona) and persona.errors and t.valid:
-        t.valid, t.invalid_reason = False, "simulator model failed"
     if t.status in ("agent_failed", "erred") and t.valid:
         t.valid, t.invalid_reason = False, t.status
     t.goal_met = bool(t.agreement is not None and t.human_utility is not None and float(t.human_utility) >= rv - 1e-9)
+    if not t.valid:
+        t.goal_met = None
     mark("sim_end", goal_met=t.goal_met, valid=t.valid, invalid_reason=t.invalid_reason, stopped=t.stopped,
          turns=t.turns, suggestions_seen=t.suggestions_seen, suggestions_taken=t.suggestions_taken,
          reservation=rv, human_utility=t.human_utility)
@@ -699,14 +733,19 @@ def play(s, persona: Persona, *, max_turns: int = 200, timeout: float = 300.0, t
 def simulate(persona: "str | Persona | dict" = "follower", *, scenario: str | None = "Trade",
              opponent: str | None = "BoulwareTBNegotiator", agent_class: str | None = None,
              assistant_settings: dict | None = None, n_steps: int | None = 20, trial: int = 0,
-             seed: int | None = None, home: str | None = None, study: Any = None, max_turns: int = 200,
-             timeout: float = 300.0, keep: bool = False, **persona_kw: Any) -> Trial:
+             seed: int | None = None, scenario_index: int | None = 0, home: str | None = None, study: Any = None,
+             max_turns: int = 200, timeout: float = 300.0, assistant_timeout: float = 180.0, keep: bool = False,
+             **persona_kw: Any) -> Trial:
     """Run one simulated negotiation: ``persona`` plays the human seat, ``agent_class`` is the Assistant.
 
     The session is ``mode="simulated"`` and its user ``sim_<persona>``; the recording carries a
     ``sim`` record (the persona and its policy), one ``sim_turn`` record per move and a ``sim_end``
     record (goal met, valid). Returns the :class:`Trial`; ``keep=True`` also attaches the session
     (``trial.session``, not closed).
+
+    ``scenario_index`` picks the scenario of the type (the same one for every trial, so pass^k
+    repeats one task; ``None``: the next one, as for a human). ``seed`` seeds the random choices of
+    the opponent and the session (Python's and NumPy's generators), so trials differ only by seed.
     """
     from hani2.testing import make_session
 
@@ -714,7 +753,13 @@ def simulate(persona: "str | Persona | dict" = "follower", *, scenario: str | No
                      **persona_kw)
     s = make_session(user=f"{SIM_PREFIX}{p.name}", mode="simulated", opponent=opponent, agent_class=agent_class,
                      assistant_settings=assistant_settings, scenario_type=scenario, n_steps=n_steps, home=home,
-                     study=study)
+                     study=study, load=False)
+    s.ss["fixed_scenario_index"] = scenario_index
+    if scenario_index is not None:  # generated scenarios too: the same task for every trial of the cell
+        _seed_all(zlib.crc32(f"{scenario}|{scenario_index}".encode()))
+    s.load(scenario)
+    if seed is not None:
+        _seed_all(seed)
     s.ss["participant_type"] = f"simulated-{p.difficulty}"
     s.ss["persona"] = p.name
     s.ss["persona_reservation"] = p.reservation
@@ -734,7 +779,7 @@ def simulate(persona: "str | Persona | dict" = "follower", *, scenario: str | No
     try:
         s.start()
         t.opponent = s.ss.get("last_partner_type")
-        play(s, p, max_turns=max_turns, timeout=timeout, trial=t)
+        play(s, p, max_turns=max_turns, timeout=timeout, assistant_timeout=assistant_timeout, trial=t)
     finally:
         if not keep:
             s.close()
@@ -742,6 +787,13 @@ def simulate(persona: "str | Persona | dict" = "follower", *, scenario: str | No
     if keep:
         t.__dict__["session"] = s
     return t
+
+
+def _seed_all(seed: int) -> None:
+    import numpy as np
+
+    random.seed(seed)
+    np.random.seed(seed % (2 ** 32))
 
 
 def _locate_recording(s, t: Trial) -> None:
@@ -765,7 +817,8 @@ def run_trials(personas: list, *, k: int = 4, scenarios: list[str | None] | None
                progress: Callable[[Trial], None] | None = None, **kw: Any) -> dict:
     """Run every persona × scenario × opponent ``k`` times (sequentially) and report pass^k.
 
-    Success is ``goal_met`` (a deal worth at least the persona's reservation value); invalid
+    Every trial of a cell plays the same scenario (``scenario_index``, default 0) with seed
+    ``seed + i``. Success is ``goal_met`` (a deal worth at least the persona's reservation value); invalid
     trials (timeouts, turn caps, simulator model failures, opponent failures) are left out.
     Returns ``{"trials": [...], "groups": ..., "reliability": [...], "invalid": n}``.
     """

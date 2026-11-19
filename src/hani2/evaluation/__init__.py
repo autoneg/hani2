@@ -241,12 +241,16 @@ def compare_rows(rows: list[dict], by: str = "opponent", columns: list[dict] | N
     scenario-balanced mean (average within each scenario first), plus pass^k
     reliability (success = ``success`` column ≥ threshold, default: a deal).
 
+    ``by`` may name several fields (``"opponent,participant_type"``): a group per combination,
+    e.g. to see each opponent or Assistant on easy and on hard participants.
+
     Simulated sessions (``mode == "simulated"``) are never pooled with human ones: their group
     name gets `` [simulated]`` (unless grouping by ``mode`` itself)."""
     groups: dict[str, list[dict]] = {}
+    fields = [f.strip() for f in str(by).split(",") if f.strip()] or [by]
     for r in rows:
-        g = str(r.get(by))
-        if r.get("mode") == "simulated" and by != "mode" and not g.endswith("[simulated]"):
+        g = " / ".join(str(r.get(f)) for f in fields)
+        if r.get("mode") == "simulated" and "mode" not in fields and not g.endswith("[simulated]"):
             g += " [simulated]"
         groups.setdefault(g, []).append(r)
     names = [c["name"] for c in columns] if columns else sorted(

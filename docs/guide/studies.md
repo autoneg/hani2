@@ -327,9 +327,10 @@ The leaderboard ranks human participants only and also comes stratified by `part
 with them. They have their own *Qualifying round* table, per Assistant and persona, with the goal
 rate and pass^k. Rows written before the `mode` column existed count as human.
 
-Four columns say who sat in the human seat: `mode` (`main`, `guest`, `simulated`, …),
-`participant_type`, `persona` (simulated participants) and `goal_met` (simulated participants: a
-deal worth at least the persona's reservation value).
+Five columns say who sat in the human seat: `mode` (`main`, `guest`, `simulated`, …),
+`participant_type`, and for simulated participants `persona`, `goal_met` (a deal worth at least
+the persona's reservation value) and `sim_invalid` (why the trial does not count, empty when it
+does).
 
 ## The event log
 
