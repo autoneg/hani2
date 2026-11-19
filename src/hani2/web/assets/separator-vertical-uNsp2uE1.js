@@ -1,0 +1,1 @@
+import{c as a}from"./index-B9kaoElZ.js";const e={name:"separator-vertical",size:24,node:[["path",{d:"M12 3v18",key:"108xh3"}],["path",{d:"m16 16 4-4-4-4",key:"1js579"}],["path",{d:"m8 8-4 4 4 4",key:"1whems"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

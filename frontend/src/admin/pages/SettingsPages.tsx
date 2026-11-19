@@ -270,8 +270,8 @@ export const ASSISTANT_GROUPS: FieldGroup[] = [
     footer: "Phones always show the Assistant as a tab. The character's notifications come out of it as speech bubbles.",
     fields: [
       { id: "assistant-presentation", path: "presentation.style", label: "The Assistant appears as", hint: "Panel: opened from the header. Character: a movable figure in the corner. Both. Or the participant chooses.", type: "select", options: [{ value: "panel", label: "A panel" }, { value: "persona", label: "A character (persona)" }, { value: "both", label: "Both" }, { value: "choice", label: "The participant chooses" }], keywords: "persona character avatar panel dropdown" },
-      { id: "assistant-presentation-default", path: "presentation.choice_default", label: "First choice when the participant chooses", type: "select", options: [{ value: "panel", label: "A panel" }, { value: "persona", label: "A character" }, { value: "both", label: "Both" }] },
-      { id: "assistant-persona-movable", path: "presentation.persona_movable", label: "Participants may move the character", type: "toggle" },
+      { id: "assistant-presentation-default", path: "presentation.choice_default", label: "First choice when the participant chooses", type: "select", showIf: (s) => s.get("presentation.style") === "choice", options: [{ value: "panel", label: "A panel" }, { value: "persona", label: "A character" }, { value: "both", label: "Both" }] },
+      { id: "assistant-persona-movable", path: "presentation.persona_movable", label: "Participants may move the character", type: "toggle", showIf: (s) => (s.get("presentation.style") ?? "panel") !== "panel" },
     ],
   },
   { title: "System prompt", fields: [{ id: "assistant-system-prompt", path: "system_prompt", label: "System prompt", type: "textarea", rows: 12 }] },

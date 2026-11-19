@@ -29,6 +29,8 @@ export interface Field {
   emptyNull?: boolean;
   render?: (s: Settings) => React.ReactNode;
   wide?: boolean;
+  /** shown only when this holds (a field that only matters for some value of another) */
+  showIf?: (s: Settings) => boolean;
 }
 
 export interface FieldGroup {
@@ -73,7 +75,7 @@ function Control({ f, s }: { f: Field; s: Settings }) {
 export function FieldRows({ fields, s }: { fields: Field[]; s: Settings }) {
   return (
     <>
-      {fields.map((f) => (
+      {fields.filter((f) => !f.showIf || f.showIf(s)).map((f) => (
         <Row key={f.id} id={f.id} label={f.label} hint={f.hint} wide={f.wide ?? (f.type === "textarea" || f.type === "checks")} overridden={!!f.path && s.overridden(f.path)} onReset={f.path ? () => s.reset(f.path!) : undefined}>
           <Control f={f} s={s} />
         </Row>

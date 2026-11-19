@@ -1,1 +1,0 @@
-import{c as o}from"./index-Db31khdi.js";const e={name:"move-down-left",size:24,node:[["path",{d:"M11 19H5V13",key:"1akmht"}],["path",{d:"M19 5L5 19",key:"72u4yj"}]]};e.node;const a=o(e);export{e as __iconData,a as default};
