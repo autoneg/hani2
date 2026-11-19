@@ -34,6 +34,16 @@ The negmas-llm negotiators that HANI2 knows by name are:
 - LLM negotiators: `LLMHybridNegotiator`, `LLMBoulwareTBNegotiator`, `LLMConcederTBNegotiator`, `LLMLinearTBNegotiator`.
 - Template-based talking negotiators: `HybridWithTextNegotiator`, `BoulwareWithTextNegotiator`, `ConcederWithTextNegotiator`, `LinearWithTextNegotiator`.
 
+### Honest and bluffing opponents
+
+`helpers.HonestTBNegotiator` and `helpers.DeceptiveTBNegotiator` concede slowly on the same
+time-based curve and accept only by their true utility; neither uses a language model. The honest one
+names its real most important issue. The deceptive one claims that its least important issue matters
+most and shapes its offers to fit that claim, calls almost every offer final and cites an outside
+offer it does not have. They are the two levels of the `deception` factor of
+[compositional scenarios](compositional.md), and they need a linear-additive utility function to know
+their priorities.
+
 ## Group tokens
 
 A spec that starts with `:` expands to a list of specs. Tokens are case-insensitive.

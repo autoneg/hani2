@@ -26,6 +26,17 @@
   Assistant must ask about it. Their constraints are checked against the agreement
   (`constraints_met`). `control.human_only_issues` and `control.human_only_actions` keep
   decisions for the human: the Assistant can only suggest them.
+- **Compositional scenarios: find where Assistants fail.** `hani2 compose` builds scenarios from
+  difficulty factors (number of issues, opposition, ZOPA size, a hidden constraint, a deceptive
+  opponent, time pressure). Every scenario is verified automatically (each factor in its band, a
+  non-empty ZOPA, a reachable target deal, a constraint that bites), and the sampler picks a balanced
+  set. `hani2 compose run` plays the set with an Assistant or a baseline through the autopilot, and
+  `hani2 compose report` shows the target attainment, agreement rate and constraint violations per
+  factor level, with the factors ranked by how much they hurt. The new `factors` metric adds the
+  factor levels and target attainment to any evaluation. Two new deterministic opponents:
+  `helpers.HonestTBNegotiator` and `helpers.DeceptiveTBNegotiator`, which bluffs. See
+  [Compositional scenarios](guide/compositional.md).
+
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

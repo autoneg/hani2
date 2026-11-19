@@ -34,6 +34,7 @@ app.add_typer(groups_app, name="groups")
 app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
+app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 
 
 def _open_when_ready(url: str) -> None:
