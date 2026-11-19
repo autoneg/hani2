@@ -188,7 +188,7 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
             <Maximize2 size={14} />
           </button>
         )}
-        {active && <ToolMenu tool={active} allowMove={allowMove} />}
+        {active && <ToolMenu key={active.id} tool={active} allowMove={allowMove} />}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3" role="tabpanel">
         {active && maximized === active.id ? (
