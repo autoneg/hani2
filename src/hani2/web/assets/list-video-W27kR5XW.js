@@ -1,0 +1,1 @@
+import{c as a}from"./index-CSuCKCSZ.js";const e={name:"list-video",size:24,node:[["path",{d:"M21 5H3",key:"1fi0y6"}],["path",{d:"M10 12H3",key:"1ulcyk"}],["path",{d:"M10 19H3",key:"108z41"}],["path",{d:"M15 12.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997a1 1 0 0 1-1.517-.86z",key:"ms4nik"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

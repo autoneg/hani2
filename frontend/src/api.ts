@@ -67,6 +67,8 @@ export interface AppConfig {
   version: string;
   auth_mode: "password" | "oauth" | "dual" | "none";
   oauth_providers: string[];
+  /** hand-off sign-in from a trusted website (hani2.sso), e.g. an ANAC account */
+  sso_providers?: { name: string; label: string }[];
   allow_registration: boolean;
   enforce_consent: boolean;
   playground: boolean;

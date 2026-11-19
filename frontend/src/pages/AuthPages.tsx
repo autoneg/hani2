@@ -58,6 +58,13 @@ function Shell({ children, cfg }: { children: React.ReactNode; cfg: AppConfig | 
 
 const Err = ({ msg }: { msg: string | null }) => (msg ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{msg}</div> : null);
 
+function signInError(code: string | null): string | null {
+  if (!code) return null;
+  if (code === "sso_replayed" || code === "sso_expired") return "That sign-in link has expired or was already used. Start again from the website.";
+  if (code.startsWith("sso_")) return "Sign-in from the website did not complete. Try again from there.";
+  return "Sign-in with that provider did not complete. Try again.";
+}
+
 function next() {
   const n = new URLSearchParams(location.search).get("next");
   return n && n.startsWith("/") ? n : "/app";
@@ -67,7 +74,7 @@ export function LoginPage() {
   const cfg = useConfig();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
-  const [err, setErr] = useState<string | null>(new URLSearchParams(location.search).get("error") ? "Sign-in with that provider did not complete. Try again." : null);
+  const [err, setErr] = useState<string | null>(signInError(new URLSearchParams(location.search).get("error")));
   const [busy, setBusy] = useState(false);
   const pw = cfg && cfg.auth_mode !== "oauth";
   const submit = async (e: React.FormEvent) => {
@@ -108,9 +115,15 @@ export function LoginPage() {
             </button>
           </form>
         )}
-        {cfg && cfg.oauth_providers.length > 0 && (
+        {cfg && (cfg.oauth_providers.length > 0 || (cfg.sso_providers?.length ?? 0) > 0) && (
           <>
             {pw && <div className="my-1 text-center text-xs text-muted">or</div>}
+            {(cfg.sso_providers ?? []).map((sp) => (
+              <a key={`sso-${sp.name}`} className="btn-secondary py-2.5" href={withBase(`/api/sso/${encodeURIComponent(sp.name)}/login?next=${encodeURIComponent(next())}`)}>
+                <KeyRound size={16} />
+                Continue with your {sp.label}
+              </a>
+            ))}
             {cfg.oauth_providers.map((prov) => (
               <a key={prov} className="btn-secondary py-2.5" href={withBase(`/api/oauth/${prov}/login`)}>
                 <KeyRound size={16} />

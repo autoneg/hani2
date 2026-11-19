@@ -1,0 +1,1 @@
+import{c as o}from"./index-CSuCKCSZ.js";const e={name:"wifi-low",size:24,node:[["path",{d:"M12 20h.01",key:"zekei9"}],["path",{d:"M8.5 16.429a5 5 0 0 1 7 0",key:"1bycff"}]]};e.node;const i=o(e);export{e as __iconData,i as default};
