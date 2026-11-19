@@ -498,3 +498,48 @@ def test_schedule_opponent_outside_the_pool_has_no_group(study, monkeypatch):
     (d / "schedule.json").write_text(json.dumps([{"agent_class_name": "LinearTBNegotiator"}]))
     s = prolific("G", study, query={"noautostart": "1", "group": "fin"})
     assert s.round_plan["partner"] == "LinearTBNegotiator" and s.round_plan["opponent_group"] == ""
+
+
+def _participant_package(root: Path, pkg: str) -> None:
+    """A submitted agent unpacked as scmlweb does: <root>/<pkg>/coach.py, imported as pkg.coach.Class."""
+    (root / pkg).mkdir(parents=True)
+    (root / pkg / "__init__.py").write_text("")
+    (root / pkg / "coach.py").write_text(
+        "from level5_deal_coach import DealCoach\n\n\nclass MyCoach(DealCoach):\n    pass\n")
+
+
+def test_scmlweb_hi_test_group_for_a_signed_in_participant(study, tmp_path):
+    """HI 'test my agent': the participant's own Assistant, a signed-in (not guest) user, dotted specs."""
+    _participant_package(tmp_path / "agents", "a789")
+    g = projects.study_dir(study) / "results" / "groups"
+    _write(g / "test_hi_789_tok.json", {"syspath": [str(tmp_path / "agents")], "agents": ["ConcederTBNegotiator"],
+                                        "support_agent": "a789.coach.MyCoach"})
+    s = make_session(user="anac_789", mode="main", partner=None, study=study, query={"group": "test_hi_789_tok"})
+    assert type(s.support_agent).__name__ == "MyCoach" and s.support_agent.user_enabled
+    assert [str(x) for x in s.opponent_pool()] == ["ConcederTBNegotiator"]
+    s.start()
+    s.wait_for_turn()
+    assert s.phase == "running"
+
+
+def test_scmlweb_han_test_group_plays_the_participants_agent(study, tmp_path):
+    root = tmp_path / "agents" / "a456"
+    root.mkdir(parents=True)
+    (root / "__init__.py").write_text("")
+    (root / "neg.py").write_text("from negmas.sao import BoulwareTBNegotiator\n\n\nclass Mine(BoulwareTBNegotiator):\n    pass\n")
+    g = projects.study_dir(study) / "results" / "groups"
+    _write(g / "test_han_456_tok.json", {"syspath": [str(tmp_path / "agents")], "agents": ["a456.neg.Mine"]})
+    s = make_session(user="anac_456", mode="main", partner=None, study=study, query={"group": "test_han_456_tok"})
+    s.start()
+    s.wait_for_turn()
+    assert "Mine" in str(s.ss.get("last_partner_type"))
+
+
+def test_a_broken_test_agent_falls_back_without_crashing(study):
+    g = projects.study_dir(study) / "results" / "groups"
+    _write(g / "test_hi_1_bad.json", {"syspath": [], "agents": ["ConcederTBNegotiator"], "support_agent": "nope.missing.Class"})
+    s = make_session(user="anac_1", mode="main", partner=None, study=study, query={"group": "test_hi_1_bad"})
+    assert s.assistant_error  # shown to the participant, not raised
+    s.start()
+    s.wait_for_turn()
+    assert s.phase == "running"
