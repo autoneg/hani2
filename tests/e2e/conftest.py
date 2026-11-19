@@ -21,6 +21,20 @@ import pytest
 from playwright import sync_api  # tests/conftest.py ignores this folder when Playwright is missing
 
 
+SSO_SECRET = "e2e-handoff-secret-0123456789"
+
+
+def _add_sso_provider(home: Path) -> None:
+    import json
+
+    p = home / "settings" / "env.json"
+    env = json.loads(p.read_text()) if p.exists() else {}
+    env.setdefault("auth", {})["sso"] = {"scmlweb": {"login_url": "https://anac.example.org/hani2/sso",
+                                                     "label": "ANAC account"}}
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(env))
+
+
 def _free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -47,6 +61,8 @@ def server(tmp_path_factory):
     env.update(HANI2_HOME=str(home), HANI2_MODEL_PROBE="off", PYTHONUNBUFFERED="1")
     cli = [sys.executable, "-m", "hani2.cli"]
     subprocess.run([*cli, "setup"], env=env, check=True, capture_output=True)
+    env["HANI2_SSO_SCMLWEB_SECRET"] = SSO_SECRET  # a hand-off provider for the sign-in-from-a-website test
+    _add_sso_provider(home)
     log = (home / "server.log").open("w")
     proc = subprocess.Popen([*cli, "--no-browser", "--port", str(port), "--opponents", "BoulwareTBNegotiator",
                              "--no-assistant"], env=env, stdout=log, stderr=subprocess.STDOUT)

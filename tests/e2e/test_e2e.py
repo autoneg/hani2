@@ -166,3 +166,25 @@ def test_every_admin_page_loads_without_errors(new_page):
         p.wait_for_load_state("networkidle")
         assert not p.errors, (page_id, p.errors)
     assert not console, console
+
+
+def test_a_signed_link_from_the_website_opens_the_app_logged_in(new_page):
+    import time
+    import uuid
+
+    from hani2 import sso
+
+    from .conftest import SSO_SECRET
+
+    p = new_page()
+    p.goto("/login")
+    expect(p.get_by_role("link", name="Continue with your ANAC account")).to_be_visible()
+    now = int(time.time())
+    sub = uuid.uuid4().hex[:10]
+    token = sso.sign({"iss": "scmlweb", "aud": "hani2", "sub": sub, "iat": now, "exp": now + 60,
+                      "jti": uuid.uuid4().hex, "name": "Pat"}, SSO_SECRET)
+    p.goto(f"/api/sso/scmlweb?token={token}&next=/app")
+    expect(p.get_by_role("button", name="Start negotiation")).to_be_visible()
+    assert p.request.get("/api/auth/me").json()["user"] == f"anac_{sub}"
+    p.goto(f"/api/sso/scmlweb?token={token}&next=/app")  # the same link again: refused
+    expect(p.get_by_text("already used")).to_be_visible()
