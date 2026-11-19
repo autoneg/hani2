@@ -170,7 +170,7 @@ def _use_once(name: str, jti: str, until: float, now: float) -> None:
             raise SSOError("replayed", "this sign-in link was already used: start again from the website")
         used[key] = until
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")  # two servers share a home
         tmp.write_text(json.dumps(used))
         tmp.replace(path)
 
@@ -183,13 +183,13 @@ def sign_in(name: str, claims: dict[str, Any]) -> str:
     user = f"{cfg['prefix']}{claims['sub']}"
     leagues = [str(x) for x in claims.get("leagues") or [] if isinstance(x, (str, int))][:16]
     fields = dict(email=str(claims.get("email") or "")[:200], full_name=str(claims.get("name") or "")[:200],
-                  sso=name, sso_sub=str(claims["sub"]), leagues=leagues, consented=True)
+                  sso=name, sso_sub=str(claims["sub"]), leagues=leagues)
     if not auth.user_exists(user):
         auth.create_user(user, None, **fields)
     elif auth.get_meta(user).get("sso") != name:
         raise SSOError("conflict", f"the account {user} was not made by {name}")
     else:
-        auth.update_meta(user, **{k: v for k, v in fields.items() if k != "consented"})
+        auth.update_meta(user, **fields)
     return user
 
 

@@ -70,7 +70,7 @@ def test_a_valid_token_signs_the_participant_in(client):
     assert me["user"] == "anac_789" and not me["is_admin"]
     meta = auth.get_meta("anac_789")
     assert meta["email"] == "p@uni.edu" and meta["sso"] == "scmlweb" and meta["leagues"] == ["han", "hi"]
-    assert client.post("/api/session", json={"mode": "main"}).status_code == 200  # consent is not asked again
+    assert client.post("/api/session", json={"mode": "main"}).status_code == 200
 
 
 def test_second_visit_updates_the_same_account(client):
@@ -140,3 +140,60 @@ def test_without_a_secret_there_is_no_handoff(hani2_home):
 
 def test_audience_follows_the_root_path():
     assert sso.audience("") == "hani2" and sso.audience("/hiplay2") == "hani2/hiplay2"
+
+
+def test_behind_a_root_path_like_the_hi_instance(client, monkeypatch):
+    monkeypatch.setenv("HANI2_ROOT_PATH", "/hiplay2")
+    assert go(client, sso.sign(claims(), SECRET)).headers["location"] == "/hiplay2/login?error=sso_audience"
+    r = go(client, sso.sign(claims(aud="hani2/hiplay2"), SECRET), next="/app?group=g")
+    assert r.headers["location"] == "/hiplay2/app?group=g"
+    loc = client.get("/hiplay2/api/sso/scmlweb/login", params={"next": "/app"}, follow_redirects=False).headers["location"]
+    assert "site=%2Fhiplay2" in loc
+
+
+def test_consent_is_still_asked_when_the_study_enforces_it(client, hani2_home):
+    import json
+
+    env = json.loads((hani2_home / "settings" / "env.json").read_text())
+    env["auth"]["enforce_consent"] = True
+    write_settings(hani2_home, "env.json", env)
+    go(client, sso.sign(claims(sub="c1"), SECRET))
+    assert client.get("/api/auth/me").json()["user"] == "anac_c1"
+    r = client.post("/api/session", json={"mode": "main"})
+    assert r.status_code == 403 and r.json()["detail"] == "consent_required"
+
+
+def _group(hani2_home, key, data):
+    import json
+
+    from hani2 import projects
+
+    ref = projects.current_study()
+    base = projects.study_dir(ref) / "results" if ref else hani2_home / "db"
+    g = base / "groups"
+    g.mkdir(parents=True, exist_ok=True)
+    (g / f"{key}.json").write_text(json.dumps(data))
+
+
+@pytest.mark.parametrize("finish_first", [False, True])
+def test_test_my_agent_link_on_an_existing_session_uses_the_new_group(client, hani2_home, finish_first):
+    """A participant who already has a session (ready, or after a round) then clicks 'Test my agent'."""
+    from hani2.server import hub
+    from hani2.testing import TestSession
+
+    go(client, sso.sign(claims(sub="t1"), SECRET))
+    sid = client.post("/api/session", json={"mode": "main", "query": {}}).json()["sid"]
+    s = hub.get(sid)
+    s.__class__ = TestSession  # only adds the waiting helpers
+    if finish_first:
+        s.start()
+        s.wait_for_turn()
+        s.end()
+        assert s.wait(lambda: s.phase != "running", 10)
+    _group(hani2_home, "test_han_t1_tok", {"syspath": [], "agents": ["ConcederTBNegotiator"]})
+    client.post("/api/session", json={"mode": "main", "query": {"group": "test_han_t1_tok"}})
+    if s.phase in ("ended", "finished"):
+        s.load()
+    s.start()
+    s.wait_for_turn()
+    assert "Conceder" in str(s.ss.get("last_partner_type")), s.ss.get("last_partner_type")
