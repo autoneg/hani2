@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-sync_api = pytest.importorskip("playwright.sync_api", reason="end-to-end tests need: pip install playwright")
+from playwright import sync_api  # tests/conftest.py ignores this folder when Playwright is missing
 
 
 def _free_port() -> int:

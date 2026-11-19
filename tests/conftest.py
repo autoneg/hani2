@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -5,6 +6,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# the browser tests need Playwright (the e2e extra): without it pytest skips the folder
+collect_ignore = [] if importlib.util.find_spec("playwright") else ["e2e"]
 sys.path.insert(0, str(ROOT / "examples" / "support_agent_tutorial"))
 sys.path.insert(0, str(ROOT / "examples" / "tools"))
 sys.path.insert(0, str(ROOT / "examples" / "agent_template"))

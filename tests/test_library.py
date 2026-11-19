@@ -205,7 +205,8 @@ def test_upload_opponent_py_and_use_it_in_a_session(study, hani2_home):
 
         assert resolve_agent_group("lib") == [spec]
         assert get_agent_type(spec).__name__ == "LibBoulware"
-    s = make_session(partner=spec, study="P1/s1")
+    # participants reach an uploaded opponent through its group (a raw file: spec in the URL is admin-only)
+    s = make_session(partner=":lib", study="P1/s1")
     s.start()
     s.wait_for_turn()
     assert "LibBoulware" in str(s.ss.get("last_partner_type"))
