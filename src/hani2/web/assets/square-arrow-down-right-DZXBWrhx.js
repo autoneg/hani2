@@ -1,1 +1,0 @@
-import{c as r}from"./index-kuJP3rtW.js";const e={name:"square-arrow-down-right",size:24,node:[["path",{d:"M15 15 9 9",key:"qb9ybb"}],["path",{d:"M9 15h6V9",key:"1wezwn"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["arrow-down-right-square"]};e.node;const o=r(e);export{e as __iconData,o as default};

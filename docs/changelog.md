@@ -33,6 +33,62 @@
   accepting a deal worth less than no deal, suggesting one, the opponent doing so, and sessions
   that failed because of the opponent or the system. A new judged metric, `task_judge`, checks the
   scenario's facts and assertions.
+
+- **Simulated participants.** `hani2 simulate` (and `hani2.simulator`) lets a persona play the
+  human seat of headless sessions, for cheap, repeatable trials and pass^k before the human study,
+  as a qualifying round for Assistant entrants. Scripted personas: `follower` and `click_through`
+  (easy), `skeptic` and `stubborn` (hard). A language-model persona has a goal, a private
+  reservation value, a temperament and an instruction to disclose information gradually, and ends
+  with `###STOP###`. Sessions are tagged `mode: simulated` (users `sim_<persona>`), get no
+  questionnaires, never count as study participants and are never ranked with humans: the admin
+  console shows them in a separate **Qualifying round** table, and `replay compare` keeps them in
+  their own groups. Success is `goal_met`, a deal worth at least the persona's reservation value.
+  The new `simulation` metric reports it, along with validity, suggestion uptake and
+  scripted-persona conformance. `error_review` gains a **simulator** source
+  (`simulator_errors`, `simulator_critical_errors`) for auditing the simulator. See
+  [Simulated participants](guide/simulation.md).
+- **Pre-questionnaire and participant types; stratified leaderboards.** An opt-in questionnaire
+  (`"pre_questionnaire": "expertise"` in `env.json`, or `questionnaires/pre_questionnaire.yaml`)
+  is shown once before a participant's first negotiation. Its `participant_type` answer (e.g.
+  novice / experienced / expert) is stored in the new `participant_type` results column, and the
+  leaderboard is also shown per participant type. Results also gain `mode`, `persona` and
+  `goal_met` columns. See
+  [Pre-questionnaire and participant types](guide/studies.md#pre-questionnaire-and-participant-types).
+- **Scenario pictures.** The *Scenario Info* tool shows a picture of the scenario under its
+  title, with a *Picture* switch to hide it. Put `picture.svg` (or `.png`, `.jpg`, ...) in a
+  scenario or category folder, optionally with `picture_dark.svg` for the dark theme, or name
+  them in `_info.yaml` (`picture: {light: ..., dark: ...}`). Every bundled scenario has a light
+  and a dark vector picture. Tools can show pictures with the new `ui.image` component. See
+  [Scenario pictures](guide/scenarios.md#scenario-pictures).
+- **Who knows what: the participant and the Assistant can know different things.** The new
+  `information` setting (per project, study or server) splits information so
+  that the two must work together. *Past negotiations*: records of earlier negotiations in the
+  same scenario between parties with similar (or the same, or different) preferences, shared
+  out between the participant (a new **Past Negotiations** tool) and the Assistant. A scenario
+  folder can ship its own in `_past_negotiations.yaml` (`hani2 scenario past` writes it).
+  *Preferences*: the participant may know only the issue weights and the Assistant only the
+  option values (or any other mix), with deal values hidden from a side that knows only part.
+  *Market research*: statistics on how preferences in the scenario are usually distributed,
+  for the Assistant, the participant (a **Market Research** tool) or both. A new Assistant
+  ability, `private_info` (`get_private_information`, `show_past_negotiation`), gives the
+  Assistant its share; it cannot read the participant's private tools. Results rows and
+  recordings say who held what. See [Who knows what](guide/information.md).
+  *Dual control*: private briefings (in `_info.yaml` per role, or in the setting) give one side a
+  limit that is not in the preferences; the human sees theirs in a **Briefing** tool and the
+  Assistant must ask about it. Their constraints are checked against the agreement
+  (`constraints_met`). `control.human_only_issues` and `control.human_only_actions` keep
+  decisions for the human: the Assistant can only suggest them.
+- **Compositional scenarios: find where Assistants fail.** `hani2 compose` builds scenarios from
+  difficulty factors (number of issues, opposition, ZOPA size, a hidden constraint, a deceptive
+  opponent, time pressure). Every scenario is verified automatically (each factor in its band, a
+  non-empty ZOPA, a reachable target deal, a constraint that bites), and the sampler picks a balanced
+  set. `hani2 compose run` plays the set with an Assistant or a baseline through the autopilot, and
+  `hani2 compose report` shows the target attainment, agreement rate and constraint violations per
+  factor level, with the factors ranked by how much they hurt. The new `factors` metric adds the
+  factor levels and target attainment to any evaluation. Two new deterministic opponents:
+  `helpers.HonestTBNegotiator` and `helpers.DeceptiveTBNegotiator`, which bluffs. See
+  [Compositional scenarios](guide/compositional.md).
+
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

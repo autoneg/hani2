@@ -97,7 +97,7 @@ participant's questionnaire answers, so its judgements are independent of both.
 | `judge_human` | `jh_engagement`, `jh_strategy`, `jh_cooperativeness`, `jh_use_of_assistant`, `jh_communication`, `jh_overall` | The human: invested or clicking through, strategy, use of the assistant. |
 | `nl_assertions` | `assertions_met`, `assertions_total` | Natural-language statements the session should satisfy, each judged met, not met or not applicable. The defaults check the assistant's explanatory behaviour; set your own (below). |
 | `task_judge` | `task_communicated`, `task_assertions_met` | The judged parts of the scenario's [evaluation criteria](scenarios.md#evaluation-criteria): did the Assistant convey the facts it had to, and were the scenario's own assertions met? |
-| `error_review` | `assistant_errors`, `assistant_critical_errors`, `human_errors`, `human_critical_errors`, `human_overrode_helpfully`, `human_overrode_harmfully`, `first_critical` | Mistakes of the assistant and of the human with their severity (minor, major, critical = changed the outcome), and whether going against the assistant helped or hurt. |
+| `error_review` | `assistant_errors`, `assistant_critical_errors`, `human_errors`, `human_critical_errors`, `simulator_errors`, `simulator_critical_errors`, `human_overrode_helpfully`, `human_overrode_harmfully`, `first_critical` | Mistakes of the assistant and of the human with their severity (minor, major, critical = changed the outcome), and whether going against the assistant helped or hurt. For [simulated participants](simulation.md#auditing-the-simulator) the judge also blames the **simulator** when the persona broke its instructions. |
 
 ### Language-model judgements
 
@@ -166,6 +166,13 @@ competition's study:
   --option success_threshold=0.5` for another criterion). pass^k comes from τ-bench (Yao et al.,
   2024): pass^1 is the success rate, and a fast drop with *k* shows an inconsistent agent.
 
+Recordings of [simulated participants](simulation.md) (`mode = simulated`) always form groups of
+their own (`<group> [simulated]`), so they are never averaged with human sessions; group by `mode`
+to compare the two directly, or by `participant_type` / `persona` to stratify. For simulated runs
+use `--option success=sim_goal_met` and evaluate with the `simulation` metric. `--by` takes several
+fields separated by commas (`--by opponent,participant_type`): one group per combination, so you
+can see how each opponent or Assistant does with each type of participant.
+
 ## Tracks and leaderboards
 
 The two competition tracks each have two leaderboards, or **boards**:
@@ -177,7 +184,7 @@ The two competition tracks each have two leaderboards, or **boards**:
 | Outcome board | `han_outcome`: what the agent obtained | `hi_outcome`: what the participant and the Assistant obtained |
 | Interaction board | `han_interaction`: how well it behaved as an opponent | `hi_interaction`: how well it worked as an Assistant (`hi_assistant`) and how well the team worked (`hi_team`) |
 | Balanced over | scenarios | scenario × opponent cells |
-| Left out | practice rounds, abandoned sessions, system failures | the same, and sessions where the opponent agent failed |
+| Left out | practice rounds, abandoned sessions, system failures, [simulated participants](simulation.md) | the same, and sessions where the opponent agent failed |
 
 In HAN an opponent agent that fails scores 0 for that session; in HI an opponent failure is not the
 Assistant's fault and the session is left out.

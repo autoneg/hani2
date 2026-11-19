@@ -328,6 +328,7 @@ folders (default: the results folder).
 | `hani2 replay compare [PATHS…] --by opponent [-m …] [--llm] [-o file.csv]` | Means per group, and pass^k reliability. |
 | `hani2 replay leaderboard [PATHS…] --track hi\|han [--board outcome\|interaction] [--llm] [--relative] [--judge MODEL] [--reliability report.json] [--official] [-o file.csv\|.json]` | The [leaderboards](../guide/evaluation.md#tracks-and-leaderboards) of a competition track: Assistants (`hi`) or opponent agents (`han`) ranked by their outcome and interaction scores, with confidence intervals and pass^k. |
 | `hani2 replay judge-reliability [PATHS…] --judge A --judge B [--all-soft] [-o report.json\|.md]` | Agreement between two judge models, and between the judges and the questionnaire, for each language-model judged component of the combined scores. It also says which components are ready for an official ranking and how the scores and leaderboards change with the judge ([Judge reliability](../guide/evaluation.md#judge-reliability)). |
+| `hani2 simulate -a MODULE:Class [-p persona …] [-s scenario …] [-o opponent …] [-k 4] [--out file.csv] [--temp]` | Run [simulated participants](../guide/simulation.md) against an Assistant and report pass^k (a qualifying round). |
 
 ```bash
 hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metrics.csv

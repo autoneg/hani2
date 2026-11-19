@@ -88,6 +88,8 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
         vals = ", ".join(f"{k}={_fmt(v)}" for k, v in (c.get("values") or {}).items())
         out.append(pad + (f"{c['label']}: " if c.get("label") else "Offer: ") + vals
                    + (f" (utility {_fmt(c['utility'])})" if c.get("utility") is not None else ""))
+    elif t == "image":
+        out.append(pad + f"[Picture: {c.get('alt') or 'no description'}]")
     elif t == "plot":
         out.extend(pad + line for line in _plot_summary(c.get("figure") or {}))
     elif t == "table":

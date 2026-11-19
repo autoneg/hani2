@@ -72,6 +72,7 @@ __all__ = [
     "divider",
     "progress",
     "html",
+    "image",
     "outcome",
     "issue",
     "jsonable",
@@ -156,6 +157,12 @@ def kv(data: dict[str, Any] | Sequence[tuple[str, Any]], title: str | None = Non
 def html(content: str) -> Component:
     """Raw (sanitised) HTML. Prefer :func:`markdown` where possible."""
     return _c("html", html=str(content))
+
+
+def image(src: str, *, dark_src: str | None = None, alt: str = "", max_height: int | None = None) -> Component:
+    """A picture (any URL the browser can load, e.g. a ``data:`` URL). ``dark_src``
+    replaces it while the dark theme is on; ``max_height`` caps its height in pixels."""
+    return _c("image", src=str(src), dark_src=dark_src, alt=str(alt), max_height=max_height)
 
 
 def divider() -> Component:

@@ -66,7 +66,8 @@ def entrant_of(r: dict, track: str) -> str:
     return str(r.get("opponent") or "?")
 
 
-def _filter(rows: list[dict], track: str, include_practice: bool) -> tuple[list[dict], dict[str, int]]:
+def _filter(rows: list[dict], track: str, include_practice: bool,
+            include_simulated: bool = False) -> tuple[list[dict], dict[str, int]]:
     spec = TRACKS[track]
     kept, excluded = [], {}
 
@@ -78,6 +79,9 @@ def _filter(rows: list[dict], track: str, include_practice: bool) -> tuple[list[
             continue
         if r.get("practice") and not include_practice:
             drop("practice")
+            continue
+        if r.get("mode") == "simulated" and not include_simulated:
+            drop("simulated participant")  # never ranked with human sessions
             continue
         status = r.get("status")
         if status is None and r.get("agreement") is None:
@@ -163,7 +167,8 @@ def _pass_hat_k(rows: list[dict], cells: tuple, success: str, threshold: float |
 def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, options: dict | None = None,
                 success: str | None = None, success_threshold: float | None = None, max_k: int = 4,
                 min_coverage: float = 0.5, relative: bool = False, n_boot: int = 1000, seed: int = 0,
-                include_practice: bool = False, reliability: Any = None, official: bool = False) -> dict:
+                include_practice: bool = False, reliability: Any = None, official: bool = False,
+                include_simulated: bool = False) -> dict:
     """Rank the entrants of ``track`` (``han`` or ``hi``) on ``board``
     (``outcome`` or ``interaction``) from evaluated rows (``evaluate_*()["rows"]``).
 
@@ -177,6 +182,8 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     components it did not find ready are left out. ``official``: an official
     ranking; without a report (argument or env.json
     ``evaluation.reliability.report``) every soft component is left out.
+    ``include_simulated``: rank simulated participants' sessions (``mode ==
+    "simulated"``) too; by default they are left out, never mixed with humans.
     """
     if track not in TRACKS:
         raise ValueError(f"unknown track {track!r}; use one of {', '.join(TRACKS)}")
@@ -184,7 +191,7 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
         raise ValueError(f"unknown board {board!r}; use one of {', '.join(BOARDS)}")
     spec = TRACKS[track]
     names: list[str] = list(spec["boards"][board])
-    kept, excluded = _filter(rows, track, include_practice)
+    kept, excluded = _filter(rows, track, include_practice, include_simulated)
     # the sub-scores first, so a score of scores knows which of them exist
     order = [s for s in BY_NAME if s in names or any(c.column == s for n in names for c in BY_NAME[n].components)]
     gate = _reliability_gate(reliability, official, {str(r["judge_model"]) for r in kept if r.get("judge_model")})

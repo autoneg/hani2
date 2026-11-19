@@ -155,6 +155,44 @@ Answers are appended to `<results>/<user>/negotiation_questionnaires.csv`. Each 
 
 If you add questions during a study, HANI2 rewrites the file with the extra columns and keeps the earlier rows.
 
+## Pre-questionnaire and participant types
+
+A **pre-questionnaire** is shown once to each participant, after their first scenario loads and
+before the negotiation can start. Its main use is the **participant type**: one answer (for example
+how much negotiating experience they have) is stored with every result of that participant, and
+the leaderboard is then also shown **per participant type**. Novices are not ranked against
+professional negotiators, and an Assistant can be compared on easy and on hard participants.
+
+It is off unless you configure one. HANI2 uses the first of:
+
+1. the file (or bundled name) in `HANI2_PRE_YAML`;
+2. the questionnaire named by `"pre_questionnaire"` in `env.json` (`expertise` is bundled);
+3. `<study>/questionnaires/pre_questionnaire.yaml`, then the project's, then
+   `settings/questionnaires/pre_questionnaire.yaml`.
+
+It has the same format as the per-negotiation questionnaire, plus a `participant_type` block that
+names the question and maps answers to types (an unmapped answer is used as it is):
+
+```yaml
+title: "Before you start"
+participant_type:
+  question: expertise
+  map: {"Never": novice, "A few times": novice, "Regularly": experienced, "It is part of my job": expert}
+questions:
+  - id: expertise
+    text: "How often do you negotiate (prices, contracts, salaries, …)?"
+    type: select
+    required: true
+    options: ["Never", "A few times", "Regularly", "It is part of my job"]
+```
+
+The answers are saved in the participant's folder as `pre_questionnaire.json` (answers, type,
+timestamps, project and study) and in the recording (a `pre_questionnaire` record). They are not
+written to `negotiation_questionnaires.csv` and do not feed the subjective metrics. The type is in
+the `participant_type` column of every later result. Administrators, playground guests and
+[simulated participants](simulation.md) never get the pre-questionnaire. A simulated participant's
+type is its persona's difficulty (`simulated-easy`, `simulated-hard`).
+
 ## Results
 
 Everything is written under the *results root*: `~/negmas/hani2/db` (`$HANI2_HOME/db`), or `<study>/results` for a session of a study (an experiment's `<experiment>/results`).
@@ -282,6 +320,17 @@ print(df.groupby("agent_type")["human_utility"].mean())
 ```
 
 The leaderboard score of a participant is computed per scenario name: drop the worst result, average the best three of the rest, and score 0 for scenarios with fewer than two results. The score is the average over scenarios, times 100.
+
+The leaderboard ranks human participants only and also comes stratified by `participant_type`
+(from the [pre-questionnaire](#pre-questionnaire-and-participant-types)). Rows with
+`mode = simulated` (users `sim_…`, see [Simulated participants](simulation.md)) are never ranked
+with them. They have their own *Qualifying round* table, per Assistant and persona, with the goal
+rate and pass^k. Rows written before the `mode` column existed count as human.
+
+Five columns say who sat in the human seat: `mode` (`main`, `guest`, `simulated`, …),
+`participant_type`, and for simulated participants `persona`, `goal_met` (a deal worth at least
+the persona's reservation value) and `sim_invalid` (why the trial does not count, empty when it
+does).
 
 ## The event log
 

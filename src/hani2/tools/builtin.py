@@ -67,9 +67,26 @@ class PreferencesTool(Tool):
     timing = "load"
     permanent = True
     order = 0
+    private_information = True
+
+    def private_now(self) -> bool:
+        """Private only when it shows something the Assistant does not know itself."""
+        st = self.information
+        a, h = st.assistant_prefs, st.human_prefs
+        covered = a == "full" or a == h or h == "none"
+        return not covered or (st.human_sees_reserved and not st.assistant_sees_reserved)
 
     def view(self):
-        return preference_view(self, self.human_ufun)
+        st = self.information
+        rv_hint = None
+        if not st.human_sees_reserved:
+            rv_hint = "You do not know it; your Assistant does" if st.assistant_sees_reserved else "You do not know it"
+        if st.human_prefs == "full":
+            return render_ufun_view(self, self.human_ufun, reserved_hint=rv_hint)
+        from hani2.tools.ufun_views import partial_preference_view
+
+        holder = "your Assistant" if st.assistant_prefs != "none" else "nobody"
+        return partial_preference_view(self, self.human_ufun, st.human_prefs, reserved_hint=rv_hint, other_holder=holder)
 
 
 class OpponentPreferencesTool(Tool):
@@ -102,13 +119,22 @@ AgentPreferencesTool = OpponentPreferencesTool
 # Scenario info                                                                #
 # --------------------------------------------------------------------------- #
 class ScenarioInfoTool(Tool):
+    def _may_see_hints(self) -> bool:
+        sess = self.session_state.get("_session")
+        if sess is None:
+            return True
+        st = self.information
+        viewer = sess.current_viewer() if hasattr(sess, "current_viewer") else "human"
+        return (st.assistant_prefs if viewer == "assistant" else st.human_prefs) == "full"
+
     name = "Scenario Info"
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
-    **What it shows.** The story of the scenario, the role you play, a table of the
-    issues with their possible options and what they mean, any hints for your role and
-    (collapsed at the bottom) the full description.
+    **What it shows.** A picture of the scenario (switch it off with *Picture*), the
+    story of the scenario, the role you play, a table of the issues with their possible
+    options and what they mean, any hints for your role and (collapsed at the bottom) the
+    full description.
 
     **How it works.** Everything comes from the scenario's description; nothing here
     changes during the negotiation. This tool is always on.
@@ -141,11 +167,17 @@ class ScenarioInfoTool(Tool):
             vals = (f"{_f(issue.min_value)} – {_f(issue.max_value)}" if issue.is_continuous() or issue.cardinality > 12
                     else ", ".join(_f(v) for v in issue.all))
             rows.append({"Issue": issue.name, "Options": vals, "Description": d or ""})
-        comps: list[ui.Component] = [
-            ui.heading(info.get("title") or str(s.outcome_space.name), 3),
-            *([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
-              else [ui.row(ui.badge(f"You act as {role}", "primary"))]),
-        ]
+        title = info.get("title") or str(s.outcome_space.name)
+        badge = ([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
+                 else [ui.badge(f"You act as {role}", "primary")])
+        light, dark = self._picture()
+        show = bool(self.values.get("show_picture", True))
+        comps: list[ui.Component] = [ui.heading(title, 3)]
+        if badge or light:
+            comps.append(ui.row(*badge, *([ui.switch("show_picture", show, label="Picture")] if light else []),
+                                align="center"))
+        if light and show:
+            comps.append(ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=240))
         shown = getattr(self.session, "relabel_text", lambda t: t)
         if info.get("short_description"):
             comps.append(ui.markdown(shown(info["short_description"])))
@@ -155,6 +187,8 @@ class ScenarioInfoTool(Tool):
         comps.append(ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50))
         hints_all = info.get("hints") or {}
         hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
+        if hints and not self._may_see_hints():
+            hints = {}  # hints come from the preferences; this viewer knows only part of them
         if hints:
             comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
         if info.get("long_description"):
@@ -162,11 +196,35 @@ class ScenarioInfoTool(Tool):
                                  collapsible=True, collapsed=True))
         return comps
 
+    def _picture(self) -> tuple[str | None, str | None]:
+        """``(light, dark)`` picture URLs of the loaded scenario, looked up once per scenario."""
+        from hani2 import scenario_pictures
+
+        s = self.scenario
+        sdir = self.session_state.get("scenario_dir")
+        stype = (self.session_state.get("scenario_info") or {}).get("scenario_type")
+        key = (id(s), sdir, stype)
+        cached = self.__dict__.get("_picture_cache")
+        if cached is None or cached[0] != key:
+            try:
+                found = scenario_pictures.sources(sdir, stype, (s.info or {}) if s is not None else None)
+            except Exception as e:  # noqa: BLE001 - a broken picture must not hide the scenario
+                print(f"[hani2] scenario picture: {e!r}")
+                found = (None, None)
+            cached = (key, found)
+            self.__dict__["_picture_cache"] = cached
+        return cached[1]
+
+    def _picture_alt(self, title: str) -> str:
+        info = (self.scenario.info if self.scenario is not None else None) or {}
+        return str(info.get("picture_alt") or title)
+
 
 # --------------------------------------------------------------------------- #
 # Plots                                                                        #
 # --------------------------------------------------------------------------- #
 class UtilityPlotTool(Tool):
+    needs_totals = True
     name = "Utility Plot"
     groups = ("visualization",)
     description = "How the utility of the offers evolves over time."
@@ -231,6 +289,7 @@ class UtilityPlotTool(Tool):
 
 
 class NegotiationPlotTool(Tool):
+    needs_totals = True
     """The negotiation in utility space: every outcome placed by its utility for
     you (x) and for the opponent (y), with the Pareto frontier, Nash and Kalai
     points, both no-deal values, the offer trajectories and the agreement."""
@@ -381,6 +440,7 @@ class OutcomePlotTool(Tool):
 
 
 class TraceTool(Tool):
+    needs_totals = True
     name = "Trace"
     groups = ("information",)
     description = "A table of every offer with its utility."
@@ -485,6 +545,11 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
 
     if df is None or len(df) == 0:
         return [ui.text_block("No negotiations yet.", muted=True)]
+    full = df
+    if leaderboard:  # every participant: the summary is of human participants only
+        from hani2.results import is_simulated
+
+        df = df[~is_simulated(df)]
     score, per = scenario_scores(df)
     comps: list[ui.Component] = [
         ui.stats(
@@ -497,10 +562,30 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
         comps.append(ui.table([{"Scenario": s, "Score": 100 * v, "Negotiations": n} for s, (v, n) in per.items()],
                               formats={"Score": "float"}, sortable=True))
     if leaderboard:
+        from hani2.results import leaderboard_by_type, simulated_leaderboard
+
         lb = make_lb(df)
         if lb:
-            comps.append(ui.card(ui.table([{"User": r["user"], "Score": r["score"], "Negotiations": r["negotiations"]}
-                                           for r in lb], formats={"Score": "float"}), title="Leaderboard"))
+            comps.append(ui.card(ui.table([{"User": r["user"], "Type": r["participant_type"] or "—", "Score": r["score"],
+                                            "Negotiations": r["negotiations"]} for r in lb],
+                                          formats={"Score": "float"}), title="Leaderboard (human participants)"))
+        strata = leaderboard_by_type(df)
+        if len([k for k in strata if k]) > 1 or (len(strata) > 1 and "" in strata):
+            for kind, rows in strata.items():
+                comps.append(ui.card(ui.table([{"User": r["user"], "Score": r["score"], "Negotiations": r["negotiations"]}
+                                               for r in rows], formats={"Score": "float"}),
+                                     title=f"Leaderboard: {kind or 'type unknown'}"))
+        sim = simulated_leaderboard(df)
+        if sim:
+            keys = [k for k in sim[0] if k.startswith("pass^")]
+            comps.append(ui.card(
+                ui.text_block("Simulated participants (not ranked with humans): pass^k of reaching a deal worth at "
+                              "least the persona's reservation value.", muted=True),
+                ui.table([{"Assistant": r["assistant"], "Persona": r["persona"], "Type": r["participant_type"],
+                           "Trials": r["trials"], "Goal rate": r["goal_rate"], **{k: r.get(k) for k in keys}}
+                          for r in sim], formats={"Goal rate": "percent", **{k: "percent" for k in keys}}),
+                title="Qualifying round (simulated)"))
+    df = full
     all_cols = [str(c) for c in df.columns]
     default_cols = [c for c in DEFAULT_COLUMNS + (["user"] if leaderboard else []) if c in all_cols]
     cols = [c for c in tool.values.get("columns", default_cols) if c in all_cols] or default_cols
@@ -566,6 +651,7 @@ class AllResultsTool(Tool):
 # Outcome selectors                                                            #
 # --------------------------------------------------------------------------- #
 class UtilitySelectorTool(OutcomeSelector):
+    needs_totals = True
     name = "Utility-based Selector"
     groups = ("recommendation",)
     description = "Browse every outcome whose utility for you is in a chosen range and use one as your offer."
@@ -707,6 +793,7 @@ class RandomOutcomeTool(OutcomeSelector):
 
 
 class ResponseGeneratorTool(OutcomeSelector):
+    needs_totals = True
     name = "LLM"
     groups = ("recommendation",)
     description = "Describe what you want in plain words and let an LLM write the offer and message."

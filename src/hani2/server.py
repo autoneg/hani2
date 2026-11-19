@@ -1086,11 +1086,14 @@ def _df_records(df) -> list[dict]:
 
 @app.get("/api/admin/results")
 def admin_results(_: str = Depends(require_admin)):
-    from hani2.results import DEFAULT_COLUMNS, leaderboard, read_all_results
+    from hani2.results import (DEFAULT_COLUMNS, leaderboard, leaderboard_by_type, read_all_results,
+                               simulated_leaderboard)
 
     df = read_all_results()
+    # simulated participants (mode: simulated) are never ranked with humans
     return {"columns": [str(c) for c in df.columns], "default_columns": DEFAULT_COLUMNS + ["user"],
-            "rows": _df_records(df), "leaderboard": leaderboard(df)}
+            "rows": _df_records(df), "leaderboard": leaderboard(df),
+            "leaderboard_by_type": leaderboard_by_type(df), "simulated": simulated_leaderboard(df)}
 
 
 @app.get("/api/admin/results.csv")

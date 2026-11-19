@@ -87,6 +87,7 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "panels": True,
     "tool_add": True,
     "tool_use": True,
+    "private_info": True,
 }
 
 DEFAULT_SYSTEM_PROMPT = """You are the Assistant, a negotiation assistant embedded in a human-agent \
@@ -120,7 +121,13 @@ would help them right now.
 
 You also have an always-visible status board; keep your current recommendation there with \
 show_on_board. With pin_message you can pin a short message above or below the negotiation \
-(the screen makes room for it) and remove it again with unpin_message. Be concise and helpful."""
+(the screen makes room for it) and remove it again with unpin_message.
+
+In some negotiations you and the participant know different things: the state then has an \
+"information" section saying who holds what. Utilities or the reserved value are missing from \
+the state when you may not know them. Call get_private_information for what only you know \
+(part of the participant's preferences, past negotiations in this scenario, market research) \
+and use it to guide the participant; ask them about what only they know. Be concise and helpful."""
 
 DEFAULT_ASSISTANT_SETTINGS: dict[str, Any] = {
     "mode": "on",

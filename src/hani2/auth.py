@@ -227,7 +227,7 @@ def validate_new_user(username: str, password: str, confirm: str | None = None) 
         return "Username is required."
     if len(username) > 64 or any(c in username for c in "/\\:*?\"<>| "):
         return "Username may not contain spaces or path characters."
-    if username.lower() in RESERVED_NAMES or username.lower().startswith(("prolific_", "participant_")):
+    if username.lower() in RESERVED_NAMES or username.lower().startswith(("prolific_", "participant_", "sim_", "guest_")):
         return "This username is reserved."
     if not password or len(password) < 4:
         return "Password must have at least 4 characters."

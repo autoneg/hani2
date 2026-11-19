@@ -1,0 +1,57 @@
+<!-- The founders of a small startup shake hands with a corporate buyer between their garage office and the buyer's tower -->
+<circle class="sunGlow" cx="296" cy="42" r="28" opacity="0.6"/><circle class="sun" cx="296" cy="42" r="17"/>
+<circle class="star" cx="30" cy="24" r="1.4"/>
+<circle class="star" cx="150" cy="16" r="1.2"/>
+<circle class="star" cx="196" cy="44" r="1.1"/>
+<circle class="star" cx="250" cy="22" r="1.3"/>
+<circle class="star" cx="468" cy="24" r="1.2"/>
+<g class="lightOnly"><ellipse class="cloud" cx="160" cy="30" rx="30" ry="9"/><ellipse class="cloud" cx="178" cy="23" rx="17" ry="8"/><ellipse class="cloud" cx="236" cy="30" rx="20" ry="6"/></g>
+<path class="hill" d="M0 128 Q110 100 220 118 T480 106 V200 H0Z"/>
+<!-- buyer's towers -->
+<rect class="wall" x="414" y="62" width="56" height="86" rx="2"/><rect class="glass" x="424" y="74" width="8" height="8" rx="1"/><rect class="glass" x="424" y="88" width="8" height="8" rx="1"/><rect class="glass" x="424" y="102" width="8" height="8" rx="1"/><rect class="glass" x="424" y="116" width="8" height="8" rx="1"/><rect class="glass" x="438" y="74" width="8" height="8" rx="1"/><rect class="glass" x="438" y="88" width="8" height="8" rx="1"/><rect class="glass" x="438" y="102" width="8" height="8" rx="1"/><rect class="glass" x="438" y="116" width="8" height="8" rx="1"/><rect class="glass" x="452" y="74" width="8" height="8" rx="1"/><rect class="glass" x="452" y="88" width="8" height="8" rx="1"/><rect class="glass" x="452" y="102" width="8" height="8" rx="1"/><rect class="glass" x="452" y="116" width="8" height="8" rx="1"/>
+<rect class="metal2" x="340" y="26" width="76" height="122" rx="2"/>
+<rect class="blue" x="334" y="18" width="88" height="10" rx="3"/>
+<rect class="glass" x="352" y="38" width="11" height="8" rx="1"/><rect class="glass" x="352" y="52" width="11" height="8" rx="1"/><rect class="glass" x="352" y="66" width="11" height="8" rx="1"/><rect class="glass" x="352" y="80" width="11" height="8" rx="1"/><rect class="glass" x="352" y="94" width="11" height="8" rx="1"/><rect class="glass" x="352" y="108" width="11" height="8" rx="1"/><rect class="glass" x="352" y="122" width="11" height="8" rx="1"/><rect class="glass" x="369" y="38" width="11" height="8" rx="1"/><rect class="glass" x="369" y="52" width="11" height="8" rx="1"/><rect class="glass" x="369" y="66" width="11" height="8" rx="1"/><rect class="glass" x="369" y="80" width="11" height="8" rx="1"/><rect class="glass" x="369" y="94" width="11" height="8" rx="1"/><rect class="glass" x="369" y="108" width="11" height="8" rx="1"/><rect class="glass" x="369" y="122" width="11" height="8" rx="1"/><rect class="glass" x="386" y="38" width="11" height="8" rx="1"/><rect class="glass" x="386" y="52" width="11" height="8" rx="1"/><rect class="glass" x="386" y="66" width="11" height="8" rx="1"/><rect class="glass" x="386" y="80" width="11" height="8" rx="1"/><rect class="glass" x="386" y="94" width="11" height="8" rx="1"/><rect class="glass" x="386" y="108" width="11" height="8" rx="1"/><rect class="glass" x="386" y="122" width="11" height="8" rx="1"/><rect class="glass" x="403" y="38" width="11" height="8" rx="1"/><rect class="glass" x="403" y="52" width="11" height="8" rx="1"/><rect class="glass" x="403" y="66" width="11" height="8" rx="1"/><rect class="glass" x="403" y="80" width="11" height="8" rx="1"/><rect class="glass" x="403" y="94" width="11" height="8" rx="1"/><rect class="glass" x="403" y="108" width="11" height="8" rx="1"/><rect class="glass" x="403" y="122" width="11" height="8" rx="1"/>
+<rect class="ink" x="368" y="134" width="20" height="14" rx="1"/>
+<!-- startup garage with the idea (IP) -->
+<rect class="wall" x="40" y="96" width="98" height="52"/>
+<path class="orange" d="M30 100 L89 72 L148 100Z"/>
+<rect class="metal" x="54" y="112" width="48" height="36" rx="1"/>
+<path class="s s-metal2" stroke-width="1.4" d="M54 120 H102 M54 128 H102 M54 136 H102"/>
+<rect class="glass" x="110" y="110" width="18" height="16" rx="1"/>
+<path class="s s-yellow" stroke-width="2" d="M89 34 V29 M73 40 L69 36 M105 40 L109 36 M70 52 H65 M108 52 H113"/>
+<circle class="yellow" cx="89" cy="50" r="11"/>
+<rect class="metal2" x="84" y="60" width="10" height="9" rx="2"/>
+<path class="s s-orange2" stroke-width="1.6" d="M85 52 Q89 44 93 52"/>
+<rect class="ground" x="0" y="146" width="480" height="54"/><rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- deal card above the handshake: equity pie -->
+<rect class="paper" x="210" y="58" width="52" height="30" rx="5"/>
+<circle class="paper2" cx="226" cy="73" r="10"/><path class="blue" d="M226 73 V63 A10 10 0 0 1 235.5 76Z"/>
+<rect class="green" x="241" y="66" width="15" height="3" rx="1.5"/><rect class="metal" x="241" y="72" width="11" height="3" rx="1.5"/><rect class="metal" x="241" y="78" width="13" height="3" rx="1.5"/>
+<!-- founders -->
+<ellipse class="shadow" cx="162" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="153" y="148" width="7" height="24" rx="3"/><rect class="ink" x="164" y="148" width="7" height="24" rx="3"/>
+<path class="hair" d="M150 108 Q149 94 162 95 Q175 94 174 108 L175 123 Q170 125 168 118 L156 118 Q154 125 149 123Z"/>
+<path class="orange" d="M148 152 Q148 122 162 120 Q176 122 176 152Z"/>
+<path class="s s-orange" stroke-width="6" d="M174 128 Q186.0 132 190 122"/>
+<circle class="skin2" cx="190" cy="121" r="3.2"/>
+<circle class="skin2" cx="162" cy="108" r="11"/>
+<circle class="hair" cx="162" cy="93" r="5.5"/><path class="hair" d="M151 107 Q151 95 162 95 Q173 95 173 107 Q167 100 162 100 Q157 100 151 107Z"/>
+<ellipse class="shadow" cx="198" cy="173" rx="18" ry="4"/>
+<rect class="blue2" x="189" y="148" width="7" height="24" rx="3"/><rect class="blue2" x="200" y="148" width="7" height="24" rx="3"/>
+<path class="purple" d="M184 152 Q184 122 198 120 Q212 122 212 152Z"/>
+<path class="s s-purple" stroke-width="6" d="M210 128 Q226.5 138 232 134"/>
+<circle class="skin1" cx="232" cy="134" r="3.2"/>
+<circle class="skin1" cx="198" cy="108" r="11"/>
+<path class="hair2" d="M187 105 Q188 95 198 95 Q208 95 209 105 Q204 99 198 99 Q192 99 187 105Z"/>
+<!-- acquirer -->
+<ellipse class="shadow" cx="306" cy="171" rx="13" ry="3"/>
+<rect class="brown2" x="294" y="150" width="24" height="19" rx="3"/><path class="s s-brown2" stroke-width="2.4" d="M301 150 V146 H311 V150"/>
+<ellipse class="shadow" cx="274" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="265" y="148" width="7" height="24" rx="3"/><rect class="ink" x="276" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M260 152 Q260 122 274 120 Q288 122 288 152Z"/>
+<path class="paper" d="M270 122 L274 134 L278 122Z"/><path class="red" d="M273 125 h2 l1 9 h-4Z"/>
+<path class="s s-blue2" stroke-width="6" d="M262 128 Q245.5 138 240 134"/>
+<circle class="skin3" cx="240" cy="134" r="3.2"/>
+<circle class="skin3" cx="274" cy="108" r="11"/>
+<path class="hair" d="M263 105 Q264 95 274 95 Q284 95 285 105 Q280 99 274 99 Q268 99 263 105Z"/>

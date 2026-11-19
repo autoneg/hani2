@@ -87,6 +87,10 @@ class ToolDispatcher:
             "use_tool": (Capability.TOOL_USE, self._use_tool, self._schema_use_tool),
             "add_tool": (Capability.TOOL_ADD, self._add_tool, self._schema_add_tool),
             "remove_tool": (Capability.TOOL_ADD, self._remove_tool, self._schema_remove_tool),
+            "get_private_information": (Capability.PRIVATE_INFO, self._get_private_information,
+                                        self._schema_get_private_information),
+            "show_past_negotiation": (Capability.PRIVATE_INFO, self._show_past_negotiation,
+                                      self._schema_show_past_negotiation),
         }
         self.register_extra_tools()
 
@@ -132,8 +136,50 @@ class ToolDispatcher:
                     continue
                 names.append(name)
             elif self.caps.has(cap):
+                if cap == Capability.PRIVATE_INFO and not self._information_split():
+                    continue  # nothing private this round
+                if name == "show_past_negotiation" and not self._holds_past():
+                    continue
                 names.append(name)
         return names
+
+    def _human_only(self, action: str) -> bool:
+        """Whether only the participant may take ``action`` (the autopilot, which the
+        participant handed control to, may)."""
+        from hani2.recording.recorder import current_actor
+
+        st = self._information()
+        if st is None or current_actor() == "autopilot":
+            return False
+        # sending or accepting decides every issue, so a human-only issue makes them the participant's too
+        return action in st.human_only_actions or (action in ("send", "accept") and bool(st.human_only_issues))
+
+    def _strip_human_only(self, outcome: Any) -> tuple[Any, list[str]]:
+        """``outcome`` without the issues only the participant may set, and those issue names."""
+        st = self._information()
+        sess = self.ss.get("_session")
+        if st is None or not st.human_only_issues or not isinstance(outcome, dict) or sess is None:
+            return outcome, []
+        allowed, kept = {}, []
+        for k, v in outcome.items():
+            issue = sess._resolve_issue(k)
+            if issue is not None and st.human_only_issue(issue.name):
+                kept.append(issue.name)
+            else:
+                allowed[k] = v
+        return allowed, kept
+
+    def _information(self):
+        sess = self.ss.get("_session")
+        return getattr(sess, "information", None)
+
+    def _information_split(self) -> bool:
+        st = self._information()
+        return bool(st is not None and st.split)
+
+    def _holds_past(self) -> bool:
+        st = self._information()
+        return bool(st is not None and st.assistant_past)
 
     def schemas(self) -> list[dict]:
         return [self._registry[n][2]() for n in self._effective_names()]
@@ -490,6 +536,31 @@ class ToolDispatcher:
             return {"ok": False, "error": "no active negotiation"}
         return {"ok": True, **self.runtime.run_on_doc(actions["context"])}
 
+    def _get_private_information(self, args: dict) -> dict:
+        return self.runtime.private_information()
+
+    def _schema_get_private_information(self) -> dict:
+        return _fn(
+            "get_private_information",
+            "What only you know in this negotiation (the participant does not see it unless you tell them): "
+            "your part of the participant's preferences, their value on disagreement when you have it, summaries "
+            "of the past negotiations you hold, market research about the opponent, and who holds what.",
+            {},
+            [],
+        )
+
+    def _show_past_negotiation(self, args: dict) -> dict:
+        return self.runtime.past_negotiation(str(args.get("id") or ""))
+
+    def _schema_show_past_negotiation(self) -> dict:
+        return _fn(
+            "show_past_negotiation",
+            "Every offer of one past negotiation you hold (in this scenario, with similar parties): who offered what, "
+            "and how it ended.",
+            {"id": {"type": "string", "description": "The negotiation's id, e.g. P2 (from get_private_information)"}},
+            ["id"],
+        )
+
     def _schema_get_negotiation_state(self) -> dict:
         return _fn(
             "get_negotiation_state",
@@ -514,8 +585,13 @@ class ToolDispatcher:
         outcome = args.get("outcome")
         if not isinstance(outcome, dict):
             return {"ok": False, "error": "outcome must be an object of issue_name -> value"}
-        res = self.runtime.run_on_doc(lambda: actions["set_offer"](outcome))
+        allowed, kept = self._strip_human_only(outcome)
+        res = self.runtime.run_on_doc(lambda: actions["set_offer"](allowed))
         _log_agent_action(self.ss, "set_offer", str(outcome)[:120])
+        if kept and isinstance(res, dict):
+            res = {**res, "human_only": sorted(set(kept) | set(res.get("human_only") or [])),
+                   "note": f"only the participant may set {', '.join(kept)}; suggest a value to them instead "
+                           "(their current values were kept)"}
         return res
 
     def _schema_set_offer(self) -> dict:
@@ -558,11 +634,16 @@ class ToolDispatcher:
             return err
         outcome = args.get("outcome")
         message = args.get("message")
-        execute = self.caps.autonomy_allows_execute(Capability.SUBMIT_COUNTER)
+        human_only = self._human_only("send")
+        execute = self.caps.autonomy_allows_execute(Capability.SUBMIT_COUNTER) and not human_only
+        kept: list = []
 
         def _do():
             if isinstance(outcome, dict):
-                actions["set_offer"](outcome)
+                allowed, stripped = self._strip_human_only(outcome)
+                kept.extend(stripped)
+                res = actions["set_offer"](allowed)
+                kept.extend(x for x in (res or {}).get("human_only") or [] if x not in kept)
             if message is not None:
                 actions["set_text"](str(message))
             if execute:
@@ -575,9 +656,15 @@ class ToolDispatcher:
         _log_agent_action(
             self.ss, "submit_counter_offer" if executed else "recommend_counter_offer", str(outcome)[:120]
         )
+        extra = {"human_only": kept, "note_human_only": f"only the participant may set {', '.join(kept)}; "
+                                                         "their current values were kept"} if kept else {}
+        if human_only:
+            return {"ok": True, "submitted": False, **extra,
+                    "note": "Only the participant may send offers (or set some issues) in this negotiation: "
+                            "filled the offer/message and highlighted the Send button for them."}
         if executed:
-            return {"ok": True, "submitted": True}
-        return {
+            return {"ok": True, "submitted": True, **extra}
+        return {**extra,
             "ok": True,
             "submitted": False,
             "note": "Suggest mode: filled the offer/message and highlighted the Send button "
@@ -622,8 +709,9 @@ class ToolDispatcher:
             return {"ok": False, "error": "no active negotiation"}
         if (err := self._require_turn(actions)) is not None:
             return err
-        execute = self.caps.autonomy_allows_execute(cap)  # FULL only
-        confirm = self.caps.autonomy_allows_confirm(cap)  # SEMI+
+        human_only = self._human_only({"accept": "accept", "end": "end"}.get(action_key, action_key))
+        execute = self.caps.autonomy_allows_execute(cap) and not human_only  # FULL only
+        confirm = self.caps.autonomy_allows_confirm(cap) and not human_only  # SEMI+
 
         if execute:
             self.runtime.run_on_doc(lambda: actions[action_key](confirm=False))
@@ -636,6 +724,10 @@ class ToolDispatcher:
         # SUGGEST: only highlight the button.
         self.runtime.run_on_doc(lambda: actions["highlight"](action_key))
         _log_agent_action(self.ss, f"recommend_{action_key}")
+        if human_only:
+            return {"ok": True, "executed": False,
+                    "note": f"Only the participant may {action_key} in this negotiation: highlighted the button "
+                            "for them; tell them why you recommend it."}
         return {
             "ok": True,
             "executed": False,

@@ -59,6 +59,25 @@ html {
   font-size: calc(15px * var(--font-scale));
 }
 
+/* Pictures with a separate dark-theme version (ui.image with dark_src). */
+.theme-dark-only {
+  display: none !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-dark-only {
+    display: block !important;
+  }
+  :root:not([data-theme="light"]) .theme-light-only {
+    display: none !important;
+  }
+}
+:root[data-theme="dark"] .theme-dark-only {
+  display: block !important;
+}
+:root[data-theme="dark"] .theme-light-only {
+  display: none !important;
+}
+
 body {
   @apply bg-paper text-ink antialiased;
   font-feature-settings: "ss01", "cv11";

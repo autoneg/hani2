@@ -384,3 +384,11 @@ def test_judged_scores_end_to_end(hani2_home, monkeypatch):
     assert "ja_overall" in lb["components"]["hi_assistant"] and lb["weight_share"]["hi_assistant"] > 0.3
     a = lb["entries"][0]["scores"]["hi_assistant"]["mean"]
     assert a is not None and 0 < a <= 1
+
+
+def test_simulated_sessions_are_not_ranked_with_humans():
+    rows = [dict(key=f"k{i}", user=f"u{i}", scenario="s", opponent="o", support_agent="A", status="success",
+                 agreement=1, human_advantage=0.5, mode="simulated" if i % 2 else "normal") for i in range(6)]
+    lb = leaderboard(rows, "hi", "outcome", n_boot=0)
+    assert lb["sessions"] == 3 and lb["excluded"] == {"simulated participant": 3}
+    assert leaderboard(rows, "hi", "outcome", n_boot=0, include_simulated=True)["sessions"] == 6

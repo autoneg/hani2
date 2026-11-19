@@ -1,0 +1,41 @@
+<!-- A parts supplier brings a box of bicycle parts from the factory truck to a bicycle maker -->
+<circle class="sunGlow" cx="440" cy="38" r="28" opacity="0.6"/>
+<circle class="sun" cx="440" cy="38" r="17"/>
+<circle class="star" cx="60" cy="20" r="1.3"/><circle class="star" cx="200" cy="16" r="1.2"/><circle class="star" cx="300" cy="30" r="1.4"/><circle class="star" cx="380" cy="14" r="1.1"/><circle class="star" cx="250" cy="62" r="1.0"/>
+<g class="lightOnly"><ellipse class="cloud" cx="240" cy="34" rx="30" ry="10"/><ellipse class="cloud" cx="256" cy="27" rx="16" ry="10"/><ellipse class="cloud" cx="360" cy="22" rx="16" ry="7"/></g>
+<path class="hill" d="M0 118 Q140 96 260 118 T480 108 V200 H0Z"/>
+<rect class="red2" x="122" y="44" width="12" height="40"/>
+<circle class="metal" cx="132" cy="34" r="6" opacity="0.55"/><circle class="metal" cx="142" cy="24" r="8" opacity="0.45"/><circle class="metal" cx="156" cy="16" r="9" opacity="0.35"/>
+<rect class="paper2" x="14" y="84" width="134" height="62"/>
+<path class="metal2" d="M14 86 L14 68 L46 84 L46 68 L80 84 L80 68 L114 84 L114 68 L148 84 L148 86Z"/>
+<rect class="glass" x="15" y="70" width="3" height="12"/><rect class="glass" x="47" y="70" width="3" height="12"/><rect class="glass" x="81" y="70" width="3" height="12"/><rect class="glass" x="115" y="70" width="3" height="12"/>
+<rect class="glass" x="24" y="96" width="16" height="14" rx="1"/><rect class="glass" x="48" y="96" width="16" height="14" rx="1"/><rect class="glass" x="72" y="96" width="16" height="14" rx="1"/>
+<rect class="orange" x="33.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(0 36 128)"/><rect class="orange" x="33.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(45 36 128)"/><rect class="orange" x="33.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(90 36 128)"/><rect class="orange" x="33.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(135 36 128)"/><circle class="orange" cx="36" cy="128" r="9"/><circle class="paper2" cx="36" cy="128" r="3.4"/>
+<rect class="metal" x="94" y="112" width="44" height="34"/><rect class="metal2" x="94" y="118" width="44" height="2"/><rect class="metal2" x="94" y="124" width="44" height="2"/><rect class="metal2" x="94" y="130" width="44" height="2"/><rect class="metal2" x="94" y="136" width="44" height="2"/>
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<ellipse class="shadow" cx="196" cy="172" rx="66" ry="5"/>
+<rect class="orange" x="136" y="104" width="84" height="56" rx="3"/><rect class="orange2" x="136" y="152" width="84" height="8"/>
+<circle class="paper" cx="178" cy="128" r="15"/><rect class="orange2" x="175.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(0 178 128)"/><rect class="orange2" x="175.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(45 178 128)"/><rect class="orange2" x="175.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(90 178 128)"/><rect class="orange2" x="175.5" y="116.8" width="5.0" height="22.5" rx="0.8" transform="rotate(135 178 128)"/><circle class="orange2" cx="178" cy="128" r="9"/><circle class="paper" cx="178" cy="128" r="3.4"/>
+<path class="blue" d="M222 120 H244 Q254 120 258 134 L262 140 V160 H222Z"/><path class="glass" d="M228 124 H243 Q249 124 252 136 H228Z"/>
+<rect class="light" x="256" y="146" width="6" height="5" rx="2"/><rect class="blue2" x="222" y="154" width="40" height="6"/>
+<circle class="ink" cx="160" cy="162" r="10"/><circle class="metal" cx="160" cy="162" r="4.5"/><circle class="ink" cx="240" cy="162" r="10"/><circle class="metal" cx="240" cy="162" r="4.5"/>
+<ellipse class="shadow" cx="290" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="281" y="148" width="7" height="24" rx="3"/><rect class="ink" x="292" y="148" width="7" height="24" rx="3"/>
+<path class="green" d="M276 152 Q276 122 290 120 Q304 122 304 152Z"/>
+<path class="s s-green" stroke-width="6" d="M300 128 Q310 136 314 132"/>
+<circle class="skin1" cx="290" cy="108" r="11"/>
+<path class="hair2" d="M279 106 Q280 94 291 95 Q302 96 301 106 Q296 100 290 101 Q284 102 279 106Z"/>
+<rect class="wood" x="302" y="126" width="22" height="18" rx="2"/><rect class="brown" x="302" y="126" width="22" height="4"/><rect class="metal2" x="311.6" y="117.8" width="2.8" height="12.5" rx="0.8" transform="rotate(0 313 124)"/><rect class="metal2" x="311.6" y="117.8" width="2.8" height="12.5" rx="0.8" transform="rotate(45 313 124)"/><rect class="metal2" x="311.6" y="117.8" width="2.8" height="12.5" rx="0.8" transform="rotate(90 313 124)"/><rect class="metal2" x="311.6" y="117.8" width="2.8" height="12.5" rx="0.8" transform="rotate(135 313 124)"/><circle class="metal2" cx="313" cy="124" r="5"/><circle class="wood" cx="313" cy="124" r="1.9"/>
+<ellipse class="shadow" cx="380" cy="173" rx="40" ry="3.5"/>
+<circle class="s s-ink" cx="352" cy="156" r="15" stroke-width="3.5"/><circle class="s s-metal" cx="352" cy="156" r="11" stroke-width="1"/><circle class="metal2" cx="352" cy="156" r="2.4"/>
+<circle class="s s-ink" cx="408" cy="156" r="15" stroke-width="3.5"/><circle class="s s-metal" cx="408" cy="156" r="11" stroke-width="1"/><circle class="metal2" cx="408" cy="156" r="2.4"/>
+<path class="s s-red" stroke-width="3.5" d="M352 156 L374 156 L398 134 L370 134 L374 156 M370 134 L352 156 M398 134 L408 156 M368 128 L371 136 M398 134 L396 124"/>
+<rect class="ink" x="361" y="125" width="14" height="4" rx="2"/><path class="s s-ink" stroke-width="3" d="M392 124 H402"/>
+<ellipse class="shadow" cx="442" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="433" y="148" width="7" height="24" rx="3"/><rect class="ink" x="444" y="148" width="7" height="24" rx="3"/>
+<path class="hair" d="M430 108 Q429 94 442 94 Q455 94 454 108 L455 126 Q442 130 429 126Z"/>
+<path class="teal" d="M428 152 Q428 122 442 120 Q456 122 456 152Z"/>
+<path class="s s-teal" stroke-width="6" d="M431 128 Q414 130 402 124"/>
+<circle class="skin2" cx="442" cy="108" r="11"/>
+<path class="hair" d="M430 106 Q431 94 442 94 Q453 94 454 106 Q438 98 448 102Z"/>

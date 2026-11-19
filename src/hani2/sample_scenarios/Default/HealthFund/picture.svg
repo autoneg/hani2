@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>Delegates of a donor country and a tobacco-growing country negotiate a health fund under a no-smoking sign</title><style>.skyTop{fill:#cfe0ff}.skyBottom{fill:#f3f6ff}.hill{fill:#c9e4cf}.hill2{fill:#b3d8bd}.ground{fill:#e6dccb}.ground2{fill:#d6c8b2}.water{fill:#9cc8ec}.water2{fill:#7fb3e0}.sand{fill:#f1dfb4}.floor{fill:#ece4d8}.wall{fill:#f6f1ea}.sun{fill:#ffc94a}.sunGlow{fill:#ffe8a8}.cloud{fill:#ffffff}.star{fill:#ffffff}.ink{fill:#2b3550}.inkSoft{fill:#56617d}.paper{fill:#ffffff}.paper2{fill:#eef1f7}.metal{fill:#a9b2c3}.metal2{fill:#7f8aa0}.glass{fill:#bfe0f6}.shadow{fill:#1d2740}.light{fill:#fff6d8}.blue{fill:#4a6cf0}.blue2{fill:#2f4bc4}.orange{fill:#f29a38}.orange2{fill:#d77b1c}.green{fill:#34b483}.green2{fill:#1e8a62}.red{fill:#e8574b}.red2{fill:#b93a30}.yellow{fill:#ffcf4d}.purple{fill:#8b6cf0}.teal{fill:#2fb3c2}.pink{fill:#f29bb6}.brown{fill:#a4703f}.brown2{fill:#7a4f2a}.wood{fill:#d9a86a}.leaf{fill:#4fbf73}.leaf2{fill:#2f9a57}.skin1{fill:#f2c8a6}.skin2{fill:#c98d62}.skin3{fill:#8d5a3b}.hair{fill:#3a2c28}.hair2{fill:#a8642e}.s-skyTop{stroke:#cfe0ff}.s-skyBottom{stroke:#f3f6ff}.s-hill{stroke:#c9e4cf}.s-hill2{stroke:#b3d8bd}.s-ground{stroke:#e6dccb}.s-ground2{stroke:#d6c8b2}.s-water{stroke:#9cc8ec}.s-water2{stroke:#7fb3e0}.s-sand{stroke:#f1dfb4}.s-floor{stroke:#ece4d8}.s-wall{stroke:#f6f1ea}.s-sun{stroke:#ffc94a}.s-sunGlow{stroke:#ffe8a8}.s-cloud{stroke:#ffffff}.s-star{stroke:#ffffff}.s-ink{stroke:#2b3550}.s-inkSoft{stroke:#56617d}.s-paper{stroke:#ffffff}.s-paper2{stroke:#eef1f7}.s-metal{stroke:#a9b2c3}.s-metal2{stroke:#7f8aa0}.s-glass{stroke:#bfe0f6}.s-shadow{stroke:#1d2740}.s-light{stroke:#fff6d8}.s-blue{stroke:#4a6cf0}.s-blue2{stroke:#2f4bc4}.s-orange{stroke:#f29a38}.s-orange2{stroke:#d77b1c}.s-green{stroke:#34b483}.s-green2{stroke:#1e8a62}.s-red{stroke:#e8574b}.s-red2{stroke:#b93a30}.s-yellow{stroke:#ffcf4d}.s-purple{stroke:#8b6cf0}.s-teal{stroke:#2fb3c2}.s-pink{stroke:#f29bb6}.s-brown{stroke:#a4703f}.s-brown2{stroke:#7a4f2a}.s-wood{stroke:#d9a86a}.s-leaf{stroke:#4fbf73}.s-leaf2{stroke:#2f9a57}.s-skin1{stroke:#f2c8a6}.s-skin2{stroke:#c98d62}.s-skin3{stroke:#8d5a3b}.s-hair{stroke:#3a2c28}.s-hair2{stroke:#a8642e}.star{display:none}.darkOnly{display:none}.shadow{opacity:0.12}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#f3f6ff"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- Delegates of a donor country and a tobacco-growing country negotiate a health fund under a no-smoking sign -->
+<circle class="sunGlow" cx="420" cy="38" r="28" opacity="0.6"/>
+<circle class="sun" cx="420" cy="38" r="16"/>
+<circle class="star" cx="40" cy="20" r="1.4"/><circle class="star" cx="150" cy="30" r="1.2"/>
+<circle class="star" cx="300" cy="16" r="1.5"/><circle class="star" cx="350" cy="44" r="1.1"/>
+<g class="lightOnly"><ellipse class="cloud" cx="320" cy="34" rx="28" ry="9"/><ellipse class="cloud" cx="338" cy="27" rx="16" ry="8"/></g>
+<path class="hill" d="M0 128 Q120 112 240 122 T480 102 V200 H0Z"/>
+<!-- donor city (left) -->
+<rect class="metal" x="14" y="72" width="30" height="76"/><rect class="metal2" x="48" y="50" width="26" height="98"/>
+<rect class="metal" x="78" y="86" width="34" height="62"/><rect class="metal2" x="116" y="100" width="20" height="48"/>
+<g class="glass"><rect x="20" y="80" width="6" height="6"/><rect x="32" y="80" width="6" height="6"/><rect x="20" y="94" width="6" height="6"/>
+<rect x="32" y="108" width="6" height="6"/><rect x="54" y="58" width="5" height="7"/><rect x="64" y="58" width="5" height="7"/>
+<rect x="54" y="74" width="5" height="7"/><rect x="64" y="90" width="5" height="7"/><rect x="54" y="106" width="5" height="7"/>
+<rect x="84" y="94" width="7" height="6"/><rect x="98" y="94" width="7" height="6"/><rect x="84" y="108" width="7" height="6"/>
+<rect x="120" y="108" width="5" height="6"/></g>
+<g class="darkOnly light" opacity="0.9"><rect x="32" y="94" width="6" height="6"/><rect x="64" y="74" width="5" height="7"/><rect x="98" y="108" width="7" height="6"/></g>
+<!-- tobacco field (right) -->
+<path class="hill2" d="M330 148 Q370 108 480 104 V148Z"/>
+<g class="leaf2"><path d="M360 146 Q350 128 362 120 Q366 134 364 146Z"/><path d="M366 146 Q378 130 372 118 Q364 132 362 146Z"/>
+<path d="M398 146 Q386 122 400 112 Q404 130 402 146Z"/><path d="M404 146 Q418 126 410 112 Q400 130 400 146Z"/>
+<path d="M436 146 Q424 120 438 108 Q442 128 440 146Z"/><path d="M442 146 Q456 124 448 108 Q438 128 438 146Z"/></g>
+<g class="leaf"><path d="M382 146 Q372 132 380 124 Q384 136 384 146Z"/><path d="M386 146 Q394 132 390 124 Q382 136 382 146Z"/>
+<path d="M418 146 Q406 128 418 118 Q422 132 420 146Z"/><path d="M422 146 Q434 130 428 118 Q418 132 418 146Z"/>
+<path d="M458 146 Q448 126 460 116 Q464 132 462 146Z"/><path d="M464 146 Q476 128 470 116 Q460 132 460 146Z"/></g>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- no-smoking sign -->
+<rect class="metal2" x="238" y="70" width="4" height="66"/>
+<circle class="paper" cx="240" cy="64" r="20"/>
+<rect class="inkSoft" x="226" y="61" width="24" height="6" rx="1"/><rect class="orange" x="246" y="61" width="5" height="6" rx="1"/>
+<circle class="s s-red" stroke-width="4" cx="240" cy="64" r="18"/>
+<path class="s s-red" stroke-width="4" d="M227 51 L253 77"/>
+<!-- table -->
+<ellipse class="shadow" cx="240" cy="172" rx="76" ry="6"/>
+<rect class="paper2" x="172" y="134" width="136" height="36" rx="3"/>
+<rect class="blue2" x="172" y="134" width="136" height="7" rx="3"/>
+<!-- fund chest with a health cross -->
+<rect class="brown" x="222" y="112" width="36" height="22" rx="3"/>
+<path class="brown2" d="M222 118 Q222 106 240 106 Q258 106 258 118Z"/>
+<rect class="yellow" x="222" y="118" width="36" height="3"/>
+<circle class="paper" cx="240" cy="126" r="5.5"/>
+<rect class="green" x="238.5" y="122" width="3" height="8"/><rect class="green" x="236" y="124.5" width="8" height="3"/>
+<ellipse class="yellow" cx="270" cy="132" rx="8" ry="2.5"/><ellipse class="orange" cx="270" cy="129" rx="8" ry="2.5"/><ellipse class="yellow" cx="270" cy="126" rx="8" ry="2.5"/>
+<!-- desk flags (invented) -->
+<rect class="inkSoft" x="190" y="112" width="1.6" height="22"/>
+<rect class="blue" x="191.6" y="112" width="16" height="10"/><circle class="yellow" cx="199.6" cy="117" r="2.6"/>
+<rect class="inkSoft" x="288" y="112" width="1.6" height="22"/>
+<rect class="green" x="289.6" y="112" width="16" height="10"/><rect class="paper" x="289.6" y="115.5" width="16" height="3"/>
+<!-- donor delegate (left) -->
+<ellipse class="shadow" cx="148" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="139" y="148" width="7" height="24" rx="3"/><rect class="ink" x="150" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M134 152 Q134 122 148 120 Q162 122 162 152Z"/>
+<path class="paper" d="M144 122 L148 134 L152 122Z"/><path class="yellow" d="M147 125 h2 l1 9 h-4Z"/>
+<path class="s s-blue2" stroke-width="6" d="M160 128 Q172 132 180 128"/>
+<circle class="skin1" cx="148" cy="108" r="11"/>
+<path class="metal" d="M137 106 Q137 95 148 95 Q159 95 159 106 Q154 100 148 100 Q142 100 137 106Z"/>
+<!-- recipient delegate (right) -->
+<ellipse class="shadow" cx="332" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="323" y="148" width="7" height="24" rx="3"/><rect class="ink" x="334" y="148" width="7" height="24" rx="3"/>
+<path class="green2" d="M318 152 Q318 122 332 120 Q346 122 346 152Z"/>
+<path class="paper" d="M328 122 L332 134 L336 122Z"/>
+<path class="s s-green2" stroke-width="6" d="M320 128 Q308 132 300 128"/>
+<circle class="skin3" cx="332" cy="108" r="11"/>
+<path class="hair" d="M321 108 Q318 94 332 94 Q346 94 343 108 Q342 99 332 100 Q322 99 321 108Z"/></g></svg>

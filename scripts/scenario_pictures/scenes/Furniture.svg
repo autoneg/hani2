@@ -1,0 +1,59 @@
+<!-- A buyer and a seller meet over a used armchair at a garage sale, with a hand truck ready to move it -->
+<circle class="sunGlow" cx="62" cy="40" r="28" opacity="0.6"/>
+<circle class="sun" cx="62" cy="40" r="16"/>
+<circle class="star" cx="130" cy="22" r="1.4"/><circle class="star" cx="200" cy="40" r="1.2"/>
+<circle class="star" cx="270" cy="18" r="1.5"/><circle class="star" cx="24" cy="86" r="1.1"/>
+<circle class="star" cx="462" cy="24" r="1.3"/>
+<g class="lightOnly"><ellipse class="cloud" cx="176" cy="36" rx="30" ry="9"/><ellipse class="cloud" cx="194" cy="29" rx="18" ry="9"/>
+<ellipse class="cloud" cx="456" cy="30" rx="22" ry="7"/></g>
+<path class="hill" d="M0 126 Q100 100 220 118 T480 108 V200 H0Z"/>
+<!-- house with open garage -->
+<rect class="sand" x="292" y="78" width="160" height="70"/>
+<path class="brown" d="M280 82 L372 42 L464 82Z"/>
+<rect class="brown2" x="280" y="80" width="184" height="5" rx="2"/>
+<rect class="inkSoft" x="306" y="98" width="82" height="50" rx="2" opacity="0.55"/>
+<rect class="paper2" x="302" y="94" width="90" height="6" rx="2"/>
+<rect class="glass" x="404" y="98" width="34" height="26" rx="2"/>
+<rect class="wood" x="404" y="110" width="34" height="2"/><rect class="wood" x="420" y="98" width="2" height="26"/>
+<!-- boxes in the garage -->
+<rect class="wood" x="316" y="128" width="22" height="18" rx="1"/><rect class="wood" x="342" y="134" width="18" height="12" rx="1"/>
+<rect class="orange2" x="316" y="135" width="22" height="2" opacity="0.6"/>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- armchair -->
+<ellipse class="shadow" cx="236" cy="172" rx="58" ry="6"/>
+<rect class="brown2" x="198" y="156" width="7" height="15" rx="2"/><rect class="brown2" x="267" y="156" width="7" height="15" rx="2"/>
+<rect class="purple" x="203" y="100" width="66" height="50" rx="16"/>
+<rect class="blue2" x="210" y="108" width="52" height="34" rx="12" opacity="0.35"/>
+<rect class="purple" x="202" y="138" width="68" height="16" rx="6"/>
+<rect class="purple" x="194" y="150" width="84" height="10" rx="4"/><rect class="ink" x="194" y="150" width="84" height="10" rx="4" opacity="0.22"/>
+<rect class="purple" x="188" y="124" width="20" height="34" rx="9"/><rect class="purple" x="264" y="124" width="20" height="34" rx="9"/>
+<rect class="blue2" x="188" y="124" width="20" height="7" rx="3.5" opacity="0.4"/><rect class="blue2" x="264" y="124" width="20" height="7" rx="3.5" opacity="0.4"/>
+<!-- price tag on the arm -->
+<path class="s s-inkSoft" stroke-width="1" d="M276 128 Q282 134 286 140"/>
+<g transform="rotate(14 294 146)"><path class="yellow" d="M282 140 H302 L307 147 L302 154 H282Z"/>
+<circle class="ink" cx="286" cy="147" r="1.8"/><rect class="orange2" x="290" y="145.6" width="10" height="2.6" rx="1.3"/></g>
+<!-- hand truck for the pickup -->
+<ellipse class="shadow" cx="336" cy="172" rx="14" ry="3"/>
+<path class="s s-metal2" stroke-width="3.5" d="M326 112 L334 166 H352"/>
+<path class="s s-metal2" stroke-width="3" d="M322 112 H332"/>
+<circle class="ink" cx="334" cy="166" r="6"/><circle class="metal" cx="334" cy="166" r="2.4"/>
+<!-- buyer (left), offering cash -->
+<ellipse class="shadow" cx="104" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="95" y="148" width="7" height="24" rx="3"/><rect class="ink" x="106" y="148" width="7" height="24" rx="3"/>
+<path class="teal" d="M90 152 Q90 122 104 120 Q118 122 118 152Z"/>
+<path class="s s-teal" stroke-width="6" d="M116 128 Q130 134 140 128"/>
+<circle class="skin1" cx="104" cy="108" r="11"/>
+<path class="hair" d="M93 106 Q93 94 105 95 Q116 96 115 106 Q110 100 104 101 Q98 102 93 106Z"/>
+<g transform="rotate(-12 148 126)"><rect class="green" x="140" y="120" width="18" height="11" rx="1.5"/>
+<circle class="green2" cx="149" cy="125.5" r="2.6"/></g>
+<!-- seller (right) -->
+<ellipse class="shadow" cx="392" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="383" y="148" width="7" height="24" rx="3"/><rect class="ink" x="394" y="148" width="7" height="24" rx="3"/>
+<path class="red" d="M378 152 Q378 122 392 120 Q406 122 406 152Z"/>
+<path class="s s-red" stroke-width="6" d="M380 128 Q368 134 362 126"/>
+<path class="hair2" d="M380 108 Q378 94 392 94 Q406 94 404 108 L406 122 Q400 126 396 118 L388 118 Q384 126 378 122Z"/>
+<circle class="skin2" cx="392" cy="108" r="11"/>
+<path class="hair2" d="M381 106 Q382 95 392 95 Q402 95 403 106 Q396 99 389 101 Q384 102 381 106Z"/>
+<circle class="skin2" cx="361" cy="125" r="3.5"/>

@@ -109,6 +109,9 @@ class UfunViewContext:
     path: str = ""
     names: list[str] = field(default_factory=list)
     rv_shown: bool = False
+    #: the value on disagreement is not known to the viewer (see hani2.information); the hint says who knows it
+    rv_hidden: bool = False
+    rv_hidden_hint: str = "You do not know it"
 
     # -- widgets ---------------------------------------------------------- #
     def key(self, name: str) -> str:
@@ -149,6 +152,8 @@ class UfunViewContext:
 
     def reserved_stat(self) -> ui.Component:
         self.rv_shown = True
+        if self.rv_hidden:
+            return ui.stat("Value on disagreement", "Unknown", hint=self.rv_hidden_hint)
         return ui.stat("Value on disagreement", _fmt_value(_reserved(self.ufun)),
                        hint="What you get if no agreement is reached")
 
@@ -226,12 +231,14 @@ def find_ufun_view(ufun: Any) -> ViewFn:
 
 
 def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card: bool = True,
-                     ctx: UfunViewContext | None = None) -> list[ui.Component]:
-    """Render ``ufun`` with the best view; never raises."""
+                     ctx: UfunViewContext | None = None, reserved_hint: str | None = None) -> list[ui.Component]:
+    """Render ``ufun`` with the best view; never raises. ``reserved_hint``: the
+    value on disagreement is hidden and this hint is shown instead."""
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     if ctx is None:
-        ctx = UfunViewContext(tool=tool, ufun=ufun, title_prefix=title_prefix, help_card=help_card)
+        ctx = UfunViewContext(tool=tool, ufun=ufun, title_prefix=title_prefix, help_card=help_card,
+                              rv_hidden=reserved_hint is not None, rv_hidden_hint=reserved_hint or "")
     view = generic_view if ctx.depth >= MAX_DEPTH else find_ufun_view(ufun)
     try:
         comps = list(view(ctx))
@@ -898,3 +905,42 @@ def _register_builtin_views() -> None:
 
 
 _register_builtin_views()
+
+
+# --------------------------------------------------------------------------- #
+# Part of the preferences (an information split, see hani2.information)        #
+# --------------------------------------------------------------------------- #
+PARTIAL_HELP_MD = """
+Your preferences come in two parts. Each **issue** has a **weight** (how much it
+matters to you; the weights add up to 100%), and each **option** of an issue has
+a **value** (100% for your favourite option of that issue, 0% for your least
+favourite). A deal is worth the weighted sum: weight₁ × value₁ + weight₂ × value₂ + …
+
+In this negotiation you know only one of the two parts. Your Assistant knows the
+other one, so work it out together.
+"""
+
+
+def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: str | None = None,
+                            other_holder: str = "your Assistant") -> list[ui.Component]:
+    """The part ``part`` (``weights`` / ``values`` / ``none``) of an additive
+    utility function, with a note on who knows the rest. Never raises."""
+    if ufun is None:
+        return [ui.text_block("No preferences loaded yet.", muted=True)]
+    ctx = UfunViewContext(tool=tool, ufun=ufun, rv_hidden=reserved_hint is not None, rv_hidden_hint=reserved_hint or "")
+    try:
+        names = ctx.issue_names
+        if part == "weights":
+            note = f"How much each option of an issue is worth to you is known to {other_holder}."
+            body = ctx.layout(_weights_card(ctx, names, [float(w) for w in ufun.weights]))
+        elif part == "values":
+            note = f"How important each issue is to you (its weight) is known to {other_holder}."
+            body = ctx.layout(right=_per_issue_card(ctx, list(ufun.values)))
+        else:
+            note = f"Your preferences are known to {other_holder}. Ask it what each deal is worth to you."
+            body = ctx.layout()
+        return [ui.alert(note, "info", title="You know part of your preferences"), body,
+                *ctx.explain(PARTIAL_HELP_MD)]
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+        return [ui.alert("These preferences cannot be shown.", "neutral")]

@@ -1,0 +1,1 @@
+import{c as t}from"./index-CHByB-Zp.js";const e={name:"letter-d",size:24,node:[["path",{d:"M11 4a8 8 0 010 16H6.406A.406.406 0 016 19.594V4.406A.406.406 0 016.406 4z",key:"1eea42"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

@@ -34,6 +34,7 @@ app.add_typer(groups_app, name="groups")
 app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
+app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 
 
 def _open_when_ready(url: str) -> None:
@@ -467,6 +468,56 @@ def scenario_new(
     typer.echo("Edit the YAML files, then run: hani2 scenario check " + str(dest))
 
 
+@scenario_app.command("past")
+def scenario_past(
+    paths: Annotated[list[Path], typer.Argument(help="Scenario folders, categories or whole scenario directories.")],
+    count: Annotated[int, typer.Option(help="How many past negotiations to write per scenario.")] = 6,
+    preferences: Annotated[str, typer.Option(help="How the past parties' preferences relate to the scenario's: "
+                                             "similar, same or different.")] = "similar",
+    opponent_preferences: Annotated[Optional[str], typer.Option(
+        help="The same for every role but --human-role (default: as --preferences).")] = None,
+    human_role: Annotated[Optional[str], typer.Option(help="The role the participant plays (for --opponent-preferences).")] = None,
+    noise: Annotated[float, typer.Option(help="How far similar preferences move (0 to 1).")] = 0.25,
+    n_steps: Annotated[int, typer.Option(help="Rounds of each simulated negotiation.")] = 20,
+    seed: Annotated[int, typer.Option(help="Extra seed (the scenario's name is always part of it).")] = 0,
+    force: Annotated[bool, typer.Option("--force", help="Replace an existing _past_negotiations.yaml.")] = False,
+):
+    """Simulate past negotiations for scenario folders and save them as _past_negotiations.yaml.
+
+    A study that gives past negotiations to the participant or the Assistant (the
+    ``information`` setting) uses a folder's file instead of simulating its own, so every
+    participant meets the same records. Edit the file to add notes or real negotiations."""
+    from hani2 import information as info
+    from hani2 import scenario_store as store
+    from hani2.scenarios import registry
+
+    if preferences not in info.PREFERENCE_MODES or (opponent_preferences and opponent_preferences not in info.PREFERENCE_MODES):
+        raise typer.BadParameter(f"use one of {', '.join(info.PREFERENCE_MODES)}")
+    registry.load_plugins()
+    settings = {**info.DEFAULTS["past_negotiations"], "count": count, "preferences": preferences,
+                "opponent_preferences": opponent_preferences, "noise": noise, "n_steps": n_steps, "seed": seed,
+                "human_role": human_role}
+    n = n_err = 0
+    for root in paths:
+        for f in store.scenario_folders(root):
+            n += 1
+            if (f / info.PAST_FILE).exists() and not force:
+                typer.echo(f"skip  {f} (has {info.PAST_FILE}; --force replaces it)")
+                continue
+            s = store._load_dir(f)
+            if s is None:
+                typer.echo(f"ERROR {f}: does not load")
+                n_err += 1
+                continue
+            recs = info.simulate_past_negotiations(s, settings, seed_text=f"{s.outcome_space.name}|{f.name}")
+            info.write_past_file(f, recs)
+            agreed = sum(1 for r in recs if r.get("agreement"))
+            typer.echo(f"ok    {f}: {len(recs)} past negotiations ({agreed} with an agreement)")
+    typer.echo(f"{n} scenario(s), {n_err} with errors")
+    if n_err:
+        raise typer.Exit(code=1)
+
+
 @scenario_app.command("check")
 def scenario_check(
     paths: Annotated[list[Path], typer.Argument(help="Scenario folders, categories or whole scenario directories.")],
@@ -831,7 +882,7 @@ def replay_evaluate(
 @replay_app.command("compare")
 def replay_compare(
     paths: PathsArg = None,
-    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent (the Assistant), user, scenario, experiment, …")] = "opponent",
+    by: Annotated[str, typer.Option(help="Group by: opponent, support_agent (the Assistant), user, scenario, experiment, mode, participant_type, persona, …; several fields with commas (opponent,participant_type)")] = "opponent",
     metrics: MetricsOpt = None,
     llm: LlmOpt = False,
     out: Annotated[Optional[Path], typer.Option("--out", "-o", help="Write the group table to a .csv or .json file.")] = None,
@@ -982,6 +1033,49 @@ def replay_judge_reliability(
         out.write_text(json.dumps(rep, indent=1, default=str) if out.suffix == ".json" else md)
         typer.echo(f"wrote {out}", err=True)
     typer.echo(md)
+
+
+@app.command("simulate")
+def simulate_cmd(
+    persona: Annotated[list[str], typer.Option("--persona", "-p", help="Persona (repeatable): follower, skeptic, stubborn, click_through or llm; options as name:key=value,… (e.g. stubborn:max_concession=0.1, llm:goal=\"…\")")] = ["follower", "skeptic", "stubborn", "click_through"],  # noqa: B006
+    assistant: Annotated[Optional[str], typer.Option("--assistant", "-a", help="The Assistant's class (module:Class or file.py:Class); default: assistant_settings.json")] = None,
+    scenario: Annotated[list[str], typer.Option("--scenario", "-s", help="Scenario type (repeatable).")] = ["Trade"],  # noqa: B006
+    opponent: Annotated[list[str], typer.Option("--opponent", "-o", help="Opponent (repeatable).")] = ["BoulwareTBNegotiator"],  # noqa: B006
+    k: Annotated[int, typer.Option("-k", help="Trials per persona × scenario × opponent.")] = 4,
+    n_steps: Annotated[int, typer.Option(help="Rounds per negotiation.")] = 20,
+    seed: Annotated[int, typer.Option(help="Seed of the personas (trial i uses seed + i).")] = 0,
+    out: Annotated[Optional[Path], typer.Option("--out", help="Write every trial to a .csv or .json file.")] = None,
+    temp: Annotated[bool, typer.Option("--temp", help="Write results and recordings to a temporary home instead of HANI2_HOME.")] = False,
+):
+    """Run simulated participants against an Assistant and report pass^k (a qualifying round).
+
+    Every session is tagged mode: simulated (user sim_<persona>) and is never ranked with human
+    participants; its recordings can be evaluated like any other (hani2 replay evaluate, with the
+    simulation and error_review metrics)."""
+    from hani2 import config
+    from hani2.simulator import run_trials
+
+    home = None if temp else str(config.home())
+
+    def progress(tr):
+        flag = "" if tr.valid else f"  (invalid: {tr.invalid_reason})"
+        u = f"{tr.human_utility:.2f}" if tr.human_utility is not None else "–"
+        typer.echo(f"{tr.persona:14} {tr.scenario or '':10} trial {tr.trial}: {tr.status:9} utility {u}  "
+                   f"goal {'met' if tr.goal_met else 'missed'}  suggestions taken {tr.suggestions_taken}/{tr.suggestions_seen}{flag}")
+
+    res = run_trials(persona, k=k, scenarios=scenario, opponents=opponent, agent_class=assistant, n_steps=n_steps,
+                     seed=seed, progress=progress, home=home)
+    if out is not None:
+        _write_table(res["trials"], list(res["trials"][0]) if res["trials"] else [], out)
+    typer.echo("")
+    rows = [dict(group=g["group"], n=g["n"], goal_rate=g["mean"].get("goal_met"),
+                 utility=g["mean"].get("human_utility")) for g in res["groups"]]
+    _write_table(rows, ["group", "n", "goal_rate", "utility"], None)
+    if res["reliability"]:
+        typer.echo("\npass^k (success = goal met: a deal worth at least the persona's reservation value):")
+        _write_table(res["reliability"], ["group", "k", "pass_hat_k", "scenarios"], None)
+    if res["invalid"]:
+        typer.secho(f"{res['invalid']} invalid trial(s) left out (time-outs, turn caps, simulator failures).", fg="yellow")
 
 
 @replay_app.command("export")

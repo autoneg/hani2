@@ -74,6 +74,12 @@ You never call `view()` yourself. The server calls it whenever the tool needs to
 | `enabled` | `True` | The default state of the enable switch. A switched-off tool shows its tab, but `view()` is not called until it is switched on. |
 | `order` | `100` | Sort key inside the pane (smaller first). Tools with `order` 0 or 1 become the selected tab of their pane when they appear. |
 | `agent_hint` | `""` | Advice for an Assistant on when and how to use the tool. |
+| `needs_totals` | `False` | The tool shows what deals are worth to the participant. It is not offered in a round where the participant knows only part of their preferences (see [Who knows what](../guide/information.md)). |
+| `private_information` | `False` | The tool shows the participant's own information. While the participant and the Assistant know different things, the Assistant cannot read or use it. Override `private_now(self) -> bool` to refuse it only when it shows something the Assistant does not know. |
+
+Override `available(self) -> bool` to offer a tool only in some rounds: an unavailable tool is
+hidden from the participant and the Assistant. `self.information` is the round's
+information split (see [Who knows what](../guide/information.md)).
 
 An admin can override `pane`, `timing`, `enabled`, `admin_only`, `guest` and `order` per deployment in `env.json`, without changing your code (see [Tools](../guide/tools.md)).
 
@@ -491,6 +497,7 @@ Every helper in `hani2.tools.ui` returns a plain dict (a `Component`) that the w
 | `outcome(values, utility=None, label=None)` | A compact outcome card: one chip per issue, plus a utility gauge (with the participant's value on disagreement marked) when `utility` is given. |
 | `issue(name, *, widget=None, label=None)` | The default editor field of one issue. Only in a scenario's [custom offer controls](../guide/scenarios.md#showing-offers); elsewhere it renders nothing. |
 | `html(content)` | Sanitised HTML. Prefer `markdown`. |
+| `image(src, dark_src=None, alt="", max_height=None)` | A picture from any URL the browser can load (also `data:` URLs); `dark_src` replaces it in the dark theme. The Assistant reads `alt`. |
 | `divider()` | A horizontal rule. |
 
 ### Plots and tables

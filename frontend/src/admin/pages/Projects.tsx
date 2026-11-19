@@ -200,7 +200,40 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer }: { titl
         <Tags label="Preferred roles" value={v.human_roles} onChange={(x) => put("human_roles", x)} placeholder="Buyer" />
       </Row>
       <InfoRow label="Opponents and Assistants" value={[v.opponents && `opponents: ${[].concat(v.opponents).join(", ")}`, v.assistants && `assistants: ${[].concat(v.assistants).join(", ")}`].filter(Boolean).join(" · ") || inherit} hint="Choose the pools in Opponents and Assistants (pick this layer there)" />
+      <InformationRows value={v.information} onChange={(x) => put("information", x)} inherit={inherit} />
     </Group>
+  );
+}
+
+/** The ``information`` block: what the human and the Assistant each know (see the Information split guide). */
+function InformationRows({ value, onChange, inherit }: { value: any; onChange: (v: any) => void; inherit: string }) {
+  const info = value ?? {};
+  const set = (section: string, k: string, x: any) => {
+    const sec = { ...(info[section] ?? {}) };
+    if (x === null || x === undefined || x === "") delete sec[k];
+    else sec[k] = x;
+    const n = { ...info, [section]: sec };
+    if (!Object.keys(sec).length) delete n[section];
+    onChange(Object.keys(n).length ? n : null);
+  };
+  const sel = (section: string, k: string, label: string, opts: string[]) => (
+    <Select label={label} value={info[section]?.[k] ?? ""} onChange={(x) => set(section, k, x)} options={[{ value: "", label: inherit }, ...opts]} />
+  );
+  const parts = ["full", "weights", "values", "none"];
+  return (
+    <>
+      <Row label="Participant knows" hint="information.preferences.human: which part of their own preferences the participant sees">{sel("preferences", "human", "Participant knows", parts)}</Row>
+      <Row label="Assistant knows" hint="information.preferences.assistant: which part of the participant's preferences the Assistant knows">{sel("preferences", "assistant", "Assistant knows", parts)}</Row>
+      <Row label="Value on disagreement" hint="information.preferences.reserved_value: who knows it">{sel("preferences", "reserved_value", "Value on disagreement", ["both", "human", "assistant", "none"])}</Row>
+      <Row label="Past negotiations" hint="information.past_negotiations.count: records of earlier negotiations in the same scenario (0: none)">
+        <Stepper label="Past negotiations" value={info.past_negotiations?.count ?? null} nullable placeholder={inherit.toLowerCase()} step={1} min={0} onChange={(x) => set("past_negotiations", "count", x)} />
+      </Row>
+      <Row label="Participant's share" hint="information.past_negotiations.human_share: the fraction of past negotiations the participant gets; the Assistant gets the rest">
+        <Stepper label="Participant's share" value={info.past_negotiations?.human_share ?? null} nullable placeholder={inherit.toLowerCase()} step={0.1} min={0} onChange={(x) => set("past_negotiations", "human_share", x == null ? x : Math.min(1, x))} />
+      </Row>
+      <Row label="Past preferences" hint="information.past_negotiations.preferences: how the past parties' preferences relate to this negotiation's">{sel("past_negotiations", "preferences", "Past preferences", ["similar", "same", "different"])}</Row>
+      <Row label="Market research" hint="information.market_research.audience: who gets statistics about how preferences in the scenario are usually distributed">{sel("market_research", "audience", "Market research", ["none", "assistant", "human", "both"])}</Row>
+    </>
   );
 }
 

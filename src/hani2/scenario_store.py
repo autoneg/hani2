@@ -330,7 +330,8 @@ def load_scenario(
         s = _load_dir(path)
         if s is not None:
             return s, dict(index=index, load_index=index % len(pool), load_path=str(path),
-                           scenario_name=path.name, generated=False, scenario_type=type_), str(path)
+                           scenario_name=path.name, generated=False, scenario_type=type_,
+                           **_composition(s)), str(path)
         if strict:
             raise StrictScenarioError(f"strict scenarios: cannot load the saved scenario {path}")
         if not generate_on_failure or type_ not in MAKER_MAP:
@@ -349,6 +350,13 @@ def load_scenario(
     info = dict(index=index, load_index=None, load_path=None,
                 scenario_name=s.outcome_space.name, generated=True, scenario_type=type_)
     return s, info, None
+
+
+def _composition(s: Scenario) -> dict[str, Any]:
+    """The factors of a compositional scenario (see :mod:`hani2.compositional`), kept with the
+    basic info so recordings and the ``factors`` metric see them."""
+    comp = (s.info or {}).get("composition")
+    return {"composition": comp} if isinstance(comp, dict) else {}
 
 
 def load_display_file(f: str | Path):

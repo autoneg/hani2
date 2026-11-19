@@ -137,6 +137,18 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
       );
     case "html":
       return <div className="md" dangerouslySetInnerHTML={{ __html: sanitize(c.html) }} />;
+    case "image": {
+      const style = { maxHeight: c.max_height ? `${c.max_height}px` : undefined };
+      const cls = "block h-auto w-full rounded-xl object-contain";
+      return c.dark_src ? (
+        <div>
+          <img src={c.src} alt={c.alt || ""} className={`${cls} theme-light-only`} style={style} draggable={false} />
+          <img src={c.dark_src} alt={c.alt || ""} className={`${cls} theme-dark-only`} style={style} draggable={false} />
+        </div>
+      ) : (
+        <img src={c.src} alt={c.alt || ""} className={cls} style={style} draggable={false} />
+      );
+    }
     case "divider":
       return <hr className="border-line" />;
     case "progress":

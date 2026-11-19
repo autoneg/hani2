@@ -1,1 +1,0 @@
-import{c as o}from"./index-kuJP3rtW.js";const e={name:"square-chevron-down",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m16 10-4 4-4-4",key:"894hmk"}]],aliases:["chevron-down-square"]};e.node;const n=o(e);export{e as __iconData,n as default};

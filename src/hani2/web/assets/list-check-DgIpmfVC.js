@@ -1,1 +1,0 @@
-import{c as t}from"./index-kuJP3rtW.js";const e={name:"list-check",size:24,node:[["path",{d:"M16 5H3",key:"m91uny"}],["path",{d:"M16 12H3",key:"1a2rj7"}],["path",{d:"M11 19H3",key:"zflm78"}],["path",{d:"m15 18 2 2 4-4",key:"1szwhi"}]]};e.node;const c=t(e);export{e as __iconData,c as default};

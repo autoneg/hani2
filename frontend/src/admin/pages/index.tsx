@@ -23,7 +23,7 @@ const explorerEntries = (k: string, noun: string, group: string) => [
 
 export const PAGES: PageDef[] = [
   { id: "overview", title: "Live sessions", icon: Activity, color: "bg-good", group: "Activity", subtitle: "Everyone with a session on this server right now.", entries: [{ id: "stats", label: "Session counts", hint: "Open sessions, negotiating now, recorded sessions, events" }, { id: "sessions", label: "Sessions table" }] },
-  { id: "results", title: "Results", icon: Trophy, color: "bg-warn", group: "Activity", entries: [{ id: "results-download", label: "Download results CSV" }, { id: "leaderboard", label: "Leaderboard" }, { id: "results-table", label: "Results table", hint: "Choose columns" }] },
+  { id: "results", title: "Results", icon: Trophy, color: "bg-warn", group: "Activity", entries: [{ id: "results-download", label: "Download results CSV" }, { id: "leaderboard", label: "Leaderboard" }, { id: "leaderboard-by-type", label: "Leaderboard by participant type" }, { id: "simulated", label: "Qualifying round (simulated)" }, { id: "results-table", label: "Results table", hint: "Choose columns" }] },
   { id: "analytics", title: "Event analytics", icon: ChartColumn, color: "bg-opponent", group: "Activity", entries: [{ id: "events-export", label: "Export events CSV" }, { id: "events-filter", label: "Filter events", hint: "User, type, dates" }] },
   { id: "replay", title: "Replay", icon: Clapperboard, color: "bg-muted", group: "Activity", href: "/replay", Component: () => null },
 

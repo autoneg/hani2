@@ -1643,6 +1643,320 @@ The share of function calls that worked. A call counts as failed when its result
 or when the result is not an object (e.g. an error text). Empty without calls; the calls per function
 are in the details.
 
+### `simulation` — Simulated participant
+
+*hard*
+
+Goal, validity, suggestion uptake and policy conformance of a simulated participant.
+
+$$
+\text{goal\_met} = [\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]
+$$
+
+For sessions played by a simulated participant (`mode: simulated`, see the simulation guide): whether
+the persona reached its goal, whether the trial is valid, how often it saw and took the Assistant's
+suggestion, and whether a scripted persona kept to its own rules. $\omega$ is the agreement and
+$r_p$ the persona's reservation value (its private one, or the scenario's).
+
+A trial is **invalid** when it hit the time-out or the turn cap, the simulator's language model failed
+or the opponent failed; leave invalid trials out of pass^k (`hani2 simulate` does), because they say
+nothing about the Assistant. **Violations** are the turns where a scripted persona broke its own
+policy (a follower ignoring a suggestion, a stubborn persona going below its floor, …), checked
+without a language model; they should be 0, and are not computed for language-model personas.
+
+**Example.** A stubborn persona with reservation value $0.4$ reaches a deal worth $0.7$ after 6 turns,
+seeing 4 suggestions and taking 1: `sim_goal_met` $= 1$, `sim_take_rate` $= 1/4$.
+
+Not computed for human sessions.
+
+#### `sim_goal_met` — Goal met
+
+*The simulated participant got a deal worth at least its reservation value*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+[\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]
+$$
+
+1 when the negotiation ended in a deal worth at least the persona's reservation value to it, else 0.
+The success criterion of pass^k for simulated runs.
+
+#### `sim_valid` — Valid trial
+
+*The trial ended normally (no time-out, turn cap or simulator failure)*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+[\,\text{no time-out, turn cap or failure}\,]
+$$
+
+0 when the trial says nothing about the Assistant: it timed out, hit the turn cap, or the simulator's
+model or the opponent failed.
+
+#### `sim_turns` — Persona turns
+
+*Moves the persona made*
+
+**Range:** count · **Direction:** no better direction
+
+$$
+\lvert T \rvert
+$$
+
+The number of moves (offers, acceptances, endings) the persona made.
+
+#### `sim_take_rate` — Suggestions taken
+
+*Share of the turns with a suggestion where the persona took it*
+
+**Range:** [0, 1] · **Direction:** no better direction
+
+$$
+\frac{\lvert \{t \in T : \text{took}(t)\} \rvert}{\lvert \{t \in T : \text{suggestion}(t)\} \rvert}
+$$
+
+Of the persona's turns on which the Assistant had suggested something (filled an offer, asked to confirm
+accept / end, or spotlighted a button), the share where the persona did what was suggested.
+Empty when the Assistant never suggested anything.
+
+#### `sim_violations` — Persona violations
+
+*Turns where a scripted persona broke its own policy*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{t \in T : \text{policy}(t)\ \text{broken}\} \rvert
+$$
+
+Turns where a scripted persona did not behave as specified, found by deterministic checks. Should be 0;
+anything else is a simulator bug. Empty for language-model personas.
+
+#### `sim_stopped` — Persona stopped
+
+*The language-model persona ended its participation with the stop token*
+
+**Range:** {0, 1} · **Direction:** no better direction
+
+$$
+[\,\texttt{\#\#\#STOP\#\#\#}\,]
+$$
+
+1 when a language-model persona wrote the stop token (its goal met or it gave up) and so walked away.
+
+### `dual_control` — Dual control
+
+*hard*
+
+Whether the agreement kept the private briefings' constraints.
+
+$$
+\mathcal{C} = \bigcup_{b \in B} \mathcal{C}_b, \qquad \omega^{*} \models c \iff \omega^{*}_{i_c} \in V_c
+$$
+
+How a negotiation went when the Human and the Assistant knew different things (see *Who knows what*
+in the guide). $B$ are the round's briefings and $\mathcal{C}_b$ the constraints of briefing $b$; a
+constraint $c$ names an issue $i_c$ and the values $V_c$ it allows (a minimum, a maximum, allowed or
+forbidden options). The recording keeps the round's information split: the private briefings with their
+constraints, which issues and actions only the Human could decide, and who held which past
+negotiations. Empty for negotiations without a split.
+
+**Caveat.** A constraint is checked on the raw option values of the agreement, not on the labels
+shown to the participant.
+
+#### `information_split` — Information split
+
+*Whether the Human and the Assistant knew different things*
+
+**Range:** {0, 1} · **Direction:** no better direction
+
+$$
+\mathbb{1}[\text{split}]
+$$
+
+1 when the round split the information (past negotiations, preferences, market research, briefings
+or human-only decisions), else 0.
+
+#### `constraints_met` — Constraints met
+
+*The agreement keeps every constraint of the private briefings*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+\prod_{c \in \mathcal{C}} \mathbb{1}[\omega^{*} \models c]
+$$
+
+1 when the agreement $\omega^{*}$ keeps every constraint $c$ of the round's briefings (a limit that
+is not in the utility function, such as "rent at most 3200"), 0 when it breaks at least one. Empty
+without an agreement or without constraints. When the constraint was given to the Human only, it
+shows whether the Assistant's help respected what it had to learn from the Human.
+
+#### `n_constraint_violations` — Constraints broken
+
+*How many briefing constraints the agreement breaks*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\left\lvert \{c \in \mathcal{C} : \omega^{*} \not\models c\} \right\rvert
+$$
+
+The number of constraints the agreement breaks (empty without an agreement or without constraints).
+
+### `factors` — Difficulty factors
+
+*hard · not run by default*
+
+Difficulty factors of a compositional scenario and target attainment.
+
+$$
+\text{levels}(\sigma), \qquad \frac{u_h(\omega) - r_h}{u_h(\omega^\ast) - r_h}
+$$
+
+For scenarios composed from difficulty factors (`hani2 compose`): the level of every factor and how
+close the result came to the scenario's **target** deal $\omega^\ast$ (the Nash bargaining solution over the
+zone of possible agreement). Scenario factors (issues, opposition, ZOPA, constraint) are read from the
+scenario; episode factors (deception, time pressure) from what was actually played, so a study that
+overrides the opponent or the step limit is reported as it ran. Group by a `factor_*` column (or use
+`hani2 compose report`) to see which factor makes an Assistant fail.
+
+Recordings of other scenarios give empty columns.
+
+#### `factor_issues` — Issues
+
+*Number-of-issues level (2, 4 or 6)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of issues}
+$$
+
+The number of negotiated issues of the scenario.
+
+Empty for a scenario that was not composed from factors.
+
+#### `factor_opposition` — Opposition level
+
+*Opposition level (low, medium, high)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of opposition}
+$$
+
+How opposed the two preference profiles are: the opposition level (the distance from the best outcome to the ideal point $(1, 1)$) falls in the band of the level.
+
+Empty for a scenario that was not composed from factors.
+
+#### `factor_zopa` — ZOPA level
+
+*ZOPA-size level (wide, narrow)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of zopa}
+$$
+
+The share of outcomes that both sides prefer to no deal, set through the reservation values.
+
+Empty for a scenario that was not composed from factors.
+
+#### `factor_constraint` — Constraint level
+
+*Hidden-constraint level (none, hidden)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of constraint}
+$$
+
+**hidden**: the participant has a private hard limit that the opponent does not know (the opponent's favourite option on its most important issue is worth less than no deal).
+
+Empty for a scenario that was not composed from factors.
+
+#### `factor_deception` — Deception level
+
+*Opponent honesty (honest, deceptive)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of deception}
+$$
+
+The opponent actually played: **honest** or **deceptive** (it lies about its priorities, its deadline and its outside option) when it is one of the factor's opponents, otherwise its name.
+
+Empty for a scenario that was not composed from factors.
+
+#### `factor_time_pressure` — Time-pressure level
+
+*Time-pressure level (relaxed, tight)*
+
+**Range:** level name · **Direction:** no better direction
+
+$$
+\text{level of time pressure}
+$$
+
+The step limit actually used: the level whose step count matches, otherwise `steps=<n>`.
+
+Empty for a scenario that was not composed from factors.
+
+#### `target_attainment` — Target attainment
+
+*Gain over the reservation value relative to the target's*
+
+**Range:** (-inf, inf); 1 = the target · **Direction:** higher is better
+
+$$
+\frac{u_h(\omega) - r_h}{u_h(\omega^\ast) - r_h}
+$$
+
+The human team's gain over its reservation value $r_h$, as a share of the gain the **target** deal
+$\omega^\ast$ would give. The target is the Nash bargaining solution over the zone of possible
+agreement (respecting the participant's hidden constraint), stored in the scenario when it was composed.
+
+1 means the team got as much as the target, above 1 more (at the opponent's expense), 0 the
+reservation value (no deal), below 0 a deal worse than no deal (for example one that breaks the hidden
+constraint). Because it is normalised by the target, it compares fairly across scenarios of different
+difficulty, unlike the raw utility.
+
+**Example.** $r_h = 0.2$, the target gives $0.6$ and the deal $0.5$: $(0.5 - 0.2) / (0.6 - 0.2) = 0.75$.
+
+#### `reached_target` — Reached target
+
+*1 if the deal is at least as good as the target for the human*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+\mathbb{1}\left[u_h(\omega) \ge u_h(\omega^\ast)\right]
+$$
+
+1 when the human team's utility is at least the target's (see `target_attainment`), 0 otherwise
+(including no deal).
+
+#### `constraint_violated` — Constraint violated
+
+*1 if the deal breaks the hidden constraint*
+
+**Range:** {0, 1} · **Direction:** lower is better
+
+$$
+\mathbb{1}\left[\omega_j = v^\dagger\right]
+$$
+
+For a scenario with a hidden constraint ($v^\dagger$ is the forbidden option of issue $j$): 1 when the
+agreement uses the forbidden option, 0 otherwise (no deal counts as 0). Empty for scenarios without a
+hidden constraint.
+
 ### `rule_checks` — Rule checks
 
 *hard*
@@ -2527,6 +2841,14 @@ Assistant's suggestion and whether that helped or hurt. The full list is in the 
 An error whose source mentions "assist" or "agent" is the Assistant's, any other the Human's; an
 unknown severity counts as minor.
 
+**Simulated participants.** When a simulated participant played the Human (`mode: simulated`), the
+judge is shown the persona (its policy, goal and reservation value) and may also blame a third source,
+the **simulator**: the persona broke character or its own instructions (it revealed its private
+reservation value unprompted, ignored its policy, stopped for no reason, behaved like no human
+would). A "human" error then means an in-character negotiating mistake. Simulator errors are audited
+like this, as in τ²-bench, to tell Assistant failures from simulator failures; they count in
+`simulator_errors` and never as the Assistant's or the Human's.
+
 **Example.** The judge reports a minor Assistant error at 01:10, a critical Human error at 02:30 and a
 critical Assistant error at 03:05: `assistant_errors` $= 2$, `assistant_critical_errors` $= 1$,
 `human_errors` $= 1$, `human_critical_errors` $= 1$ and `first_critical` = human.
@@ -2591,6 +2913,33 @@ $$
 
 The Human's errors that, according to the judge, changed the final outcome.
 
+#### `simulator_errors` — Simulator errors
+
+*Errors of the user simulator (simulated participants only)*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{e \in E : \text{source}(e) = \text{simulator}\} \rvert
+$$
+
+For a simulated participant, how many errors the judge blamed on the simulator itself (the persona broke
+character or its instructions) rather than on the Assistant or on an in-character mistake. Empty for
+human sessions.
+
+#### `simulator_critical_errors` — Simulator critical errors
+
+*… of which critical*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{e \in E : \text{source}(e) = \text{simulator} \wedge \text{severity}(e) = \text{critical}\} \rvert
+$$
+
+The simulator's errors that, according to the judge, changed the final outcome. A trial with one is a
+candidate to discard before computing pass^k. Empty for human sessions.
+
 #### `human_overrode_helpfully` — Helpful overrides
 
 *Times the human went against the assistant and it helped*
@@ -2619,12 +2968,12 @@ counted by the judge.
 
 #### `first_critical` — First critical error
 
-*Who made the first critical error: assistant, human or none*
+*Who made the first critical error: assistant, human, simulator or none*
 
 **Range:** category · **Direction:** no better direction
 
 $$
-\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{none}\}
+\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{simulator}, \text{none}\}
 $$
 
 Who made the earliest critical error (by the mm:ss time the judge gave; errors without a readable

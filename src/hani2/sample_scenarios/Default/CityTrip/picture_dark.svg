@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A visitor with a suitcase and a local host with a map plan a weekend on a canal quay, with a tour boat, a bike and a big wheel</title><style>.skyTop{fill:#141d36}.skyBottom{fill:#28345a}.hill{fill:#22344a}.hill2{fill:#1d2d40}.ground{fill:#2b3346}.ground2{fill:#232a3b}.water{fill:#22466e}.water2{fill:#1b3a5e}.sand{fill:#5b5038}.floor{fill:#262d3e}.wall{fill:#1f2638}.sun{fill:#e9eef8}.sunGlow{fill:#3a4670}.cloud{fill:#34406a}.star{fill:#f2f5ff}.ink{fill:#0f1424}.inkSoft{fill:#7b86a3}.paper{fill:#dfe5f2}.paper2{fill:#b9c2d6}.metal{fill:#7d879e}.metal2{fill:#5c6680}.glass{fill:#6f9cc4}.shadow{fill:#000000}.light{fill:#ffe7a0}.blue{fill:#6f86ff}.blue2{fill:#4c62d6}.orange{fill:#e8963e}.orange2{fill:#b8701f}.green{fill:#2fa577}.green2{fill:#1f7a58}.red{fill:#d85448}.red2{fill:#a53a32}.yellow{fill:#e6b93f}.purple{fill:#8a72e8}.teal{fill:#2a9fae}.pink{fill:#d98aa3}.brown{fill:#8a5f37}.brown2{fill:#654325}.wood{fill:#a98250}.leaf{fill:#3a9a5c}.leaf2{fill:#2a7a48}.skin1{fill:#d9ae8c}.skin2{fill:#b07a53}.skin3{fill:#7b4e34}.hair{fill:#1f1715}.hair2{fill:#8a5226}.s-skyTop{stroke:#141d36}.s-skyBottom{stroke:#28345a}.s-hill{stroke:#22344a}.s-hill2{stroke:#1d2d40}.s-ground{stroke:#2b3346}.s-ground2{stroke:#232a3b}.s-water{stroke:#22466e}.s-water2{stroke:#1b3a5e}.s-sand{stroke:#5b5038}.s-floor{stroke:#262d3e}.s-wall{stroke:#1f2638}.s-sun{stroke:#e9eef8}.s-sunGlow{stroke:#3a4670}.s-cloud{stroke:#34406a}.s-star{stroke:#f2f5ff}.s-ink{stroke:#0f1424}.s-inkSoft{stroke:#7b86a3}.s-paper{stroke:#dfe5f2}.s-paper2{stroke:#b9c2d6}.s-metal{stroke:#7d879e}.s-metal2{stroke:#5c6680}.s-glass{stroke:#6f9cc4}.s-shadow{stroke:#000000}.s-light{stroke:#ffe7a0}.s-blue{stroke:#6f86ff}.s-blue2{stroke:#4c62d6}.s-orange{stroke:#e8963e}.s-orange2{stroke:#b8701f}.s-green{stroke:#2fa577}.s-green2{stroke:#1f7a58}.s-red{stroke:#d85448}.s-red2{stroke:#a53a32}.s-yellow{stroke:#e6b93f}.s-purple{stroke:#8a72e8}.s-teal{stroke:#2a9fae}.s-pink{stroke:#d98aa3}.s-brown{stroke:#8a5f37}.s-brown2{stroke:#654325}.s-wood{stroke:#a98250}.s-leaf{stroke:#3a9a5c}.s-leaf2{stroke:#2a7a48}.s-skin1{stroke:#d9ae8c}.s-skin2{stroke:#b07a53}.s-skin3{stroke:#7b4e34}.s-hair{stroke:#1f1715}.s-hair2{stroke:#8a5226}.lightOnly{display:none}.shadow{opacity:0.35}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141d36"/><stop offset="1" stop-color="#28345a"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A visitor with a suitcase and a local host with a map plan a weekend on a canal quay, with a tour boat, a bike and a big wheel -->
+<circle class="sunGlow" cx="52" cy="36" r="28" opacity="0.6"/><circle class="sun" cx="52" cy="36" r="17"/>
+<circle class="star" cx="130" cy="18" r="1.3"/>
+<circle class="star" cx="220" cy="30" r="1.1"/>
+<circle class="star" cx="300" cy="14" r="1.4"/>
+<circle class="star" cx="468" cy="96" r="1.2"/>
+<circle class="star" cx="350" cy="104" r="1"/>
+<g class="lightOnly"><ellipse class="cloud" cx="250" cy="26" rx="28" ry="9"/><ellipse class="cloud" cx="268" cy="20" rx="15" ry="7"/><ellipse class="cloud" cx="150" cy="48" rx="18" ry="6"/></g>
+<!-- big wheel -->
+<path class="s s-inkSoft" stroke-width="3" d="M392 128 L408 64 L424 128"/>
+<circle class="s s-inkSoft" stroke-width="2.4" cx="408" cy="64" r="38"/>
+<path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L446.0 64.0"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L434.9 90.9"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L408.0 102.0"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L381.1 90.9"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L370.0 64.0"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L381.1 37.1"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L408.0 26.0"/><path class="s s-inkSoft" stroke-width="1.2" d="M408 64 L434.9 37.1"/><circle class="red" cx="443.1" cy="81.4" r="4"/><circle class="yellow" cx="422.6" cy="102.1" r="4"/><circle class="teal" cx="393.6" cy="102.1" r="4"/><circle class="orange" cx="372.9" cy="81.6" r="4"/><circle class="pink" cx="372.9" cy="52.6" r="4"/><circle class="blue" cx="393.4" cy="31.9" r="4"/><circle class="green" cx="422.4" cy="31.9" r="4"/><circle class="purple" cx="443.1" cy="52.4" r="4"/>
+<circle class="inkSoft" cx="408" cy="64" r="4"/>
+<!-- canal houses -->
+<path class="orange" d="M14 128 V82 L34.0 70 L54 82 V128Z"/><rect class="glass" x="24.0" y="88" width="8" height="10" rx="1"/><rect class="glass" x="36.0" y="88" width="8" height="10" rx="1"/><path class="teal" d="M54 128 V70 H60.0 V63 H66.0 V56 H78.0 V63 H84.0 V70 H90 V128Z"/><rect class="glass" x="62.0" y="74" width="8" height="10" rx="1"/><rect class="glass" x="62.0" y="90" width="8" height="10" rx="1"/><rect class="glass" x="74.0" y="74" width="8" height="10" rx="1"/><rect class="glass" x="74.0" y="90" width="8" height="10" rx="1"/><path class="red" d="M90 128 V88 L111.0 76 L132 88 V128Z"/><rect class="glass" x="101.0" y="94" width="8" height="10" rx="1"/><rect class="glass" x="113.0" y="94" width="8" height="10" rx="1"/>
+<path class="yellow" d="M132 128 V76 H137.66666666666666 V69 H143.33333333333334 V62 H154.66666666666666 V69 H160.33333333333334 V76 H166 V128Z"/><rect class="glass" x="139.0" y="80" width="8" height="10" rx="1"/><rect class="glass" x="139.0" y="96" width="8" height="10" rx="1"/><rect class="glass" x="151.0" y="80" width="8" height="10" rx="1"/><rect class="glass" x="151.0" y="96" width="8" height="10" rx="1"/><path class="purple" d="M166 128 V84 L186.0 72 L206 84 V128Z"/><rect class="glass" x="176.0" y="90" width="8" height="10" rx="1"/><rect class="glass" x="188.0" y="90" width="8" height="10" rx="1"/><path class="green" d="M206 128 V72 H212.0 V65 H218.0 V58 H230.0 V65 H236.0 V72 H242 V128Z"/><rect class="glass" x="214.0" y="76" width="8" height="10" rx="1"/><rect class="glass" x="214.0" y="92" width="8" height="10" rx="1"/><rect class="glass" x="226.0" y="76" width="8" height="10" rx="1"/><rect class="glass" x="226.0" y="92" width="8" height="10" rx="1"/>
+<path class="pink" d="M242 128 V86 L262.0 74 L282 86 V128Z"/><rect class="glass" x="252.0" y="92" width="8" height="10" rx="1"/><rect class="glass" x="264.0" y="92" width="8" height="10" rx="1"/><path class="blue" d="M282 128 V80 H287.6666666666667 V73 H293.3333333333333 V66 H304.6666666666667 V73 H310.3333333333333 V80 H316 V128Z"/><rect class="glass" x="289.0" y="84" width="8" height="10" rx="1"/><rect class="glass" x="289.0" y="100" width="8" height="10" rx="1"/><rect class="glass" x="301.0" y="84" width="8" height="10" rx="1"/><rect class="glass" x="301.0" y="100" width="8" height="10" rx="1"/><path class="orange2" d="M316 128 V92 L335.0 80 L354 92 V128Z"/><rect class="glass" x="325.0" y="98" width="8" height="10" rx="1"/><rect class="glass" x="337.0" y="98" width="8" height="10" rx="1"/>
+<!-- canal with a tour boat -->
+<rect class="ground2" x="0" y="126" width="480" height="5"/>
+<rect class="water" x="0" y="131" width="480" height="15"/>
+<path class="s s-water2" stroke-width="1.4" d="M20 140 h18 M180 138 h22 M260 141 h16 M330 137 h20 M420 140 h24"/>
+<rect class="glass" x="28" y="124" width="58" height="9" rx="3"/>
+<path class="s s-metal2" stroke-width="1.2" d="M42 124 V133 M56 124 V133 M70 124 V133"/>
+<path class="blue2" d="M14 132 H106 Q102 142 92 142 H24 Q16 142 14 132Z"/>
+<rect class="ground" x="0" y="146" width="480" height="54"/><rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- visitor with suitcase -->
+<ellipse class="shadow" cx="146" cy="173" rx="12" ry="3"/>
+<path class="s s-ink" stroke-width="2.2" d="M141 136 V123 H151 V136"/>
+<rect class="purple" x="136" y="136" width="21" height="32" rx="4"/><rect class="s s-paper" stroke-width="1.5" x="140" y="141" width="13" height="22" rx="2" opacity="0.5"/>
+<circle class="ink" cx="140" cy="170" r="2.5"/><circle class="ink" cx="153" cy="170" r="2.5"/>
+<ellipse class="shadow" cx="180" cy="173" rx="18" ry="4"/>
+<rect class="blue2" x="171" y="148" width="7" height="24" rx="3"/><rect class="blue2" x="182" y="148" width="7" height="24" rx="3"/>
+<path class="hair" d="M168 108 Q167 94 180 95 Q193 94 192 108 L193 123 Q188 125 186 118 L174 118 Q172 125 167 123Z"/>
+<path class="red" d="M166 152 Q166 122 180 120 Q194 122 194 152Z"/>
+<path class="s s-red" stroke-width="6" d="M192 128 Q204.0 136 208 132"/>
+<circle class="skin2" cx="208" cy="132" r="3.2"/>
+<circle class="skin2" cx="180" cy="108" r="11"/>
+<path class="hair" d="M169 106 Q170 94 181 95 Q192 96 191 106 Q186 100 180 101 Q174 102 169 106Z"/>
+<!-- host with a map -->
+<ellipse class="shadow" cx="268" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="259" y="148" width="7" height="24" rx="3"/><rect class="ink" x="270" y="148" width="7" height="24" rx="3"/>
+<path class="green" d="M254 152 Q254 122 268 120 Q282 122 282 152Z"/>
+<path class="s s-green" stroke-width="6" d="M256 128 Q242.5 136 238 132"/>
+<circle class="skin1" cx="238" cy="132" r="3.2"/>
+<circle class="skin1" cx="268" cy="108" r="11"/>
+<path class="hair2" d="M257 105 Q258 95 268 95 Q278 95 279 105 Q274 99 268 99 Q262 99 257 105Z"/>
+<path class="paper" d="M212 118 L224 122 L236 118 L248 122 V142 L236 138 L224 142 L212 138Z"/>
+<path class="paper2" d="M224 122 L236 118 V138 L224 142Z"/>
+<path class="s s-red" stroke-width="1.6" stroke-dasharray="2 2.5" d="M216 134 Q224 124 232 130 T244 126"/>
+<circle class="red" cx="244" cy="126" r="2.2"/>
+<!-- bike -->
+<ellipse class="shadow" cx="348" cy="173" rx="38" ry="3.5"/>
+<circle class="s s-ink" stroke-width="3" cx="322" cy="158" r="13"/><circle class="s s-ink" stroke-width="3" cx="374" cy="158" r="13"/>
+<path class="s s-teal" stroke-width="3.4" d="M322 158 L338 136 L366 136 L374 158 M338 136 L348 158 L366 136 M348 158 L322 158 M366 136 L364 126"/>
+<path class="s s-ink" stroke-width="3" d="M332 134 H344 M358 126 H370"/>
+<path class="wood" d="M370 130 H386 L384 138 H372Z"/></g></svg>

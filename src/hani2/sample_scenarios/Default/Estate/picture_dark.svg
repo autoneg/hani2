@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>Two heirs divide a collection of paintings, clocks, rare books and vinyl records in an old living room</title><style>.skyTop{fill:#141d36}.skyBottom{fill:#28345a}.hill{fill:#22344a}.hill2{fill:#1d2d40}.ground{fill:#2b3346}.ground2{fill:#232a3b}.water{fill:#22466e}.water2{fill:#1b3a5e}.sand{fill:#5b5038}.floor{fill:#262d3e}.wall{fill:#1f2638}.sun{fill:#e9eef8}.sunGlow{fill:#3a4670}.cloud{fill:#34406a}.star{fill:#f2f5ff}.ink{fill:#0f1424}.inkSoft{fill:#7b86a3}.paper{fill:#dfe5f2}.paper2{fill:#b9c2d6}.metal{fill:#7d879e}.metal2{fill:#5c6680}.glass{fill:#6f9cc4}.shadow{fill:#000000}.light{fill:#ffe7a0}.blue{fill:#6f86ff}.blue2{fill:#4c62d6}.orange{fill:#e8963e}.orange2{fill:#b8701f}.green{fill:#2fa577}.green2{fill:#1f7a58}.red{fill:#d85448}.red2{fill:#a53a32}.yellow{fill:#e6b93f}.purple{fill:#8a72e8}.teal{fill:#2a9fae}.pink{fill:#d98aa3}.brown{fill:#8a5f37}.brown2{fill:#654325}.wood{fill:#a98250}.leaf{fill:#3a9a5c}.leaf2{fill:#2a7a48}.skin1{fill:#d9ae8c}.skin2{fill:#b07a53}.skin3{fill:#7b4e34}.hair{fill:#1f1715}.hair2{fill:#8a5226}.s-skyTop{stroke:#141d36}.s-skyBottom{stroke:#28345a}.s-hill{stroke:#22344a}.s-hill2{stroke:#1d2d40}.s-ground{stroke:#2b3346}.s-ground2{stroke:#232a3b}.s-water{stroke:#22466e}.s-water2{stroke:#1b3a5e}.s-sand{stroke:#5b5038}.s-floor{stroke:#262d3e}.s-wall{stroke:#1f2638}.s-sun{stroke:#e9eef8}.s-sunGlow{stroke:#3a4670}.s-cloud{stroke:#34406a}.s-star{stroke:#f2f5ff}.s-ink{stroke:#0f1424}.s-inkSoft{stroke:#7b86a3}.s-paper{stroke:#dfe5f2}.s-paper2{stroke:#b9c2d6}.s-metal{stroke:#7d879e}.s-metal2{stroke:#5c6680}.s-glass{stroke:#6f9cc4}.s-shadow{stroke:#000000}.s-light{stroke:#ffe7a0}.s-blue{stroke:#6f86ff}.s-blue2{stroke:#4c62d6}.s-orange{stroke:#e8963e}.s-orange2{stroke:#b8701f}.s-green{stroke:#2fa577}.s-green2{stroke:#1f7a58}.s-red{stroke:#d85448}.s-red2{stroke:#a53a32}.s-yellow{stroke:#e6b93f}.s-purple{stroke:#8a72e8}.s-teal{stroke:#2a9fae}.s-pink{stroke:#d98aa3}.s-brown{stroke:#8a5f37}.s-brown2{stroke:#654325}.s-wood{stroke:#a98250}.s-leaf{stroke:#3a9a5c}.s-leaf2{stroke:#2a7a48}.s-skin1{stroke:#d9ae8c}.s-skin2{stroke:#b07a53}.s-skin3{stroke:#7b4e34}.s-hair{stroke:#1f1715}.s-hair2{stroke:#8a5226}.lightOnly{display:none}.shadow{opacity:0.35}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141d36"/><stop offset="1" stop-color="#28345a"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- Two heirs divide a collection of paintings, clocks, rare books and vinyl records in an old living room -->
+<rect class="wall" x="0" y="0" width="480" height="150"/>
+<rect class="floor" x="0" y="150" width="480" height="50"/>
+<path class="s s-wood" stroke-width="3" d="M0 110 H480"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- grandfather clock -->
+<ellipse class="shadow" cx="44" cy="171" rx="22" ry="3"/>
+<path class="brown" d="M24 58 Q24 34 44 34 Q64 34 64 58 V170 H24Z"/>
+<rect class="brown2" x="20" y="164" width="48" height="7" rx="2"/>
+<circle class="paper" cx="44" cy="56" r="13"/><path class="s s-ink" stroke-width="2" d="M44 56 V47 M44 56 L50 60"/>
+<rect class="glass" x="33" y="80" width="22" height="70" rx="3"/>
+<path class="s s-yellow" stroke-width="2" d="M44 82 L48 132"/><circle class="yellow" cx="48" cy="134" r="5"/>
+<!-- paintings -->
+<rect class="wood" x="140" y="20" width="76" height="54" rx="3"/><rect class="glass" x="146" y="26" width="64" height="42"/>
+<path class="leaf" d="M146 68 V54 Q166 40 184 52 Q198 44 210 50 V68Z"/><path class="leaf2" d="M146 68 V60 Q172 52 196 68Z"/>
+<circle class="yellow" cx="196" cy="36" r="5"/>
+<rect class="wood" x="270" y="14" width="56" height="64" rx="3"/><rect class="teal" x="276" y="20" width="44" height="52"/>
+<path class="blue2" d="M282 72 Q282 52 298 50 Q314 52 314 72Z"/><circle class="skin1" cx="298" cy="42" r="9"/>
+<path class="hair2" d="M289 41 Q289 31 298 31 Q307 31 307 41 Q302 36 298 36 Q294 36 289 41Z"/>
+<!-- heir left -->
+<ellipse class="shadow" cx="112" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="103" y="148" width="7" height="24" rx="3"/><rect class="ink" x="114" y="148" width="7" height="24" rx="3"/>
+<path class="hair" d="M100 108 Q99 94 112 95 Q125 94 124 108 L125 123 Q120 125 118 118 L106 118 Q104 125 99 123Z"/>
+<path class="pink" d="M98 152 Q98 122 112 120 Q126 122 126 152Z"/>
+<path class="s s-pink" stroke-width="6" d="M124 128 Q136.0 132 140 122"/>
+<circle class="skin3" cx="140" cy="121" r="3.2"/>
+<circle class="skin3" cx="112" cy="108" r="11"/>
+<path class="hair" d="M101 106 Q102 94 113 95 Q124 96 123 106 Q118 100 112 101 Q106 102 101 106Z"/>
+<!-- table with records, mantel clock and books -->
+<ellipse class="shadow" cx="240" cy="172" rx="80" ry="5"/>
+<rect class="brown2" x="180" y="124" width="6" height="46"/><rect class="brown2" x="294" y="124" width="6" height="46"/>
+<rect class="wood" x="168" y="118" width="144" height="8" rx="2"/>
+<rect class="purple" x="172" y="92" width="26" height="26" rx="1" transform="rotate(-12 185 118)"/>
+<circle class="ink" cx="204" cy="101" r="14"/><circle class="s s-inkSoft" stroke-width="0.8" cx="204" cy="101" r="9"/><circle class="red" cx="204" cy="101" r="4.5"/><circle class="metal" cx="204" cy="101" r="1.2"/>
+<rect class="orange" x="180" y="91" width="26" height="27" rx="1"/>
+<circle class="yellow" cx="193" cy="104" r="5" opacity="0.85"/>
+<path class="wood" d="M222 118 V104 Q222 88 240 88 Q258 88 258 104 V118Z"/><rect class="brown" x="218" y="114" width="44" height="5" rx="2"/>
+<circle class="paper" cx="240" cy="103" r="8"/><path class="s s-ink" stroke-width="1.5" d="M240 103 V97 M240 103 L244 105"/>
+<rect class="red" x="268" y="110" width="38" height="8" rx="1.5"/><rect class="paper" x="300" y="111" width="4" height="6"/>
+<rect class="blue" x="272" y="102" width="32" height="8" rx="1.5"/><rect class="paper" x="298" y="103" width="4" height="6"/>
+<rect class="green" x="266" y="94" width="34" height="8" rx="1.5"/><rect class="paper" x="294" y="95" width="4" height="6"/>
+<!-- heir right -->
+<ellipse class="shadow" cx="362" cy="173" rx="18" ry="4"/>
+<rect class="blue2" x="353" y="148" width="7" height="24" rx="3"/><rect class="blue2" x="364" y="148" width="7" height="24" rx="3"/>
+<path class="orange" d="M348 152 Q348 122 362 120 Q376 122 376 152Z"/>
+<path class="s s-orange" stroke-width="6" d="M350 128 Q336.5 136 332 132"/>
+<circle class="skin2" cx="332" cy="132" r="3.2"/>
+<circle class="skin2" cx="362" cy="108" r="11"/>
+<path class="hair" d="M351 105 Q352 95 362 95 Q372 95 373 105 Q368 99 362 99 Q356 99 351 105Z"/>
+<!-- crate of records -->
+<ellipse class="shadow" cx="424" cy="173" rx="26" ry="3"/>
+<rect class="ink" x="402" y="134" width="5" height="18" rx="1"/><rect class="red" x="408" y="132" width="6" height="20" rx="1"/>
+<rect class="ink" x="415" y="134" width="5" height="18" rx="1"/><rect class="blue" x="421" y="131" width="6" height="21" rx="1"/>
+<rect class="yellow" x="428" y="133" width="6" height="19" rx="1"/><rect class="ink" x="435" y="134" width="5" height="18" rx="1"/>
+<rect class="wood" x="398" y="146" width="50" height="26" rx="2"/>
+<path class="s s-brown" stroke-width="1.4" d="M398 159 H448"/>
+<!-- floor lamp -->
+<path class="s s-metal2" stroke-width="2.4" d="M456 62 V170 M446 171 H466"/>
+<path class="light" d="M442 64 L448 40 H464 L470 64Z"/></g></svg>

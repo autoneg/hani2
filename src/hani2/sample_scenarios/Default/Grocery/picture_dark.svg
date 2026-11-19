@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>Two people at a kitchen table divide a bag of watermelon, bananas, oranges and apples</title><style>.skyTop{fill:#141d36}.skyBottom{fill:#28345a}.hill{fill:#22344a}.hill2{fill:#1d2d40}.ground{fill:#2b3346}.ground2{fill:#232a3b}.water{fill:#22466e}.water2{fill:#1b3a5e}.sand{fill:#5b5038}.floor{fill:#262d3e}.wall{fill:#1f2638}.sun{fill:#e9eef8}.sunGlow{fill:#3a4670}.cloud{fill:#34406a}.star{fill:#f2f5ff}.ink{fill:#0f1424}.inkSoft{fill:#7b86a3}.paper{fill:#dfe5f2}.paper2{fill:#b9c2d6}.metal{fill:#7d879e}.metal2{fill:#5c6680}.glass{fill:#6f9cc4}.shadow{fill:#000000}.light{fill:#ffe7a0}.blue{fill:#6f86ff}.blue2{fill:#4c62d6}.orange{fill:#e8963e}.orange2{fill:#b8701f}.green{fill:#2fa577}.green2{fill:#1f7a58}.red{fill:#d85448}.red2{fill:#a53a32}.yellow{fill:#e6b93f}.purple{fill:#8a72e8}.teal{fill:#2a9fae}.pink{fill:#d98aa3}.brown{fill:#8a5f37}.brown2{fill:#654325}.wood{fill:#a98250}.leaf{fill:#3a9a5c}.leaf2{fill:#2a7a48}.skin1{fill:#d9ae8c}.skin2{fill:#b07a53}.skin3{fill:#7b4e34}.hair{fill:#1f1715}.hair2{fill:#8a5226}.s-skyTop{stroke:#141d36}.s-skyBottom{stroke:#28345a}.s-hill{stroke:#22344a}.s-hill2{stroke:#1d2d40}.s-ground{stroke:#2b3346}.s-ground2{stroke:#232a3b}.s-water{stroke:#22466e}.s-water2{stroke:#1b3a5e}.s-sand{stroke:#5b5038}.s-floor{stroke:#262d3e}.s-wall{stroke:#1f2638}.s-sun{stroke:#e9eef8}.s-sunGlow{stroke:#3a4670}.s-cloud{stroke:#34406a}.s-star{stroke:#f2f5ff}.s-ink{stroke:#0f1424}.s-inkSoft{stroke:#7b86a3}.s-paper{stroke:#dfe5f2}.s-paper2{stroke:#b9c2d6}.s-metal{stroke:#7d879e}.s-metal2{stroke:#5c6680}.s-glass{stroke:#6f9cc4}.s-shadow{stroke:#000000}.s-light{stroke:#ffe7a0}.s-blue{stroke:#6f86ff}.s-blue2{stroke:#4c62d6}.s-orange{stroke:#e8963e}.s-orange2{stroke:#b8701f}.s-green{stroke:#2fa577}.s-green2{stroke:#1f7a58}.s-red{stroke:#d85448}.s-red2{stroke:#a53a32}.s-yellow{stroke:#e6b93f}.s-purple{stroke:#8a72e8}.s-teal{stroke:#2a9fae}.s-pink{stroke:#d98aa3}.s-brown{stroke:#8a5f37}.s-brown2{stroke:#654325}.s-wood{stroke:#a98250}.s-leaf{stroke:#3a9a5c}.s-leaf2{stroke:#2a7a48}.s-skin1{stroke:#d9ae8c}.s-skin2{stroke:#b07a53}.s-skin3{stroke:#7b4e34}.s-hair{stroke:#1f1715}.s-hair2{stroke:#8a5226}.lightOnly{display:none}.shadow{opacity:0.35}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141d36"/><stop offset="1" stop-color="#28345a"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- Two people at a kitchen table divide a bag of watermelon, bananas, oranges and apples -->
+<rect class="wall" x="0" y="0" width="480" height="150"/>
+<rect class="floor" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="4"/>
+<!-- window with sun / moon -->
+<rect class="wood" x="186" y="18" width="108" height="72" rx="4"/>
+<rect class="water" x="192" y="24" width="96" height="60" rx="2"/>
+<circle class="sunGlow" cx="262" cy="44" r="14" opacity="0.6"/><circle class="sun" cx="262" cy="44" r="8"/>
+<circle class="star" cx="206" cy="34" r="1.2"/><circle class="star" cx="226" cy="58" r="1"/><circle class="star" cx="280" cy="72" r="1.1"/>
+<g class="lightOnly"><ellipse class="cloud" cx="214" cy="62" rx="14" ry="5"/></g>
+<rect class="wood" x="238" y="24" width="4" height="60"/><rect class="wood" x="192" y="52" width="96" height="3"/>
+<!-- shelf with jars -->
+<rect class="wood" x="40" y="58" width="96" height="5" rx="2"/>
+<rect class="glass" x="48" y="40" width="14" height="18" rx="3"/><rect class="red" x="48" y="38" width="14" height="4" rx="1"/>
+<rect class="glass" x="68" y="44" width="12" height="14" rx="3"/><rect class="yellow" x="68" y="42" width="12" height="4" rx="1"/>
+<rect class="green" x="88" y="36" width="10" height="22" rx="4"/>
+<rect class="glass" x="106" y="42" width="16" height="16" rx="3"/><rect class="orange" x="106" y="40" width="16" height="4" rx="1"/>
+<!-- hanging plant -->
+<path class="s s-inkSoft" stroke-width="1" d="M392 0 V30"/>
+<path class="wood" d="M380 30 H404 L400 44 H384Z"/>
+<path class="leaf" d="M384 32 Q370 40 372 56 Q380 44 388 34Z"/><path class="leaf2" d="M398 32 Q414 40 410 58 Q404 44 396 34Z"/>
+<path class="leaf" d="M390 32 Q392 18 404 16 Q398 26 394 32Z"/>
+<!-- table -->
+<ellipse class="shadow" cx="240" cy="172" rx="100" ry="5"/>
+<rect class="brown2" x="156" y="128" width="7" height="44" rx="2"/><rect class="brown2" x="317" y="128" width="7" height="44" rx="2"/>
+<rect class="wood" x="144" y="122" width="192" height="9" rx="3"/>
+<rect class="brown" x="144" y="129" width="192" height="3" rx="1.5" opacity="0.6"/>
+<!-- grocery bag -->
+<path class="brown" d="M158 122 L162 88 H192 L196 122Z"/>
+<path class="wood" d="M162 88 H192 L190 94 H164Z" opacity="0.6"/>
+<path class="leaf" d="M170 88 Q168 76 176 72 Q176 82 174 88Z"/><path class="leaf2" d="M178 88 Q182 78 188 78 Q186 84 182 88Z"/>
+<!-- watermelon -->
+<ellipse class="green2" cx="222" cy="110" rx="20" ry="13"/>
+<path class="s s-green" stroke-width="2.4" d="M208 104 Q222 98 236 104 M206 112 Q222 106 238 112 M208 119 Q222 114 236 119"/>
+<!-- bananas -->
+<path class="yellow" d="M248 118 Q264 124 280 110 Q282 106 279 105 Q266 116 250 112 Q244 114 248 118Z"/>
+<path class="yellow" d="M250 112 Q266 114 276 100 Q278 96 275 96 Q264 108 252 106 Q246 108 250 112Z"/>
+<path class="brown2" d="M276 96 l3 -3 l1.5 1.5 l-3 3Z"/>
+<!-- oranges -->
+<circle class="orange" cx="292" cy="114" r="7.5"/><circle class="orange" cx="306" cy="115" r="7"/>
+<circle class="orange2" cx="299" cy="104" r="7"/>
+<!-- apples -->
+<circle class="red" cx="322" cy="115" r="7"/>
+<path class="leaf" d="M322 108 Q326 101 331 103 Q327 108 322 108Z"/>
+<!-- left person -->
+<ellipse class="shadow" cx="92" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="83" y="148" width="7" height="24" rx="3"/><rect class="ink" x="94" y="148" width="7" height="24" rx="3"/>
+<path class="orange" d="M78 152 Q78 122 92 120 Q106 122 106 152Z"/>
+<path class="s s-orange" stroke-width="6" d="M104 128 Q120 132 132 120"/>
+<circle class="skin3" cx="92" cy="108" r="11"/>
+<path class="hair" d="M81 108 Q78 94 92 94 Q106 94 103 108 Q100 98 92 99 Q84 98 81 108Z"/>
+<circle class="hair" cx="92" cy="92" r="6"/>
+<!-- right person -->
+<ellipse class="shadow" cx="388" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="379" y="148" width="7" height="24" rx="3"/><rect class="ink" x="390" y="148" width="7" height="24" rx="3"/>
+<path class="blue" d="M374 152 Q374 122 388 120 Q402 122 402 152Z"/>
+<path class="s s-blue" stroke-width="6" d="M376 128 Q360 132 348 120"/>
+<circle class="skin1" cx="388" cy="108" r="11"/>
+<path class="hair2" d="M377 106 Q378 95 388 95 Q398 95 399 106 Q393 100 388 100 Q382 100 377 106Z"/></g></svg>
