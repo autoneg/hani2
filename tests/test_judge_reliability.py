@@ -309,3 +309,16 @@ def test_api_takes_the_report_not_a_path(hani2_home):
         assert c.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
         r = c.post("/api/replay/leaderboard", json={"keys": ["x"], "track": "hi", "reliability": "/etc/passwd"})
         assert r.status_code == 400 and "not a path" in r.json()["detail"]
+
+
+def test_nl_assertions_cache_follows_env_assertions(hani2_home):
+    from conftest import write_settings
+
+    from hani2.evaluation.base import REGISTRY
+    from hani2.evaluation.llm_judge import _assertions_cache
+
+    write_settings(hani2_home, "env.json", {"evaluation": {"assertions": ["The Assistant greeted the participant."]}})
+    a = _assertions_cache(None, {})
+    write_settings(hani2_home, "env.json", {"evaluation": {"assertions": ["The Assistant explained the offer."]}})
+    assert _assertions_cache(None, {}) != a
+    assert REGISTRY["nl_assertions"].cache_extra is _assertions_cache

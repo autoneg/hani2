@@ -396,7 +396,15 @@ def _assertions(options: dict) -> list[str]:
     return [str(x) for x in a if str(x).strip()]
 
 
+def _assertions_cache(ctx, options: dict) -> str:
+    """The statements actually judged (also those from env.json), so editing them re-judges."""
+    import hashlib
+
+    return hashlib.sha1(json.dumps(_assertions(options or {})).encode()).hexdigest()[:10]
+
+
 @metric("nl_assertions", kind="soft", title="LLM judge: assertions", needs_llm=True, version="1",
+        cache_extra=_assertions_cache,
         options={"assertions": "The statements to check (a list of strings); default: env.json evaluation.assertions or the built-in list."},
         formula=r"m_i \in \{\text{true}, \text{false}, \text{null}\} \ \text{for every assertion } i",
         details=r"""
