@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
-from hani2 import __version__, auth, projects
+from hani2 import __version__, agents, auth, projects
 from hani2 import events as ev
 from hani2.config import get_env, load_env, read_settings_text, save_json_settings, settings_dir
 from hani2.hub import Hub
@@ -610,7 +610,10 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
             s.toast(r.get("error", "Please complete the questionnaire"), "warning")
         return r
     if t == "opponent" and s.admin_mode:
-        s.next_opponent = str(msg.get("spec") or "")
+        spec = str(msg.get("spec") or "")
+        if not s.is_admin and not agents.client_spec_allowed(spec):
+            return {"ok": False, "error": "file: opponents need an admin account"}
+        s.next_opponent = spec
         s.push_state()
         return None
     if t == "extract" and s.is_admin:

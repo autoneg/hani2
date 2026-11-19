@@ -57,3 +57,16 @@ def test_han_groups_without_package(monkeypatch):
     monkeypatch.setitem(sys.modules, "han_agents", None)
     monkeypatch.setitem(sys.modules, "han_agents.registry", None)
     assert agents.han_years() == [] and agents.han_groups() == {}
+
+
+def test_url_file_specs_need_an_admin(tmp_path, monkeypatch):
+    """?opponents=file:... from a browser must not make the server import a .py file for a non-admin."""
+    from hani2.agents import session_agent_override
+
+    marker = tmp_path / "ran.txt"
+    (tmp_path / "evil.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nclass X: pass\n")
+    q = {"opponents": f"file:{tmp_path / 'evil'}.X,BoulwareTBNegotiator"}
+    specs = session_agent_override(q, allow_files=False)
+    assert specs and not any(str(s).startswith("file:") for s in specs)
+    assert not marker.exists()
+    assert any(str(s).startswith("file:") for s in session_agent_override(q))  # admins keep the feature

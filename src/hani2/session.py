@@ -1293,7 +1293,7 @@ class NegotiationSession:
         ``opponents``), ``opponents`` in env.json, else the built-in default pool.
         Old names (``?agents=``, ``HANI2_AGENTS``, ``agents``) are still read.
         :attr:`opponent_group` names the group the pool came from (when it came from one)."""
-        override = session_agent_override(self.query)
+        override = session_agent_override(self.query, allow_files=self.is_admin)
         if override:
             q = self.query
             raw = q.get("opponents") or q.get("agents")

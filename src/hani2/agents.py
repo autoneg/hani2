@@ -371,10 +371,16 @@ def _prime_group_syspaths() -> None:
         pass
 
 
-def session_agent_override(args: dict[str, Any] | None) -> "list | None":
+def client_spec_allowed(spec: str) -> bool:
+    """Whether a spec typed by a browser (URL or opponent picker) may be loaded for a non-admin:
+    never ``file:`` (that would make the server execute a .py file of the visitor's choosing)."""
+    return not str(spec).strip().lower().startswith("file:")
+
+
+def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = True) -> "list | None":
     """Per-session opponent-pool override from the query string: ``?opponents=``
     (csv of specs/tokens; ``?agents=`` is the old name) takes precedence over
-    ``?group=<key>``."""
+    ``?group=<key>``. ``allow_files=False`` drops ``file:`` specs from the URL (non-admins)."""
     args = args or {}
 
     def _val(name):
@@ -388,7 +394,10 @@ def session_agent_override(args: dict[str, Any] | None) -> "list | None":
 
     agents = _val("opponents") or _val("agents")
     if agents:
-        specs = _expand_agent_items([s for s in agents.split(",") if s.strip()])
+        items = [s for s in agents.split(",") if s.strip()]
+        if not allow_files:
+            items = [s for s in items if client_spec_allowed(s)]
+        specs = _expand_agent_items(items)
         if specs:
             return specs
     group = _val("group")
