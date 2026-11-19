@@ -65,6 +65,22 @@ def _stamp(ss: dict[str, Any]) -> dict[str, str]:
 ATTRIBUTION_COLUMNS = ["assistant", "assistant_group", "assistant_class", "assistant_error", "opponent_group"]
 #: the scheduling methods that chose the opponent, the Assistant and the scenario type
 #: (see hani2.scheduling; "" when HANI2 did not schedule that part)
+#: the experimental condition (see NegotiationSession.ablation_condition and hani2.evaluation.ablation)
+CONDITION_COLUMNS = ["assistant_condition", "oracle", "opponent_info_tools", "autopilot_driver"]
+
+
+def _condition(ss: dict) -> dict[str, Any]:
+    s = ss.get("_session")
+    try:
+        c = s.ablation_condition() if s is not None else {}
+    except Exception:  # noqa: BLE001
+        c = {}
+    drv = c.get("autopilot_driver") or ""
+    return dict(assistant_condition=c.get("assistant", ""), oracle=bool(c.get("oracle")),
+                opponent_info_tools=bool(c.get("opponent_info_tools")),
+                autopilot_driver=drv if ss.get("autopilot_used") else "")
+
+
 SCHEDULING_COLUMNS = ["opponent_scheduling", "assistant_scheduling", "scenario_scheduling"]
 
 
@@ -283,6 +299,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             support_agent=bool(ss.get("support_agent_used", False)),
             autopilot=bool(ss.get("autopilot_used", False)),
         )
+        | _condition(ss)
         | _attribution(ss)
         | _participant(ss, human_ufun, human_utility, m.agreement is not None)
         | _information(ss, m)

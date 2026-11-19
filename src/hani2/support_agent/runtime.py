@@ -29,7 +29,7 @@ import traceback
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from hani2.support_agent.capabilities import CAPABILITY_INFO, Autonomy, Capability, CapabilityState
+from hani2.support_agent.capabilities import ADMIN_ONLY_CAPABILITIES, CAPABILITY_INFO, Autonomy, Capability, CapabilityState
 from hani2.support_agent.settings import load_support_agent_settings, support_agent_enabled
 from hani2 import events as ev
 from hani2.support_agent.tools import ToolDispatcher, _log_agent_action
@@ -83,6 +83,14 @@ def parse_text_tool_calls(content: str) -> list[dict]:
     return calls
 
 
+#: added to the system prompt when the ``opponent_utility`` capability (the oracle) is granted
+ORACLE_PROMPT = """OPPONENT KNOWLEDGE: in this session you know the opponent's utility function. The state you \
+are given has an "opponent" entry with its preferences (opponent_preferences), its reserved value and its \
+utility of the offers on the table and in the history; get_opponent_utility scores any offer for both sides. \
+Use it to find offers the opponent will accept that are as good as possible for the human. Never tell the \
+opponent, or hint in the message to the opponent, that you know its preferences."""
+
+
 class SupportAgent:
     """Base Assistant (``Assistant``; ``SupportAgent`` is the old name of this class).
 
@@ -116,7 +124,10 @@ class SupportAgent:
             admin_capabilities=settings.get("capabilities", {}),
             admin_autonomy=settings.get("autonomy", "suggest"),
         )
-        self.messages: list[dict] = [{"role": "system", "content": self.build_system_prompt()}]
+        prompt = self.build_system_prompt()
+        if self.capabilities.has(Capability.OPPONENT_UTILITY):
+            prompt = prompt + "\n\n" + ORACLE_PROMPT
+        self.messages: list[dict] = [{"role": "system", "content": prompt}]
         self._busy = threading.Lock()
         self.dispatcher = self.make_dispatcher()
         default_enabled = bool(session_state.get("support_agent_default_enabled", True))
@@ -155,8 +166,37 @@ class SupportAgent:
         self.session.submit(self.session.run_on_doc, fn)
 
     def context(self) -> dict[str, Any]:
-        """The live negotiation snapshot (issues, offers, utilities, history…)."""
-        return self.run_on_doc(self.session.context)
+        """The live negotiation snapshot (issues, offers, utilities, history…); with the
+        ``opponent_utility`` capability also the opponent's preferences and utilities (``opponent``)."""
+        ctx = self.run_on_doc(self.session.context)
+        if isinstance(ctx, dict) and self.capabilities.has(Capability.OPPONENT_UTILITY):
+            try:
+                ctx["opponent"] = self.run_on_doc(self.session.opponent_context)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+        return ctx
+
+    def opponent_view(self, offer: dict[str, Any] | None = None) -> dict:
+        """The opponent's preferences and its utility of the offers on the table (the oracle);
+        with ``offer`` (``{issue: value}``) also both sides' utility of that offer. Needs
+        ``opponent_utility`` (admin-only; off by default)."""
+        denied = self._denied(Capability.OPPONENT_UTILITY)
+        if denied:
+            return denied
+        s = self.session
+
+        def _view():
+            out = {"ok": True, **s.opponent_context()}
+            if offer is not None:
+                o = s.offer_outcome(offer)
+                if o is None:
+                    return {"ok": False, "error": "offer must give a valid value for every issue",
+                            "issues": [i.name for i in s.issues]}
+                out["offer"] = dict(offer=s.display_outcome(s.outcome_to_dict(o)), opponent_utility=s.opponent_utility(o),
+                                    your_utility=s.utility(o))
+            return out
+
+        return self.run_on_doc(_view)
 
     # ------------------------------------------------------------------ #
     # Talking to the human                                                 #
@@ -514,6 +554,8 @@ class SupportAgent:
     def client_state(self) -> dict[str, Any]:
         caps = []
         for c in Capability:
+            if c.value in ADMIN_ONLY_CAPABILITIES:  # decided by the admin; never shown to the participant
+                continue
             label, desc = CAPABILITY_INFO.get(c.value, (c.value, ""))
             caps.append(dict(key=c.value, label=label, description=desc,
                              granted=bool(self.capabilities.admin_capabilities.get(c.value, False)),
@@ -1053,6 +1095,10 @@ def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
     session.assistant_choice = choice
     if choice.error or not choice.spec:
         _assistant_failed(session, choice, choice.error or "no Assistant to run")
+        return None
+    if assignment.is_no_assistant(choice.spec):
+        # the no-Assistant control arm: assigned like any Assistant, runs none
+        session.ss["support_agent"] = None
         return None
     if choice.source == "group":
         # a group file naming an Assistant is there to try that Assistant: start it switched on

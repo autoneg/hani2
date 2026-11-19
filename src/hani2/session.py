@@ -666,6 +666,100 @@ class NegotiationSession:
         except Exception:
             return None
 
+    # ------------------------------------------------------------------ #
+    # The opponent's utility (the Assistant's ``opponent_utility`` oracle) #
+    # ------------------------------------------------------------------ #
+    @property
+    def opponent_ufun(self):
+        """The opponent's utility function (``None`` before a scenario is loaded)."""
+        s = self.scenario
+        if s is None or not getattr(s, "ufuns", None):
+            return None
+        try:
+            return s.ufuns[1 - self.human_index]
+        except Exception:  # noqa: BLE001
+            return None
+
+    def opponent_utility(self, outcome) -> float | None:
+        u = self.opponent_ufun
+        if outcome is None or u is None or any(v is None for v in outcome):
+            return None
+        try:
+            return float(u(tuple(outcome)))
+        except Exception:  # noqa: BLE001
+            return None
+
+    def opponent_preferences(self, top: int = 8) -> dict[str, Any]:
+        """The opponent's preferences as plain data: issue weights and option values for a linear
+        additive utility function, else its ``top`` best outcomes."""
+        u = self.opponent_ufun
+        if u is None:
+            return {}
+        out: dict[str, Any] = {"reserved_value": float(getattr(u, "reserved_value", 0.0) or 0.0)}
+        weights, values = getattr(u, "weights", None), getattr(u, "values", None)
+        if weights is not None and values is not None and len(weights) == len(self.issues):
+            issues = []
+            for issue, w, fn in zip(self.issues, weights, values):
+                info: dict[str, Any] = {"name": issue.name, "weight": round(float(w), 4)}
+                if _issue_kind(issue) not in ("int", "float") or getattr(issue, "cardinality", 1e9) <= 30:
+                    try:
+                        info["option_values"] = {
+                            str(self.display_outcome({"v": ui.jsonable(v)})["v"]): round(float(fn(v)), 4)
+                            for v in list(issue.all)[:30]}
+                    except Exception:  # noqa: BLE001
+                        pass
+                issues.append(info)
+            out["kind"] = "linear additive: utility = sum of weight x option value"
+            out["issues"] = issues
+            return out
+        try:
+            from itertools import islice
+
+            outcomes = list(islice(self.scenario.outcome_space.enumerate_or_sample(max_cardinality=20_000), 20_000))
+            ranked = sorted(outcomes, key=lambda o: -(self.opponent_utility(o) or 0.0))[:top]
+            out["best_outcomes"] = [dict(offer=self.display_outcome(self.outcome_to_dict(o)),
+                                         utility=self.opponent_utility(o)) for o in ranked]
+        except Exception:  # noqa: BLE001
+            pass
+        return out
+
+    def opponent_context(self) -> dict[str, Any]:
+        """What the ``opponent_utility`` oracle adds to the Assistant's view of the negotiation."""
+        partner = self.partner_offer()
+        draft_t = self.draft_outcome()
+        hist = []
+        for h in self.history[-14:]:
+            if h.get("kind") != "offer":
+                continue
+            o = self.offer_outcome(h.get("offer"))
+            hist.append({"by": "you" if h["by"] == "human" else "partner",
+                         "offer": self.display_outcome(h.get("offer")), "opponent_utility": self.opponent_utility(o)})
+        return {
+            "opponent_preferences": self.opponent_preferences(),
+            "partner_offer_opponent_utility": self.opponent_utility(partner),
+            "draft_offer_opponent_utility": self.opponent_utility(draft_t) if draft_t else None,
+            "history_opponent_utility": hist,
+        }
+
+    def offer_outcome(self, values: dict[str, Any] | None):
+        """An offer given as ``{issue: value}`` (display names allowed) as an outcome tuple, or ``None``
+        when an issue is missing or invalid."""
+        if not isinstance(values, dict) or not self.issues:
+            return None
+        out = []
+        for issue in self.issues:
+            key = next((k for k in values if self._resolve_issue(k) is issue), None)
+            if key is None:
+                return None
+            v = self._coerce(issue, values[key])
+            try:
+                if not issue.is_valid(v):
+                    return None
+            except Exception:  # noqa: BLE001
+                return None
+            out.append(v)
+        return tuple(out)
+
     @property
     def labels(self) -> dict[str, str]:
         """Display names for side words (``{"human": "You", "agent": "Opponent"}``)
@@ -1109,6 +1203,43 @@ class NegotiationSession:
                 traceback.print_exc()
         ev.log_event(self.sid, ev.EventType.SUPPORT_AGENT, user=self.user, component="assistant",
                      action="assistant_changed", value=self.assistant_attribution())
+
+    def ablation_condition(self) -> dict[str, Any]:
+        """The experimental condition of this negotiation, as orthogonal axes (recorded in the
+        recording's ``start`` record; see :mod:`hani2.evaluation.ablation`):
+
+        * ``assistant`` — ``on`` (an Assistant runs), ``none`` (assigned the no-Assistant arm),
+          ``off`` (switched off in the settings) or ``error`` (it failed to start);
+        * ``oracle`` — the Assistant has the ``opponent_utility`` capability;
+        * ``opponent_info_tools`` — the participant's tools (and so the Assistant through them) may
+          show the opponent's utilities (admins, or env.json ``tools.show_opponent_utility``);
+        * ``autopilot_driver`` — the driver autopilot would use now (``""`` when not allowed).
+        """
+        from hani2.assignment import is_no_assistant
+        from hani2.config import get_env
+        from hani2.support_agent import autopilot as ap
+        from hani2.support_agent.capabilities import Capability
+
+        c = self.__dict__.get("assistant_choice")
+        sa = self.__dict__.get("support_agent")
+        if c is not None and is_no_assistant(c.spec):
+            assistant = "none"
+        elif sa is not None:
+            assistant = "on"
+        else:
+            assistant = "error" if self.__dict__.get("assistant_error") else "off"
+        try:
+            oracle = sa is not None and sa.capabilities.has(Capability.OPPONENT_UTILITY)
+        except Exception:  # noqa: BLE001
+            oracle = False
+        try:
+            s = ap.load_autopilot_settings()
+            driver = (ap.resolve_driver(self, s) or "") if ap.autopilot_allowed(s) else ""
+        except Exception:  # noqa: BLE001
+            driver = ""
+        return dict(assistant=assistant, oracle=bool(oracle),
+                    opponent_info_tools=bool(self.is_admin or get_env("tools.show_opponent_utility", False)),
+                    autopilot_driver=driver)
 
     def assistant_attribution(self) -> dict[str, Any]:
         """``assistant``, ``assistant_group``, ``assistant_class``, ``assistant_error`` (results rows,

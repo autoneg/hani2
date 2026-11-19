@@ -16,6 +16,13 @@
   without an Assistant and shows the error (a banner, a toast, an ``ERROR`` event,
   the ``assistant_error`` column); there is no silent fallback to the built-in one.
 
+* **No Assistant (a control arm).** The pool member ``none`` is a level like any
+  other: humans assigned to it negotiate without an Assistant (no panel, no
+  Assistant-driven autopilot, no Assistant questions) and their rows say
+  ``assistant = none``. ``assistants: [MyAssistant, none]`` with ``balanced``
+  scheduling splits a study into an Assistant group and a no-Assistant control
+  group on the same scenarios and opponents.
+
 * **Scheduling.** Who gets which pool member is the study's ``assistants``
   scheduling method (:mod:`hani2.scheduling`; default ``balanced``):
 
@@ -132,6 +139,7 @@ def counts_as_human(session: "NegotiationSession") -> bool:
     """Whether a session's human is recorded and counted for balancing (not admins, admins in participant
     view, playground guests or simulated participants)."""
     return (not session.is_admin and not getattr(session, "admin_viewer", None)
+            and not getattr(session, "uncounted", False)  # e.g. the No-Human ablation runs
             and not str(session.user).startswith(("guest_", "sim_"))
             and getattr(session, "mode", "") != "simulated")
 
@@ -253,6 +261,15 @@ def latin_pick(pool: list, index: int, slot: int) -> Any:
 # --------------------------------------------------------------------------- #
 # Which Assistant a session gets                                               #
 # --------------------------------------------------------------------------- #
+#: the Assistant pool member that means "no Assistant" (the no-Assistant control arm)
+NO_ASSISTANT = "none"
+
+
+def is_no_assistant(spec: Any) -> bool:
+    """Whether ``spec`` is the no-Assistant pool member (``none``, any case)."""
+    return isinstance(spec, str) and spec.strip().lower() == NO_ASSISTANT
+
+
 @dataclass
 class AssistantChoice:
     spec: str | None
@@ -332,6 +349,9 @@ def _assistant_method(session: Any) -> str:
 
 def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | None = None) -> AssistantChoice:
     """The Assistant pool of a session (without picking a member); see the module docs."""
+    fixed = getattr(session, "fixed_assistant", None)
+    if fixed:  # a session made to run one Assistant (the No-Human ablation runs)
+        return AssistantChoice(spec=None, source="fixed", pool=[str(fixed)])
     ref = session.study_ref
     levels: list[tuple[str, list[str], str]] = []  # (source, items, group)
     q = session.query or {}
@@ -400,7 +420,7 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
     c = assistant_pool(session, settings, plan)
     if c.error or not c.pool:
         return c
-    if c.source in ("query", "schedule") or (c.source == "group" and len(c.pool) == 1):
+    if c.source in ("query", "schedule", "fixed") or (c.source == "group" and len(c.pool) == 1):
         # an explicit choice (an admin's URL, the outside system's schedule, a test link's group
         # file naming one Assistant): used as given, not recorded
         c.spec = c.pool[0]

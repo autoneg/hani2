@@ -27,7 +27,8 @@
     "panels": true,
     "tool_add": true,
     "tool_use": true,
-    "private_info": true
+    "private_info": true,
+    "opponent_utility": false
   },
   "proactive": {
     "on_negotiation_started": false,

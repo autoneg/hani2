@@ -188,6 +188,13 @@ def set_autopilot(session: "NegotiationSession", active: bool, driver: str | Non
         session.ss["autopilot_used"] = True
     sa = session.support_agent
     drv = resolve_driver(session, s)
+    rec = getattr(session, "recorder", None)
+    if rec is not None:
+        try:
+            # who drove the human's seat (the ablation report needs the driver, not just "autopilot")
+            rec.event("autopilot", active=bool(active), driver=drv or "")
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
     if sa is not None:
         sa.set_autopilot(bool(active) and not is_negotiator_driver(drv))
     session.push_state()

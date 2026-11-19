@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-__all__ = ["Capability", "Autonomy", "CapabilityState", "CAPABILITY_INFO"]
+__all__ = ["Capability", "Autonomy", "CapabilityState", "CAPABILITY_INFO", "ADMIN_ONLY_CAPABILITIES"]
 
 
 class Capability(str, Enum):
@@ -39,6 +39,7 @@ class Capability(str, Enum):
     TOOL_ADD = "tool_add"
     TOOL_USE = "tool_use"
     PRIVATE_INFO = "private_info"
+    OPPONENT_UTILITY = "opponent_utility"
 
 
 #: Human-readable labels / descriptions (used by the settings screens).
@@ -61,7 +62,14 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "tool_add": ("Add tools", "Add new tools to your screen while you negotiate, and remove the ones it added"),
     "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),
     "private_info": ("Its own information", "Use what only it knows in this negotiation (past negotiations, market research, part of your preferences) to help you"),
+    "opponent_utility": ("Know the opponent's preferences (oracle)",
+                         "See the opponent's utility function and the opponent's utility of every offer — an "
+                         "ablation (the information ceiling), off by default and never shown to the participant"),
 }
+
+#: capabilities only the admin grant decides: the participant neither sees nor switches them (an
+#: experimental condition must not be self-selected or unblinded)
+ADMIN_ONLY_CAPABILITIES: frozenset[str] = frozenset({"opponent_utility"})
 
 
 class Autonomy(str, Enum):
@@ -112,6 +120,8 @@ class CapabilityState:
     def has(self, capability: Capability | str) -> bool:
         """Effective = granted by the admin AND not switched off by the user."""
         key = capability.value if isinstance(capability, Capability) else capability
+        if key in ADMIN_ONLY_CAPABILITIES:
+            return bool(self.admin_capabilities.get(key, False))
         return bool(self.admin_capabilities.get(key, False)) and bool(self.user_capabilities.get(key, True))
 
     @property
@@ -121,6 +131,8 @@ class CapabilityState:
 
     def set_user_capability(self, capability: Capability | str, on: bool) -> None:
         key = capability.value if isinstance(capability, Capability) else capability
+        if key in ADMIN_ONLY_CAPABILITIES:
+            return
         self.user_capabilities[key] = bool(on)
 
     def set_user_autonomy(self, autonomy: Autonomy | str) -> None:

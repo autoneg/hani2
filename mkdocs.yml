@@ -109,6 +109,7 @@ nav:
       - Evaluation metrics: guide/evaluation.md
       - Simulated participants: guide/simulation.md
       - Metric reference: guide/metrics.md
+      - Ablations: guide/ablations.md
       - Prolific: guide/prolific.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md

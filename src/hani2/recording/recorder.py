@@ -370,6 +370,7 @@ class SessionRecorder:
             practice=bool(s.ss.get("is_practice_round")), deadline=s.deadline,
             n_steps=getattr(nmi, "n_steps", None), time_limit=getattr(nmi, "time_limit", None),
             support_agent=_support_info(s), autopilot=bool(s.autopilot_active),
+            condition=_condition(s),
             models=_models_info(s),
             settings=_clean(dict(s.admin_prefs)), prefs=_clean(dict(s.prefs)),
         )
@@ -464,6 +465,14 @@ def _models_info(s: Any) -> dict:
         m = models_of(s)
         return m.records() if m is not None else {}
     except Exception:  # noqa: BLE001
+        return {}
+
+
+def _condition(s: Any) -> dict:
+    try:
+        return _clean(s.ablation_condition())
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
         return {}
 
 

@@ -35,6 +35,7 @@ app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
 app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
+app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
 
 
 def _open_when_ready(url: str) -> None:
@@ -176,7 +177,11 @@ def _check_assistants(value: str) -> str:
         raise typer.BadParameter(f"{value!r} names no Assistant", param_hint="--assistants")
     from hani2.support_agent.runtime import AssistantLoadError, load_assistant_class
 
+    from hani2.assignment import is_no_assistant
+
     for spec in pool:
+        if is_no_assistant(spec):  # the no-Assistant control arm
+            continue
         try:
             load_assistant_class(spec)
         except AssistantLoadError as e:

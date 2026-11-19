@@ -137,6 +137,17 @@ hani2 --assistants "team_a.agent:A,team_b.agent:B"      # two submitted Assistan
 Who gets the Assistant at all is still decided by `--assistant on|off|auto` and `mode` (see
 [Turning the agent on](#turning-the-agent-on)); with the Assistant off no one is assigned.
 
+The pool member **`none`** means *no Assistant*: a human assigned to it negotiates without one (no
+Assistant panel, no Assistant questions, no Assistant-driven autopilot), and their results say
+`assistant = none`. It is assigned and balanced like any other member, so
+
+```yaml
+assistants: ["team_x.agent:TeamX", "none"]
+```
+
+splits a study into an Assistant group and a no-Assistant control group on the same scenarios and
+opponents: the baseline of the [added-value score](ablations.md).
+
 ### Assistant groups
 
 An Assistant group is a JSON file `assistant_groups/<key>.json` with the same shape as an
@@ -297,6 +308,15 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
 | `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
+| `opponent_utility` | Know the opponent's preferences (oracle) | See the opponent's utility function and the opponent's utility of every offer (off by default; admin-only) | `get_opponent_utility` |
+
+`opponent_utility` is an [ablation](ablations.md): it gives the Assistant the information a real
+Assistant never has, to measure what that information is worth. It is the only *admin-only*
+capability: the participant neither sees it in their settings nor can switch it, so the condition is
+neither self-selected nor revealed. With it, the state the Assistant receives has an `opponent` entry
+(the opponent's issue weights and option values, or its best outcomes, its reserved value and its
+utility of the offer on the table, the draft and the recent history), and the system prompt tells it
+not to let the opponent know.
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
@@ -495,6 +515,7 @@ Tool helpers (each checks the capability shown):
 | `use_tool(name, inputs=None, action=None, payload=None, row=None)` | `tool_use` | Operates the tool; returns what it shows afterwards. |
 | `private_information()` | `private_info` | What only the Assistant knows this round and who holds what (see [Who knows what](information.md)). |
 | `past_negotiation(id)` | `private_info` | `{"ok", "negotiation"}`: every offer of one past negotiation the Assistant holds. |
+| `opponent_view(offer=None)` | `opponent_utility` | The opponent's preferences and utilities (the oracle); with `offer` (`{issue: value}`) also both sides' utility of it. |
 
 While the human and the Assistant know different things, `read_tool` and `use_tool` refuse the
 tools that show something of the human's that the Assistant does not know itself (Preferences
@@ -593,6 +614,7 @@ class MyAgent(Assistant):
 | `get_private_information` | none | `private_info`, in a round where something is split |
 | `show_past_negotiation` | `id` | `private_info`, when the Assistant holds past negotiations |
 | `remove_tool` | `name` | `tool_add` |
+| `get_opponent_utility` | `offer` (optional, issue name to value) | `opponent_utility` |
 
 Tool names are matched case-insensitively, and a partial name also matches (`"utility"` finds `Utility Plot`). Issue names in `set_offer` are matched the same way, and values are checked against the issue; unknown issues and invalid values are reported back in `unrecognised`.
 

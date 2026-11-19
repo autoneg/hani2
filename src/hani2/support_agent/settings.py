@@ -88,6 +88,7 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "tool_add": True,
     "tool_use": True,
     "private_info": True,
+    "opponent_utility": False,
 }
 
 DEFAULT_SYSTEM_PROMPT = """You are the Assistant, a negotiation assistant embedded in a human-agent \

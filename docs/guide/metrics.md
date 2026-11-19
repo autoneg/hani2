@@ -2046,6 +2046,123 @@ $$
 1 when the negotiation ended because the mechanism (the system) failed. Such sessions are left out of
 every leaderboard.
 
+### `condition` — Condition (ablations)
+
+*hard*
+
+The experimental condition of the negotiation (for ablations): team, human alone, the Assistant on
+autopilot, with or without the opponent's utility function.
+
+$$
+\text{share}_{\text{auto}} = \frac{\lvert A^{\text{seat}}_{\text{autopilot}} \rvert}{\lvert A^{\text{seat}} \rvert}
+$$
+
+Which experimental condition the negotiation ran in, for the ablation report (`hani2 ablation
+report`). It is read from the condition recorded when the negotiation started (whether an Assistant
+ran or the session was assigned the no-Assistant arm, and whether the Assistant had the
+`opponent_utility` oracle) and from who acted on the Human's seat: when the autopilot took every
+action ($\text{share}_{\text{auto}} = 1$) the Human did not take part, and the driver recorded when
+autopilot was switched on says whether the Assistant or a negotiator played.
+
+The report compares conditions cell by cell (by default scenario × opponent × the Human's side). For a gap A − B it
+averages the value within each cell and condition and takes the mean of A − B over the cells where
+both were played:
+
+$$\text{gap}_{A-B} = \frac{1}{\lvert K \rvert} \sum_{k \in K} \left(\bar v_{A,k} - \bar v_{B,k}\right)$$
+
+with $K$ the cells played in both conditions. The *added value* of an Assistant is
+team − human\_alone on `human_advantage`.
+
+#### `condition` — Condition
+
+*team, human_alone, no_human, oracle_team, oracle_no_human, …*
+
+**Range:** a label · **Direction:** no better direction
+
+$$
+\text{team} \mid \text{human\_alone} \mid \text{no\_human} \mid \text{oracle\_*} \mid \ldots
+$$
+
+The experimental condition of the negotiation, from what was recorded when it started and who acted on
+the Human's seat:
+
+* `team` — a Human with an Assistant; `oracle_team` when the Assistant knew the Opponent's utility
+  function (the `opponent_utility` capability);
+* `human_alone` — the no-Assistant control arm (the Assistant pool member `none`);
+* `no_human` — the Assistant drove *every* action of the Human's seat on autopilot; `oracle_no_human`
+  with the opponent's utility function;
+* `negotiator_autopilot` — a negotiator drove every action; `mixed` — autopilot took only some;
+* `assistant_off` / `assistant_error` — the Assistant was switched off in the settings or failed to
+  start; `unknown` — a recording from before conditions were recorded.
+
+A Human who switched their Assistant off during the negotiation still counts as `team`: the condition
+is what was assigned, not what was used (see `system_use` for that).
+
+#### `assistant_condition` — Assistant
+
+*on, none, off or error (as assigned)*
+
+**Range:** a label · **Direction:** no better direction
+
+$$
+\text{on} \mid \text{none} \mid \text{off} \mid \text{error}
+$$
+
+Whether an Assistant ran (`on`), the session was assigned the no-Assistant arm (`none`), the
+Assistant was switched off in the settings (`off`) or it failed to start (`error`).
+
+#### `oracle` — Oracle
+
+*1 when the Assistant knew the opponent's utility function*
+
+**Range:** 0 or 1 · **Direction:** no better direction
+
+$$
+\mathbb{1}\left[\text{opponent\_utility granted}\right]
+$$
+
+1 when the Assistant had the admin-only `opponent_utility` capability: the Opponent's preferences and
+its utility of every offer were in the Assistant's view of the negotiation.
+
+#### `opponent_info_tools` — Opponent info in tools
+
+*1 when the Human's tools could show the opponent's utilities*
+
+**Range:** 0 or 1 · **Direction:** no better direction
+
+$$
+\mathbb{1}\left[\text{tools show } u_o\right]
+$$
+
+1 when the Human's tools could show the Opponent's utilities (admins, or env.json
+`tools.show_opponent_utility`). Such sessions are left out of the ablation report by default: the
+Human (and the Assistant through the tools) had information the condition does not say.
+
+#### `autopilot_driver` — Autopilot driver
+
+*Who drove the seat on autopilot*
+
+**Range:** a name · **Direction:** no better direction
+
+$$
+\text{the driver when autopilot was last switched on}
+$$
+
+The autopilot driver (`Assistant` or a negotiator's name); empty when autopilot never acted.
+
+#### `autopilot_share` — Autopilot share
+
+*Share of the seat's actions taken by autopilot*
+
+**Range:** [0, 1] · **Direction:** no better direction
+
+$$
+\frac{\lvert A^{\text{seat}}_{\text{autopilot}} \rvert}{\lvert A^{\text{seat}} \rvert}
+$$
+
+The share of the Human seat's actions the autopilot took (1 for `no_human`, 0 for a Human negotiating
+themselves).
+
 ## Subjective metrics
 
 The participant's own answers to the questionnaire.

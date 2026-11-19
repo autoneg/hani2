@@ -89,6 +89,23 @@
   `helpers.HonestTBNegotiator` and `helpers.DeceptiveTBNegotiator`, which bluffs. See
   [Compositional scenarios](guide/compositional.md).
 
+- **Ablations as diagnostics.** Three new conditions and a report that compares them cell by cell
+  (scenario × opponent × the human's side), never as pooled means:
+  - **No-Human**: the Assistant alone on autopilot, its negotiation ceiling. `hani2 ablation run`
+    plays it headlessly.
+  - **Oracle**: a new admin-only Assistant ability, `opponent_utility` (off by default; the
+    `get_opponent_utility` function and the `opponent_view()` helper), gives the Assistant the
+    opponent's utility function. This is the information ceiling.
+  - **A no-Assistant control group**: the Assistant pool member `none`, as in
+    `assistants: [TeamX, none]`.
+
+  `hani2 ablation report` gives the **added-value score** (team − human alone) and the other gaps:
+  autopilot − team, autopilot − human alone, and the oracle gains. `--by assistant` gives one
+  added-value score per Assistant. Recordings now store each negotiation's condition, and the
+  autopilot driver every time autopilot is switched on or off. The new `condition` metric and the
+  `results.csv` columns `assistant_condition`, `oracle`, `opponent_info_tools` and
+  `autopilot_driver` expose it. Evaluation rows also carry `assistant` (as assigned) and
+  `human_index`. See [Ablations](guide/ablations.md).
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

@@ -291,6 +291,10 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `assistant_group` | The Assistant group it came from, if any. |
 | `assistant_class` | The class that actually ran (`module.Class`). |
 | `assistant_error` | Why the assigned Assistant could not be started, if it failed. |
+| `assistant_condition` | `on` (an Assistant ran), `none` (the no-Assistant arm), `off` (switched off in the settings) or `error`. See [Ablations](ablations.md). |
+| `oracle` | Whether the Assistant knew the opponent's utility function (the `opponent_utility` capability). |
+| `opponent_info_tools` | Whether the participant's tools could show the opponent's utilities (admins, or `tools.show_opponent_utility`). |
+| `autopilot_driver` | Who drove the seat when autopilot was used (`Assistant` or a negotiator); empty otherwise. |
 | `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
 | `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |

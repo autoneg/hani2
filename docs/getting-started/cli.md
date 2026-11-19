@@ -336,6 +336,22 @@ hani2 replay compare --by support_agent --columns human_utility,suggestion_adopt
 hani2 replay leaderboard results/ --track hi --llm -o hi.csv   # writes hi_outcome.csv and hi_interaction.csv
 ```
 
+## `hani2 ablation`
+
+[Ablations](../guide/ablations.md): the Assistant alone on autopilot (No-Human), with the
+opponent's utility function (Oracle), and its added value over humans alone.
+
+| Command | What it does |
+| --- | --- |
+| `hani2 ablation run [--like PATH] [-s Trade,Jobs] [-p Opp1,Opp2] [--reps N] [--oracle] [--assistants A,B] [--study p/s]` | Plays the Assistant on autopilot on every cell: the cells of the team and human-alone recordings under `--like`, else every scenario type × opponent. Runs are recorded under `ablation_autopilot` and are not counted as participants. |
+| `hani2 ablation report [PATHS…] [--value human_advantage] [--cell scenario,opponent,human_index] [--by assistant] [--cells] [--off-is-control] [-o report.json]` | The conditions and the gaps between them, matched cell by cell (`added_value` = team − human alone). |
+
+```bash
+hani2 ablation run --like ~/negmas/hani2/results/HI --reps 3
+hani2 ablation run --like ~/negmas/hani2/results/HI --reps 3 --oracle
+hani2 ablation report ~/negmas/hani2/results/HI --by assistant
+```
+
 ## `hani2 tools`
 
 Commands for tools. Tool files saved in the tools folder (`$HANI2_HOME/tools`) are loaded automatically; see [Build a tool](../tutorials/tools.md).

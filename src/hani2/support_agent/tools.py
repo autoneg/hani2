@@ -91,6 +91,8 @@ class ToolDispatcher:
                                         self._schema_get_private_information),
             "show_past_negotiation": (Capability.PRIVATE_INFO, self._show_past_negotiation,
                                       self._schema_show_past_negotiation),
+            "get_opponent_utility": (Capability.OPPONENT_UTILITY, self._get_opponent_utility,
+                                     self._schema_get_opponent_utility),
         }
         self.register_extra_tools()
 
@@ -534,7 +536,7 @@ class ToolDispatcher:
         actions = self._actions()
         if actions is None:
             return {"ok": False, "error": "no active negotiation"}
-        return {"ok": True, **self.runtime.run_on_doc(actions["context"])}
+        return {"ok": True, **self.runtime.context()}
 
     def _get_private_information(self, args: dict) -> dict:
         return self.runtime.private_information()
@@ -567,6 +569,20 @@ class ToolDispatcher:
             "Get the current negotiation state: issues, the opponent's offer on the table, "
             "the human's current draft offer and message, utilities, and recent history.",
             {},
+            [],
+        )
+
+    def _get_opponent_utility(self, args: dict) -> dict:
+        offer = args.get("offer")
+        return self.runtime.opponent_view(offer if isinstance(offer, dict) else None)
+
+    def _schema_get_opponent_utility(self) -> dict:
+        return _fn(
+            "get_opponent_utility",
+            "The opponent's private preferences (issue weights and option values, or its best outcomes), its "
+            "reserved value and its utility of the offers on the table and in the history. With 'offer', also "
+            "the opponent's and the human's utility of that offer.",
+            {"offer": {"type": "object", "description": "Optional map of issue name to value to score."}},
             [],
         )
 

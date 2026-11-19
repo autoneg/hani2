@@ -38,6 +38,8 @@ from hani2.evaluation import subjective as _subj  # noqa: F401
 from hani2.evaluation import factors as _factors  # noqa: F401
 from hani2.evaluation import tasks as _tasks  # noqa: F401
 from hani2.evaluation import scores as _scores  # noqa: F401
+from hani2.evaluation import ablation as _ablation  # noqa: F401  (the condition metric)
+from hani2.evaluation.ablation import ablation_report
 from hani2.evaluation.base import KINDS, REGISTRY, Column, EvalContext, Metric, metric
 from hani2.evaluation.tracks import TRACKS, leaderboard, leaderboards
 from hani2.evaluation.llm_judge import llm_judge_status
@@ -48,6 +50,7 @@ __all__ = [
     "REGISTRY", "Column", "EvalContext", "Metric", "metric", "available_metrics", "evaluate_recording",
     "evaluate_paths", "evaluate_keys", "compare_rows", "compare_keys", "pass_hat_k", "llm_judge_status",
     "metric_reference", "leaderboard", "leaderboards", "TRACKS", "load_paths", "judge_reliability",
+    "ablation_report",
 ]
 
 
@@ -59,7 +62,7 @@ def judge_reliability(*args, **kwargs):
 
 #: fields copied from the recording into every row (used to group and filter)
 ID_FIELDS = ("key", "id", "user", "mode", "participant_type", "persona", "scenario", "opponent", "support_agent",
-             "support_model", "experiment", "started", "practice", "judge_model")
+             "support_model", "experiment", "started", "practice", "judge_model", "assistant", "human_index")
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -108,6 +111,8 @@ def _ident(rec: Recording, key: str | None) -> dict:
         support_agent=(sa.get("name") or sa.get("cls")) if sa and sa.get("enabled") else "none",
         support_model=sa.get("model") if sa else None, experiment=rec.header.get("experiment"),
         started=rec.header.get("created"), practice=bool(st.get("practice")),
+        # the Assistant as assigned (``none`` for the no-Assistant arm), and the human's side (part of a cell)
+        assistant=(st.get("assignment") or {}).get("assistant") or None, human_index=st.get("human_index"),
     )
 
 
