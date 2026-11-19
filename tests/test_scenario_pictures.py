@@ -67,3 +67,14 @@ def test_scenario_info_tool_shows_picture_with_switch():
     assert sw["name"] == "show_picture" and sw["value"] is True
     tool.on_input("show_picture", False)
     assert not any(c["type"] == "image" for c in tool.view())
+    s.load()  # the choice is kept for the next scenario
+    tool = s.tool_controller.find("Scenario Info")
+    assert not any(c["type"] == "image" for c in tool.view())
+
+
+def test_installed_example_copy_without_pictures_uses_bundled_one(tmp_path):
+    copy = tmp_path / "Examples" / "Lease"  # an Examples folder installed before pictures existed
+    _write(copy, "Lease.yml", "x")
+    assert pics.find(copy, "Examples")["dark"] == DEFAULT_SCENARIOS / "Lease" / "picture_dark.svg"
+    assert pics.find(tmp_path / "Mine" / "s1", "Mine", {"story": "Island"})["light"] == \
+        DEFAULT_SCENARIOS / "Island" / "picture.svg"

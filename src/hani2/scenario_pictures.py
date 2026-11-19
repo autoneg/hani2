@@ -91,8 +91,20 @@ def _read_info(folder: Path) -> dict:
     return _read_info(folder) if folder.is_dir() else {}
 
 
-def candidate_folders(scenario_dir: str | Path | None, scenario_type: str | None) -> list[Path]:
-    """Folders searched for a picture, in order."""
+def _bundled(name: Any) -> Path | None:
+    from hani2.config import DEFAULT_SCENARIOS
+
+    if not isinstance(name, str) or not name or "/" in name or "\\" in name or name.startswith("."):
+        return None
+    d = DEFAULT_SCENARIOS / name
+    return d if d.is_dir() else None
+
+
+def candidate_folders(scenario_dir: str | Path | None, scenario_type: str | None,
+                      info: dict | None = None) -> list[Path]:
+    """Folders searched for a picture, in order: the scenario folder, its category
+    folder, then the bundled scenario of the same type, folder name or story (so the
+    installed copies in ``Examples`` and generated scenarios find the bundled pictures)."""
     from hani2.config import DEFAULT_SCENARIOS
     from hani2.scenario_store import category_dir
 
@@ -108,6 +120,10 @@ def candidate_folders(scenario_dir: str | Path | None, scenario_type: str | None
         if cat is not None:
             out.append(cat)
         out.append(DEFAULT_SCENARIOS / scenario_type)
+    for name in ((Path(scenario_dir).name if scenario_dir else None), (info or {}).get("story")):
+        b = _bundled(name)
+        if b is not None:
+            out.append(b)
     seen: list[Path] = []
     for p in out:
         if p not in seen:
@@ -120,7 +136,7 @@ def find(scenario_dir: str | Path | None, scenario_type: str | None,
     """``{"light": …, "dark": …}`` for a scenario (``{}``: no picture).
 
     ``info`` is the scenario's own info (``_info.yaml``) when it has no folder."""
-    folders = candidate_folders(scenario_dir, scenario_type)
+    folders = candidate_folders(scenario_dir, scenario_type, info)
     if not scenario_dir and info and "picture" in info:
         spec = info.get("picture")
         if spec is False:

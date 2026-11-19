@@ -282,7 +282,8 @@ picture_alt: Two traders on a busy harbour quay
 
 HANI2 looks for a picture in the scenario folder first, then in its category folder (so all
 the scenarios of a pool share one picture), and last in the bundled scenario of the same
-type, so generated `Trade`, `Island` and `Grocery` scenarios show the bundled pictures.
+type, folder name or story, so generated `Trade`, `Island` and `Grocery` scenarios and the
+installed `Examples` copies show the bundled pictures.
 `picture: false` stops the search.
 
 Pictures are wide banners: the bundled ones are 480 × 200. Your own tools can show
