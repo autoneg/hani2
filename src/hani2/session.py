@@ -1563,11 +1563,16 @@ class NegotiationSession:
             return None
         return getattr(m.state, "current_data", None)
 
-    def act(self, response: SAOResponse) -> bool:
-        """Queue the human's response and advance in the background."""
+    def act(self, response: SAOResponse, on_accepted: Callable[[], None] | None = None) -> bool:
+        """Queue the human's response and advance in the background.
+
+        ``on_accepted`` runs under the lock only once the action is taken, so a refused
+        action (not the human's turn, double click) changes and logs nothing."""
         with self.lock:
             if not self.is_my_turn() or self.thinking:
                 return False
+            if on_accepted is not None:
+                on_accepted()
             self.thinking = True
             self.highlights = []
             self._pending_actor = self._actor()
@@ -1785,18 +1790,21 @@ class NegotiationSession:
         offer = self.partner_offer()
         if offer is None:
             return False
-        ev.log_event(self.sid, ev.EventType.OFFER_ACCEPTED, user=self.user, scenario_id=self._scenario_name(),
-                     utility_value=self.utility(offer), round_number=self.mechanism.state.step if self.mechanism else None)
-        return self.act(SAOResponse(ResponseType.ACCEPT_OFFER, offer))
+        def logged():
+            ev.log_event(self.sid, ev.EventType.OFFER_ACCEPTED, user=self.user, scenario_id=self._scenario_name(),
+                         utility_value=self.utility(offer), round_number=self.mechanism.state.step if self.mechanism else None)
+
+        return self.act(SAOResponse(ResponseType.ACCEPT_OFFER, offer), logged)
 
     @_in_own_study
     def end(self) -> bool:
         if self._agent_gate("end") is not None:
             return False
-        with self.lock:
+        def ended():
             self.ss["human_ended_negotiation"] = True
-        ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, action="end_by_human")
-        return self.act(SAOResponse(ResponseType.END_NEGOTIATION, None))
+            ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, action="end_by_human")
+
+        return self.act(SAOResponse(ResponseType.END_NEGOTIATION, None), ended)
 
     @_in_own_study
     def send_counter(self, text: str | None = None, offer: dict | None = None, text_only: bool | None = None) -> dict:
@@ -1833,12 +1841,13 @@ class NegotiationSession:
             if not valid:
                 return {"ok": False, "error": "This offer is not valid in this scenario. Check every issue."}
             data = {"text": msg} if p.get("allow_text_human", True) else None
-        with self.lock:
+        def sent():
             self.human_last_offer = outcome if outcome is not None else self.human_last_offer
             self.draft_text = ""
-        ev.log_event(self.sid, ev.EventType.COUNTER_OFFER, user=self.user, scenario_id=self._scenario_name(),
-                     value={"offer": self.outcome_to_dict(outcome), "text": msg}, utility_value=self.utility(outcome))
-        ok = self.act(SAOResponse(ResponseType.REJECT_OFFER, outcome, data))
+            ev.log_event(self.sid, ev.EventType.COUNTER_OFFER, user=self.user, scenario_id=self._scenario_name(),
+                         value={"offer": self.outcome_to_dict(outcome), "text": msg}, utility_value=self.utility(outcome))
+
+        ok = self.act(SAOResponse(ResponseType.REJECT_OFFER, outcome, data), sent)
         return {"ok": ok} if ok else {"ok": False, "error": "It is not your turn."}
 
     def _llm_generate_text(self) -> str | None:

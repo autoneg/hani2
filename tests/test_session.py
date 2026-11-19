@@ -175,3 +175,23 @@ def test_no_support_agent_experiment(hani2_home, monkeypatch):
     assert s.support_agent is None and snap["support"] is None
     assert snap["autopilot"]["available"] is False and snap["webmcp"]["enabled"] is False
     s.start()
+
+
+def test_refused_actions_leave_no_trace():
+    """End / send / accept refused (not the human's turn) change nothing and log nothing."""
+    from hani2 import events as ev_mod
+
+    s = make_session()
+    s.start()
+    s.wait_for_turn()
+    s.set_draft_text("my typed message")
+    last = s.human_last_offer
+    n_events = len(ev_mod.query_events(session_id=s.sid))
+    with s.lock:
+        s.thinking = True  # the opponent is still thinking: every human action is refused
+    assert s.end() is False
+    assert not s.ss.get("human_ended_negotiation")
+    assert s.send_counter()["ok"] is False
+    assert s.draft_text == "my typed message" and s.human_last_offer == last
+    assert s.accept() is False
+    assert len(ev_mod.query_events(session_id=s.sid)) == n_events
