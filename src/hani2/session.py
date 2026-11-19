@@ -234,8 +234,11 @@ class NegotiationSession:
         hub: Any = None,
         user_agent: str = "",
         display_name: str | None = None,
+        admin_viewer: str | None = None,
     ):
         self.sid = sid
+        #: the admin negotiating as a participant in this session (participant view), else None
+        self.admin_viewer = admin_viewer
         self.user = user
         self.display_name = display_name or user
         self.mode = mode
@@ -2100,6 +2103,7 @@ class NegotiationSession:
                 "mode": self.mode,
                 "is_admin": self.is_admin,
                 "admin_mode": self.admin_mode,
+                "participant_view": bool(self.admin_viewer),
                 "phase": self.phase,
                 "round": dict(number=self.round_number, practice=bool(self.ss.get("is_practice_round")),
                               label=self.study.round_label()),

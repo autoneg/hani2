@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
+  (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
+  opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study
+  participant. See [Negotiate as a participant](guide/admin.md#negotiate-as-a-participant).
 - **Settings are per project and study; the settings drawer holds only what the user may change.**
   The negotiation page's settings drawer (**My settings**) now shows only what the current user may
   adjust. The session settings administrators used to change there (timing, rules, scenarios and

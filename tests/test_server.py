@@ -150,3 +150,31 @@ def test_guest_cookie_cannot_escape_the_results_folder(client, hani2_home):
     from hani2.server import hub
 
     assert hub.get(sid).ss["user_path"].parent == hani2_home / "db"
+
+
+def test_admin_participant_view(client):
+    """An admin can negotiate exactly as a participant: no admin controls, no opponent type, not counted."""
+    from hani2.assignment import counts_as_human
+    from hani2.server import hub
+
+    login(client)
+    sid = client.post("/api/session", json={"mode": "main", "query": {"as_participant": "1", "noautostart": "1"}}).json()["sid"]
+    assert sid.startswith("main:admin~participant")
+    s = hub.get(sid)
+    assert not s.is_admin and not s.admin_mode and s.admin_viewer == "admin"
+    assert not counts_as_human(s) and not s.can_choose_scenario()
+    with client.websocket_connect(f"/api/ws/{sid}") as ws:
+        st = recv_until(ws, lambda m: m["type"] == "state")["state"]
+        assert st["participant_view"] and not st["is_admin"] and not st["admin_mode"]
+        assert st["next_opponent"] is None
+    # the admin's own session is untouched
+    admin_sid = client.post("/api/session", json={"mode": "main", "query": {"noautostart": "1"}}).json()["sid"]
+    assert admin_sid != sid and hub.get(admin_sid).is_admin
+
+
+def test_participant_view_needs_an_admin(client):
+    client.post("/api/auth/register", json={"username": "bob", "password": "pw12"})
+    login(client, "bob", "pw12")
+    r = client.post("/api/session", json={"mode": "main", "query": {"as_participant": "1"}})
+    if r.status_code == 200:
+        assert "~participant" not in r.json()["sid"]

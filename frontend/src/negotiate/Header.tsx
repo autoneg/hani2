@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
+import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Eye, EyeOff, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
 import { send, useStore, useUiState } from "../store";
 import { isVirtual, now as clockNow } from "../clock";
 import { Anchor } from "../ui/Anchor";
 import { clock } from "../ui/format";
 import { api } from "../api";
 import { navigate } from "../router";
+
+/** Reload this page in (or out of) participant view: the admin negotiates with the participants' interface. */
+function setParticipantView(on: boolean) {
+  const url = new URL(location.href);
+  if (on) url.searchParams.set("as_participant", "1");
+  else url.searchParams.delete("as_participant");
+  location.assign(url.toString());
+}
 import { webmcpAvailable } from "../webmcp";
 import { Modal } from "../ui/Modal";
 import { NotificationBell } from "./Notifications";
@@ -298,6 +306,16 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
           {st.is_admin && (
             <MenuItem icon={Shield} onClick={() => navigate("/admin")}>
               Administration
+            </MenuItem>
+          )}
+          {st.is_admin && (
+            <MenuItem icon={Eye} onClick={() => setParticipantView(true)}>
+              Negotiate as a participant
+            </MenuItem>
+          )}
+          {st.participant_view && (
+            <MenuItem icon={EyeOff} onClick={() => setParticipantView(false)}>
+              Back to the admin view
             </MenuItem>
           )}
           {st.mode === "main" && (

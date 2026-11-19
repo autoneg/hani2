@@ -129,8 +129,10 @@ def read_assignments(ref: Any = projects.UNSET) -> dict[str, Any]:
 
 
 def counts_as_human(session: "NegotiationSession") -> bool:
-    """Whether a session's human is recorded and counted for balancing (not admins, not playground guests)."""
-    return not session.is_admin and not str(session.user).startswith("guest_")
+    """Whether a session's human is recorded and counted for balancing (not admins, admins in participant
+    view or playground guests)."""
+    return (not session.is_admin and not getattr(session, "admin_viewer", None)
+            and not str(session.user).startswith("guest_"))
 
 
 def _human(data: dict, user: str) -> dict[str, Any]:

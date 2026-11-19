@@ -1,0 +1,1 @@
+import{c as a}from"./index-Db31khdi.js";const e={name:"square-arrow-up-enter",size:24,node:[["path",{d:"M12 21V11",key:"qleqzl"}],["path",{d:"m16 15-4-4-4 4",key:"oobrdl"}],["path",{d:"M8 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2h-3",key:"3ew8sa"}]]};e.node;const r=a(e);export{e as __iconData,r as default};

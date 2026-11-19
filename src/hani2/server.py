@@ -460,6 +460,13 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
                 display = current_user(request)  # type: ignore
         is_admin = False if pid else is_admin
     admin_mode = is_admin or (_truthy(query.get("admin", "")) and not pid)
+    # An admin can negotiate exactly as a participant would (?as_participant=1): no admin controls, no
+    # opponent type, no scenario/opponent pickers. It is a separate session and results folder, and it
+    # is never counted as a study participant.
+    viewer = None
+    if is_admin and _truthy(query.get("as_participant", "")):
+        viewer, is_admin, admin_mode = user, False, False
+        user, sid = f"{user}~participant", f"{sid}~participant"
     sid = _session_sid(sid, ref)
     s = hub.get(sid)
     if s is not None and body.get("fresh"):
@@ -467,7 +474,7 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
         s = None
     if s is None:
         s = NegotiationSession(sid, user, mode=mode, is_admin=is_admin, admin_mode=admin_mode, query=query,
-                               hub=hub, user_agent=ua, display_name=display, study=ref)
+                               hub=hub, user_agent=ua, display_name=display, study=ref, admin_viewer=viewer)
         hub.add(s)
         s.load()
     else:
@@ -638,7 +645,7 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 user = _serializer().loads(tok, max_age=MAX_AGE)
             except BadSignature:
                 user = None
-        if auth_mode() != "none" and user != s.user:
+        if auth_mode() != "none" and user != (getattr(s, "admin_viewer", None) or s.user):
             await websocket.close(code=4401)
             return
     elif sid.startswith("guest:"):

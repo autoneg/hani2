@@ -120,6 +120,8 @@ export interface SessionState {
   mode: "main" | "guest";
   is_admin: boolean;
   admin_mode: boolean;
+  /** an admin negotiating exactly as a participant would (?as_participant=1) */
+  participant_view?: boolean;
   phase: "idle" | "ready" | "starting" | "running" | "ended" | "questionnaire" | "finished";
   round: { number: number; practice: boolean; label: string };
   scenario: null | {

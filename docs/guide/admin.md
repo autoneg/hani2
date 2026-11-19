@@ -368,6 +368,12 @@ An administrator negotiating on `/app` (or on `/play` while logged in) gets more
 
 The opponent picker and the opponent's name are also available in admin mode (`?admin=1`) without an admin account. The other controls are not.
 
+### Negotiate as a participant
+
+To try a study exactly as its participants will see it, choose **Negotiate as a participant** in the account menu (or add `?as_participant=1` to the page address). The page reloads with the participants' interface: no Admin badge, no opponent type or name unless the study shows it, no scenario or opponent pickers, no admin-only tools or controls, and the study's time limit and participant settings apply. The server enforces the same restrictions it applies to participants.
+
+This is a separate session with its own results folder (`<your user name>~participant`), so it does not disturb your admin session, and it is never counted as a study participant for balancing or assignment. Choose **Back to the admin view** in the account menu to return.
+
 ### Session settings are in Administration
 
 The settings drawer of the negotiation page (**My settings**) holds only what the current user may change for themselves. Timing, negotiation rules, scenarios and opponents, tools and what participants may change are set in Administration, on the [Negotiation](#negotiation) and [Participant interface](#participant-interface) pages, for all projects, one project or one study. They apply to sessions created after saving; an admin who wants to try a setting opens a new session after saving it.
