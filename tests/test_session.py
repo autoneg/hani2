@@ -206,3 +206,12 @@ def test_refused_actions_leave_no_trace():
     assert s.draft_text == "my typed message" and s.human_last_offer == last
     assert s.accept() is False
     assert len(ev_mod.query_events(session_id=s.sid)) == n_events
+
+
+def test_a_bad_collapsed_layout_is_refused_and_start_still_works():
+    s = make_session()
+    assert s.set_layout(collapsed=5)["ok"] is False
+    assert s.set_layout(collapsed=["side"])["ok"]
+    s.start()
+    s.wait_for_turn()
+    assert s.phase == "running"

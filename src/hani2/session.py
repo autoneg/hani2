@@ -2306,6 +2306,10 @@ class NegotiationSession:
                             if math.isfinite(f) and 0.05 <= f <= 0.95:
                                 clean[str(name)[:32]] = round(f, 3)
                         v = clean
+                    if k == "collapsed":
+                        if not isinstance(v, (list, tuple)):
+                            return {"ok": False, "error": "collapsed must be a list of region names"}
+                        v = [str(x)[:32] for x in v][:32]
                     if k == "view":
                         self._switch_view(v)
                         continue

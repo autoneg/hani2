@@ -674,6 +674,8 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 continue
+            if not isinstance(msg, dict):
+                continue  # [] or 1 would end this connection at msg.get
             if msg.get("type") == "ping":
                 await websocket.send_text('{"type":"pong"}')
                 continue
