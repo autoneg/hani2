@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A buyer and a dealer meet over a used car on the lot</title><style>.skyTop{fill:#141d36}.skyBottom{fill:#28345a}.hill{fill:#22344a}.hill2{fill:#1d2d40}.ground{fill:#2b3346}.ground2{fill:#232a3b}.water{fill:#22466e}.water2{fill:#1b3a5e}.sand{fill:#5b5038}.floor{fill:#262d3e}.wall{fill:#1f2638}.sun{fill:#e9eef8}.sunGlow{fill:#3a4670}.cloud{fill:#34406a}.star{fill:#f2f5ff}.ink{fill:#0f1424}.inkSoft{fill:#7b86a3}.paper{fill:#dfe5f2}.paper2{fill:#b9c2d6}.metal{fill:#7d879e}.metal2{fill:#5c6680}.glass{fill:#6f9cc4}.shadow{fill:#000000}.light{fill:#ffe7a0}.blue{fill:#6f86ff}.blue2{fill:#4c62d6}.orange{fill:#e8963e}.orange2{fill:#b8701f}.green{fill:#2fa577}.green2{fill:#1f7a58}.red{fill:#d85448}.red2{fill:#a53a32}.yellow{fill:#e6b93f}.purple{fill:#8a72e8}.teal{fill:#2a9fae}.pink{fill:#d98aa3}.brown{fill:#8a5f37}.brown2{fill:#654325}.wood{fill:#a98250}.leaf{fill:#3a9a5c}.leaf2{fill:#2a7a48}.skin1{fill:#d9ae8c}.skin2{fill:#b07a53}.skin3{fill:#7b4e34}.hair{fill:#1f1715}.hair2{fill:#8a5226}.s-skyTop{stroke:#141d36}.s-skyBottom{stroke:#28345a}.s-hill{stroke:#22344a}.s-hill2{stroke:#1d2d40}.s-ground{stroke:#2b3346}.s-ground2{stroke:#232a3b}.s-water{stroke:#22466e}.s-water2{stroke:#1b3a5e}.s-sand{stroke:#5b5038}.s-floor{stroke:#262d3e}.s-wall{stroke:#1f2638}.s-sun{stroke:#e9eef8}.s-sunGlow{stroke:#3a4670}.s-cloud{stroke:#34406a}.s-star{stroke:#f2f5ff}.s-ink{stroke:#0f1424}.s-inkSoft{stroke:#7b86a3}.s-paper{stroke:#dfe5f2}.s-paper2{stroke:#b9c2d6}.s-metal{stroke:#7d879e}.s-metal2{stroke:#5c6680}.s-glass{stroke:#6f9cc4}.s-shadow{stroke:#000000}.s-light{stroke:#ffe7a0}.s-blue{stroke:#6f86ff}.s-blue2{stroke:#4c62d6}.s-orange{stroke:#e8963e}.s-orange2{stroke:#b8701f}.s-green{stroke:#2fa577}.s-green2{stroke:#1f7a58}.s-red{stroke:#d85448}.s-red2{stroke:#a53a32}.s-yellow{stroke:#e6b93f}.s-purple{stroke:#8a72e8}.s-teal{stroke:#2a9fae}.s-pink{stroke:#d98aa3}.s-brown{stroke:#8a5f37}.s-brown2{stroke:#654325}.s-wood{stroke:#a98250}.s-leaf{stroke:#3a9a5c}.s-leaf2{stroke:#2a7a48}.s-skin1{stroke:#d9ae8c}.s-skin2{stroke:#b07a53}.s-skin3{stroke:#7b4e34}.s-hair{stroke:#1f1715}.s-hair2{stroke:#8a5226}.lightOnly{display:none}.shadow{opacity:0.35}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141d36"/><stop offset="1" stop-color="#28345a"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A buyer and a dealer meet over a used car on the lot -->
+<!-- sky: sun (moon at night), stars, clouds -->
+<circle class="sunGlow" cx="402" cy="44" r="30" opacity="0.6"/>
+<circle class="sun" cx="402" cy="44" r="18"/>
+<circle class="star" cx="60" cy="30" r="1.6"/><circle class="star" cx="140" cy="18" r="1.2"/>
+<circle class="star" cx="250" cy="34" r="1.4"/><circle class="star" cx="330" cy="16" r="1.1"/>
+<circle class="star" cx="455" cy="88" r="1.2"/>
+<g class="lightOnly"><ellipse class="cloud" cx="96" cy="42" rx="34" ry="10"/><ellipse class="cloud" cx="116" cy="34" rx="20" ry="10"/>
+<ellipse class="cloud" cx="286" cy="28" rx="26" ry="8"/></g>
+<!-- showroom in the back -->
+<path class="hill" d="M0 132 Q120 96 240 120 T480 112 V200 H0Z"/>
+<rect class="wall" x="28" y="78" width="150" height="66" rx="4"/>
+<rect class="blue" x="22" y="70" width="162" height="12" rx="3"/>
+<rect class="glass" x="40" y="92" width="38" height="44" rx="2"/>
+<rect class="glass" x="86" y="92" width="38" height="44" rx="2"/>
+<rect class="glass" x="132" y="92" width="34" height="44" rx="2"/>
+<!-- bunting -->
+<path class="s s-inkSoft" stroke-width="1.2" d="M184 76 Q260 92 330 72"/>
+<path class="red" d="M200 80 l6 0 -3 8Z"/><path class="yellow" d="M222 85 l6 0 -3 8Z"/>
+<path class="blue" d="M246 88 l6 0 -3 8Z"/><path class="green" d="M272 86 l6 0 -3 8Z"/>
+<path class="orange" d="M298 80 l6 0 -3 8Z"/>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- car -->
+<ellipse class="shadow" cx="250" cy="171" rx="96" ry="7"/>
+<path class="red" d="M162 160 Q160 140 178 136 L206 132 Q224 108 252 108 L282 108 Q302 108 318 130 L332 134 Q346 138 344 158 Q344 166 334 166 L172 166 Q162 166 162 160Z"/>
+<path class="red2" d="M162 156 H344 Q344 166 334 166 H172 Q162 166 162 156Z"/>
+<path class="glass" d="M214 132 Q228 114 250 114 L256 114 L256 132Z"/>
+<path class="glass" d="M264 114 L282 114 Q296 114 308 132 L264 132Z"/>
+<rect class="light" x="334" y="140" width="9" height="6" rx="2"/>
+<rect class="orange" x="163" y="140" width="7" height="6" rx="2"/>
+<circle class="ink" cx="200" cy="164" r="15"/><circle class="metal" cx="200" cy="164" r="7"/>
+<circle class="ink" cx="306" cy="164" r="15"/><circle class="metal" cx="306" cy="164" r="7"/>
+<!-- price tag on the windscreen -->
+<g transform="rotate(-8 268 98)"><path class="yellow" d="M252 86 H286 L292 96 L286 106 H252Z"/>
+<circle class="ink" cx="258" cy="96" r="2.4"/><rect class="orange2" x="264" y="93" width="18" height="2.6" rx="1.3"/>
+<rect class="orange2" x="264" y="98" width="12" height="2.6" rx="1.3"/></g>
+<!-- buyer (left) -->
+<ellipse class="shadow" cx="112" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="103" y="148" width="7" height="24" rx="3"/><rect class="ink" x="114" y="148" width="7" height="24" rx="3"/>
+<path class="teal" d="M98 152 Q98 122 112 120 Q126 122 126 152Z"/>
+<path class="s s-teal" stroke-width="6" d="M124 128 Q136 132 140 122"/>
+<circle class="skin1" cx="112" cy="108" r="11"/>
+<path class="hair2" d="M101 106 Q102 94 113 95 Q124 96 123 106 Q118 100 112 101 Q106 102 101 106Z"/>
+<!-- dealer (right) -->
+<ellipse class="shadow" cx="384" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="375" y="148" width="7" height="24" rx="3"/><rect class="ink" x="386" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M370 152 Q370 122 384 120 Q398 122 398 152Z"/>
+<path class="paper" d="M380 122 L384 134 L388 122Z"/><path class="red" d="M383 125 h2 l1 9 h-4Z"/>
+<path class="s s-blue2" stroke-width="6" d="M372 128 Q360 132 356 122"/>
+<circle class="skin3" cx="384" cy="108" r="11"/>
+<path class="hair" d="M373 105 Q374 95 384 95 Q394 95 395 105 Q390 99 384 99 Q378 99 373 105Z"/>
+<!-- the key in the dealer's hand -->
+<circle class="yellow" cx="354" cy="118" r="4"/><rect class="yellow" x="348" y="116.5" width="6" height="3" rx="1"/></g></svg>

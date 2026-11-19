@@ -106,9 +106,10 @@ class ScenarioInfoTool(Tool):
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
-    **What it shows.** The story of the scenario, the role you play, a table of the
-    issues with their possible options and what they mean, any hints for your role and
-    (collapsed at the bottom) the full description.
+    **What it shows.** A picture of the scenario (switch it off with *Picture*), the
+    story of the scenario, the role you play, a table of the issues with their possible
+    options and what they mean, any hints for your role and (collapsed at the bottom) the
+    full description.
 
     **How it works.** Everything comes from the scenario's description; nothing here
     changes during the negotiation. This tool is always on.
@@ -141,11 +142,17 @@ class ScenarioInfoTool(Tool):
             vals = (f"{_f(issue.min_value)} – {_f(issue.max_value)}" if issue.is_continuous() or issue.cardinality > 12
                     else ", ".join(_f(v) for v in issue.all))
             rows.append({"Issue": issue.name, "Options": vals, "Description": d or ""})
-        comps: list[ui.Component] = [
-            ui.heading(info.get("title") or str(s.outcome_space.name), 3),
-            *([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
-              else [ui.row(ui.badge(f"You act as {role}", "primary"))]),
-        ]
+        title = info.get("title") or str(s.outcome_space.name)
+        badge = ([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
+                 else [ui.badge(f"You act as {role}", "primary")])
+        light, dark = self._picture()
+        show = bool(self.values.get("show_picture", True))
+        comps: list[ui.Component] = [ui.heading(title, 3)]
+        if badge or light:
+            comps.append(ui.row(*badge, *([ui.switch("show_picture", show, label="Picture")] if light else []),
+                                align="center"))
+        if light and show:
+            comps.append(ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=240))
         shown = getattr(self.session, "relabel_text", lambda t: t)
         if info.get("short_description"):
             comps.append(ui.markdown(shown(info["short_description"])))
@@ -161,6 +168,29 @@ class ScenarioInfoTool(Tool):
             comps.append(ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
                                  collapsible=True, collapsed=True))
         return comps
+
+    def _picture(self) -> tuple[str | None, str | None]:
+        """``(light, dark)`` picture URLs of the loaded scenario, looked up once per scenario."""
+        from hani2 import scenario_pictures
+
+        s = self.scenario
+        sdir = self.session_state.get("scenario_dir")
+        stype = (self.session_state.get("scenario_info") or {}).get("scenario_type")
+        key = (id(s), sdir, stype)
+        cached = self.__dict__.get("_picture_cache")
+        if cached is None or cached[0] != key:
+            try:
+                found = scenario_pictures.sources(sdir, stype, (s.info or {}) if s is not None else None)
+            except Exception as e:  # noqa: BLE001 - a broken picture must not hide the scenario
+                print(f"[hani2] scenario picture: {e!r}")
+                found = (None, None)
+            cached = (key, found)
+            self.__dict__["_picture_cache"] = cached
+        return cached[1]
+
+    def _picture_alt(self, title: str) -> str:
+        info = (self.scenario.info if self.scenario is not None else None) or {}
+        return str(info.get("picture_alt") or title)
 
 
 # --------------------------------------------------------------------------- #

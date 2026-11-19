@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A baker and an energy supplier in a hard hat agree on power between a bakery and a pylon and wind turbine</title><style>.skyTop{fill:#cfe0ff}.skyBottom{fill:#f3f6ff}.hill{fill:#c9e4cf}.hill2{fill:#b3d8bd}.ground{fill:#e6dccb}.ground2{fill:#d6c8b2}.water{fill:#9cc8ec}.water2{fill:#7fb3e0}.sand{fill:#f1dfb4}.floor{fill:#ece4d8}.wall{fill:#f6f1ea}.sun{fill:#ffc94a}.sunGlow{fill:#ffe8a8}.cloud{fill:#ffffff}.star{fill:#ffffff}.ink{fill:#2b3550}.inkSoft{fill:#56617d}.paper{fill:#ffffff}.paper2{fill:#eef1f7}.metal{fill:#a9b2c3}.metal2{fill:#7f8aa0}.glass{fill:#bfe0f6}.shadow{fill:#1d2740}.light{fill:#fff6d8}.blue{fill:#4a6cf0}.blue2{fill:#2f4bc4}.orange{fill:#f29a38}.orange2{fill:#d77b1c}.green{fill:#34b483}.green2{fill:#1e8a62}.red{fill:#e8574b}.red2{fill:#b93a30}.yellow{fill:#ffcf4d}.purple{fill:#8b6cf0}.teal{fill:#2fb3c2}.pink{fill:#f29bb6}.brown{fill:#a4703f}.brown2{fill:#7a4f2a}.wood{fill:#d9a86a}.leaf{fill:#4fbf73}.leaf2{fill:#2f9a57}.skin1{fill:#f2c8a6}.skin2{fill:#c98d62}.skin3{fill:#8d5a3b}.hair{fill:#3a2c28}.hair2{fill:#a8642e}.s-skyTop{stroke:#cfe0ff}.s-skyBottom{stroke:#f3f6ff}.s-hill{stroke:#c9e4cf}.s-hill2{stroke:#b3d8bd}.s-ground{stroke:#e6dccb}.s-ground2{stroke:#d6c8b2}.s-water{stroke:#9cc8ec}.s-water2{stroke:#7fb3e0}.s-sand{stroke:#f1dfb4}.s-floor{stroke:#ece4d8}.s-wall{stroke:#f6f1ea}.s-sun{stroke:#ffc94a}.s-sunGlow{stroke:#ffe8a8}.s-cloud{stroke:#ffffff}.s-star{stroke:#ffffff}.s-ink{stroke:#2b3550}.s-inkSoft{stroke:#56617d}.s-paper{stroke:#ffffff}.s-paper2{stroke:#eef1f7}.s-metal{stroke:#a9b2c3}.s-metal2{stroke:#7f8aa0}.s-glass{stroke:#bfe0f6}.s-shadow{stroke:#1d2740}.s-light{stroke:#fff6d8}.s-blue{stroke:#4a6cf0}.s-blue2{stroke:#2f4bc4}.s-orange{stroke:#f29a38}.s-orange2{stroke:#d77b1c}.s-green{stroke:#34b483}.s-green2{stroke:#1e8a62}.s-red{stroke:#e8574b}.s-red2{stroke:#b93a30}.s-yellow{stroke:#ffcf4d}.s-purple{stroke:#8b6cf0}.s-teal{stroke:#2fb3c2}.s-pink{stroke:#f29bb6}.s-brown{stroke:#a4703f}.s-brown2{stroke:#7a4f2a}.s-wood{stroke:#d9a86a}.s-leaf{stroke:#4fbf73}.s-leaf2{stroke:#2f9a57}.s-skin1{stroke:#f2c8a6}.s-skin2{stroke:#c98d62}.s-skin3{stroke:#8d5a3b}.s-hair{stroke:#3a2c28}.s-hair2{stroke:#a8642e}.star{display:none}.darkOnly{display:none}.shadow{opacity:0.12}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#f3f6ff"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A baker and an energy supplier in a hard hat agree on power between a bakery and a pylon and wind turbine -->
+<circle class="sunGlow" cx="212" cy="32" r="28" opacity="0.6"/><circle class="sun" cx="212" cy="32" r="17"/>
+<circle class="star" cx="30" cy="20" r="1.3"/>
+<circle class="star" cx="100" cy="14" r="1.1"/>
+<circle class="star" cx="270" cy="40" r="1.2"/>
+<circle class="star" cx="330" cy="18" r="1.4"/>
+<circle class="star" cx="462" cy="100" r="1.1"/>
+<g class="lightOnly"><ellipse class="cloud" cx="320" cy="28" rx="26" ry="8"/><ellipse class="cloud" cx="336" cy="22" rx="14" ry="7"/><ellipse class="cloud" cx="70" cy="30" rx="18" ry="6"/></g>
+<path class="hill" d="M0 126 Q140 100 260 122 T480 110 V200 H0Z"/>
+<!-- wind turbine -->
+<path class="metal" d="M432 146 L435 70 H439 L442 146Z"/>
+<g transform="rotate(12 437 68)"><path class="metal" d="M437 68 L434 36 Q437 32 440 38Z"/><path class="metal" d="M437 68 L465 82 Q464 87 460 85Z"/>
+<path class="metal" d="M437 68 L410 85 Q406 82 409 78Z"/></g>
+<circle class="metal2" cx="437" cy="68" r="4"/>
+<!-- pylon -->
+<path class="s s-inkSoft" stroke-width="2.2" d="M376 146 L388 40 L400 146 M388 40 V36 M366 56 H410 M370 72 H406 M380 104 L394 76 M396 104 L382 76 M378 128 L396 106 M398 128 L380 106 M366 56 L388 44 L410 56"/>
+<path class="s s-inkSoft" stroke-width="1.6" d="M366 56 Q262 92 166 64 M406 72 Q422 80 436 76"/>
+<!-- bolt on the line -->
+<circle class="sunGlow" cx="266" cy="80" r="12" opacity="0.7"/>
+<path class="yellow" d="M269 66 L258 82 H266 L262 94 L275 77 H267Z"/>
+<!-- bakery -->
+<rect class="brown" x="138" y="52" width="12" height="26"/><path class="s s-inkSoft" stroke-width="2" d="M166 64 V84 M161 66 H171"/>
+<circle class="cloud" cx="146" cy="44" r="5" opacity="0.8"/><circle class="cloud" cx="152" cy="36" r="6" opacity="0.6"/><circle class="cloud" cx="146" cy="26" r="5" opacity="0.4"/>
+<rect class="wall" x="34" y="84" width="134" height="62"/>
+<path class="brown2" d="M24 86 L101 58 L178 86Z"/>
+<rect class="red" x="34.0" y="92" width="16.75" height="13"/><circle class="red" cx="42.4" cy="105" r="8.4"/><rect class="paper" x="50.8" y="92" width="16.75" height="13"/><circle class="paper" cx="59.1" cy="105" r="8.4"/><rect class="red" x="67.5" y="92" width="16.75" height="13"/><circle class="red" cx="75.9" cy="105" r="8.4"/><rect class="paper" x="84.2" y="92" width="16.75" height="13"/><circle class="paper" cx="92.7" cy="105" r="8.4"/><rect class="red" x="101.0" y="92" width="16.75" height="13"/><circle class="red" cx="109.4" cy="105" r="8.4"/><rect class="paper" x="117.8" y="92" width="16.75" height="13"/><circle class="paper" cx="126.2" cy="105" r="8.4"/><rect class="red" x="134.5" y="92" width="16.75" height="13"/><circle class="red" cx="142.9" cy="105" r="8.4"/><rect class="paper" x="151.2" y="92" width="16.75" height="13"/><circle class="paper" cx="159.7" cy="105" r="8.4"/>
+<rect class="red2" x="30" y="90" width="142" height="4" rx="2"/>
+<rect class="glass" x="44" y="116" width="66" height="26" rx="2"/>
+<rect class="wood" x="44" y="134" width="66" height="3"/>
+<ellipse class="wood" cx="58" cy="129" rx="9" ry="5"/><ellipse class="orange2" cx="77" cy="129" rx="8" ry="5"/><ellipse class="wood" cx="96" cy="129" rx="9" ry="5"/>
+<path class="s s-brown2" stroke-width="1.2" d="M54 127 l3 4 M59 126 l3 4 M92 127 l3 4 M97 126 l3 4"/>
+<rect class="brown2" x="122" y="114" width="30" height="32" rx="2"/><rect class="glass" x="128" y="119" width="18" height="10" rx="1"/>
+<circle class="yellow" cx="146" cy="134" r="1.8"/>
+<rect class="ground" x="0" y="146" width="480" height="54"/><rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- baker -->
+<ellipse class="shadow" cx="204" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="195" y="148" width="7" height="24" rx="3"/><rect class="ink" x="206" y="148" width="7" height="24" rx="3"/>
+<path class="paper" d="M190 152 Q190 122 204 120 Q218 122 218 152Z"/>
+<path class="paper2" d="M196 128 H212 V152 H196Z"/>
+<path class="s s-paper" stroke-width="6" d="M216 128 Q228.0 136 232 132"/>
+<circle class="skin2" cx="232" cy="132" r="3.2"/>
+<circle class="skin2" cx="204" cy="108" r="11"/>
+<path class="hair" d="M193 105 Q194 95 204 95 Q214 95 215 105 Q210 99 204 99 Q198 99 193 105Z"/>
+<rect class="paper" x="195" y="86" width="18" height="12" rx="2"/>
+<circle class="paper" cx="198" cy="88" r="6"/><circle class="paper" cx="204" cy="85" r="7"/><circle class="paper" cx="210" cy="88" r="6"/>
+<rect class="wood" x="226" y="124" width="28" height="7" rx="3.5" transform="rotate(-20 232 128)"/>
+<path class="s s-brown" stroke-width="1" d="M234 124 l2 3 M241 121 l2 3 M248 118 l2 3"/>
+<!-- supplier -->
+<ellipse class="shadow" cx="300" cy="173" rx="18" ry="4"/>
+<rect class="blue2" x="291" y="148" width="7" height="24" rx="3"/><rect class="blue2" x="302" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M286 152 Q286 122 300 120 Q314 122 314 152Z"/>
+<path class="orange" d="M288 126 Q300 118 312 126 V152 H288Z"/><path class="s s-yellow" stroke-width="2" d="M288 138 H312"/>
+<path class="s s-blue2" stroke-width="6" d="M288 128 Q276.0 136 272 132"/>
+<circle class="skin3" cx="272" cy="132" r="3.2"/>
+<circle class="skin3" cx="300" cy="108" r="11"/>
+<path class="hair" d="M289 105 Q290 95 300 95 Q310 95 311 105 Q306 99 300 99 Q294 99 289 105Z"/>
+<path class="yellow" d="M287 104 Q287 90 300 90 Q313 90 313 104Z"/><rect class="orange2" x="285" y="102" width="30" height="4" rx="2"/>
+<rect class="ink" x="264" y="122" width="12" height="16" rx="2" transform="rotate(-10 270 130)"/><rect class="green" x="266" y="125" width="8" height="10" rx="1" transform="rotate(-10 270 130)"/></g></svg>

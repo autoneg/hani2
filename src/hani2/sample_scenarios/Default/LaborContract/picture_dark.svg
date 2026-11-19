@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A police officer from the union and a city official shake hands in front of city hall</title><style>.skyTop{fill:#141d36}.skyBottom{fill:#28345a}.hill{fill:#22344a}.hill2{fill:#1d2d40}.ground{fill:#2b3346}.ground2{fill:#232a3b}.water{fill:#22466e}.water2{fill:#1b3a5e}.sand{fill:#5b5038}.floor{fill:#262d3e}.wall{fill:#1f2638}.sun{fill:#e9eef8}.sunGlow{fill:#3a4670}.cloud{fill:#34406a}.star{fill:#f2f5ff}.ink{fill:#0f1424}.inkSoft{fill:#7b86a3}.paper{fill:#dfe5f2}.paper2{fill:#b9c2d6}.metal{fill:#7d879e}.metal2{fill:#5c6680}.glass{fill:#6f9cc4}.shadow{fill:#000000}.light{fill:#ffe7a0}.blue{fill:#6f86ff}.blue2{fill:#4c62d6}.orange{fill:#e8963e}.orange2{fill:#b8701f}.green{fill:#2fa577}.green2{fill:#1f7a58}.red{fill:#d85448}.red2{fill:#a53a32}.yellow{fill:#e6b93f}.purple{fill:#8a72e8}.teal{fill:#2a9fae}.pink{fill:#d98aa3}.brown{fill:#8a5f37}.brown2{fill:#654325}.wood{fill:#a98250}.leaf{fill:#3a9a5c}.leaf2{fill:#2a7a48}.skin1{fill:#d9ae8c}.skin2{fill:#b07a53}.skin3{fill:#7b4e34}.hair{fill:#1f1715}.hair2{fill:#8a5226}.s-skyTop{stroke:#141d36}.s-skyBottom{stroke:#28345a}.s-hill{stroke:#22344a}.s-hill2{stroke:#1d2d40}.s-ground{stroke:#2b3346}.s-ground2{stroke:#232a3b}.s-water{stroke:#22466e}.s-water2{stroke:#1b3a5e}.s-sand{stroke:#5b5038}.s-floor{stroke:#262d3e}.s-wall{stroke:#1f2638}.s-sun{stroke:#e9eef8}.s-sunGlow{stroke:#3a4670}.s-cloud{stroke:#34406a}.s-star{stroke:#f2f5ff}.s-ink{stroke:#0f1424}.s-inkSoft{stroke:#7b86a3}.s-paper{stroke:#dfe5f2}.s-paper2{stroke:#b9c2d6}.s-metal{stroke:#7d879e}.s-metal2{stroke:#5c6680}.s-glass{stroke:#6f9cc4}.s-shadow{stroke:#000000}.s-light{stroke:#ffe7a0}.s-blue{stroke:#6f86ff}.s-blue2{stroke:#4c62d6}.s-orange{stroke:#e8963e}.s-orange2{stroke:#b8701f}.s-green{stroke:#2fa577}.s-green2{stroke:#1f7a58}.s-red{stroke:#d85448}.s-red2{stroke:#a53a32}.s-yellow{stroke:#e6b93f}.s-purple{stroke:#8a72e8}.s-teal{stroke:#2a9fae}.s-pink{stroke:#d98aa3}.s-brown{stroke:#8a5f37}.s-brown2{stroke:#654325}.s-wood{stroke:#a98250}.s-leaf{stroke:#3a9a5c}.s-leaf2{stroke:#2a7a48}.s-skin1{stroke:#d9ae8c}.s-skin2{stroke:#b07a53}.s-skin3{stroke:#7b4e34}.s-hair{stroke:#1f1715}.s-hair2{stroke:#8a5226}.lightOnly{display:none}.shadow{opacity:0.35}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#141d36"/><stop offset="1" stop-color="#28345a"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A police officer from the union and a city official shake hands in front of city hall -->
+<circle class="sunGlow" cx="424" cy="40" r="28" opacity="0.6"/>
+<circle class="sun" cx="424" cy="40" r="17"/>
+<circle class="star" cx="40" cy="24" r="1.4"/><circle class="star" cx="120" cy="16" r="1.2"/><circle class="star" cx="330" cy="22" r="1.3"/><circle class="star" cx="466" cy="90" r="1.1"/><circle class="star" cx="300" cy="50" r="1.0"/>
+<g class="lightOnly"><ellipse class="cloud" cx="80" cy="40" rx="30" ry="10"/><ellipse class="cloud" cx="96" cy="33" rx="16" ry="10"/><ellipse class="cloud" cx="352" cy="28" rx="20" ry="7"/></g>
+<path class="hill" d="M0 128 Q120 104 240 118 T480 110 V200 H0Z"/>
+<rect class="hill2" x="0" y="98" width="34" height="48" rx="2"/><rect class="hill2" x="30" y="84" width="28" height="62" rx="2"/><rect class="hill2" x="54" y="106" width="34" height="40" rx="2"/><rect class="hill2" x="338" y="94" width="30" height="52" rx="2"/><rect class="hill2" x="364" y="78" width="26" height="68" rx="2"/><rect class="hill2" x="420" y="100" width="40" height="46" rx="2"/><rect class="hill2" x="452" y="88" width="28" height="58" rx="2"/>
+<rect class="paper2" x="150" y="138" width="180" height="9"/><rect class="paper2" x="160" y="132" width="160" height="7"/>
+<rect class="metal" x="166" y="86" width="148" height="46"/>
+<rect class="brown2" x="229" y="104" width="22" height="28" rx="2"/>
+<rect class="paper" x="170" y="88" width="10" height="44"/><rect class="paper" x="192" y="88" width="10" height="44"/><rect class="paper" x="214" y="88" width="10" height="44"/><rect class="paper" x="256" y="88" width="10" height="44"/><rect class="paper" x="278" y="88" width="10" height="44"/><rect class="paper" x="300" y="88" width="10" height="44"/>
+<rect class="paper2" x="160" y="78" width="160" height="10"/><path class="paper" d="M156 79 L240 52 L324 79Z"/>
+<circle class="metal" cx="240" cy="68" r="6"/>
+<path class="s s-inkSoft" stroke-width="1.6" d="M240 52 V26"/><path class="blue" d="M240 26 H260 L256 31.5 L260 37 H240Z"/>
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<ellipse class="shadow" cx="82" cy="171" rx="66" ry="6"/>
+<path class="paper" d="M18 160 Q18 146 30 144 L50 142 Q62 124 82 124 L102 124 Q116 124 126 140 L134 142 Q146 146 144 158 Q144 164 138 164 L24 164 Q18 164 18 160Z"/>
+<path class="blue2" d="M19 149 H145 V156 H19Z"/><path class="ink" d="M18 158 H144 Q144 164 138 164 H24 Q18 164 18 158Z"/>
+<path class="glass" d="M56 142 Q66 128 80 128 L84 128 L84 142Z"/><path class="glass" d="M90 128 L102 128 Q112 128 120 142 L90 142Z"/>
+<rect class="red" x="74" y="118" width="11" height="6" rx="2"/><rect class="blue" x="85" y="118" width="11" height="6" rx="2"/>
+<rect class="light" x="137" y="146" width="7" height="5" rx="2"/>
+<circle class="ink" cx="44" cy="164" r="11"/><circle class="metal" cx="44" cy="164" r="5"/><circle class="ink" cx="118" cy="164" r="11"/><circle class="metal" cx="118" cy="164" r="5"/>
+<ellipse class="shadow" cx="198" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="189" y="148" width="7" height="24" rx="3"/><rect class="ink" x="200" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M184 152 Q184 122 198 120 Q212 122 212 152Z"/>
+<path class="yellow" d="M201 130 l2.5 -4 l2.5 4 l-2.5 4Z"/><rect class="ink" x="184" y="144" width="28" height="4"/>
+<path class="s s-blue2" stroke-width="6" d="M209 130 Q224 138 236 133"/>
+<circle class="skin2" cx="198" cy="108" r="11"/>
+<path class="hair" d="M187 108 Q187 100 198 100 Q209 100 209 108 Q198 104 187 108Z"/>
+<path class="blue2" d="M186 103 L185 94 Q198 88 211 94 L210 103Z"/>
+<rect class="ink" x="200" y="101" width="14" height="3.5" rx="1.7"/>
+<circle class="yellow" cx="198" cy="96" r="2.6"/>
+<ellipse class="shadow" cx="284" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="275" y="148" width="7" height="24" rx="3"/><rect class="ink" x="286" y="148" width="7" height="24" rx="3"/>
+<path class="hair2" d="M272 108 Q271 94 284 94 Q297 94 296 108 L297 126 Q284 130 271 126Z"/>
+<path class="purple" d="M270 152 Q270 122 284 120 Q298 122 298 152Z"/>
+<path class="paper" d="M280 121 L284 132 L288 121Z"/>
+<path class="s s-purple" stroke-width="6" d="M273 130 Q258 138 246 133"/>
+<circle class="skin1" cx="284" cy="108" r="11"/>
+<path class="hair2" d="M272 106 Q273 94 284 94 Q295 94 296 106 Q280 98 290 102Z"/>
+<circle class="skin2" cx="238" cy="133" r="4"/><circle class="skin1" cx="244" cy="133" r="4"/>
+<rect class="paper" x="292" y="126" width="8" height="22" rx="3" transform="rotate(12 296 137)"/>
+<ellipse class="shadow" cx="430" cy="150" rx="16" ry="3"/><rect class="brown" x="427.0" y="118.0" width="6.0" height="30.0" rx="2"/><circle class="leaf" cx="430" cy="108.0" r="17.0"/><circle class="leaf2" cx="438.0" cy="115.0" r="10.0"/></g></svg>

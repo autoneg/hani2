@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Scenario pictures.** The *Scenario Info* tool shows a picture of the scenario under its
+  title, with a *Picture* switch to hide it. Put `picture.svg` (or `.png`, `.jpg`, ...) in a
+  scenario or category folder, optionally with `picture_dark.svg` for the dark theme, or name
+  them in `_info.yaml` (`picture: {light: ..., dark: ...}`). Every bundled scenario has a light
+  and a dark vector picture. Tools can show pictures with the new `ui.image` component. See
+  [Scenario pictures](guide/scenarios.md#scenario-pictures).
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

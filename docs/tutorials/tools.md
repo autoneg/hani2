@@ -491,6 +491,7 @@ Every helper in `hani2.tools.ui` returns a plain dict (a `Component`) that the w
 | `outcome(values, utility=None, label=None)` | A compact outcome card: one chip per issue, plus a utility gauge (with the participant's value on disagreement marked) when `utility` is given. |
 | `issue(name, *, widget=None, label=None)` | The default editor field of one issue. Only in a scenario's [custom offer controls](../guide/scenarios.md#showing-offers); elsewhere it renders nothing. |
 | `html(content)` | Sanitised HTML. Prefer `markdown`. |
+| `image(src, dark_src=None, alt="", max_height=None)` | A picture from any URL the browser can load (also `data:` URLs); `dark_src` replaces it in the dark theme. The Assistant reads `alt`. |
 | `divider()` | A horizontal rule. |
 
 ### Plots and tables
