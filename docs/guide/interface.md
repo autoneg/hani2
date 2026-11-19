@@ -263,6 +263,8 @@ The **My settings** drawer (the sliders button) holds only what the current user
 | Keep the offer editor open | `offer_panel_always_visible` | off | The counter-offer editor stays open. |
 | Offers shown as | `offer_display` | `text` | `text` (sentences) or `table` (issue chips). A scenario with its own history view shows that view either way. |
 | Text size | `font_scale` | 1.0 | Scales the page text, from 0.85 to 1.3. |
+| Show the scenario's picture | `show_scenario_picture` | on | The picture at the top of the *Scenario Info* tool (also its *Picture* switch). |
+| Open the full scenario description | `open_scenario_description` | off | The *Full description* card of the *Scenario Info* tool starts open when a scenario loads. |
 | Layout for | (this browser) | Automatic | Phone, tablet or desktop layout. |
 | Theme | (this browser) | Automatic | Light, dark or the system's. |
 | The Assistant appears as | `assistant_presentation` | `presentation.choice_default` | Only when the administrator lets the participant choose. |

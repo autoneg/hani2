@@ -124,6 +124,8 @@ const PREF_DEFAULTS: FieldGroup = {
     { id: "pref-last-on-top", path: "interface.prefs.last_offer_on_top", label: "Newest offer on top", type: "toggle" },
     { id: "pref-offer-panel", path: "interface.prefs.offer_panel_always_visible", label: "Keep the offer editor open", type: "toggle" },
     { id: "pref-offer-display", path: "interface.prefs.offer_display", label: "Offers shown as", type: "select", options: [{ value: "text", label: "Sentences" }, { value: "table", label: "Issue chips" }] },
+    { id: "pref-show-scenario-picture", path: "interface.prefs.show_scenario_picture", label: "Show the scenario's picture", hint: "At the top of the Scenario Info tool", type: "toggle", keywords: "image picture scenario info" },
+    { id: "pref-open-scenario-description", path: "interface.prefs.open_scenario_description", label: "Open the full scenario description", hint: "Expanded in the Scenario Info tool when a scenario loads", type: "toggle", keywords: "long description expanded collapsed scenario info" },
   ],
 };
 const INTERFACE_REST: FieldGroup[] = [

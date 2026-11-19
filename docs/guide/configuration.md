@@ -191,7 +191,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `participant_settings.<key>` | all `true` | Whether participants may change this. Off: the control is not shown and the server refuses the change. Administrators may always change everything (their settings drawer marks what participants do not see). |
-| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display` and `font_scale` (see [Display settings](interface.md#display-settings)). |
+| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
 
@@ -200,6 +200,8 @@ The `participant_settings` keys:
 | Key | Controls |
 | --- | --- |
 | `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
+| `show_scenario_picture` | **Show the scenario's picture** in the settings drawer and the *Picture* switch of the *Scenario Info* tool. |
+| `open_scenario_description` | **Open the full scenario description**. |
 | `device` | **Layout for** (phone, tablet, desktop). |
 | `theme` | The theme button and **Theme** setting. |
 | `layout_view` | The layout menu (full, simple, focus). |
@@ -212,6 +214,14 @@ The `participant_settings` keys:
 {"interface": {"participant_settings": {"assistant_switch": false, "layout_view": false},
                "prefs": {"offer_display": "table"}},
  "negotiation": {"allow_moving_tools": false}}
+```
+
+For example, a study whose participants always start with the full scenario description open and
+never see the scenario pictures, and cannot change either:
+
+```json title="projects/HI2027/studies/hi-02/env.json"
+{"interface": {"prefs": {"show_scenario_picture": false, "open_scenario_description": true},
+               "participant_settings": {"show_scenario_picture": false, "open_scenario_description": false}}}
 ```
 
 ### `playground`

@@ -300,7 +300,13 @@ evaluated with the criteria it was played with. Criteria for every scenario with
 
 A scenario can have one picture that sets the scene. It is shown under the title of the
 *Scenario Info* tool; participants hide it with the *Picture* switch next to their role
-(it is on by default). Every bundled scenario has one, drawn as vector graphics in a light
+or in **My settings** (it is on by default). Whether it is shown at first, and whether
+participants may change that, is set per project or study like the other participant
+settings (`interface.prefs.show_scenario_picture` and
+`interface.participant_settings.show_scenario_picture`, the console's **Participant
+interface** page; see [`interface`](configuration.md#interface)). The same goes for
+whether the *Full description* card starts open (`open_scenario_description`, closed by
+default). Every bundled scenario has one, drawn as vector graphics in a light
 and a dark version.
 
 Put the picture in the scenario folder:

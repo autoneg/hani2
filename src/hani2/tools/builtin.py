@@ -131,7 +131,8 @@ class ScenarioInfoTool(Tool):
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
-    **What it shows.** A picture of the scenario (switch it off with *Picture*), the
+    **What it shows.** A picture of the scenario (switch it off with *Picture*, or in your
+    settings), the
     story of the scenario, the role you play, a table of the issues with their possible
     options and what they mean, any hints for your role and (collapsed at the bottom) the
     full description.
@@ -171,11 +172,13 @@ class ScenarioInfoTool(Tool):
         badge = ([] if getattr(self.session, "labels", None) and role.strip().lower() in self.session.labels
                  else [ui.badge(f"You act as {role}", "primary")])
         light, dark = self._picture()
-        show = bool(self.values.get("show_picture", True))
+        prefs = getattr(self.session, "prefs", None) or {}
+        show = bool(prefs.get("show_scenario_picture", True))
+        may = getattr(self.session, "may_adjust", lambda k: True)
+        switch = [ui.switch("show_picture", show, label="Picture")] if light and may("show_scenario_picture") else []
         comps: list[ui.Component] = [ui.heading(title, 3)]
-        if badge or light:
-            comps.append(ui.row(*badge, *([ui.switch("show_picture", show, label="Picture")] if light else []),
-                                align="center"))
+        if badge or switch:
+            comps.append(ui.row(*badge, *switch, align="center"))
         if light and show:
             comps.append(ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=240))
         shown = getattr(self.session, "relabel_text", lambda t: t)
@@ -192,9 +195,22 @@ class ScenarioInfoTool(Tool):
         if hints:
             comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
         if info.get("long_description"):
-            comps.append(ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
-                                 collapsible=True, collapsed=True))
+            opened = bool(prefs.get("open_scenario_description", False))
+            loaded = self.session_state.get("load_at_dt")
+            card = ui.card(ui.markdown(shown(info["long_description"]), size="sm"), title="Full description",
+                           collapsible=True, collapsed=not opened)
+            # a new id for every loaded scenario (and setting value), so it starts opened or closed as set
+            card["id"] = f"scenario-description-{loaded.timestamp() if loaded else 0}-{int(opened)}"
+            comps.append(card)
         return comps
+
+    def on_input(self, name: str, value: Any) -> None:
+        if name == "show_picture":  # the participant's own setting (refused when the admin does not allow it)
+            setter = getattr(self.session, "set_pref", None)
+            if setter is None or not setter("show_scenario_picture", bool(value)):
+                self.refresh()  # refused: show the switch as it was
+            return
+        super().on_input(name, value)
 
     def _picture(self) -> tuple[str | None, str | None]:
         """``(light, dark)`` picture URLs of the loaded scenario, looked up once per scenario."""

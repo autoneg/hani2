@@ -61,6 +61,9 @@ USER_PREFS: dict[str, Any] = {
     "font_scale": 1.0,
     # how the Assistant appears when the admin lets the participant choose: panel | persona | both
     "assistant_presentation": None,
+    # the Scenario Info tool: the scenario's picture, and the full description opened when a scenario loads
+    "show_scenario_picture": True,
+    "open_scenario_description": False,
 }
 
 #: What a participant may adjust in their own settings (env.json → interface.participant_settings,
@@ -72,6 +75,9 @@ PARTICIPANT_SETTINGS: dict[str, tuple[str, str]] = {
     "offer_panel_always_visible": ("Keep the offer editor open", ""),
     "offer_display": ("Offers shown as sentences or issue chips", ""),
     "font_scale": ("Text size", ""),
+    "show_scenario_picture": ("Show the scenario's picture", "In the Scenario Info tool"),
+    "open_scenario_description": ("Open the full scenario description",
+                                  "Expanded in the Scenario Info tool when a scenario loads"),
     "device": ("Layout for phone, tablet or desktop", ""),
     "theme": ("Light or dark theme", ""),
     "layout_view": ("Full, simple or focus view", "The layout menu in the header"),
@@ -84,8 +90,8 @@ PARTICIPANT_SETTINGS: dict[str, tuple[str, str]] = {
 #: Defaults of env.json → interface (participant-facing behaviour; layered like every env.json key).
 DEFAULT_INTERFACE: dict[str, Any] = {
     "participant_settings": {k: True for k in PARTICIPANT_SETTINGS},
-    # defaults of the participant's own settings (USER_PREFS keys)
-    "prefs": {},
+    # defaults of the participant's own settings (USER_PREFS keys; filled in so the console shows them)
+    "prefs": {k: v for k, v in USER_PREFS.items() if v is not None},
     "notifications": {"toast_seconds": 6, "center": True},
 }
 
@@ -1065,6 +1071,12 @@ class NegotiationSession:
                 self.admin_prefs[key] = value
             else:
                 return False
+        if key in ("show_scenario_picture", "open_scenario_description"):
+            from hani2.tools.builtin import ScenarioInfoTool
+
+            for t in self.tools:
+                if isinstance(t, ScenarioInfoTool):
+                    t.refresh()
         self.push_state()
         return True
 
