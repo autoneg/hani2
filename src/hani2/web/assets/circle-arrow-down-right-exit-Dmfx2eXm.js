@@ -1,1 +1,0 @@
-import{c as o}from"./index-CHByB-Zp.js";const r={name:"circle-arrow-down-right-exit",size:24,node:[["path",{d:"M12 22a10 10 0 1 1 10-10",key:"130bv5"}],["path",{d:"M22 22 12 12",key:"131aw7"}],["path",{d:"M22 16v6h-6",key:"1gvm70"}]],aliases:["arrow-down-right-from-circle","circle-arrow-out-down-right"]};r.node;const a=o(r);export{r as __iconData,a as default};

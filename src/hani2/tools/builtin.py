@@ -118,6 +118,11 @@ AgentPreferencesTool = OpponentPreferencesTool
 # --------------------------------------------------------------------------- #
 # Scenario info                                                                #
 # --------------------------------------------------------------------------- #
+#: How the Scenario Info tool shows the picture (label → value).
+PICTURE_STYLES = {"Small": "small", "Large": "large", "Watermark": "watermark"}
+PICTURE_STYLE_NAMES = set(PICTURE_STYLES.values())
+
+
 class ScenarioInfoTool(Tool):
     def _may_see_hints(self) -> bool:
         sess = self.session_state.get("_session")
@@ -131,7 +136,8 @@ class ScenarioInfoTool(Tool):
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
     help = """
-    **What it shows.** A picture of the scenario (switch it off with *Picture*), the
+    **What it shows.** A picture of the scenario (switch it off with *Picture*; *Small*
+    shows it beside the story, *Large* above it, *Watermark* faintly behind it), the
     story of the scenario, the role you play, a table of the issues with their possible
     options and what they mean, any hints for your role and (collapsed at the bottom) the
     full description.
@@ -172,19 +178,34 @@ class ScenarioInfoTool(Tool):
                  else [ui.badge(f"You act as {role}", "primary")])
         light, dark = self._picture()
         show = bool(self.values.get("show_picture", True))
+        style = self._picture_style(info)
         comps: list[ui.Component] = [ui.heading(title, 3)]
         if badge or light:
-            comps.append(ui.row(*badge, *([ui.switch("show_picture", show, label="Picture")] if light else []),
-                                align="center"))
-        if light and show:
-            comps.append(ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=240))
+            controls = [ui.switch("show_picture", show, label="Picture")] if light else []
+            if light and show:
+                controls.append(ui.select("picture_style", PICTURE_STYLES, style))
+            comps.append(ui.row(*badge, *controls, align="center"))
         shown = getattr(self.session, "relabel_text", lambda t: t)
-        if info.get("short_description"):
-            comps.append(ui.markdown(shown(info["short_description"])))
+        story = ui.markdown(shown(info["short_description"])) if info.get("short_description") else None
         for r in rows:
             r["Options"] = shown(r["Options"])
             r["Description"] = shown(r["Description"])
-        comps.append(ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50))
+        table = ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50)
+        if light and show:
+            if style == "large":
+                comps.append(ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=240))
+                comps.extend(c for c in (story, table) if c)
+            elif style == "watermark":  # behind the story (or the issues when there is none)
+                pic = ui.image(light, dark_src=dark, alt=self._picture_alt(title))
+                comps.append(ui.figure(pic, story or table, placement="watermark"))
+                if story:
+                    comps.append(table)
+            else:  # small: beside the story
+                pic = ui.image(light, dark_src=dark, alt=self._picture_alt(title), max_height=120)
+                comps.append(ui.figure(pic, story, placement="side"))
+                comps.append(table)
+        else:
+            comps.extend(c for c in (story, table) if c)
         hints_all = info.get("hints") or {}
         hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
         if hints and not self._may_see_hints():
@@ -214,6 +235,14 @@ class ScenarioInfoTool(Tool):
             cached = (key, found)
             self.__dict__["_picture_cache"] = cached
         return cached[1]
+
+    def _picture_style(self, info: dict) -> str:
+        """``small`` (beside the story), ``large`` (above it) or ``watermark`` (behind it):
+        the participant's choice, else the scenario's ``picture_style``, else ``small``."""
+        for v in (self.values.get("picture_style"), info.get("picture_style")):
+            if str(v or "").lower() in PICTURE_STYLE_NAMES:
+                return str(v).lower()
+        return "small"
 
     def _picture_alt(self, title: str) -> str:
         info = (self.scenario.info if self.scenario is not None else None) or {}

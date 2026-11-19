@@ -300,7 +300,16 @@ evaluated with the criteria it was played with. Criteria for every scenario with
 
 A scenario can have one picture that sets the scene. It is shown under the title of the
 *Scenario Info* tool; participants hide it with the *Picture* switch next to their role
-(it is on by default). Every bundled scenario has one, drawn as vector graphics in a light
+(it is on by default) and choose how it is shown with the menu beside the switch:
+
+| Style | Shown |
+|-------|-------|
+| **Small** (default) | Beside the story of the scenario; the text wraps around it. |
+| **Large** | Full width above the story. |
+| **Watermark** | Faintly behind the story. |
+
+A scenario sets its own default with `picture_style: small` (or `large`, `watermark`) in
+`_info.yaml`; the participant's choice is kept for the next scenario. Every bundled scenario has one, drawn as vector graphics in a light
 and a dark version.
 
 Put the picture in the scenario folder:
@@ -324,6 +333,7 @@ picture: harbour.png                                   # both themes
 picture: {light: harbour-day.svg, dark: harbour-night.svg}
 picture: false                                         # no picture at all
 picture_alt: Two traders on a busy harbour quay
+picture_style: watermark                               # default style (small, large, watermark)
 ```
 
 HANI2 looks for a picture in the scenario folder first, then in its category folder (so all
@@ -334,7 +344,9 @@ installed `Examples` copies show the bundled pictures.
 
 Pictures are wide banners: the bundled ones are 480 × 200. Your own tools can show
 pictures as well with `ui.image(src, dark_src=None, alt="", max_height=None)`, where `src`
-is any URL the browser can load, including a `data:` URL.
+is any URL the browser can load, including a `data:` URL. Lay a picture out with other
+content with `ui.figure(ui.image(...), *children, placement="side")`: `side` floats it beside
+the children, `watermark` puts it faintly behind them and `top` above them.
 
 ## Showing offers
 

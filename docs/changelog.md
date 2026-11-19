@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Scenario picture styles.** The *Scenario Info* tool now shows the picture small, beside the
+  story, by default. A menu next to the *Picture* switch picks *Small*, *Large* (full width above
+  the story, as before) or *Watermark* (faintly behind the story); scenarios set the default with
+  `picture_style` in `_info.yaml`. Tools lay pictures out with content with the new `ui.figure`
+  component. See [Scenario pictures](guide/scenarios.md#scenario-pictures).
 - **Judge reliability for the combined scores.** `hani2 replay judge-reliability --judge A --judge B`
   (or `judge_reliability()`) has two judge models score the same recordings. For every
   language-model judged component of `han_interaction`, `hi_assistant` and `hi_team`, it reports

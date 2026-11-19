@@ -59,17 +59,57 @@ def test_scenario_info_tool_shows_picture_with_switch():
     s = make_session(scenario_type="UsedCar")
     tool = s.tool_controller.find("Scenario Info")
     comps = tool.view()
-    flat = [c for c in comps] + [ch for c in comps for ch in c.get("children", [])]
+    flat = list(_all(comps))
     img = next(c for c in flat if c["type"] == "image")
     assert img["src"].startswith("data:image/svg+xml;base64,")
     assert img["dark_src"].startswith("data:image/svg+xml;base64,") and img["dark_src"] != img["src"]
     sw = next(c for c in flat if c["type"] == "switch")
     assert sw["name"] == "show_picture" and sw["value"] is True
     tool.on_input("show_picture", False)
-    assert not any(c["type"] == "image" for c in tool.view())
+    assert not any(c["type"] == "image" for c in _all(tool.view()))
     s.load()  # the choice is kept for the next scenario
     tool = s.tool_controller.find("Scenario Info")
-    assert not any(c["type"] == "image" for c in tool.view())
+    assert not any(c["type"] == "image" for c in _all(tool.view()))
+
+
+def _all(comps):
+    for c in comps:
+        yield c
+        yield from _all(c.get("children", []))
+        if c.get("image"):
+            yield c["image"]
+
+
+def test_scenario_info_picture_styles():
+    s = make_session(scenario_type="UsedCar")
+    tool = s.tool_controller.find("Scenario Info")
+    comps = tool.view()
+    sel = next(c for c in _all(comps) if c.get("name") == "picture_style")
+    assert sel["value"] == "small" and {o["value"] for o in sel["options"]} == {"small", "large", "watermark"}
+    fig = next(c for c in comps if c["type"] == "figure")  # small (the default): beside the story
+    assert fig["placement"] == "side" and fig["image"]["type"] == "image"
+    assert fig["children"][0]["type"] == "markdown"
+    tool.on_input("picture_style", "watermark")
+    fig = next(c for c in tool.view() if c["type"] == "figure")
+    assert fig["placement"] == "watermark" and fig["children"][0]["type"] == "markdown"
+    tool.on_input("picture_style", "large")
+    comps = tool.view()
+    assert not any(c["type"] == "figure" for c in comps)
+    assert any(c["type"] == "image" for c in comps)
+    s.load()  # the style is kept for the next scenario
+    tool = s.tool_controller.find("Scenario Info")
+    assert not any(c["type"] == "figure" for c in tool.view())
+    tool.on_input("show_picture", False)
+    comps = tool.view()
+    assert not any(c.get("name") == "picture_style" for c in _all(comps))
+    assert not any(c["type"] in ("image", "figure") for c in comps)
+
+
+def test_scenario_picture_style_default_from_info():
+    s = make_session(scenario_type="UsedCar")
+    tool = s.tool_controller.find("Scenario Info")
+    s.scenario.info = {**(s.scenario.info or {}), "picture_style": "watermark"}
+    assert next(c for c in tool.view() if c["type"] == "figure")["placement"] == "watermark"
 
 
 def test_installed_example_copy_without_pictures_uses_bundled_one(tmp_path):

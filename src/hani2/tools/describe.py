@@ -90,6 +90,10 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
                    + (f" (utility {_fmt(c['utility'])})" if c.get("utility") is not None else ""))
     elif t == "image":
         out.append(pad + f"[Picture: {c.get('alt') or 'no description'}]")
+    elif t == "figure":
+        _walk(c.get("image"), out, depth, max_rows)
+        for ch in c.get("children") or []:
+            _walk(ch, out, depth, max_rows)
     elif t == "plot":
         out.extend(pad + line for line in _plot_summary(c.get("figure") or {}))
     elif t == "table":

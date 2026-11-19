@@ -165,6 +165,15 @@ def image(src: str, *, dark_src: str | None = None, alt: str = "", max_height: i
     return _c("image", src=str(src), dark_src=dark_src, alt=str(alt), max_height=max_height)
 
 
+def figure(picture: Component, *children: Component | None, placement: str = "side") -> Component:
+    """A picture (a :func:`image`) laid out with content. ``placement``: ``side`` floats a
+    small picture beside the content (the text wraps around it); ``watermark`` shows it
+    faintly behind the content; ``top`` puts it full width above the content."""
+    if placement not in ("side", "watermark", "top"):
+        raise ValueError(f"placement must be side, watermark or top, not {placement!r}")
+    return _c("figure", image=picture, children=[c for c in children if c], placement=placement)
+
+
 def divider() -> Component:
     return _c("divider")
 

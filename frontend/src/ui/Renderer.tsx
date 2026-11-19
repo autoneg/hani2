@@ -89,6 +89,20 @@ function Node({ c, ctx }: { c: Component; ctx: RenderCtx }) {
   return id ? <Anchor id={id}>{node}</Anchor> : node;
 }
 
+/** A ui.image, with its dark-theme version when it has one. */
+function Picture({ c, cls = "block h-auto w-full rounded-xl object-contain" }: { c: Component; cls?: string }) {
+  if (!c?.src) return null;
+  const style = { maxHeight: c.max_height ? `${c.max_height}px` : undefined };
+  return c.dark_src ? (
+    <div className="contents">
+      <img src={c.src} alt={c.alt || ""} className={`${cls} theme-light-only`} style={style} draggable={false} />
+      <img src={c.dark_src} alt={c.alt || ""} className={`${cls} theme-dark-only`} style={style} draggable={false} />
+    </div>
+  ) : (
+    <img src={c.src} alt={c.alt || ""} className={cls} style={style} draggable={false} />
+  );
+}
+
 function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
   const v = c.name !== undefined ? ctx.values[c.name] ?? c.value : undefined;
   switch (c.type) {
@@ -137,16 +151,34 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
       );
     case "html":
       return <div className="md" dangerouslySetInnerHTML={{ __html: sanitize(c.html) }} />;
-    case "image": {
-      const style = { maxHeight: c.max_height ? `${c.max_height}px` : undefined };
-      const cls = "block h-auto w-full rounded-xl object-contain";
-      return c.dark_src ? (
-        <div>
-          <img src={c.src} alt={c.alt || ""} className={`${cls} theme-light-only`} style={style} draggable={false} />
-          <img src={c.dark_src} alt={c.alt || ""} className={`${cls} theme-dark-only`} style={style} draggable={false} />
+    case "image":
+      return <Picture c={c} />;
+    case "figure": {
+      const kids = (c.children || []).map((x: Component, i: number) => <Node key={i} c={x} ctx={ctx} />);
+      if (c.placement === "watermark")
+        return (
+          // one grid cell: the area is as tall as the picture (or the content, if taller)
+          <div className="grid overflow-hidden rounded-xl">
+            <div aria-hidden className="pointer-events-none select-none opacity-[0.18] [grid-area:1/1]">
+              <Picture c={{ ...c.image, alt: "", max_height: undefined }} />
+            </div>
+            <div className="relative space-y-3 self-center px-2 py-2 [grid-area:1/1]">{kids}</div>
+          </div>
+        );
+      if (c.placement === "top")
+        return (
+          <div className="space-y-3">
+            <Picture c={c.image} />
+            {kids}
+          </div>
+        );
+      return (
+        <div className="flow-root">
+          <div className="float-right mb-2 ml-3 w-2/5 max-w-[220px]">
+            <Picture c={c.image} />
+          </div>
+          <div className="space-y-3">{kids}</div>
         </div>
-      ) : (
-        <img src={c.src} alt={c.alt || ""} className={cls} style={style} draggable={false} />
       );
     }
     case "divider":
