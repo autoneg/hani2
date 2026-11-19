@@ -99,6 +99,31 @@ def test_utility_selector_defaults_to_best_and_handles_unnormalized_ufuns():
     assert ufun(sel.get_outcome()) == pytest.approx(74.0)
 
 
+def test_utility_selector_follows_a_new_ufun_before_the_negotiation_starts():
+    """The next scenario's ufun replaces the old one before start: the selector must not reuse the old inverter."""
+    from types import SimpleNamespace
+
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+    from negmas.preferences import LinearAdditiveUtilityFunction
+    from negmas.preferences.value_fun import AffineFun, TableFun
+
+    from hani2.tools.builtin import UtilitySelectorTool
+
+    os1 = make_os([make_issue(10, "a")])
+    u1 = LinearAdditiveUtilityFunction(values=[AffineFun(1.0, 0)], outcome_space=os1)
+    state = {"human_ufun": u1, "scenario": SimpleNamespace(outcome_space=os1)}
+    sel = UtilitySelectorTool(state)
+    assert next(c for c in sel.render() if c["type"] == "table")["rows"]
+    os2 = make_os([make_issue(["x", "y"], "b")])
+    u2 = LinearAdditiveUtilityFunction(values=[TableFun({"x": 0.0, "y": 1.0})], outcome_space=os2)
+    state.update(human_ufun=u2, scenario=SimpleNamespace(outcome_space=os2))
+    view = sel.render()
+    assert not any(c["type"] == "alert" for c in view), view
+    rows = next(c for c in view if c["type"] == "table")["rows"]
+    assert [r["b"] for r in rows] == ["y"]
+
+
 def test_tool_controller_move_hide_focus():
     s = make_session()
     c = s.tool_controller

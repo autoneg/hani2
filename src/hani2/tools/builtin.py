@@ -722,6 +722,7 @@ class UtilitySelectorTool(OutcomeSelector):
         super().__init__(*a, **kw)
         self._inverter = None
         self._minmax = None
+        self._cache_ufun = None  # the ufun the two caches above were built for
         # width 100% by default: the range runs from the minimum slider up to the best outcome.
         self.values.update(min_util=70, width=100)
 
@@ -730,7 +731,15 @@ class UtilitySelectorTool(OutcomeSelector):
         self._minmax = None
         super().negotiation_started(session_state, nmi)
 
+    def _check_cache(self) -> None:
+        """Drop the caches when the ufun changed (the next scenario loads before it starts)."""
+        if self._cache_ufun is not self.human_ufun:
+            self._inverter = None
+            self._minmax = None
+            self._cache_ufun = self.human_ufun
+
     def _get_inverter(self):
+        self._check_cache()
         if self._inverter is None:
             ufun = self.human_ufun
             self._inverter = self._cached(ufun) or ufun.invert()
@@ -761,6 +770,7 @@ class UtilitySelectorTool(OutcomeSelector):
 
     def _normalized(self, u: float) -> float:
         """A raw utility on the sliders' scale, so un-normalized ufuns show 0-100% too."""
+        self._check_cache()
         if self._minmax is None:
             try:
                 mn, mx = self.human_ufun.minmax()
