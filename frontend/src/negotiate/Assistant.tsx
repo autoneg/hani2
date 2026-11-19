@@ -7,6 +7,9 @@ import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
 import { mayAdjust } from "./SettingsDrawer";
 
+// one shared empty list: a fresh [] per call makes zustand re-render forever
+const NO_PANELS: never[] = [];
+
 const AUTONOMY = [
   { v: "suggest", label: "Suggest", hint: "Fills fields and points at buttons; you act" },
   { v: "semi", label: "Semi", hint: "Sends counter-offers; asks you before accepting or ending" },
@@ -235,7 +238,7 @@ export function StatusBoard() {
 }
 
 export function FloatingPanels() {
-  const panels = useStore((s) => s.state?.agent_panels ?? []);
+  const panels = useStore((s) => s.state?.agent_panels ?? NO_PANELS);
   const modal = panels.find((p) => p.placement === "modal");
   const side = panels.filter((p) => p.placement === "side");
   return (

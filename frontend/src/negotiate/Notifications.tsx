@@ -5,6 +5,9 @@ import { send, useStore } from "../store";
 import type { NotificationItem, Pin } from "../types";
 import { Markdown } from "../ui/Markdown";
 
+// one shared empty list: a fresh [] per call makes zustand re-render forever (old recordings have no pins)
+const NO_PINS: Pin[] = [];
+
 const LEVEL = {
   info: { icon: Info, box: "border-you/30 bg-you/[0.06]", ic: "text-you" },
   success: { icon: CheckCircle2, box: "border-good/30 bg-good/[0.07]", ic: "text-good" },
@@ -15,7 +18,7 @@ const LEVEL = {
 /** Messages pinned at the top or bottom of the screen. They sit in the page flow,
  *  so the negotiation area shrinks to make room instead of being covered. */
 export function PinnedMessages({ position, live = true }: { position: "top" | "bottom"; live?: boolean }) {
-  const pins = useStore((s) => s.state?.pins ?? []).filter((p: Pin) => p.position === position);
+  const pins = useStore((s) => s.state?.pins ?? NO_PINS).filter((p: Pin) => p.position === position);
   if (!pins.length) return null;
   return (
     <div
