@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Sign-in from a trusted website.** A website with its own accounts, such as the ANAC competition
+  site, can sign its users straight into HANI2 with a short-lived signed token: the account
+  (`anac_<id>`) is made on the first visit, and the login page shows *Continue with your ANAC
+  account*. "Test my agent" links can open a participant's own opponent (HAN) or Assistant (HI) as
+  that signed-in user. See [Sign-in from a trusted website](guide/authentication.md#sign-in-from-a-trusted-website).
+
 - **Security fixes.** An email typed at self-registration no longer makes an account an admin through
   `admin.emails` (only OAuth and admin-made accounts count). Non-admin pages can no longer load a
   `file:` opponent from the URL (`?opponents=file:…`) or the opponent picker; group files still can.
