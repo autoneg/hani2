@@ -84,7 +84,7 @@ export function LoginPage() {
     try {
       await api("/api/auth/login", { body: { username: u, password: p } });
       const me = await api("/api/auth/me");
-      navigate(me.needs_consent ? "/consent" : next());
+      navigate(me.needs_consent ? `/consent?next=${encodeURIComponent(next())}` : next());
     } catch (e: any) {
       setErr(e.message);
     } finally {
@@ -257,7 +257,7 @@ export function ConsentPage() {
           e.preventDefault();
           try {
             await api("/api/consent", { body: { agree, full_name: name } });
-            navigate("/app");
+            navigate(next());
           } catch (e: any) {
             setErr(e.message);
           }

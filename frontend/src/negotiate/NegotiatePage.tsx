@@ -380,7 +380,8 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
         .catch((e: ApiError) => {
           if (!alive) return;
           if (e.status === 401) navigate(`/login?next=${encodeURIComponent(currentPath() + location.search)}`, true);
-          else if (e.status === 403 && e.message === "consent_required") navigate("/consent", true);
+          else if (e.status === 403 && e.message === "consent_required")
+            navigate(`/consent?next=${encodeURIComponent(currentPath() + location.search)}`, true); // keep ?group=
           else setError(e.message);
         });
     start();
