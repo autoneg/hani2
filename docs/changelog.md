@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- **Settings are per project and study; the settings drawer holds only what the user may change.**
+  The negotiation page's settings drawer (**My settings**) now shows only what the current user may
+  adjust. The session settings administrators used to change there (timing, rules, scenarios and
+  opponents, tools) are on the admin console's **Negotiation** page, which now covers every key of
+  `env.json → negotiation`, per layer. A new **Participant interface** page (`env.json → interface`)
+  decides, for all projects, one project or one study, which settings participants may change
+  (`participant_settings`: the display settings, layout, theme, and the Assistant's switch,
+  autonomy, abilities and delivery), their defaults (`prefs`), whether participants may move tools
+  between panes (`negotiation.allow_moving_tools`) and how notifications behave. Hidden controls are
+  refused by the server as well. See [`interface`](guide/configuration.md#interface).
+- **Start-time settings file: `hani2 --settings overrides.yaml`.** Its keys override the settings
+  folder's `env.json`, `llm_settings.json`, `assistant_settings.json`, `autopilot_settings.json`
+  and `models.json`; projects and studies still win over it, so it shapes the playground and
+  sessions outside a study. See
+  [Start-time settings file](guide/configuration.md#start-time-settings-file).
+- **Pinned messages.** A new Assistant ability, `pin` (`pin_message`, `unpin_message`, and the
+  `pin_message()` / `unpin_message()` helpers), pins markdown at the top or bottom of the screen;
+  the panes shrink to make room. See [Pinned messages](guide/assistant.md#pinned-messages).
+- **Notification list.** Every notification is kept in the session; a bell in the header shows the
+  unread count and lists them all. Notifications stay `interface.notifications.toast_seconds`
+  (default six seconds).
+- **The Assistant as a character.** `assistant_settings.json → presentation.style`: `panel` (as
+  before), `persona` (a movable character in the corner; its notifications come out of it as
+  speech bubbles and clicking it opens the conversation), `both`, or `choice` (the participant
+  picks). See [The Assistant as a character](guide/interface.md#the-assistant-as-a-character).
+
 - **Harness connections: Claude Code, Codex and pi.** A connection can run an installed agent
   harness instead of calling the API (`--provider claude-code|codex|pi`; `pip install
   'hani2[harness]'` for the Claude Agent SDK). Harness entries sit in model chains like any other,

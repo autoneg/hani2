@@ -51,7 +51,28 @@ JSON files are then **merged over the built-in defaults**: HANI2 starts from its
 {"negotiation": {"n_steps": 30}}
 ```
 
-The JSON files are merged in layers: the bundled defaults, then the settings folder, then the project folder, then the study folder. A key set in a later layer wins; keys it does not mention keep their earlier value.
+The JSON files are merged in layers: the bundled defaults, then the settings folder, then the [start-time settings file](#start-time-settings-file) (`hani2 --settings`), then the project folder, then the study folder. A key set in a later layer wins; keys it does not mention keep their earlier value.
+
+Every setting of these files can be set per project and per study, not only the language models: the negotiation rules, what participants may change, how the Assistant appears, the tools, autopilot. The exceptions are the server-wide parts of `env.json` (`title`, `admin`, `auth`, `oauth`, the cookie secret) and the [connections](models.md) (API keys and servers), which only the settings folder sets: sign-in happens before a session belongs to a study.
+
+### Start-time settings file
+
+`hani2 --settings overrides.yaml` starts the server with a YAML (or JSON) file of settings that win over the settings folder. Its top-level keys `env`, `llm`, `assistant`, `autopilot` and `models` override `env.json`, `llm_settings.json`, `assistant_settings.json`, `autopilot_settings.json` and `models.json`; any other top-level key is a key of `env.json`:
+
+```yaml title="overrides.yaml"
+negotiation:            # env.json → negotiation
+  time_limit: 120
+interface:              # env.json → interface
+  participant_settings:
+    theme: false
+assistant:              # assistant_settings.json
+  presentation:
+    style: persona
+models:                 # models.json
+  default: ["ollama:qwen3:4b-instruct"]
+```
+
+The file applies to the playground and to every session outside a project or study. A project's or study's own settings still win over it, so a study keeps exactly what its organisers set. The file is re-read when it changes. The server refuses to start with a file that is not a mapping; the admin console names the file on the settings-folder layer and shows values that include it. The path is passed to the server in `HANI2_SETTINGS_OVERRIDES`.
 
 Text files (`consent.md`, `announcements.md`, `scenario_order.txt`) are taken from the first location that has them.
 
@@ -128,7 +149,7 @@ A list of opponent specs and group tokens that form the default opponent pool, f
 
 ### `negotiation`
 
-Default values of the per-session negotiation settings. Every key below may appear here. Admins can change them per session in the settings drawer of the negotiation page.
+Default values of the per-session negotiation settings. Every key below may appear here, in any layer. The admin console edits them on the **Negotiation** page (timing, rules, scenarios and opponents) and the **Participant interface** page (`allow_tool_switch`, `allow_moving_tools`), per layer.
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -152,7 +173,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `init_with_best` | `true` | Start the counter-offer editor at the human's best outcome. |
 | `init_with_last` | `true` | Start the counter-offer editor at the human's last offer, when there is one. |
 | `allow_tool_switch` | `true` | Let the human switch tools on and off. |
-| `allow_moving_tools` | `true` | Let the human move tools between panes. |
+| `allow_moving_tools` | `true` | Let the human move tools between panes (the server refuses the move otherwise). The Assistant's own moves are its `tool_order` capability. |
 | `load_existing` | `true` | Load saved scenarios instead of generating new ones. Off in the playground unless the URL has `?load_existing=1`. |
 | `generate_on_failure` | `true` | Generate a scenario when none can be loaded. |
 | `predefined_order` | `true` | Present scenario types in the order of the active scenario set. Always off in the playground. |
@@ -161,6 +182,36 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
 
 The Prolific flow overrides some of these per round (for example the time limits). See [Prolific](prolific.md).
+
+### `interface`
+
+What participants may adjust themselves, the defaults of their own settings, and notifications. Like every `env.json` key it can be set in the settings folder, a project or a study; the console edits it on the **Participant interface** page.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `participant_settings.<key>` | all `true` | Whether participants may change this. Off: the control is not shown and the server refuses the change. Administrators may always change everything (their settings drawer marks what participants do not see). |
+| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display` and `font_scale` (see [Display settings](interface.md#display-settings)). |
+| `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
+| `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
+
+The `participant_settings` keys:
+
+| Key | Controls |
+| --- | --- |
+| `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
+| `device` | **Layout for** (phone, tablet, desktop). |
+| `theme` | The theme button and **Theme** setting. |
+| `layout_view` | The layout menu (full, simple, focus). |
+| `assistant_switch` | The Assistant's on/off switch. |
+| `assistant_autonomy` | **How much may the assistant do?** |
+| `assistant_abilities` | The Assistant's ability switches. |
+| `assistant_delivery` | **Unprompted messages appear as**. |
+
+```json title="projects/HI2027/studies/hi-01/env.json"
+{"interface": {"participant_settings": {"assistant_switch": false, "layout_view": false},
+               "prefs": {"offer_display": "table"}},
+ "negotiation": {"allow_moving_tools": false}}
+```
 
 ### `playground`
 
@@ -284,12 +335,15 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `max_tokens` | `2000` | Maximum answer length. |
 | `max_tool_iterations` | `10` | Maximum rounds of function calls per user message. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` | The sixteen capability switches: `chat`, `toast`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`. |
+| `capabilities` | all `true` | The seventeen capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`. |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |
 | `proactive.on_negotiation_ended` | `false` | Speak up when a negotiation ends. |
 | `system_prompt` | built in | The assistant's system prompt. |
+| `presentation.style` | `"panel"` | How the Assistant appears: `panel` (opened from the header), `persona` (a character in a corner of the screen), `both`, or `choice` (the participant picks in their settings). Phones always use the Assistant tab. See [The Assistant as a character](interface.md#the-assistant-as-a-character). |
+| `presentation.choice_default` | `"panel"` | What a participant starts with under `choice`. |
+| `presentation.persona_movable` | `true` | Whether participants may drag the character. |
 
 See [Assistant](assistant.md).
 
@@ -343,6 +397,7 @@ See [Autopilot](autopilot.md).
 | `HANI2_REPLAY_DIRS` | none | Extra folders of recordings shown in the replay tool (`os.pathsep`-separated). Set by `hani2 replay open PATHS`. |
 | `HANI2_LLM_LOG` | off | `1`, `true`, `yes` or `on` logs every LLM call opponents make. |
 | `HANI2_OLLAMA_LOCAL_BASE` | `http://localhost:11434` | The local Ollama daemon: the `ollama-local` connection, and the fallback entry after a remote Ollama in old settings. |
+| `HANI2_SETTINGS_OVERRIDES` | none | The [start-time settings file](#start-time-settings-file). Set by `--settings`. |
 | `HANI2_MODELS` | none | The start-time model list (`provider:model` or `connection:model`, comma separated); replaces the settings folder's model chains, loses to a project's or study's own. Set by `--models`. See [Models and connections](models.md). |
 | `HANI2_MODEL_PROBE` | `on` | `off` checks only a connection's credentials before using an entry (no network check). |
 | `HANI2_MODEL_PROBE_TIMEOUT` | `3` | Seconds a provider check may take. |

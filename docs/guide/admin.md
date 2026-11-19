@@ -31,7 +31,8 @@ See [Authentication](authentication.md). The `?admin=1` query parameter on the n
 | | Assistants | Assistant groups, your own Assistant classes, the pool participants get, and the balance per study. |
 | | Tools | Tool groups, the tools sessions are offered, where each tool goes in each view, and your own tools. |
 | Server | General | Title, public address, sign-in and OAuth (`env.json`). |
-| | Negotiation | Negotiation defaults (`env.json` → `negotiation`). |
+| | Negotiation | Timing, negotiation rules, scenarios and opponents of every session (`env.json` → `negotiation`), per layer. |
+| | Participant interface | What participants may change themselves, the defaults of their settings, moving tools, notifications (`env.json` → `interface`), per layer. |
 | | Tool settings | Which tools exist and to whom they go (`env.json` → `tools`). |
 | | Language model | `llm_settings.json`. |
 | | Assistant settings | `assistant_settings.json`. |
@@ -58,13 +59,13 @@ A setting can live in three places, called layers:
 - **a project**: `projects/<project>/`, for every study of that project;
 - **a study**: the study's folder, for that study only.
 
-A session reads each file from its study first, then its project, then the settings folder, then the bundled defaults (see [Configuration reference](configuration.md)).
+A session reads each file from its study first, then its project, then the [start-time settings file](configuration.md#start-time-settings-file) when the server was started with `--settings`, then the settings folder, then the bundled defaults (see [Configuration reference](configuration.md)). With a start-time file, the **All projects** layer says so: the values shown there include it, and what it sets wins over what you save in the settings folder (projects and studies still win over it).
 
 Pages whose settings can live in a layer start with an **Edit and save in** bar. Pick the layer there; it stays chosen while you move between pages. The page then shows the values in effect *at that layer*, and **Save** writes only the values you changed, and only into that layer's own file. A row whose value is set in the chosen project or study layer is marked **set here**; its ↺ button removes it from that layer, so the inherited value applies again. The bar at the bottom always says where the next save goes.
 
 When the console is opened inside a study (`/s/<project>/<study>/admin`), it starts with that study's layer chosen, and the bar names the study. It never saves to another layer behind your back: every read and write names its layer explicitly. (The API refuses a settings write that names no layer from inside a study; see the [admin API](projects.md#admin-api).)
 
-General is the exception: sign-in and identity apply to the whole server and are always saved in the settings folder.
+General and Connections are the exceptions: sign-in, identity and the model connections apply to the whole server and are always saved in the settings folder.
 
 Saved settings apply to sessions created after saving. Sessions already open keep their settings.
 
@@ -263,7 +264,26 @@ A provider is used when it has both a key and a secret and is not explicitly dis
 
 ## Negotiation
 
-`env.json` → `negotiation`, per layer: rounds (`n_steps`), time limit in seconds (`time_limit`, empty for none), the participant's role rule (`role_rule`), **Show the opponent's type** (`show_opponent_type`) and **Participants may choose the scenario** (`allow_scenario_selection`). The opponent pool and the scenario set have their own pages (links at the bottom).
+`env.json` → `negotiation`, per layer, so every project and study can have its own:
+
+| Group | Fields (keys) |
+| --- | --- |
+| Timing | Rounds (`n_steps`), time limit (`time_limit`), time per step (`step_time_limit`), negotiator time (`negotiator_time_limit`), end probability per step and per second (`pend`, `pend_per_second`). Empty means no limit. |
+| Negotiation rules | An empty offer ends the negotiation (`end_on_no_response`), messages without an offer (`allow_text_only_offers`), the opponent's messages (`allow_text_agent`), the participant's message field (`allow_text_human`), text-only mode (`text_only_mode`), writing a message when none is given (`auto_generate`), reading the offer out of a message (`auto_extract`), where the editor starts (`init_with_last`, `init_with_best`). |
+| Scenarios and opponents | Saved scenario pools (`load_existing`), generating when none is saved (`generate_on_failure`), the scenario set (`scenario_set`), the scenario order (`predefined_order`), participants choosing the scenario (`allow_scenario_selection`), the role rule, preferred roles and seat (`role_rule`, `human_roles`, `human_index`), showing the opponent's type (`show_opponent_type`), the opponent agents (`opponent_types`). |
+
+The links at the top open the opponent pool, the scenario sets and the Participant interface page. See [`negotiation`](configuration.md#negotiation) for every key.
+
+## Participant interface
+
+`env.json` → `interface` (and the two tool keys of `negotiation`), per layer:
+
+- **Participants may change**: one switch per participant setting: the display settings, **Layout for**, the theme, the layout view, and the Assistant's on/off switch, autonomy, abilities and delivery. Off: participants of that layer do not see the control and the server refuses the change (`interface.participant_settings.<key>`).
+- **Defaults of the participant's settings** (`interface.prefs.<key>`).
+- **Tools**: participants may move tools between panes (`negotiation.allow_moving_tools`) and switch them on and off (`negotiation.allow_tool_switch`).
+- **Notifications**: how long they stay (`interface.notifications.toast_seconds`) and the notification list in the header (`interface.notifications.center`).
+
+How the Assistant appears (panel, character, both or the participant's choice) is on the Assistant settings page. See [`interface`](configuration.md#interface).
 
 ## Tool settings
 
@@ -310,6 +330,7 @@ was skipped; with unsaved changes it tests those. See [Models and connections](m
 | Temperature, max tokens, tool steps per turn | `temperature`, `max_tokens`, `max_tool_iterations` |
 | Speaks up unprompted when a negotiation starts, it is the participant's turn, a negotiation ends | `proactive.on_negotiation_started`, `proactive.on_action_requested`, `proactive.on_negotiation_ended` |
 | System prompt | `system_prompt` |
+| The Assistant appears as: a panel, a character (persona), both, the participant chooses; the first choice; participants may move the character | `presentation.style` (`panel`, `persona`, `both`, `choice`), `presentation.choice_default`, `presentation.persona_movable` |
 
 Participants can narrow these permissions in their Assistant settings but never widen them. See [Assistant](assistant.md).
 
@@ -343,38 +364,10 @@ An administrator negotiating on `/app` (or on `/play` while logged in) gets more
 - The **Opponent for the next negotiation** picker, with suggestions from every opponent group. Leave it empty for a random opponent from the pool.
 - In the counter-offer editor: **Text only**, **Offer from message** and **Write message**.
 - Admin-only tools in the tool panes.
-- Extra sections in the settings drawer.
+- Every participant setting in **My settings**, marked when the current project or study hides it from participants.
 
 The opponent picker and the opponent's name are also available in admin mode (`?admin=1`) without an admin account. The other controls are not.
 
-### The admin settings drawer
+### Session settings are in Administration
 
-The gear button opens the settings drawer. Below the display settings, administrators see four more sections. They change the current session only; most take effect at the next negotiation. "Server-wide defaults are in Administration."
-
-| Section | Setting | Key | Default |
-| --- | --- | --- | --- |
-| Timing | Rounds | `n_steps` | 100 |
-| | Time limit (s) | `time_limit` | 300 (none for admins) |
-| | Time per step (s) | `step_time_limit` | none |
-| | Negotiator time (s) | `negotiator_time_limit` | none |
-| | End probability per step | `pend` | 0 |
-| | End probability per second | `pend_per_second` | 0 |
-| Negotiation rules | An empty offer ends the negotiation | `end_on_no_response` | off |
-| | Allow messages without an offer | `allow_text_only_offers` | on |
-| | Show messages from the opponent | `allow_text_agent` | on |
-| | Let the participant write messages | `allow_text_human` | on |
-| | Text-only mode | `text_only_mode` | off |
-| | Write a message when none is given (uses the LLM) | `auto_generate` | off |
-| | Start the editor from my last offer | `init_with_last` | on |
-| | Otherwise start from my best outcome | `init_with_best` | on |
-| Scenarios and opponents | Use saved scenario pools (off: generate a fresh scenario each time) | `load_existing` | on (off in the playground) |
-| | Follow the scenario order | `predefined_order` | on (off in the playground) |
-| | Participants may choose the scenario | `allow_scenario_selection` | off |
-| | Show the opponent agent's type | `show_opponent_type` | off (on for admins) |
-| | Opponent agents (comma separated) | `opponent_types` | empty |
-| Tools | Tools can be switched on and off | `allow_tool_switch` | on |
-| | Tools can be moved between panes | `allow_moving_tools` | on |
-
-Three further per-session keys exist but have no control in the drawer: `human_index` (which negotiator seat the participant takes, default 1), `auto_extract` (fill the offer from the message with the LLM before sending, default off) and `generate_on_failure` (generate a scenario when loading one fails, default on).
-
-Every key in this table can also be given a server-wide default under `"negotiation"` in `env.json`. The bundled `env.json` sets `n_steps` to 100 and `time_limit` to 300. See [Configuration reference](configuration.md).
+The settings drawer of the negotiation page (**My settings**) holds only what the current user may change for themselves. Timing, negotiation rules, scenarios and opponents, tools and what participants may change are set in Administration, on the [Negotiation](#negotiation) and [Participant interface](#participant-interface) pages, for all projects, one project or one study. They apply to sessions created after saving; an admin who wants to try a setting opens a new session after saving it.

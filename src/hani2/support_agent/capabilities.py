@@ -23,6 +23,7 @@ class Capability(str, Enum):
 
     CHAT = "chat"
     TOAST = "toast"
+    PIN = "pin"
     TOOL_ENABLE = "tool_enable"
     TOOL_VISIBILITY = "tool_visibility"
     TOOL_ORDER = "tool_order"
@@ -42,7 +43,8 @@ class Capability(str, Enum):
 #: Human-readable labels / descriptions (used by the settings screens).
 CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "chat": ("Chat", "Talk with you in the assistant panel and ask you questions"),
-    "toast": ("Notifications", "Pop up short notifications"),
+    "toast": ("Notifications", "Pop up short notifications (you can read them all later in the notifications list)"),
+    "pin": ("Pinned messages", "Pin messages above or below the negotiation; the screen makes room for them"),
     "tool_enable": ("Enable tools", "Switch analysis tools on or off"),
     "tool_visibility": ("Show / hide tools", "Show, hide and focus tool tabs"),
     "tool_order": ("Rearrange tools", "Reorder tools and move them between panes"),

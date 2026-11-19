@@ -1,9 +1,9 @@
-import { Activity, Bot, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
+import { Activity, Bot, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
 import type { PageDef } from "../types";
 import { entriesOf } from "../schema";
 import { Analytics, Overview, Results } from "./Activity";
 import { Users } from "./Users";
-import { ASSISTANT_GROUPS, AUTOPILOT, AssistantSettings, Autopilot, GENERAL, General, LLM, LLM_GROUPS, NEGOTIATION, Negotiation, TOOLS_BASE, Tools, abilityEntries, toolEntries } from "./SettingsPages";
+import { ASSISTANT_GROUPS, AUTOPILOT, AssistantSettings, Autopilot, GENERAL, General, INTERFACE, Interface, LLM, LLM_GROUPS, NEGOTIATION, Negotiation, TOOLS_BASE, Tools, abilityEntries, interfaceEntries, toolEntries } from "./SettingsPages";
 import { Texts, TEXT_KINDS } from "./Texts";
 import { PROJECT_ENTRIES, Projects } from "./Projects";
 import { CONNECTION_ENTRIES, Connections } from "./Connections";
@@ -37,7 +37,8 @@ export const PAGES: PageDef[] = [
   { id: "tool-library", title: "Tools", icon: Wrench, color: "bg-warn", group: "Library", subtitle: "The tools of the negotiation screen: groups, the tools sessions are offered, where each goes in each view, and your own tools.", entries: [...explorerEntries("tools", "tool", "Tool group"), { id: "tool-offer", label: "Tools offered to sessions", hint: "Which tools and tool groups a layer offers (tools.yaml offer)", keywords: "offer tools.yaml" }, { id: "tool-placement", label: "Tool placement in each view", hint: "Pane, order, shown or hidden per view (full, simple, focus)", keywords: "placement pane order visible hidden view full simple focus layout" }], aliases: ["library-tools", "placement"] },
 
   { id: "general", title: "General", icon: Settings, color: "bg-muted", group: "Server", aliases: ["server"], entries: entriesOf(GENERAL), Component: General },
-  { id: "negotiation", title: "Negotiation", icon: Handshake, color: "bg-good", group: "Server", entries: entriesOf(NEGOTIATION), Component: Negotiation },
+  { id: "negotiation", title: "Negotiation", icon: Handshake, color: "bg-good", group: "Server", subtitle: "Timing, rules, scenarios and opponents of every session; per layer, so each project and study can have its own.", entries: entriesOf(NEGOTIATION), Component: Negotiation },
+  { id: "interface", title: "Participant interface", icon: MonitorCog, color: "bg-you", group: "Server", subtitle: "What participants may change themselves (their settings, tools, the Assistant), their defaults, and notifications; per layer.", aliases: ["participant", "permissions"], entries: entriesOf(INTERFACE), dynamicEntries: interfaceEntries, Component: Interface },
   { id: "tools", title: "Tool settings", icon: Wrench, color: "bg-muted", group: "Server", entries: entriesOf(TOOLS_BASE), dynamicEntries: toolEntries, Component: Tools },
   { id: "connections", title: "Connections", icon: Plug, color: "bg-[#0f766e]", group: "Language models", subtitle: "Connect to model providers and agent harnesses: API keys and local servers. Shared by every project and study.", entries: CONNECTION_ENTRIES, aliases: ["providers"], Component: Connections },
   { id: "models", title: "Models", icon: ListOrdered, color: "bg-[#8b5cf6]", group: "Language models", subtitle: "The models to try, in order, for each purpose; per layer, so a project or study can use its own.", entries: MODEL_ENTRIES, aliases: ["model-chain", "chain"], Component: Models },

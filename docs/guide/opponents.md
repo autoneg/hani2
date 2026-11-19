@@ -126,7 +126,7 @@ When a negotiation starts, HANI2 builds the pool from the first source in this l
 
 1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
 2. The `--opponents` option of `hani2` (stored in the `HANI2_OPPONENTS` environment variable).
-3. The per-session *Opponent agents* setting in the admin settings drawer.
+3. The *Opponent agents* setting (`env.json → negotiation → opponent_types`, on the admin console's Negotiation page, per layer).
 4. The `opponents` list in `env.json`, also editable as *Opponents participants face* on the *Opponents* page of the admin console (which also writes a project's or study's `opponents`).
 5. The default pool: the four template-based talking negotiators (`:template`).
 
@@ -194,7 +194,7 @@ together with different values; HANI2 refuses to start and says to keep `--oppon
 
 When a session is in admin mode, the start screen shows a field labelled *Opponent for the next negotiation*. It suggests every agent in the groups offered to admins (`llm`, `template`, `notext`, `negmas`, `classic`, `genius`), but you can type any spec. Leave it empty to draw from the pool. The choice stays in place for later negotiations in the same session until you clear it.
 
-Admin sessions also show the opponent's name in the interface. For other participants, the opponent's type stays hidden unless the admin turns on *Show the opponent's type* in the settings drawer. See [Admin console](admin.md) and [Authentication](authentication.md) for how a session enters admin mode.
+Admin sessions also show the opponent's name in the interface. For other participants, the opponent's type stays hidden unless the admin turns on *Show the opponent's type* on the Negotiation page of the admin console (per layer). See [Admin console](admin.md) and [Authentication](authentication.md) for how a session enters admin mode.
 
 ## What HANI2 does to an opponent
 

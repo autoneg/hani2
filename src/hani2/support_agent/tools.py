@@ -42,6 +42,8 @@ class ToolDispatcher:
         self._registry: dict[str, tuple[Capability | None, Callable, Callable]] = {
             "send_toast": (Capability.TOAST, self._send_toast, self._schema_send_toast),
             "show_on_board": (None, self._show_on_board, self._schema_show_on_board),
+            "pin_message": (Capability.PIN, self._pin_message, self._schema_pin_message),
+            "unpin_message": (Capability.PIN, self._unpin_message, self._schema_unpin_message),
             "list_tools": (None, self._list_tools, self._schema_list_tools),
             "set_tool_enabled": (
                 Capability.TOOL_ENABLE,
@@ -213,6 +215,50 @@ class ToolDispatcher:
                 },
             },
             ["content"],
+        )
+
+    # ------------------------------------------------------------------ #
+    # Pinned messages                                                     #
+    # ------------------------------------------------------------------ #
+    def _pin_message(self, args: dict) -> dict:
+        r = self.runtime.pin_message(
+            str(args.get("text", "")),
+            position=str(args.get("position", "top")).lower(),
+            level=str(args.get("level", "info")).lower(),
+            pin_id=(str(args["id"]) if args.get("id") else None),
+            dismissible=bool(args.get("dismissible", True)),
+        )
+        _log_agent_action(self.ss, "pin_message", str(args.get("text", ""))[:80])
+        return r
+
+    def _schema_pin_message(self) -> dict:
+        return _fn(
+            "pin_message",
+            "Pin a short message (markdown) at the top or bottom of the human's screen. It stays "
+            "until you unpin it (or the human dismisses it) and the rest of the screen shrinks to "
+            "make room, so nothing is covered. Use it for something the human must keep in view "
+            "(a deadline, a warning, your key advice). Give an id to update the same pin later.",
+            {
+                "text": {"type": "string", "description": "Markdown to show."},
+                "position": {"type": "string", "enum": ["top", "bottom"], "description": "Above or below the negotiation (default top)."},
+                "level": {"type": "string", "enum": ["info", "success", "warning", "error"]},
+                "id": {"type": "string", "description": "Optional id; reusing it replaces that pin."},
+                "dismissible": {"type": "boolean", "description": "Whether the human may close it (default true)."},
+            },
+            ["text"],
+        )
+
+    def _unpin_message(self, args: dict) -> dict:
+        r = self.runtime.unpin_message(str(args["id"]) if args.get("id") else None)
+        _log_agent_action(self.ss, "unpin_message", str(args.get("id") or "all"))
+        return r
+
+    def _schema_unpin_message(self) -> dict:
+        return _fn(
+            "unpin_message",
+            "Remove a pinned message by its id, or every pinned message when no id is given.",
+            {"id": {"type": "string", "description": "The pin to remove (omit for all)."}},
+            [],
         )
 
     # ------------------------------------------------------------------ #

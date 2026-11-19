@@ -104,7 +104,8 @@ export const useStore = create<Store>((set, get) => ({
     if (!fromServer) hooks.toast?.({ message: t.message, level: t.level });
     const id = toastId++;
     set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id }] }));
-    const d = t.duration === undefined || t.duration === null ? (t.level === "error" ? 9000 : 5000) : t.duration;
+    const base = get().state?.interface?.toast_ms ?? 5000;
+    const d = t.duration === undefined || t.duration === null ? (t.level === "error" && base > 0 ? Math.max(base, 9000) : base) : t.duration;
     if (d > 0) window.setTimeout(() => get().dropToast(id), d);
   },
   dropToast: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
@@ -182,7 +183,7 @@ export const useStore = create<Store>((set, get) => ({
           set((s) => (s.state ? { state: { ...s.state, draft: { ...s.state.draft, text: msg.text } }, draftVersion: s.draftVersion + 1 } : {}));
           break;
         case "toast":
-          get().pushToast({ message: msg.message, level: msg.level, duration: msg.duration, action: msg.action }, true);
+          get().pushToast({ message: msg.message, level: msg.level, duration: msg.duration, action: msg.action, source: msg.source }, true);
           break;
         case "confirm":
           set({ confirm: { kind: msg.kind, message: msg.message } });

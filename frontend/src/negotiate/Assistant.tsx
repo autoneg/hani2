@@ -5,6 +5,7 @@ import type { AgentPanel, SessionState } from "../types";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
+import { mayAdjust } from "./SettingsDrawer";
 
 const AUTONOMY = [
   { v: "suggest", label: "Suggest", hint: "Fills fields and points at buttons; you act" },
@@ -36,8 +37,10 @@ export function PanelView({ p }: { p: AgentPanel }) {
 
 function Controls({ st }: { st: SessionState }) {
   const sup = st.support!;
+  const may = (k: string) => mayAdjust(st, k);
   return (
     <div className="flex flex-col gap-4 text-sm">
+      {may("assistant_autonomy") && (
       <div>
         <div className="mb-1.5 font-semibold">How much may the assistant do?</div>
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-sunken p-0.5">
@@ -53,6 +56,8 @@ function Controls({ st }: { st: SessionState }) {
         </div>
         <div className="mt-1 text-xs text-muted">{AUTONOMY.find((a) => a.v === sup.autonomy.effective)?.hint}</div>
       </div>
+      )}
+      {may("assistant_abilities") && (
       <div>
         <div className="mb-1.5 font-semibold">Abilities</div>
         <div className="flex flex-col divide-y divide-line rounded-lg border border-line">
@@ -69,6 +74,8 @@ function Controls({ st }: { st: SessionState }) {
             ))}
         </div>
       </div>
+      )}
+      {may("assistant_delivery") && (
       <div>
         <div className="mb-1.5 font-semibold">Unprompted messages appear as</div>
         <div className="inline-flex rounded-lg bg-sunken p-0.5">
@@ -83,6 +90,7 @@ function Controls({ st }: { st: SessionState }) {
           ))}
         </div>
       </div>
+      )}
       <button className="btn-ghost w-fit" onClick={() => send({ type: "support", op: "reset" })}>
         <Eraser size={14} /> Clear the conversation
       </button>
@@ -120,11 +128,11 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
           <div className="text-sm font-semibold">{sup.name}</div>
           <div className="text-xs text-muted">{!sup.enabled ? "Switched off" : sup.busy ? "Working…" : "Ready to help"}</div>
         </div>
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
+        {mayAdjust(st, "assistant_switch") && <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted">
           <input type="checkbox" role="switch" className="peer sr-only" checked={sup.enabled} onChange={(e) => send({ type: "support", op: "enable", value: e.target.checked })} />
           <span className="relative h-4 w-7 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-surface after:transition-transform peer-checked:bg-good peer-checked:after:translate-x-3" />
           <span className="sr-only">Assistant on</span>
-        </label>
+        </label>}
         <button className="btn-ghost px-1.5" aria-label="Assistant settings" onClick={() => setSettings(true)}>
           <SlidersHorizontal size={16} />
         </button>

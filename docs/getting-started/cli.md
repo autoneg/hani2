@@ -37,6 +37,7 @@ Starts the HANI2 server: the app, the playground, the admin console and the API 
 | `--scenario-types` | none | Python files or modules that register extra scenario types, comma separated. Sets `HANI2_SCENARIO_TYPES`. See [Writing your own scenario type](../guide/scenarios.md#writing-your-own-scenario-type). |
 | `--scenarios` | the settings' scenarios folder | A folder of saved scenarios to serve. Sets `HANI2_SCENARIOS_BASE`. |
 | `--models` | none | Language models to try in order, as a comma-separated `provider:model` (or `connection:model`) list, e.g. `anthropic:claude-sonnet-5-5,ollama:qwen3:4b`. Replaces the settings folder's model chains for every purpose; a project's or study's own chain still wins. Sets `HANI2_MODELS`. See [Models and connections](../guide/models.md). |
+| `--settings` | none | A YAML file of settings that override the settings folder: top-level `env`, `llm`, `assistant`, `autopilot` and `models` keys override that file, any other key (`negotiation`, `interface`, `tools`, …) is a key of `env.json`. Applies to the playground and to sessions outside a project or study; a project's or study's own settings still win. Sets `HANI2_SETTINGS_OVERRIDES`. See [Start-time settings file](../guide/configuration.md#start-time-settings-file). |
 | `--browser` / `--no-browser` | `--browser` | Open the browser once the server answers. |
 | `--page` | `app` | Page to open in the browser: `app`, `play` or `admin`. |
 | `--verbose` / `--no-verbose` | off | Ask negotiators to print what they do (sets `HANI2_VERBOSE=1`). Opponents whose constructor accepts `verbose` get `verbose=True`. |
@@ -51,7 +52,8 @@ The old names `--support-agent`, `--no-support-agent`, `--agents`, `--experiment
 - `--assistant off`, `--no-assistant` or `--no-support-agent` (its old name) together with `--assistants`, or `--no-assistant` together with `--assistant on|auto|<class>`;
 - a new name together with its old name: `--assistant` and `--support-agent`, `--study` and `--experiment`, `--opponents` and `--agents`, `--scenario-set` and `--set`;
 - an option that contradicts the environment, for example `--assistant <class>` while `HANI2_ASSISTANTS` is set, or `--models` while `HANI2_MODELS` holds a different list;
-- a `--models` list that cannot be read.
+- a `--models` list that cannot be read;
+- a `--settings` file that is missing or is not a mapping.
 
 The same environment pairs are refused when the server starts without the command line (see [Confusing combinations](../guide/configuration.md#confusing-combinations)).
 

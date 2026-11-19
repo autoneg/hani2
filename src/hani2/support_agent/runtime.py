@@ -169,7 +169,22 @@ class SupportAgent:
         if not self.capabilities.has(Capability.TOAST):
             self.post(message)
             return False
-        return self.session.toast(message, level)
+        return self.session.toast(message, level, source="assistant")
+
+    def pin_message(self, text: str, position: str = "top", level: str = "info", pin_id: str | None = None,
+                    dismissible: bool = True) -> dict:
+        """Pin a markdown message above (``top``) or below (``bottom``) the negotiation (needs the
+        ``pin`` capability). The screen shrinks to make room, so nothing is covered. Reusing a
+        ``pin_id`` replaces that pin. Returns ``{"ok", "id"}``."""
+        if not self.capabilities.has(Capability.PIN):
+            return {"ok": False, "error": "pinning messages is not allowed"}
+        return self.session.pin(text, position=position, level=level, pin_id=pin_id, dismissible=dismissible)
+
+    def unpin_message(self, pin_id: str | None = None) -> dict:
+        """Remove a pinned message (``None``: all of them)."""
+        if not self.capabilities.has(Capability.PIN):
+            return {"ok": False, "error": "pinning messages is not allowed"}
+        return self.session.unpin(pin_id, by="assistant")
 
     def show_on_board(self, text: str, append: bool = False) -> bool:
         """Write markdown to the always-visible status board."""

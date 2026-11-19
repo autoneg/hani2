@@ -98,7 +98,7 @@ A *scenario set* is a named, ordered list of scenario types. The active set deci
 
 The active set is chosen by, first hit wins:
 
-1. The admin's session setting: *Scenario set* in the settings drawer, or the set picker on the start screen (admins only).
+1. The set picker on the start screen (admins only).
 2. The `HANI2_SCENARIO_SET` environment variable, which `hani2 --scenario-set NAME` sets.
 3. `env.json` → `negotiation` → `scenario_set`.
 4. `Custom`, when `scenario_order.txt` was changed from the bundled default.

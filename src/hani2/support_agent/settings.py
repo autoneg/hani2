@@ -72,6 +72,7 @@ except Exception:  # pragma: no cover
 DEFAULT_CAPABILITIES: dict[str, bool] = {
     "chat": True,
     "toast": True,
+    "pin": True,
     "tool_enable": True,
     "tool_visibility": True,
     "tool_order": True,
@@ -118,7 +119,8 @@ add_tool you can put a new tool on their screen (choose from list_tools → can_
 would help them right now.
 
 You also have an always-visible status board; keep your current recommendation there with \
-show_on_board. Be concise and helpful."""
+show_on_board. With pin_message you can pin a short message above or below the negotiation \
+(the screen makes room for it) and remove it again with unpin_message. Be concise and helpful."""
 
 DEFAULT_ASSISTANT_SETTINGS: dict[str, Any] = {
     "mode": "on",
@@ -136,6 +138,10 @@ DEFAULT_ASSISTANT_SETTINGS: dict[str, Any] = {
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
     # tool classes (module:Class or path/to/file.py:Class) the agent may add
     "toolbox": [],
+    # how the Assistant appears: style panel (opened from the header), persona (a movable
+    # character in the corner that notifications come out of), both, or choice (the
+    # participant picks; choice_default first)
+    "presentation": {"style": "panel", "choice_default": "panel", "persona_movable": True},
 }
 
 

@@ -12,6 +12,7 @@
   "capabilities": {
     "chat": true,
     "toast": true,
+    "pin": true,
     "tool_enable": true,
     "tool_visibility": true,
     "tool_order": true,
@@ -32,5 +33,10 @@
     "on_action_requested": false,
     "on_negotiation_ended": false
   },
-  "toolbox": []
+  "toolbox": [],
+  "presentation": {
+    "style": "panel",
+    "choice_default": "panel",
+    "persona_movable": true
+  }
 }

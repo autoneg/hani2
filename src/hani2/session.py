@@ -58,7 +58,40 @@ USER_PREFS: dict[str, Any] = {
     "last_offer_on_top": False,
     "offer_display": "text",  # text | table
     "font_scale": 1.0,
+    # how the Assistant appears when the admin lets the participant choose: panel | persona | both
+    "assistant_presentation": None,
 }
+
+#: What a participant may adjust in their own settings (env.json → interface.participant_settings,
+#: per layer). Keys of USER_PREFS are gated by the same name; the others are controls of the page.
+PARTICIPANT_SETTINGS: dict[str, tuple[str, str]] = {
+    "show_history": ("Show the whole history", "Off: only the latest offer stays visible"),
+    "show_human_offers": ("Show my offers in the history", ""),
+    "last_offer_on_top": ("Newest offer on top", ""),
+    "offer_panel_always_visible": ("Keep the offer editor open", ""),
+    "offer_display": ("Offers shown as sentences or issue chips", ""),
+    "font_scale": ("Text size", ""),
+    "device": ("Layout for phone, tablet or desktop", ""),
+    "theme": ("Light or dark theme", ""),
+    "layout_view": ("Full, simple or focus view", "The layout menu in the header"),
+    "assistant_switch": ("Switch the Assistant on and off", ""),
+    "assistant_autonomy": ("How much the Assistant may do", "Only lower than the admin's grant"),
+    "assistant_abilities": ("The Assistant's abilities", "Only switch off abilities the admin granted"),
+    "assistant_delivery": ("Where unprompted Assistant messages appear", ""),
+}
+
+#: Defaults of env.json → interface (participant-facing behaviour; layered like every env.json key).
+DEFAULT_INTERFACE: dict[str, Any] = {
+    "participant_settings": {k: True for k in PARTICIPANT_SETTINGS},
+    # defaults of the participant's own settings (USER_PREFS keys)
+    "prefs": {},
+    "notifications": {"toast_seconds": 6, "center": True},
+}
+
+#: How many notifications a session keeps for the notification centre.
+MAX_NOTIFICATIONS = 200
+#: Where pinned messages go.
+PIN_POSITIONS = ("top", "bottom")
 
 #: Per-session settings only admins may change (defaults may be overridden in
 #: env.json → "negotiation").
@@ -222,6 +255,7 @@ class NegotiationSession:
         self.admin_prefs.update(
             {PREF_ALIASES.get(k, k): v for k, v in (get_env("negotiation", {}) or {}).items()}
         )
+        self.prefs.update({k: v for k, v in self.interface_policy()["prefs"].items() if k in USER_PREFS})
         self._apply_study_defaults()
         if os.environ.get("HANI2_SCENARIO_SET"):
             self.admin_prefs["scenario_set"] = os.environ["HANI2_SCENARIO_SET"]
@@ -237,6 +271,11 @@ class NegotiationSession:
         self.history: list[dict[str, Any]] = []
         self.chat: list[dict[str, Any]] = []
         self.board: str = ""
+        #: messages pinned above or below the negotiation ({id, text, position, level, source, dismissible})
+        self.pins: list[dict[str, Any]] = []
+        #: every notification shown this session, oldest first (the notification centre)
+        self.notifications: list[dict[str, Any]] = []
+        self._notification_seq = 0
         self.highlights: list[dict[str, Any]] = []
         self.annotations: dict[str, dict[str, Any]] = {}
         self.agent_panels: list[dict[str, Any]] = []
@@ -381,9 +420,112 @@ class NegotiationSession:
         if self.hub is not None:
             self.hub.push_state(self.sid)
 
-    def toast(self, message: str, level: str = "info", duration: int | None = None, action: dict | None = None) -> bool:
-        self.emit({"type": "toast", "message": str(message), "level": level, "duration": duration, "action": action})
+    def toast(self, message: str, level: str = "info", duration: int | None = None, action: dict | None = None,
+              source: str = "system") -> bool:
+        """A notification that pops up and disappears (``duration`` ms; ``None``: the layer's
+        ``interface.notifications.toast_seconds``; 0: stays until dismissed). Every notification
+        is also kept for the notification centre. ``source``: ``system`` or ``assistant``."""
+        with self.lock:
+            self._notification_seq += 1
+            note = {"id": self._notification_seq, "message": str(message), "level": level, "source": source,
+                    "time": time.time()}
+            self.notifications.append(note)
+            del self.notifications[:-MAX_NOTIFICATIONS]
+        self.emit({"type": "toast", "message": str(message), "level": level, "duration": duration, "action": action,
+                   "source": source, "id": note["id"]})
+        self.push_state()
         return True
+
+    def clear_notifications(self) -> dict:
+        with self.lock:
+            self.notifications = []
+        self.push_state()
+        return {"ok": True}
+
+    # ------------------------------------------------------------------ #
+    # Pinned messages                                                     #
+    # ------------------------------------------------------------------ #
+    def pin(self, text: str, position: str = "top", level: str = "info", pin_id: str | None = None,
+            dismissible: bool = True, source: str = "assistant") -> dict:
+        """Pin a markdown message above (``top``) or below (``bottom``) the negotiation. The rest
+        of the screen shrinks to make room, so nothing is covered. The same ``pin_id`` replaces
+        that pin. Returns ``{"ok", "id"}``."""
+        text = str(text or "").strip()
+        if not text:
+            return {"ok": False, "error": "text is required"}
+        if position not in PIN_POSITIONS:
+            return {"ok": False, "error": "position must be top or bottom"}
+        level = level if level in ("info", "success", "warning", "error") else "info"
+        with self.lock:
+            pid = str(pin_id or f"pin{len(self.pins) + 1}-{uuid.uuid4().hex[:4]}")[:40]
+            item = {"id": pid, "text": text, "position": position, "level": level, "source": source,
+                    "dismissible": bool(dismissible)}
+            for i, p in enumerate(self.pins):
+                if p["id"] == pid:
+                    self.pins[i] = item
+                    break
+            else:
+                self.pins.append(item)
+                del self.pins[:-8]
+        self.push_state()
+        return {"ok": True, "id": pid}
+
+    def unpin(self, pin_id: str | None = None, *, by: str = "assistant") -> dict:
+        """Remove one pin (``None``: every pin). The participant may remove dismissible pins only."""
+        with self.lock:
+            before = len(self.pins)
+            self.pins = [p for p in self.pins if not (
+                (pin_id is None or p["id"] == pin_id) and (by != "human" or p["dismissible"]))]
+            removed = before - len(self.pins)
+        if removed:
+            self.push_state()
+        return {"ok": bool(removed), "removed": removed}
+
+    # ------------------------------------------------------------------ #
+    # What the participant may adjust                                     #
+    # ------------------------------------------------------------------ #
+    def interface_policy(self) -> dict[str, Any]:
+        """env.json → ``interface`` as it applies to this session's layer (study > project >
+        start-time overrides > settings folder > defaults)."""
+        from hani2.config import _deep_merge
+
+        with projects.use_study(self.study_ref):
+            raw = get_env("interface", {}) or {}
+        pol = _deep_merge(DEFAULT_INTERFACE, raw if isinstance(raw, dict) else {})
+        ps = pol.get("participant_settings")
+        pol["participant_settings"] = {k: bool((ps or {}).get(k, True)) for k in PARTICIPANT_SETTINGS}
+        if not isinstance(pol.get("prefs"), dict):
+            pol["prefs"] = {}
+        return pol
+
+    def may_adjust(self, key: str, policy: dict | None = None) -> bool:
+        """Whether the participant may change ``key`` (a PARTICIPANT_SETTINGS key). Admins may change everything."""
+        if self.is_admin:
+            return True
+        pol = policy or self.interface_policy()
+        return bool(pol["participant_settings"].get(key, key not in PARTICIPANT_SETTINGS))
+
+    def assistant_presentation(self) -> dict[str, Any]:
+        """How the Assistant appears: ``style`` (panel | persona | both), whether the participant
+        chooses (assistant_settings.json → ``presentation``) and whether the persona can be moved."""
+        sa = getattr(self, "support_agent", None)
+        try:
+            from hani2.support_agent.settings import load_assistant_settings
+
+            if sa is not None:
+                pres = sa.settings.get("presentation") or {}
+            else:
+                with projects.use_study(self.study_ref):
+                    pres = load_assistant_settings().get("presentation") or {}
+        except Exception:  # noqa: BLE001
+            pres = {}
+        style = str(pres.get("style") or "panel")
+        choice = style == "choice"
+        if choice:
+            style = str(self.prefs.get("assistant_presentation") or pres.get("choice_default") or "panel")
+        if style not in ("panel", "persona", "both"):
+            style = "panel"
+        return {"style": style, "choice": choice, "movable": bool(pres.get("persona_movable", True))}
 
     def utility(self, outcome) -> float | None:
         if outcome is None or self.human_ufun is None:
@@ -685,6 +827,11 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     def set_pref(self, key: str, value: Any) -> bool:
         key = PREF_ALIASES.get(key, key)
+        if key == "assistant_presentation":
+            if not (self.assistant_presentation()["choice"] or self.is_admin) or value not in ("panel", "persona", "both"):
+                return False
+        elif key in USER_PREFS and not self.may_adjust(key):
+            return False
         with self.lock:
             if key in USER_PREFS:
                 self.prefs[key] = value
@@ -767,6 +914,7 @@ class NegotiationSession:
             self.annotations = {}
             self.agent_panels = []
             self.board = ""
+            self.pins = []
             self.phase = "ready"
         if self.recorder is not None:
             self.recorder.begin()
@@ -1997,6 +2145,9 @@ class NegotiationSession:
                 "layout": dict(self.layout),
                 "agent_panels": list(self.agent_panels),
                 "board": self.board,
+                "pins": [dict(p) for p in self.pins],
+                "notifications": [dict(n) for n in self.notifications[-100:]],
+                "interface": self._interface_state(),
                 "chat": list(self.chat),
                 "pending_question": self.pending_question,
                 "support": sa.client_state() if sa is not None else None,
@@ -2016,6 +2167,23 @@ class NegotiationSession:
                 "next_opponent": self.next_opponent if self.admin_mode else None,
             }
         return snap
+
+    def _interface_state(self) -> dict[str, Any]:
+        """What the browser needs to show only what the participant may adjust."""
+        pol = self.interface_policy()
+        notes = pol.get("notifications") or {}
+        try:
+            secs = float(notes.get("toast_seconds", 6))
+        except (TypeError, ValueError):
+            secs = 6.0
+        return {
+            "participant_settings": {k: self.may_adjust(k, pol) for k in PARTICIPANT_SETTINGS},
+            "hidden_from_participants": [k for k, v in pol["participant_settings"].items() if not v],
+            "toast_ms": int(max(0.0, secs) * 1000),
+            "notification_center": bool(notes.get("center", True)),
+            "assistant": self.assistant_presentation(),
+            "move_tools": bool(self.admin_prefs.get("allow_moving_tools", True)),
+        }
 
     def tool_maximize_mode(self) -> str:
         """How an enlarged tool opens: ``window`` (a large dialog), ``fullscreen``

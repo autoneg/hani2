@@ -40,8 +40,13 @@ def admin_layers(request: Request):
         out.append(d)
     bound = getattr(request.state, "hani2_study", None)
     default = projects.default_study()
+    from hani2.config import overrides, overrides_path
+
+    ov = overrides_path()
     return {"layers": out, "bound": f"study:{bound}" if bound else None,
-            "default_study": str(default) if default else None}
+            "default_study": str(default) if default else None,
+            # the start-time settings file (hani2 --settings): it wins over the settings folder
+            "overrides": {"path": str(ov), "files": sorted(overrides())} if ov else None}
 
 
 # --------------------------------------------------------------------------- #

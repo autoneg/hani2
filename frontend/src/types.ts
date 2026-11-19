@@ -159,6 +159,9 @@ export interface SessionState {
   layout: { view: "full" | "simple" | "focus"; sizes?: Record<string, number>; collapsed?: string[] };
   agent_panels: AgentPanel[];
   board: string;
+  pins?: Pin[];
+  notifications?: NotificationItem[];
+  interface?: InterfaceState;
   chat: ChatMessage[];
   pending_question: null | { id: string; question: string; options: string[] };
   support: SupportState | null;
@@ -191,4 +194,35 @@ export interface Toast {
   level: "info" | "success" | "warning" | "error";
   duration?: number | null;
   action?: { label: string; kind: string } | null;
+  /** system | assistant (assistant toasts come out of the persona when it is shown) */
+  source?: string;
+}
+
+/** A message pinned above or below the negotiation (the screen makes room for it). */
+export interface Pin {
+  id: string;
+  text: string;
+  position: "top" | "bottom";
+  level: "info" | "success" | "warning" | "error";
+  source: string;
+  dismissible: boolean;
+}
+
+/** A notification kept for the notification centre. */
+export interface NotificationItem {
+  id: number;
+  message: string;
+  level: "info" | "success" | "warning" | "error";
+  source: string;
+  time: number;
+}
+
+/** What the participant may adjust and how the Assistant appears (per layer). */
+export interface InterfaceState {
+  participant_settings: Record<string, boolean>;
+  hidden_from_participants: string[];
+  toast_ms: number;
+  notification_center: boolean;
+  assistant: { style: "panel" | "persona" | "both"; choice: boolean; movable: boolean };
+  move_tools: boolean;
 }

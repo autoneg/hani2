@@ -378,6 +378,17 @@ def sources(include_legacy: bool = True) -> list[Source]:
         start = []
     if start:
         out.append(Source("start", {"default": start}))
+    from hani2.config import override_for
+
+    ov = override_for(FILE)
+    if ov:
+        try:
+            chains = parse_chains(ov, strict=False)
+        except ChainError as e:
+            print(f"[hani2] ERROR: the settings overrides (models): {e}; ignoring them")
+            chains = {}
+        if chains:
+            out.append(Source("overrides", chains))
     view = _VIEW.get()
     if not (view and view[1]):
         f = settings_dir() / FILE

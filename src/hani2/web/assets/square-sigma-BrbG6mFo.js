@@ -1,0 +1,1 @@
+import{c as e}from"./index-D-TXXiV_.js";const a={name:"square-sigma",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M16 8.9V7H8l4 5-4 5h8v-1.9",key:"9nih0i"}]],aliases:["sigma-square"]};a.node;const t=e(a);export{a as __iconData,t as default};

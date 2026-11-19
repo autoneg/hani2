@@ -22,8 +22,9 @@ From left to right the header shows:
 - the scenario title, "You are the ⟨role⟩", the round label ("Negotiation 2", or "Practice negotiation" in a Prolific practice round), the opponent's name when it may be shown, and an **Admin** badge for administrators;
 - the timer: a progress bar, the time left (or "No limit"), and "Round n of N". The timer turns red in the last ten seconds;
 - the **Autopilot** button and driver selector, when autopilot is allowed (see [Autopilot](autopilot.md));
-- the **Assistant** button, when an Assistant is attached to the session. Its dot is green when the assistant is on, amber while it works and grey when it is off;
-- the layout menu, the settings button, the theme button (system, light, dark), and the account menu with your name, a link to **Administration** for admins, and **Log out** on `/app`.
+- the **Assistant** button, when an Assistant is attached to the session and it appears as a panel (see [The Assistant as a character](#the-assistant-as-a-character)). Its dot is green when the assistant is on, amber while it works and grey when it is off;
+- the notifications bell, with the number of unread notifications (see [Notifications](#notifications));
+- the layout menu, the **My settings** button, the theme button (system, light, dark), and the account menu with your name, a link to **Administration** for admins, and **Log out** on `/app`. The layout menu, the theme button and the settings button appear only when the participant may change something there (see [Display settings](#display-settings)).
 
 The opponent's (opponent agent's) name appears when the session is in admin mode or when the admin setting `show_opponent_type` is on.
 
@@ -122,7 +123,7 @@ switches to the full view. On a tablet in portrait the tools tray opens, and on 
 
 The **⋯** menu next to the tabs acts on the active tool:
 
-- **Move to top left / bottom left / right** moves the tool to another pane and makes it that pane's active tab. These entries appear only in the full view and only when the admin setting `allow_moving_tools` is on.
+- **Move to top left / bottom left / right** moves the tool to another pane and makes it that pane's active tab. These entries appear only in the full view and only when moving tools is allowed: `allow_moving_tools` in `env.json → negotiation`, set on the admin console's **Participant interface** page for all projects, one project or one study. When it is off the server also refuses the move. The Assistant moves tools only with its **Rearrange tools** ability.
 - **Hide this tool** removes its tab. Permanent tools cannot be hidden.
 
 When a pane has hidden tools, a **+** button appears next to the tabs. Hover or focus it to see the hidden tools and click one to bring it back.
@@ -186,7 +187,7 @@ The Assistant can open the same dialogs, optionally with a message of its own at
 
 ## The assistant dock
 
-When an Assistant is attached, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab.
+When an Assistant is attached and appears as a panel, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab. When it appears as a character, clicking the character opens the same conversation next to it.
 
 The dock contains:
 
@@ -205,6 +206,19 @@ The sliders button opens **Assistant settings**:
 - **Unprompted messages appear as**: Notifications (toasts), Status board, or Chat.
 - **Clear the conversation**.
 
+The administrator decides, per project or study, which of these the participant sees, and whether the on/off switch is shown (`env.json → interface.participant_settings`: `assistant_switch`, `assistant_autonomy`, `assistant_abilities`, `assistant_delivery`; see [`interface`](configuration.md#interface)).
+
+### The Assistant as a character
+
+`assistant_settings.json → presentation.style` (the **Assistant settings** page, per layer) chooses how the Assistant appears:
+
+- `panel` (the default): the **Assistant** button in the header opens the dock;
+- `persona`: a round character in the bottom-right corner, with the same status dot. Clicking it opens the conversation in a card next to it. The header has no Assistant button;
+- `both`: the character and the header button. Clicking the character opens the dock;
+- `choice`: the participant picks Panel, Character or Both in **My settings** (`presentation.choice_default` is the first choice).
+
+While the character is shown, the Assistant's notifications come out of it as speech bubbles instead of the top-right corner; clicking a bubble opens the conversation. The participant can drag the character anywhere (unless `presentation.persona_movable` is off); where it was put is kept with the session's layout (`persona_x`, `persona_y`). It keeps clear of the offer area and of buttons and fields, moving up until it no longer covers them. Phones always show the Assistant tab instead.
+
 The [Assistant](assistant.md) page explains autonomy, capabilities and proactive messages.
 
 ### Agent panels
@@ -219,9 +233,15 @@ An Assistant (or a tool) can highlight a part of the page with a pulse, glow or 
 
 When the assistant writes to the status board, a strip with its text appears at the bottom of the page. Use **Less** and **More** to collapse it to one line or expand it.
 
-## Toasts
+## Pinned messages
 
-Notifications appear at the top right: info, success, warning and error. They disappear after five seconds (nine for errors) unless the sender set another duration, and can be dismissed with the × button. A toast from the assistant can include a button that opens the assistant dock. The page keeps at most five toasts.
+The Assistant can pin short messages (markdown) above the negotiation, below the header, or at the bottom of the page, above the status board (`pin_message`). Pinned messages are part of the page, so the panes below or above them get shorter instead of being covered; more than a few scroll within a strip of at most a third of the window. A pinned message has an info, success, warning or error colour and stays until the Assistant removes it, the participant closes it with × (when the Assistant allowed that) or a new scenario is loaded. See [Pinned messages](assistant.md#pinned-messages).
+
+## Notifications
+
+Notifications (toasts) appear at the top right: info, success, warning and error. They disappear after `interface.notifications.toast_seconds` (default six seconds; errors at least nine) unless the sender set another duration, and can be dismissed with the × button. A toast from the assistant can include a button that opens the assistant dock. The page shows at most five at a time. When the Assistant appears as a character, its notifications come out of the character instead.
+
+Every notification is also kept in the session. The bell in the header shows how many arrived since you last opened it; opening it lists them all, newest first, with who sent them and when, and **Clear** empties the list. `interface.notifications.center: false` hides the bell.
 
 ## Questionnaire
 
@@ -233,7 +253,7 @@ In a Prolific session, the dock shows study progress and notices after each roun
 
 ## Display settings
 
-The settings drawer (gear button) holds per-session display preferences any participant can change. They are stored in the session, so they apply to every tab of that session.
+The **My settings** drawer (the sliders button) holds only what the current user may change. The administrator decides what that is for every project and study (`env.json → interface.participant_settings`, the console's **Participant interface** page); a setting that is switched off is not shown, and the server refuses the change. The defaults of these settings can be set per layer as well (`interface.prefs`). They are stored in the session, so they apply to every tab of that session.
 
 | Setting | Key | Default | Effect |
 | --- | --- | --- | --- |
@@ -243,9 +263,12 @@ The settings drawer (gear button) holds per-session display preferences any part
 | Keep the offer editor open | `offer_panel_always_visible` | off | The counter-offer editor stays open. |
 | Offers shown as | `offer_display` | `text` | `text` (sentences) or `table` (issue chips). A scenario with its own history view shows that view either way. |
 | Text size | `font_scale` | 1.0 | Scales the page text, from 0.85 to 1.3. |
+| Layout for | (this browser) | Automatic | Phone, tablet or desktop layout. |
+| Theme | (this browser) | Automatic | Light, dark or the system's. |
+| The Assistant appears as | `assistant_presentation` | `presentation.choice_default` | Only when the administrator lets the participant choose. |
 | (no control) | `compact` | off | Stored but not used by the interface. |
 
-Administrators see further sections in the drawer; see [Admin console](admin.md).
+Administrators see every participant setting, with a **hidden from participants** mark on those the current project or study hides. Everything else (timing, negotiation rules, scenarios and opponents, tools, what participants may change) is in Administration, per layer; see [Admin console](admin.md).
 
 ## Admin mode
 

@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleAlert, Info, TriangleAlert, X } from "lucide-react";
 import { useStore } from "../store";
+import { usePersona } from "../negotiate/Persona";
 
 const STYLE = {
   info: { icon: Info, cls: "border-you/25", ic: "text-you" },
@@ -9,7 +10,9 @@ const STYLE = {
 };
 
 export function Toasts() {
-  const toasts = useStore((s) => s.toasts);
+  const all = useStore((s) => s.toasts);
+  const persona = usePersona((s) => s.shown);
+  const toasts = persona ? all.filter((t) => t.source !== "assistant") : all;
   const drop = useStore((s) => s.dropToast);
   const openAssistant = useStore((s) => s.setAssistantOpen);
   return (

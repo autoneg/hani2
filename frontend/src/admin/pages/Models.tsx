@@ -57,7 +57,7 @@ function parseParams(t: string): Record<string, any> {
 }
 
 const SOURCE_LABEL = (s: string) =>
-  s === "legacy" ? "the old single-model settings" : s === "start" ? "the start-time list (--models / HANI2_MODELS)" : s === "settings" ? "the settings folder" : s.startsWith("project:") ? `project ${s.slice(8)}` : s.startsWith("study:") ? `study ${s.slice(6)}` : s || "nowhere";
+  s === "legacy" ? "the old single-model settings" : s === "start" ? "the start-time list (--models / HANI2_MODELS)" : s === "overrides" ? "the start-time settings file (--settings)" : s === "settings" ? "the settings folder" : s.startsWith("project:") ? `project ${s.slice(8)}` : s.startsWith("study:") ? `study ${s.slice(6)}` : s || "nowhere";
 
 function EntryRow({ e, i, n, conns, set, move, dup, del }: { e: Entry; i: number; n: number; conns: { value: string; label: string }[]; set: (e: Entry) => void; move: (d: number) => void; dup: () => void; del: () => void }) {
   const [res, setRes] = useState<any>(null);

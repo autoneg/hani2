@@ -548,7 +548,14 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
     if t == "pref":
         return s.set_pref(str(msg.get("key")), msg.get("value"))
     if t == "layout":
-        return s.set_layout(**{k: msg[k] for k in ("view", "sizes", "collapsed") if k in msg})
+        changes = {k: msg[k] for k in ("view", "sizes", "collapsed") if k in msg}
+        if "view" in changes and not s.may_adjust("layout_view"):
+            changes.pop("view")
+        return s.set_layout(**changes)
+    if t == "unpin":
+        return s.unpin(str(msg.get("id") or "") or None, by="human")
+    if t == "clear_notifications":
+        return s.clear_notifications()
     if t == "chat":
         return s.user_chat(str(msg.get("text", "")))
     if t == "answer":
@@ -561,6 +568,10 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         if sa is None:
             return None
         op = msg.get("op")
+        gate = {"enable": "assistant_switch", "capability": "assistant_abilities", "autonomy": "assistant_autonomy",
+                "delivery": "assistant_delivery"}.get(str(op))
+        if gate and not s.may_adjust(gate):
+            return None
         if op == "enable":
             sa.set_user_enabled(bool(msg.get("value")))
         elif op == "capability":
@@ -1055,6 +1066,8 @@ def admin_meta(_: str = Depends(require_admin)):
                        guest=s.guest, description=s.cls.description) for s in tool_specs()],
         "capabilities": {k: {"label": v[0], "description": v[1]} for k, v in CAPABILITY_INFO.items()},
         "autopilot_drivers": driver_options({"allowed_drivers": None}),
+        "participant_settings": {k: {"label": v[0], "description": v[1]}
+                                 for k, v in __import__("hani2.session", fromlist=["x"]).PARTICIPANT_SETTINGS.items()},
     }
 
 

@@ -17,6 +17,8 @@ export interface LayerInfo {
   layers: Layer[];
   bound: string | null;
   default_study: string | null;
+  /** the start-time settings file (hani2 --settings): it wins over the settings folder */
+  overrides?: { path: string; files: string[] } | null;
 }
 
 const SETTINGS: Layer = { id: "settings", kind: "settings", label: "All projects (settings folder)" };
@@ -81,6 +83,11 @@ export function LayerPicker({ note, allow }: { note?: React.ReactNode; allow?: L
               : "Applies to this study only.")}
         {bound && <> This console is open in study <b className="text-ink">{bound.project}/{bound.study}</b>.</>}
       </span>
+      {info.overrides && layer.kind === "settings" && (
+        <span className="basis-full text-xs text-warn">
+          The server was started with <code className="font-mono">--settings {shortPath(info.overrides.path)}</code> ({info.overrides.files.join(", ")}): what it sets wins over this folder (shown values include it), while projects and studies still win over it.
+        </span>
+      )}
     </div>
   );
 }

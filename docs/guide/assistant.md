@@ -11,7 +11,8 @@ Every session gets its own agent. The default agent is driven by a language mode
 Depending on the capabilities you grant and the autonomy level, the agent can:
 
 - chat with the participant and ask them questions with answer buttons;
-- pop up notifications (toasts) and write a persistent recommendation on the status board;
+- pop up notifications (toasts), which the participant can read again in the notification list, and write a persistent recommendation on the status board;
+- pin short messages at the top or bottom of the screen, which makes room for them (see [Pinned messages](#pinned-messages));
 - show, hide, enable, focus, reorder and move the analysis tools between panes;
 - fill the counter-offer fields and write the message to the opponent;
 - send a counter-offer, accept the opponent's offer or end the negotiation, either directly or through the participant's confirmation dialog;
@@ -279,7 +280,8 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | Key | Label in the UI | What it allows | Functions it unlocks |
 |-----|-----------------|----------------|----------------------|
 | `chat` | Chat | Talk in the assistant dock and ask questions | `message_user`, `ask_user` |
-| `toast` | Notifications | Pop up short notifications | `send_toast` |
+| `toast` | Notifications | Pop up short notifications (kept in the notification list) | `send_toast` |
+| `pin` | Pinned messages | Pin messages above or below the negotiation; the screen makes room for them | `pin_message`, `unpin_message` |
 | `tool_enable` | Enable tools | Switch analysis tools on or off | `set_tool_enabled` |
 | `tool_visibility` | Show / hide tools | Show, hide and focus tool tabs | `set_tool_visible`, `focus_tool` |
 | `tool_order` | Rearrange tools | Reorder tools and move them between panes | `move_tool` |
@@ -297,7 +299,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
-Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
+Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, `pin_message()` and `unpin_message()` need `pin`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
 ## Autonomy
 
@@ -320,6 +322,8 @@ Two layers decide what the agent may do:
 - The **admin grant** is the ceiling: the `capabilities` and `autonomy` settings.
 - The **participant's choices** live in the assistant settings dialog (the sliders icon in the dock header). Under **Abilities** the participant can switch any granted capability off; under **How much may the assistant do?** they can pick a lower autonomy level.
 
+The administrator also decides, per project or study, which of these controls the participant gets at all (`env.json → interface.participant_settings`: `assistant_switch`, `assistant_autonomy`, `assistant_abilities`, `assistant_delivery`; see [`interface`](configuration.md#interface)). A hidden control keeps the admin grant, and the server refuses the change.
+
 The effective capability set is the intersection: a capability is effective only if the admin granted it and the participant has not switched it off. Capabilities the admin did not grant are not listed, and autonomy levels above the admin's are disabled. The effective autonomy is the lower of the two levels. Both start equal to the admin grant. The same dialog has **Clear the conversation**, which empties the chat and resets the model conversation.
 
 In code, `self.capabilities` is a `CapabilityState`:
@@ -336,6 +340,27 @@ c.autonomy                             # Autonomy.SEMI: the lower level wins
 c.autonomy_allows_execute(Capability.ACCEPT)   # False (needs full)
 c.autonomy_allows_confirm(Capability.ACCEPT)   # True (semi or higher)
 ```
+
+## Pinned messages
+
+A pinned message stays on screen until it is removed, unlike a toast. `pin_message` puts it at the top (under the header) or the bottom (above the status board) of the page. It is part of the page layout, so the panes get shorter to make room and nothing is covered. Use it for what the participant must keep in view: a deadline, a warning, the one piece of advice that matters now.
+
+```python
+class DeadlineCoach(Assistant):
+    def on_event(self, event_name, nmi=None):
+        if event_name == "negotiation_started":
+            self.pin_message("**Your walk-away point** is below every offer under 40%.", "top", "warning", pin_id="walkaway")
+        elif event_name == "negotiation_ended":
+            self.unpin_message("walkaway")
+```
+
+Pins have an `id` (yours, or a generated one that the function returns); pinning with an existing `id` replaces that pin. At most eight are kept. The participant can close a pin with ×, unless it was pinned with `dismissible=False`. Loading a new scenario removes every pin. The snapshot the page receives lists them under `pins`.
+
+Every notification (`toast`, `send_toast`, and the server's own) is also kept for the participant's notification list, with `source` `assistant` or `system`.
+
+## How the Assistant appears
+
+`presentation.style` in `assistant_settings.json` (per layer) shows the Assistant as a panel opened from the header (`panel`), as a movable character in a corner of the screen that its notifications come out of (`persona`), as both, or lets the participant choose (`choice`). The agent's code does not change; see [The Assistant as a character](interface.md#the-assistant-as-a-character).
 
 ## Proactive messages
 
@@ -440,6 +465,8 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `post(text, user=None)` | Post a chat message (markdown) from the agent. |
 | `toast(message, level="info")` | Pop up a notification. `level` is `info`, `success`, `warning` or `error`. |
 | `show_on_board(text, append=False)` | Write markdown to the status board, replacing or appending. |
+| `pin_message(text, position="top", level="info", pin_id=None, dismissible=True) -> dict` | Pin markdown above (`top`) or below (`bottom`) the negotiation; the same `pin_id` replaces that pin. Returns `{"ok", "id"}`. Needs `pin`. |
+| `unpin_message(pin_id=None) -> dict` | Remove one pinned message, or all of them. Needs `pin`. |
 | `message_user(text, channel="chat")` | Reach the participant now on `chat`, `toast` or `board`. |
 | `ask_user(question, options=None, timeout=180.0) -> str \| None` | Ask a question in the chat, with optional answer buttons, and block until the participant answers by button or by typing. Returns `None` on timeout, under autopilot, or if another question is pending. |
 | `highlight(target, message=None, style="pulse", duration=None)` | Spotlight an element (see [Highlight targets](#highlight-targets)). |
@@ -533,6 +560,8 @@ class MyAgent(Assistant):
 | `show_on_board` | `content` (markdown or HTML), `append` | always |
 | `list_tools` | none (returns the tools and, with `tool_add`, `can_add`: tools it may add) | any of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add`, `tool_use` |
 | `send_toast` | `message`, `level` (`info`, `success`, `warning`, `error`) | `toast` |
+| `pin_message` | `text`, `position` (`top`, `bottom`), `level`, `id`, `dismissible` | `pin` |
+| `unpin_message` | `id` (omit for all) | `pin` |
 | `message_user` | `text`, `channel` (`chat`, `toast`, `board`) | `chat` |
 | `ask_user` | `question`, `options` | `chat` |
 | `set_tool_enabled` | `name`, `enabled` | `tool_enable` |

@@ -161,7 +161,7 @@ When a session reaches a tool's timing, a tool is created for it unless:
 - the tool is `admin_only` and the session does not belong to an admin account, or
 - the tool has `guest = false` and the session is a playground or Prolific session (`/play`).
 
-Two admin settings in the per-session settings drawer also affect tools (see [Admin console](admin.md)):
+Two settings of `env.json → negotiation` also affect tools; the admin console sets them on the Participant interface page, for all projects, a project or a study (see [Admin console](admin.md#participant-interface)):
 
 - `allow_tool_switch`: when off, participants do not see the enable switch, and tools that are off by default render anyway.
 - `allow_moving_tools`: when off, the "Move to ..." entries disappear from the tool menu and move requests are ignored.

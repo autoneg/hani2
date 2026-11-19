@@ -1,0 +1,1 @@
+import{c as t}from"./index-D-TXXiV_.js";const e={name:"letter-q",size:24,node:[["circle",{cx:"12",cy:"12",r:"8",key:"46899m"}],["path",{d:"M20 20L15 15",key:"mpejh7"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

@@ -170,14 +170,94 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return out
 
 
+# --------------------------------------------------------------------------- #
+# Start-time overrides: ``hani2 --settings overrides.yaml``                     #
+# --------------------------------------------------------------------------- #
+#: the environment variable that carries the overrides file to the server process
+OVERRIDES_ENV_VAR = "HANI2_SETTINGS_OVERRIDES"
+#: top-level keys of an overrides file → the settings file they override
+OVERRIDE_KINDS: dict[str, str] = {
+    "env": "env.json",
+    "llm": "llm_settings.json",
+    "assistant": "assistant_settings.json",
+    "support_agent": "assistant_settings.json",  # old name
+    "autopilot": "autopilot_settings.json",
+    "models": "models.json",
+}
+_OVERRIDES_CACHE: dict[str, Any] = {"key": None, "data": {}}
+
+
+def overrides_path() -> Path | None:
+    """The start-time overrides file (``hani2 --settings FILE``), if any."""
+    v = (os.environ.get(OVERRIDES_ENV_VAR) or "").strip()
+    return Path(v).expanduser() if v else None
+
+
+def read_overrides_file(path: Path) -> dict[str, Any]:
+    """``{settings file name: values}`` from an overrides YAML (or JSON) file.
+
+    Top-level keys ``env``, ``llm``, ``assistant``, ``autopilot`` and ``models``
+    override that settings file; any other top-level key (``negotiation``,
+    ``interface``, ``tools``, …) is a key of ``env.json``. Raises ``ValueError``
+    when the file cannot be read."""
+    import yaml
+
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except (OSError, yaml.YAMLError) as e:
+        raise ValueError(f"{path}: {e}") from None
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: the overrides must be a mapping")
+    out: dict[str, Any] = {}
+    for k, v in data.items():
+        target = OVERRIDE_KINDS.get(str(k))
+        if target is None:
+            out.setdefault("env.json", {})[str(k)] = v
+        elif target == "models.json":
+            out[target] = v if isinstance(v, (dict, list)) else {}
+        elif isinstance(v, dict):
+            out[target] = _deep_merge(out.get(target, {}), v)
+        else:
+            raise ValueError(f"{path}: '{k}' must be a mapping")
+    return out
+
+
+def overrides() -> dict[str, Any]:
+    """The start-time overrides (cached; re-read when the file changes)."""
+    path = overrides_path()
+    if path is None:
+        return {}
+    try:
+        key = (str(path), path.stat().st_mtime)
+    except OSError:
+        print(f"[hani2] the settings overrides file {path} is missing; ignoring it")
+        return {}
+    if _OVERRIDES_CACHE["key"] != key:
+        try:
+            _OVERRIDES_CACHE["data"] = read_overrides_file(path)
+        except ValueError as e:
+            print(f"[hani2] ERROR: {e}; ignoring it")
+            _OVERRIDES_CACHE["data"] = {}
+        _OVERRIDES_CACHE["key"] = key
+    return _OVERRIDES_CACHE["data"]
+
+
+def override_for(filename: str) -> Any:
+    """The start-time override of one settings file (``None``: none)."""
+    return overrides().get(filename)
+
+
 def load_json_settings(filename: str, defaults: dict | None = None, old_names: tuple[str, ...] = ()) -> dict:
     """Load a JSON settings file merged over the bundled default and ``defaults``.
 
     ``old_names`` are earlier names of the same file, still read. The layers,
     lowest precedence first: ``defaults``, the bundled default, then in the
-    settings folder, then in the project folder and then in the study folder
-    each old name followed by ``filename`` (so the new name wins over an old
-    one at each level)."""
+    settings folder each old name followed by ``filename`` (so the new name wins
+    over an old one at each level), then the start-time overrides
+    (``hani2 --settings``), then the same files in the project folder and then
+    in the study folder. Guest sessions and sessions outside a project or study
+    therefore see the overrides over the settings folder, while a project's or a
+    study's own settings still win over them."""
     merged: dict = deepcopy(defaults or {})
     bundled = DEFAULT_SETTINGS_DIR / filename
     if bundled.exists():
@@ -187,11 +267,16 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
             pass
     names = [*old_names, filename]
     skip = _VIEW.get()
-    layers = [] if skip and skip[1] else [settings_dir() / n for n in names]
+    layers: list[Path | dict] = [] if skip and skip[1] else [settings_dir() / n for n in names]
+    ov = override_for(filename)
+    if isinstance(ov, dict) and ov and not (skip and skip[1]):
+        layers.append(ov)
     for folder in reversed(settings_layers()):
         layers += [folder / n for n in names]
     for layer in layers:
-        if layer.exists():
+        if isinstance(layer, dict):
+            merged = _deep_merge(merged, layer)
+        elif layer.exists():
             try:
                 merged = _deep_merge(merged, json.loads(layer.read_text()))
             except json.JSONDecodeError:

@@ -8,6 +8,9 @@ import { api } from "../api";
 import { navigate } from "../router";
 import { webmcpAvailable } from "../webmcp";
 import { Modal } from "../ui/Modal";
+import { NotificationBell } from "./Notifications";
+import { assistantStyle } from "./Persona";
+import { drawerHasControls, mayAdjust } from "./SettingsDrawer";
 
 let brandCache: string | null = null;
 function useBrand(explicit?: string) {
@@ -233,7 +236,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
             </button>
           </div>
         )}
-        {sup && (
+        {sup && assistantStyle(st, device) !== "persona" && (
           <button
             className={`btn px-2.5 ${assistantOpen ? "bg-ink text-surface" : "border border-line hover:bg-sunken"} relative`}
             onClick={() => setAssistant(!assistantOpen)}
@@ -244,7 +247,8 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
             <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
           </button>
         )}
-        {device !== "phone" && (
+        <NotificationBell />
+        {device !== "phone" && mayAdjust(st, "layout_view") && (
         <Menu
           id="layout"
           button={
@@ -267,10 +271,12 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
           </MenuItem>
         </Menu>
         )}
-        <button className="btn-ghost px-2" onClick={onSettings} aria-label="Settings">
-          <Settings2 size={17} />
-        </button>
-        {device !== "phone" && <ThemeButton />}
+        {drawerHasControls(st) && (
+          <button className="btn-ghost px-2" onClick={onSettings} aria-label="My settings" title="My settings">
+            <Settings2 size={17} />
+          </button>
+        )}
+        {device !== "phone" && mayAdjust(st, "theme") && <ThemeButton />}
         <Menu
           id="account"
           button={

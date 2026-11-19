@@ -17,8 +17,18 @@ from hani2 import projects
 from hani2.config import DEFAULT_SETTINGS_DIR, layer_view, settings_dir
 
 #: JSON settings files by kind (the loader gives the effective, merged value)
+def _env_effective() -> dict:
+    """env.json in effect, with the built-in defaults of the per-session ``negotiation`` and
+    ``interface`` sections filled in (so the console shows every value a session uses)."""
+    from hani2.config import _deep_merge, load_env
+    from hani2.session import ADMIN_PREFS, DEFAULT_INTERFACE
+
+    base = {"negotiation": {k: v for k, v in ADMIN_PREFS.items()}, "interface": DEFAULT_INTERFACE}
+    return _deep_merge(base, load_env())
+
+
 SETTINGS_KINDS: dict[str, tuple[str, Any]] = {
-    "env": ("env.json", lambda: __import__("hani2.config", fromlist=["x"]).load_env()),
+    "env": ("env.json", _env_effective),
     "llm": ("llm_settings.json", lambda: __import__("hani2.config", fromlist=["x"]).load_llm_settings()),
     "assistant": ("assistant_settings.json",
                   lambda: __import__("hani2.support_agent.settings", fromlist=["x"]).load_assistant_settings()),

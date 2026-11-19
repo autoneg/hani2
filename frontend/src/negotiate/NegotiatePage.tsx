@@ -13,6 +13,8 @@ import { stopWebMCP, syncWebMCP } from "../webmcp";
 import { useDevice, type Device } from "../device";
 import * as telemetry from "../telemetry";
 import { Splitter, useLayoutSize } from "../ui/Splitter";
+import { PinnedMessages } from "./Notifications";
+import { Persona, assistantStyle } from "./Persona";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -135,7 +137,7 @@ function ToolColumn() {
 
 function Desktop() {
   const st = useStore((s) => s.state)!;
-  const assistantOpen = useStore((s) => s.assistantOpen);
+  const assistantOpen = useStore((s) => s.assistantOpen) && assistantStyle(st, "desktop") !== "persona";
   const wide = useMedia("(min-width: 1600px)");
   const rowRef = useRef<HTMLDivElement>(null);
   const [tools, setTools, commitTools] = useLayoutSize("tools");
@@ -211,7 +213,8 @@ function Desktop() {
 /** The assistant as a slide-over panel (tablets, narrow desktops). */
 function AssistantOverlay() {
   const open = useStore((s) => s.assistantOpen);
-  if (!open) return null;
+  const persona = useStore((s) => assistantStyle(s.state, "tablet") === "persona");
+  if (!open || persona) return null;
   return (
     <div className="absolute bottom-0 right-0 top-14 z-40 flex w-full max-w-[420px] shadow-pop">
       <Assistant />
@@ -341,8 +344,11 @@ export function NegotiateBody({ device, landscape, live = true }: { device: Devi
           <WifiOff size={13} /> Reconnecting…
         </div>
       )}
+      <PinnedMessages position="top" live={live} />
       {device === "desktop" ? <Desktop /> : device === "tablet" ? <Tablet landscape={landscape} /> : <Mobile />}
+      <PinnedMessages position="bottom" live={live} />
       <StatusBoard />
+      <Persona device={device} live={live} />
       <MaximizedTool />
       <ConfirmDialog />
       <SettingsDrawer open={settings} onClose={() => setSettings(false)} />

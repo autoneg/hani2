@@ -646,7 +646,7 @@ export function ActionDock({ embedded = false, maxHeight = "max-h-[64vh]" }: { e
         embedded ? "min-h-0 min-w-[300px] flex-1" : `${maxHeight} border-t border-line`
       }`}
     >
-      <div className="mx-auto w-full max-w-4xl">{body}</div>
+      <div className="mx-auto w-full max-w-4xl" data-persona-avoid>{body}</div>
     </div>
   );
 }

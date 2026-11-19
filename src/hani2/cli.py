@@ -249,6 +249,7 @@ def main(
     verbose: Annotated[bool, typer.Option(help="Ask negotiators to print what they do.")] = False,
     dev: Annotated[bool, typer.Option(help="Auto-reload the server when Python files change.")] = False,
     models: Annotated[Optional[str], typer.Option("--models", help="Language models to try in order for every session, as provider:model (or connection:model) entries, e.g. anthropic:claude-sonnet-5-5,ollama:qwen3:4b. Replaces the admin's global model chain; a study's or project's own chain still wins (see `hani2 models`).")] = None,
+    settings: Annotated[Optional[Path], typer.Option("--settings", help="A YAML file of settings that override the settings folder: top-level env, llm, assistant, autopilot and models keys override that settings file; any other key (negotiation, interface, tools, …) is a key of env.json. Applies to the playground and to sessions outside a project or study; a project's or study's own settings still win.")] = None,
     version: Annotated[bool, typer.Option("--version", help="Show the version and exit.")] = False,
 ):
     """Start the HANI2 server (app, playground, admin and API on one port)."""
@@ -303,6 +304,17 @@ def main(
         os.environ["HANI2_TOOLS"] = _check_tools(tools)
     if models:
         os.environ["HANI2_MODELS"] = models.strip()
+    if settings:
+        from hani2.config import OVERRIDES_ENV_VAR, read_overrides_file
+
+        path = settings.expanduser().resolve()
+        if not path.is_file():
+            raise typer.BadParameter(f"{settings} is not a file", param_hint="--settings")
+        try:
+            read_overrides_file(path)
+        except ValueError as e:
+            raise typer.BadParameter(str(e), param_hint="--settings") from None
+        os.environ[OVERRIDES_ENV_VAR] = str(path)
     if ctx.invoked_subcommand is not None:
         return
     if verbose:
