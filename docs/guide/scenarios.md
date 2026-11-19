@@ -142,6 +142,8 @@ A scenario folder contains:
 | `_info.yaml` | Texts for the participant (optional). `_info.yml` and `_info.yaml.yml` also work. |
 | `display.py` | How offers are shown: as text, in the history, on the table and in the editor (optional; see [Showing offers](#showing-offers)). |
 | `picture.svg`, `picture_dark.svg` | The scenario's picture, shown at the top of the *Scenario Info* tool (optional; see [Scenario pictures](#scenario-pictures)). |
+| `_info.yaml` → `briefing` | Private instructions per role, with optional constraints that are checked against the agreement (see [Private briefings](information.md#private-briefings-and-hidden-constraints)). The participant sees them only in the Briefing tool. |
+| `_past_negotiations.yaml` | Records of past negotiations in this scenario, for studies that give them to the participant or the Assistant (optional; `hani2 scenario past` writes it; see [Who knows what](information.md#past-negotiations)). |
 | `inverter_h<i>.pkl` | A cached utility inverse (optional, written by `hani2 generate`). |
 
 The bundled `Trade` sample (installed as `Examples/Trade`) looks like this:

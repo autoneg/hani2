@@ -1643,6 +1643,66 @@ The share of function calls that worked. A call counts as failed when its result
 or when the result is not an object (e.g. an error text). Empty without calls; the calls per function
 are in the details.
 
+### `dual_control` — Dual control
+
+*hard*
+
+Whether the agreement kept the private briefings' constraints.
+
+$$
+\mathcal{C} = \bigcup_{b \in B} \mathcal{C}_b, \qquad \omega^{*} \models c \iff \omega^{*}_{i_c} \in V_c
+$$
+
+How a negotiation went when the Human and the Assistant knew different things (see *Who knows what*
+in the guide). $B$ are the round's briefings and $\mathcal{C}_b$ the constraints of briefing $b$; a
+constraint $c$ names an issue $i_c$ and the values $V_c$ it allows (a minimum, a maximum, allowed or
+forbidden options). The recording keeps the round's information split: the private briefings with their
+constraints, which issues and actions only the Human could decide, and who held which past
+negotiations. Empty for negotiations without a split.
+
+**Caveat.** A constraint is checked on the raw option values of the agreement, not on the labels
+shown to the participant.
+
+#### `information_split` — Information split
+
+*Whether the Human and the Assistant knew different things*
+
+**Range:** {0, 1} · **Direction:** no better direction
+
+$$
+\mathbb{1}[\text{split}]
+$$
+
+1 when the round split the information (past negotiations, preferences, market research, briefings
+or human-only decisions), else 0.
+
+#### `constraints_met` — Constraints met
+
+*The agreement keeps every constraint of the private briefings*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+\prod_{c \in \mathcal{C}} \mathbb{1}[\omega^{*} \models c]
+$$
+
+1 when the agreement $\omega^{*}$ keeps every constraint $c$ of the round's briefings (a limit that
+is not in the utility function, such as "rent at most 3200"), 0 when it breaks at least one. Empty
+without an agreement or without constraints. When the constraint was given to the Human only, it
+shows whether the Assistant's help respected what it had to learn from the Human.
+
+#### `n_constraint_violations` — Constraints broken
+
+*How many briefing constraints the agreement breaks*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\left\lvert \{c \in \mathcal{C} : \omega^{*} \not\models c\} \right\rvert
+$$
+
+The number of constraints the agreement breaks (empty without an agreement or without constraints).
+
 ## Subjective metrics
 
 The participant's own answers to the questionnaire.

@@ -92,6 +92,7 @@ nav:
       - Tools: guide/tools.md
       - Showing other preferences: guide/preferences.md
       - Assistant: guide/assistant.md
+      - Who knows what: guide/information.md
       - Autopilot: guide/autopilot.md
       - WebMCP (browser agents): guide/webmcp.md
       - Models and connections: guide/models.md

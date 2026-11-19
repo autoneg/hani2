@@ -38,6 +38,7 @@ class Capability(str, Enum):
     PANELS = "panels"
     TOOL_ADD = "tool_add"
     TOOL_USE = "tool_use"
+    PRIVATE_INFO = "private_info"
 
 
 #: Human-readable labels / descriptions (used by the settings screens).
@@ -59,6 +60,7 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "panels": ("Custom panels", "Show interactive panels it builds (cards, tables, buttons)"),
     "tool_add": ("Add tools", "Add new tools to your screen while you negotiate, and remove the ones it added"),
     "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),
+    "private_info": ("Its own information", "Use what only it knows in this negotiation (past negotiations, market research, part of your preferences) to help you"),
 }
 
 

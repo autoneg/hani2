@@ -345,6 +345,9 @@ class SessionRecorder:
     def scenario(self) -> None:
         try:
             rec = scenario_record(self.session)
+            info = getattr(self.session, "information", None)
+            if info is not None and info.split:  # who knew what, with the past negotiations themselves
+                rec["information"] = {**info.record(), "past": info.past, "market": info.market}
             self.meta["scenario"] = rec.get("name")
             self._write("scenario", **rec)
         except Exception:

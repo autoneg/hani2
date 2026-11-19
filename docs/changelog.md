@@ -8,6 +8,24 @@
   them in `_info.yaml` (`picture: {light: ..., dark: ...}`). Every bundled scenario has a light
   and a dark vector picture. Tools can show pictures with the new `ui.image` component. See
   [Scenario pictures](guide/scenarios.md#scenario-pictures).
+- **Who knows what: the participant and the Assistant can know different things.** The new
+  `information` setting (per project, study or server) splits information so
+  that the two must work together. *Past negotiations*: records of earlier negotiations in the
+  same scenario between parties with similar (or the same, or different) preferences, shared
+  out between the participant (a new **Past Negotiations** tool) and the Assistant. A scenario
+  folder can ship its own in `_past_negotiations.yaml` (`hani2 scenario past` writes it).
+  *Preferences*: the participant may know only the issue weights and the Assistant only the
+  option values (or any other mix), with deal values hidden from a side that knows only part.
+  *Market research*: statistics on how preferences in the scenario are usually distributed,
+  for the Assistant, the participant (a **Market Research** tool) or both. A new Assistant
+  ability, `private_info` (`get_private_information`, `show_past_negotiation`), gives the
+  Assistant its share; it cannot read the participant's private tools. Results rows and
+  recordings say who held what. See [Who knows what](guide/information.md).
+  *Dual control*: private briefings (in `_info.yaml` per role, or in the setting) give one side a
+  limit that is not in the preferences; the human sees theirs in a **Briefing** tool and the
+  Assistant must ask about it. Their constraints are checked against the agreement
+  (`constraints_met`). `control.human_only_issues` and `control.human_only_actions` keep
+  decisions for the human: the Assistant can only suggest them.
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

@@ -106,6 +106,39 @@ def get_status(state: SAOState) -> str:
     return "ended"
 
 
+def _information(ss: dict[str, Any], m: Any = None) -> dict[str, Any]:
+    """The round's information split as flat columns (none when nothing was split; see hani2.information).
+    ``constraints_met``: whether the agreement keeps the hidden constraints of the briefings."""
+    rec = ss.get("information") or {}
+    if not rec.get("split"):
+        return {}
+    extra: dict[str, Any] = {}
+    if rec.get("constraints"):
+        from hani2.information import check_constraints
+
+        agreement = getattr(m, "agreement", None)
+        issues = list(ss["scenario"].outcome_space.issues) if ss.get("scenario") is not None else []
+        agr = {str(i.name): v for i, v in zip(issues, agreement)} if agreement is not None else None
+        met, bad = check_constraints(rec["constraints"], agr)
+        extra = {"constraints_met": met, "constraint_violations": len(bad) if met is not None else None}
+    return extra | {
+        "information_split": True,
+        "info_human_preferences": rec.get("human_preferences"),
+        "info_assistant_preferences": rec.get("assistant_preferences"),
+        "info_human_reserved_value": rec.get("human_reserved_value"),
+        "info_assistant_reserved_value": rec.get("assistant_reserved_value"),
+        "info_past_negotiations": rec.get("past_negotiations"),
+        "info_past_source": rec.get("past_source"),
+        "info_human_past": ",".join(rec.get("human_past") or []),
+        "info_assistant_past": ",".join(rec.get("assistant_past") or []),
+        "info_market_research": rec.get("market_research"),
+        # ids and audiences only: the texts are private (they are in the recording)
+        "info_briefings": ",".join(f"{b['id']}:{b['to']}" for b in rec.get("briefings") or []),
+        "info_human_only_issues": ",".join(rec.get("human_only_issues") or []),
+        "info_human_only_actions": ",".join(rec.get("human_only_actions") or []),
+    }
+
+
 def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
     """Write all result files for a finished negotiation.
 
@@ -216,6 +249,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             autopilot=bool(ss.get("autopilot_used", False)),
         )
         | _attribution(ss)
+        | _information(ss, m)
         | _stamp(ss)
         | _state_record(m.state)
         | {k: v for k, v in asdict(m.nmi).items() if not k.startswith("_") and not k.startswith("outcome_space")}

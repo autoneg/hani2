@@ -53,7 +53,7 @@ defaults:                  # every study of the project starts from these
 sponsor: ACME              # any other key is available to texts as {{project_sponsor}}
 ```
 
-The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `opponents` and `assistants` (the last is kept for the assignment of assistants, which a later version adds).
+The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `opponents` and `assistants` (the last is kept for the assignment of assistants, which a later version adds).
 
 ### `study.yaml`
 

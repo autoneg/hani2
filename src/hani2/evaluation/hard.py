@@ -1136,3 +1136,53 @@ def assistant_interaction(ctx: EvalContext, options: dict) -> dict:
         max_assistant_streak=best, fn_calls=len(fns), fn_success_rate=(len(ok) / len(fns)) if fns else None,
         _details=dict(fn_by_name=dict(Counter(f.get("name") for f in fns))),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Dual control (hani2.information)                                             #
+# --------------------------------------------------------------------------- #
+@metric("dual_control", kind="hard", title="Dual control",
+        formula=r"\mathcal{C} = \bigcup_{b \in B} \mathcal{C}_b, \qquad \omega^{*} \models c \iff \omega^{*}_{i_c} \in V_c",
+        details=r"""
+How a negotiation went when the Human and the Assistant knew different things (see *Who knows what*
+in the guide). $B$ are the round's briefings and $\mathcal{C}_b$ the constraints of briefing $b$; a
+constraint $c$ names an issue $i_c$ and the values $V_c$ it allows (a minimum, a maximum, allowed or
+forbidden options). The recording keeps the round's information split: the private briefings with their
+constraints, which issues and actions only the Human could decide, and who held which past
+negotiations. Empty for negotiations without a split.
+
+**Caveat.** A constraint is checked on the raw option values of the agreement, not on the labels
+shown to the participant.
+""", columns=[
+    C("information_split", "Information split", "Whether the Human and the Assistant knew different things",
+      formula=r"\mathbb{1}[\text{split}]", range="{0, 1}", details=r"""
+1 when the round split the information (past negotiations, preferences, market research, briefings
+or human-only decisions), else 0.
+"""),
+    C("constraints_met", "Constraints met", "The agreement keeps every constraint of the private briefings",
+      higher_is_better=True, formula=r"\prod_{c \in \mathcal{C}} \mathbb{1}[\omega^{*} \models c]", range="{0, 1}",
+      details=r"""
+1 when the agreement $\omega^{*}$ keeps every constraint $c$ of the round's briefings (a limit that
+is not in the utility function, such as "rent at most 3200"), 0 when it breaks at least one. Empty
+without an agreement or without constraints. When the constraint was given to the Human only, it
+shows whether the Assistant's help respected what it had to learn from the Human.
+"""),
+    C("n_constraint_violations", "Constraints broken", "How many briefing constraints the agreement breaks",
+      higher_is_better=False, formula=r"\left\lvert \{c \in \mathcal{C} : \omega^{*} \not\models c\} \right\rvert",
+      range="count", details=r"""
+The number of constraints the agreement breaks (empty without an agreement or without constraints).
+"""),
+])
+def dual_control(ctx: EvalContext, options: dict) -> dict:
+    """Whether the agreement kept the private briefings' constraints."""
+    from hani2.information import check_constraints
+
+    info = (ctx.scenario or {}).get("information") or {}
+    if not info:
+        return dict(information_split=0, constraints_met=None, n_constraint_violations=None)
+    names = list((ctx.scenario or {}).get("issue_names") or [])
+    agr = ctx.agreement
+    agreement = dict(zip(names, agr)) if agr is not None and names else None
+    met, bad = check_constraints(list(info.get("constraints") or []), agreement)
+    return dict(information_split=1 if info.get("split") else 0, constraints_met=met,
+                n_constraint_violations=len(bad) if met is not None else None)

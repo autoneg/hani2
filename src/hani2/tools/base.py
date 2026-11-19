@@ -75,7 +75,16 @@ class Tool:
                     ``simple``, ``focus``): ``{"simple": {"pane": "upper",
                     "visible": False, "order": 5}}``. A view (or key) not
                     given falls back to ``pane``, ``order`` and visible.
+    ``needs_totals`` The tool shows what deals are worth to the human. It is
+                    not offered in a round where the human knows only part of
+                    their preferences (see :mod:`hani2.information`).
+    ``private_information`` The tool shows information that is the human's
+                    own (their preferences, their past negotiations). When the
+                    human and the Assistant know different things, the
+                    Assistant cannot read or use it.
     ============== ===========================================================
+
+    Override :meth:`available` to offer a tool only in some rounds.
 
     The Assistant can read any tool (:meth:`describe_for_agent`) and use its
     inputs and buttons, so a tool written for people is usable by the agent
@@ -96,6 +105,8 @@ class Tool:
     agent_hint: str = ""
     groups: tuple[str, ...] = ()
     placement: dict[str, dict[str, Any]] = {}
+    needs_totals: bool = False
+    private_information: bool = False
 
     def __init__(self, session_state: dict[str, Any], enabled: bool | None = None, **params: Any):
         self.session_state = session_state
@@ -165,8 +176,36 @@ class Tool:
         except Exception:
             return []
 
+    def available(self) -> bool:
+        """Whether the tool is offered this round (hidden from the human and the
+        Assistant otherwise). Default: always, except a ``needs_totals`` tool
+        while the human may not see what deals are worth to them."""
+        if not self.needs_totals:
+            return True
+        sess = self.session_state.get("_session")
+        return sess is None or sess.sees_totals("human")
+
+    def private_now(self) -> bool:
+        """Whether the Assistant may not read or use this tool this round: a
+        ``private_information`` tool, while the human and the Assistant know
+        different things. Override to refine (e.g. private only when it shows
+        something the Assistant does not know already)."""
+        return self.private_information and self.information.split
+
+    @property
+    def information(self):
+        """This round's :class:`~hani2.information.InformationState` (who knows what)."""
+        from hani2.information import InformationState
+
+        sess = self.session_state.get("_session")
+        return getattr(sess, "information", None) or InformationState()
+
     def context(self) -> dict[str, Any]:
-        """The live negotiation snapshot (same dict the Assistant sees)."""
+        """The live negotiation snapshot, with only what both the human and the
+        Assistant may know (a tool is seen by the human and read by the Assistant)."""
+        sess = self.session_state.get("_session")
+        if sess is not None and hasattr(sess, "context"):
+            return sess.context("shared")
         actions = self.session_state.get("actions") or {}
         fn = actions.get("context")
         return fn() if callable(fn) else {}

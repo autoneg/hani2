@@ -74,6 +74,12 @@ You never call `view()` yourself. The server calls it whenever the tool needs to
 | `enabled` | `True` | The default state of the enable switch. A switched-off tool shows its tab, but `view()` is not called until it is switched on. |
 | `order` | `100` | Sort key inside the pane (smaller first). Tools with `order` 0 or 1 become the selected tab of their pane when they appear. |
 | `agent_hint` | `""` | Advice for an Assistant on when and how to use the tool. |
+| `needs_totals` | `False` | The tool shows what deals are worth to the participant. It is not offered in a round where the participant knows only part of their preferences (see [Who knows what](../guide/information.md)). |
+| `private_information` | `False` | The tool shows the participant's own information. While the participant and the Assistant know different things, the Assistant cannot read or use it. Override `private_now(self) -> bool` to refuse it only when it shows something the Assistant does not know. |
+
+Override `available(self) -> bool` to offer a tool only in some rounds: an unavailable tool is
+hidden from the participant and the Assistant. `self.information` is the round's
+information split (see [Who knows what](../guide/information.md)).
 
 An admin can override `pane`, `timing`, `enabled`, `admin_only`, `guest` and `order` per deployment in `env.json`, without changing your code (see [Tools](../guide/tools.md)).
 

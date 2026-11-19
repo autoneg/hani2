@@ -18,6 +18,8 @@ Build your own agent by subclassing :class:`SupportAgent` and pointing
 
 from __future__ import annotations
 
+import contextlib
+
 import importlib
 import sys
 import json
@@ -339,10 +341,16 @@ class SupportAgent:
         return self._denied(Capability.TOOL_ADD) or self.session.remove_tool(name, by=self.name)
 
     def _find_tool(self, name: str):
-        t = self.session.tool_controller.find(name)
-        if t is None:
+        sess = self.session
+        t = sess.tool_controller.find(name)
+        available = getattr(sess, "tool_available", lambda _t: True)
+        if t is None or not available(t):
             return None, {"ok": False, "error": f"no tool named {name!r}",
-                          "tools": [x.name for x in self.session.tools]}
+                          "tools": [x.name for x in sess.tools if available(x)]}
+        if getattr(sess, "tool_private_to_human", lambda _t: False)(t):
+            return None, {"ok": False, "error": f"{t.name} shows the participant's own information, which you cannot "
+                                                "see in this negotiation. Ask the participant about it instead "
+                                                "(get_private_information tells you what only you know)."}
         st = self.session.tool_state(t)
         if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
             return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)",
@@ -358,7 +366,50 @@ class SupportAgent:
         t, err = self._find_tool(name)
         if err:
             return err
-        return {"ok": True, "tool": t.name, "text": t.describe_for_agent(max_chars=max_chars)}
+        with self._as_assistant():
+            text = t.describe_for_agent(max_chars=max_chars)
+        return {"ok": True, "tool": t.name, "text": text}
+
+    def _as_assistant(self):
+        """Render tools as the Assistant sees them (see ``NegotiationSession.viewing_as``)."""
+        fn = getattr(self.session, "viewing_as", None)
+        return fn("assistant") if fn is not None else contextlib.nullcontext()
+
+    # ------------------------------------------------------------------ #
+    # What only the Assistant knows (hani2.information)                    #
+    # ------------------------------------------------------------------ #
+    def private_information(self) -> dict:
+        """What only the Assistant knows in this negotiation and who holds what
+        (``{"ok", "who_holds_what", ...}``): its part of the participant's
+        preferences, the value on disagreement when it has it, the past
+        negotiations it holds and the market research. Needs ``private_info``.
+
+        Python Assistants can read ``self.session.human_ufun`` directly; use this
+        helper instead to keep to the information split of the study."""
+        denied = self._denied(Capability.PRIVATE_INFO)
+        if denied:
+            return denied
+        from hani2.information import private_view
+
+        return {"ok": True, **self.run_on_doc(lambda: private_view(self.session))}
+
+    def past_negotiation(self, pid: str) -> dict:
+        """One past negotiation the Assistant holds, offer by offer
+        (``{"ok", "negotiation"}``). Needs ``private_info``."""
+        denied = self._denied(Capability.PRIVATE_INFO)
+        if denied:
+            return denied
+        from hani2.information import past_view
+
+        st = self.session.information
+        rec = st.past_by_id(pid)
+        if rec is None or rec["id"] not in st.assistant_past:
+            held = list(st.assistant_past)
+            if rec is not None and rec["id"] in st.human_past:
+                return {"ok": False, "error": f"{rec['id']} is held by the participant; ask them about it",
+                        "you_hold": held}
+            return {"ok": False, "error": f"no past negotiation {pid!r} among yours", "you_hold": held}
+        return {"ok": True, "negotiation": self.run_on_doc(lambda: past_view(self.session, rec, who="assistant", max_offers=60))}
 
     def _executable_capabilities(self) -> set[str]:
         caps = set()
@@ -398,7 +449,7 @@ class SupportAgent:
             return err
         from hani2.tools.describe import controls_of
 
-        with t.view_lock:
+        with t.view_lock, self._as_assistant():
             controls = controls_of(list(t.view() or []))
         for key in inputs or {}:
             if key not in controls["inputs"]:
@@ -417,12 +468,12 @@ class SupportAgent:
                     return {"ok": False, "error": f"setting {key!r} failed: {e}"}
             if action is not None:
                 if inputs:  # the new inputs may change the buttons and tables on offer
-                    with t.view_lock:
+                    with t.view_lock, self._as_assistant():
                         controls = controls_of(list(t.view() or []))
                 if action not in controls["actions"] and action not in controls["tables"]:
                     return {"ok": False, "error": f"{t.name} has no button or table action {action!r} now",
                             "actions": sorted(controls["actions"]) + sorted(controls["tables"]),
-                            "text": t.describe_for_agent()}
+                            "text": self._describe(t)}
                 if action in controls["actions"] and controls["actions"][action].get("disabled"):
                     label = controls["actions"][action].get("label") or action
                     return {"ok": False, "error": f"the {label} button is disabled now"}
@@ -442,7 +493,11 @@ class SupportAgent:
         _log_agent_action(self.session_state, "use_tool", f"{t.name}:{action or ''}:{sorted(inputs or {})}")
         ev.log_event(sess.sid, ev.EventType.TOOL_INTERACTION, user=sess.user, component=t.name,
                      action=f"agent:{action or 'input'}", value={"inputs": inputs or {}, "row": row})
-        return {"ok": True, "tool": t.name, "text": t.describe_for_agent()}
+        return {"ok": True, "tool": t.name, "text": self._describe(t)}
+
+    def _describe(self, t) -> str:
+        with self._as_assistant():
+            return t.describe_for_agent()
 
     # ------------------------------------------------------------------ #
     # Participant controls                                                 #

@@ -67,9 +67,26 @@ class PreferencesTool(Tool):
     timing = "load"
     permanent = True
     order = 0
+    private_information = True
+
+    def private_now(self) -> bool:
+        """Private only when it shows something the Assistant does not know itself."""
+        st = self.information
+        a, h = st.assistant_prefs, st.human_prefs
+        covered = a == "full" or a == h or h == "none"
+        return not covered or (st.human_sees_reserved and not st.assistant_sees_reserved)
 
     def view(self):
-        return preference_view(self, self.human_ufun)
+        st = self.information
+        rv_hint = None
+        if not st.human_sees_reserved:
+            rv_hint = "You do not know it; your Assistant does" if st.assistant_sees_reserved else "You do not know it"
+        if st.human_prefs == "full":
+            return render_ufun_view(self, self.human_ufun, reserved_hint=rv_hint)
+        from hani2.tools.ufun_views import partial_preference_view
+
+        holder = "your Assistant" if st.assistant_prefs != "none" else "nobody"
+        return partial_preference_view(self, self.human_ufun, st.human_prefs, reserved_hint=rv_hint, other_holder=holder)
 
 
 class OpponentPreferencesTool(Tool):
@@ -102,6 +119,14 @@ AgentPreferencesTool = OpponentPreferencesTool
 # Scenario info                                                                #
 # --------------------------------------------------------------------------- #
 class ScenarioInfoTool(Tool):
+    def _may_see_hints(self) -> bool:
+        sess = self.session_state.get("_session")
+        if sess is None:
+            return True
+        st = self.information
+        viewer = sess.current_viewer() if hasattr(sess, "current_viewer") else "human"
+        return (st.assistant_prefs if viewer == "assistant" else st.human_prefs) == "full"
+
     name = "Scenario Info"
     groups = ("information",)
     description = "The scenario description, the issues and hints for your role."
@@ -162,6 +187,8 @@ class ScenarioInfoTool(Tool):
         comps.append(ui.table(rows, ["Issue", "Options", "Description"], sortable=False, page_size=50))
         hints_all = info.get("hints") or {}
         hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
+        if hints and not self._may_see_hints():
+            hints = {}  # hints come from the preferences; this viewer knows only part of them
         if hints:
             comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
         if info.get("long_description"):
@@ -197,6 +224,7 @@ class ScenarioInfoTool(Tool):
 # Plots                                                                        #
 # --------------------------------------------------------------------------- #
 class UtilityPlotTool(Tool):
+    needs_totals = True
     name = "Utility Plot"
     groups = ("visualization",)
     description = "How the utility of the offers evolves over time."
@@ -261,6 +289,7 @@ class UtilityPlotTool(Tool):
 
 
 class NegotiationPlotTool(Tool):
+    needs_totals = True
     """The negotiation in utility space: every outcome placed by its utility for
     you (x) and for the opponent (y), with the Pareto frontier, Nash and Kalai
     points, both no-deal values, the offer trajectories and the agreement."""
@@ -411,6 +440,7 @@ class OutcomePlotTool(Tool):
 
 
 class TraceTool(Tool):
+    needs_totals = True
     name = "Trace"
     groups = ("information",)
     description = "A table of every offer with its utility."
@@ -596,6 +626,7 @@ class AllResultsTool(Tool):
 # Outcome selectors                                                            #
 # --------------------------------------------------------------------------- #
 class UtilitySelectorTool(OutcomeSelector):
+    needs_totals = True
     name = "Utility-based Selector"
     groups = ("recommendation",)
     description = "Browse every outcome whose utility for you is in a chosen range and use one as your offer."
@@ -737,6 +768,7 @@ class RandomOutcomeTool(OutcomeSelector):
 
 
 class ResponseGeneratorTool(OutcomeSelector):
+    needs_totals = True
     name = "LLM"
     groups = ("recommendation",)
     description = "Describe what you want in plain words and let an LLM write the offer and message."

@@ -40,6 +40,7 @@ from negmas import ContiguousIssue, ContinuousIssue, Outcome, ResponseType, SAOR
 from negmas.sao import SAOMechanism, SAONegotiator, SAOState
 
 from hani2 import events as ev
+from hani2 import information
 from hani2 import projects
 from hani2 import scenario_store as store
 from hani2.recording import recorder as rec
@@ -130,6 +131,8 @@ ADMIN_PREFS: dict[str, Any] = {
 
 #: Set while the Assistant operates a tool (see ``acting_for_agent``).
 _AGENT_CONTEXT = threading.local()
+#: Who tools are rendered for in this thread (see ``viewing_as``).
+_VIEWER = threading.local()
 
 
 def _in_own_study(fn: Callable) -> Callable:
@@ -300,6 +303,8 @@ class NegotiationSession:
         self.autopilot_active = False
         self.autopilot_driver_name: str | None = None
         self.next_opponent: str = ""
+        #: who knows what this round (see hani2.information); the default splits nothing
+        self.information = information.InformationState()
         #: the opponent group of the current pool / negotiation ("" when not from a group)
         self.opponent_group: str = ""
 
@@ -395,7 +400,7 @@ class NegotiationSession:
             from hani2.config import read_json_own_file
 
             study_env = (read_json_own_file(projects.study_dir(study.ref) / "env.json").get("negotiation") or {})
-        for key in ("scenario_set", "role_rule", "human_roles", "time_limit", "n_steps"):
+        for key in ("scenario_set", "role_rule", "human_roles", "time_limit", "n_steps", "information"):
             from_study = study is not None and key in study.overrides
             if not from_study and key in study_env:
                 continue  # the study folder's env.json is more specific than project.yaml
@@ -474,6 +479,8 @@ class NegotiationSession:
         level = level if level in ("info", "success", "warning", "error") else "info"
         with self.lock:
             pid = str(pin_id or f"pin{len(self.pins) + 1}-{uuid.uuid4().hex[:4]}")[:40]
+            if source != "briefing" and any(p["id"] == pid and p.get("source") == "briefing" for p in self.pins):
+                return {"ok": False, "error": "that pin is the participant's private briefing"}
             item = {"id": pid, "text": text, "position": position, "level": level, "source": source,
                     "dismissible": bool(dismissible)}
             for i, p in enumerate(self.pins):
@@ -482,7 +489,10 @@ class NegotiationSession:
                     break
             else:
                 self.pins.append(item)
-                del self.pins[:-8]
+                others = [p for p in self.pins if p.get("source") != "briefing"]
+                if len(others) > 8:  # drop the oldest; a briefing stays
+                    drop = {id(p) for p in others[:-8]}
+                    self.pins = [p for p in self.pins if id(p) not in drop]
         self.push_state()
         return {"ok": True, "id": pid}
 
@@ -491,7 +501,8 @@ class NegotiationSession:
         with self.lock:
             before = len(self.pins)
             self.pins = [p for p in self.pins if not (
-                (pin_id is None or p["id"] == pin_id) and (by != "human" or p["dismissible"]))]
+                (pin_id is None or p["id"] == pin_id) and (by != "human" or p["dismissible"])
+                and not (by == "assistant" and p.get("source") == "briefing"))]  # the participant's own
             removed = before - len(self.pins)
         if removed:
             self.push_state()
@@ -542,6 +553,110 @@ class NegotiationSession:
         if style not in ("panel", "persona", "both"):
             style = "panel"
         return {"style": style, "choice": choice, "movable": bool(pres.get("persona_movable", True))}
+
+    # ------------------------------------------------------------------ #
+    # Who knows what (hani2.information)                                  #
+    # ------------------------------------------------------------------ #
+    def _build_information(self, scenario, human_index: int, sdir: str | None, info: dict) -> None:
+        """Work out this round's information split (past negotiations, market
+        research, which part of the preferences each side knows)."""
+        try:
+            self.information = information.build_state(
+                scenario, human_index=human_index, settings=self.admin_prefs.get("information"),
+                scenario_dir=sdir, scenario_info=info, assign_seed=f"{self.user}|{self.round_number}|{sdir or ''}")
+        except Exception as e:  # noqa: BLE001 - never stop a round for this
+            traceback.print_exc()
+            self.information = information.InformationState()
+            self.information.warnings.append(f"could not set up the information split: {e}")
+        self.ss["information"] = self.information.record()
+        # what is private stays with the information state: no opponent, tool or saved copy sees it
+        for key in information.PRIVATE_INFO_KEYS:
+            (scenario.info or {}).pop(key, None)
+
+    def sees_totals(self, audience: str) -> bool:
+        """Whether ``audience`` (``human`` / ``assistant`` / ``shared``) may see what deals are worth."""
+        st = self.information
+        if audience == "human":
+            return st.human_sees_totals
+        if audience == "assistant":
+            return st.assistant_sees_totals
+        return st.human_sees_totals and st.assistant_sees_totals
+
+    def sees_reserved(self, audience: str) -> bool:
+        st = self.information
+        if audience == "human":
+            return st.human_sees_reserved
+        if audience == "assistant":
+            return st.assistant_sees_reserved
+        return st.human_sees_reserved and st.assistant_sees_reserved
+
+    def shown_utility(self, outcome, audience: str = "human") -> float | None:
+        """The human's utility of ``outcome`` when ``audience`` may know it, else ``None``."""
+        return self.utility(outcome) if self.sees_totals(audience) else None
+
+    def shown_utility_value(self, value, audience: str = "human"):
+        return value if self.sees_totals(audience) else None
+
+    def shown_reserved_value(self, audience: str = "human") -> float | None:
+        return self.reserved_value() if self.sees_reserved(audience) else None
+
+    def _shown_history(self) -> list[dict[str, Any]]:
+        """The history as the human may see it (no deal values when they may not know them)."""
+        if self.sees_totals("human"):
+            return list(self.history)
+        return [{k: v for k, v in h.items() if k not in ("utility", "below_reserved")} for h in self.history]
+
+    def tool_available(self, tool) -> bool:
+        """Whether ``tool`` is offered this round (a tool can depend on the information split)."""
+        try:
+            return bool(tool.available())
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            return True
+
+    def current_viewer(self) -> str:
+        """Who a tool is being rendered for in this thread: ``assistant`` (inside
+        :meth:`viewing_as`) or ``human``."""
+        return getattr(_VIEWER, "who", None) or "human"
+
+    @contextlib.contextmanager
+    def viewing_as(self, who: str):
+        """Render tools for ``who`` (``assistant`` while the Assistant reads or uses a tool)."""
+        prev = getattr(_VIEWER, "who", None)
+        _VIEWER.who = who
+        try:
+            yield
+        finally:
+            _VIEWER.who = prev
+
+    def tool_private_to_human(self, tool) -> bool:
+        """Whether ``tool`` shows the human's private information that the
+        Assistant must not read this round (it asks the human instead)."""
+        fn = getattr(tool, "private_now", None)
+        if callable(fn):
+            try:
+                return bool(fn())
+            except Exception:  # noqa: BLE001 - fail closed
+                traceback.print_exc()
+                return True
+        return bool(getattr(tool, "private_information", False)) and self.information.split
+
+    def _information_client_state(self) -> dict[str, Any] | None:
+        st = self.information
+        if not st.split:
+            return None
+        return {"totals_hidden": not st.human_sees_totals, "reserved_hidden": not st.human_sees_reserved,
+                "preferences": st.human_prefs, "past_negotiations": len(st.human_past),
+                "market_research": st.human_market}
+
+    def _information_note(self, audience: str) -> dict[str, Any]:
+        st = self.information
+        if audience == "assistant":
+            return {**st.describe_split(),
+                    "how_to_use": "The participant and you know different things. Call get_private_information for "
+                                  "what only you know (and show_past_negotiation for one record). The participant "
+                                  "cannot see your share unless you tell them; ask them about theirs."}
+        return {"split": True}
 
     def utility(self, outcome) -> float | None:
         if outcome is None or self.human_ufun is None:
@@ -606,8 +721,9 @@ class NegotiationSession:
         return OfferContext(
             self.scenario, surface=surface, from_human=from_human, is_done=done,
             role=str(self.ss.get("human_id", "")).replace(" (You)", ""),
-            utility=self.utility(outcome) if outcome is not None and all(v is not None for v in outcome) else None,
-            reserved_value=self.reserved_value(), is_my_turn=self.is_my_turn(),
+            utility=self.shown_utility(outcome, "human") if outcome is not None and all(v is not None for v in outcome)
+            else None,
+            reserved_value=self.shown_reserved_value("human"), is_my_turn=self.is_my_turn(),
             step=getattr(m.state, "step", None) if m is not None else None,
             opponent_offer=self.outcome_to_dict(self.partner_offer()),
         )
@@ -699,7 +815,7 @@ class NegotiationSession:
 
     def push_draft(self, by_agent: bool = False) -> None:
         """Send the draft (and the custom controls drawn from it) to the browser."""
-        self.emit({"type": "draft", "draft": self.draft, "utility": self.utility(self.draft_outcome()),
+        self.emit({"type": "draft", "draft": self.draft, "utility": self.shown_utility(self.draft_outcome(), "human"),
                    "controls": self.draft_controls(), "by_agent": by_agent})
 
     # ------------------------------------------------------------------ #
@@ -788,7 +904,7 @@ class NegotiationSession:
         tool (``max``). Other tools are rendered when their tab is opened."""
         with self.lock:
             names: set[str] = set()
-            visible = [t for t in self.tools if self._tool_states[id(t)]["visible"]]
+            visible = [t for t in self.tools if self._tool_states[id(t)]["visible"] and self.tool_available(t)]
             for pane in PANES:
                 in_pane = sorted((t for t in visible if self._tool_states[id(t)]["pane"] == pane),
                                  key=lambda t: self._tool_states[id(t)]["order"])
@@ -808,7 +924,7 @@ class NegotiationSession:
     @_in_own_study
     def render_tool(self, tid: str) -> dict[str, Any] | None:
         t = self.tool_by_id(tid)
-        if t is None:
+        if t is None or not self.tool_available(t):
             return None
         st = self.tool_state(t)
         if not st["enabled"] and not t.permanent and self.admin_prefs.get("allow_tool_switch", True):
@@ -909,6 +1025,7 @@ class NegotiationSession:
             self.ss["human_index"] = hi
             self.ss["human_ufun"] = scenario.ufuns[hi]
             self.ss["human_id"] = f"{scenario.ufuns[hi].name} (You)"
+            self._build_information(scenario, hi, sdir, info)
             self.ss["mechanism"] = None
             self.ss["load_at_dt"] = datetime.now()
             self.ss["start_at_dt"] = None
@@ -937,7 +1054,11 @@ class NegotiationSession:
             self.recorder.scenario()
         self._add_tools("load")
         self._tools_hook("scenario_loaded", scenario)
-        ev.log_event(self.sid, ev.EventType.SCENARIO_LOADED, user=self.user, scenario_id=str(info.get("scenario_name")))
+        ev.log_event(self.sid, ev.EventType.SCENARIO_LOADED, user=self.user, scenario_id=str(info.get("scenario_name")),
+                     value={"information": self.information.record()} if self.information.split else None)
+        for w in self.information.warnings:
+            if self.is_admin:
+                self.toast(f"Information split: {w}", "warning")
         self.push_state()
         self.study.after_load()
 
@@ -1073,6 +1194,7 @@ class NegotiationSession:
             self.recorder.start()
         self._add_tools("start")
         self._reveal_own_preferences()
+        self._pin_briefings()
         self._tools_hook("negotiation_started")
         ev.log_event(self.sid, ev.EventType.SCENARIO_STARTED, user=self.user, scenario_id=self._scenario_name(),
                      value={"partner": self.ss.get("last_partner_type"), "opponent_group": self.ss.get("opponent_group", ""),
@@ -1083,6 +1205,21 @@ class NegotiationSession:
         self._agent_event("negotiation_started")
         self.push_state()
         self._step_to_human(wait=30.0)  # a step of the previous round may still be finishing
+
+    def _pin_briefings(self) -> None:
+        """Pin the participant's private briefings above the negotiation (see hani2.information)."""
+        st = self.information
+        if st.human_only_issues or st.human_only_actions:
+            self.pin(f"Only you can {st.decisions_text()} here. Your Assistant can suggest, "
+                     "but the decision is yours.", position="top", level="info", pin_id="briefing-control",
+                     source="briefing")
+        for b in st.briefings_for("human"):
+            if b.get("pin"):
+                try:
+                    self.pin(f"**Your private briefing.** {b['text']}", position="top", level="warning",
+                             pin_id=f"briefing-{b['id']}", source="briefing")
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
 
     def _reveal_own_preferences(self) -> None:
         """When a negotiation starts the participant must see their own
@@ -1236,7 +1373,7 @@ class NegotiationSession:
                 )
             )
         if new:
-            self.emit({"type": "history", "items": self.history})
+            self.emit({"type": "history", "items": self._shown_history()})
 
     def reserved_value(self) -> float:
         try:
@@ -1353,7 +1490,8 @@ class NegotiationSession:
         outcome = None
         if self.admin_prefs.get("init_with_last", True) and self.human_last_offer is not None:
             outcome = self.human_last_offer
-        elif self.admin_prefs.get("init_with_best", True) and self.human_ufun is not None:
+        elif self.admin_prefs.get("init_with_best", True) and self.human_ufun is not None \
+                and self.information.human_sees_totals:
             try:
                 outcome = self.human_ufun.best()
             except Exception:
@@ -1405,12 +1543,16 @@ class NegotiationSession:
     def set_draft(self, values: dict[str, Any], *, by_agent: bool = False) -> dict:
         if (refused := self._agent_gate("fill_offer")) is not None:
             return refused
-        applied, missing = {}, []
+        applied, missing, kept = {}, [], []
+        agent = self._actor() == "agent"
         with self.lock:
             for key, value in (values or {}).items():
                 issue = self._resolve_issue(key)
                 if issue is None:
                     missing.append(key)
+                    continue
+                if agent and self.information.human_only_issue(issue.name):
+                    kept.append(issue.name)  # only the participant may set it (hani2.information)
                     continue
                 v = self._coerce(issue, value)
                 try:
@@ -1423,7 +1565,8 @@ class NegotiationSession:
                 self.draft[issue.name] = ui.jsonable(v)
                 applied[issue.name] = ui.jsonable(v)
         util = self.utility(self.draft_outcome())
-        self.emit({"type": "draft", "draft": self.draft, "utility": util, "controls": self.draft_controls(),
+        self.emit({"type": "draft", "draft": self.draft, "utility": util if self.sees_totals("human") else None,
+                   "controls": self.draft_controls(),
                    "by_agent": by_agent})
         if self.recorder is not None and applied:
             # by_agent means "filled in from outside the editor" (a tool or the assistant);
@@ -1436,7 +1579,12 @@ class NegotiationSession:
                 sa.on_draft_changed(dict(self.draft))
             except Exception:
                 traceback.print_exc()
-        return {"ok": not missing, "applied": applied, "unrecognised": missing}
+        out = {"ok": not missing, "applied": applied, "unrecognised": missing}
+        if kept:
+            out["human_only"] = kept
+            out["note"] = (f"only the participant may set {', '.join(kept)}; suggest a value to them instead "
+                           "(their current values were kept)")
+        return out
 
     def set_draft_text(self, text: str, *, by_agent: bool = False) -> dict:
         if (refused := self._agent_gate("fill_text")) is not None:
@@ -1548,7 +1696,7 @@ class NegotiationSession:
         return NegotiationContext(
             issues=self.issues,
             outcome_space=self.scenario.outcome_space if self.scenario else None,
-            ufun=self.human_ufun,
+            ufun=self.human_ufun if self.information.human_sees_totals else None,
             history=hist or None,
             current_offer=self.partner_offer(),
             models=self.models,
@@ -1657,7 +1805,7 @@ class NegotiationSession:
                 self.study.after_round(summary)
             finally:
                 self._finishing = False
-            self.emit({"type": "history", "items": self.history})
+            self.emit({"type": "history", "items": self._shown_history()})
         self._add_tools("end")
         self._tools_hook("negotiation_ended")
         ev.log_event(self.sid, ev.EventType.NEGOTIATION_ENDED, user=self.user, scenario_id=self._scenario_name(),
@@ -1729,7 +1877,12 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # The action API shared by the UI and the Assistant                #
     # ------------------------------------------------------------------ #
-    def context(self) -> dict[str, Any]:
+    def context(self, audience: str = "assistant") -> dict[str, Any]:
+        """The live negotiation snapshot for ``audience``: ``assistant`` (the
+        default: what the Assistant's language model reads), ``human`` or
+        ``shared`` (a tool both see: only what both may know). Utilities and the
+        value on disagreement are left out for a party that may not know them
+        (see :mod:`hani2.information`)."""
         m = self.mechanism
         st = m.state if m is not None else None
         partner = self.partner_offer()
@@ -1737,6 +1890,8 @@ class NegotiationSession:
 
         def _issue_info(i):
             info: dict[str, Any] = {"name": i.name}
+            if self.information.human_only_issue(i.name):
+                info["only_the_participant_may_set"] = True
             if _issue_kind(i) in ("int", "float"):
                 info["min"], info["max"] = ui.jsonable(i.min_value), ui.jsonable(i.max_value)
             else:
@@ -1751,7 +1906,7 @@ class NegotiationSession:
                 "by": "you" if h["by"] == "human" else "partner",
                 "offer": self.display_outcome(h.get("offer")),
                 "message": h.get("text"),
-                "utility": h.get("utility"),
+                "utility": self.shown_utility_value(h.get("utility"), audience),
             }
             for h in self.history[-14:]
             if h.get("kind") == "offer"
@@ -1759,13 +1914,14 @@ class NegotiationSession:
         return {
             "issues": [_issue_info(i) for i in self.issues],
             "partner_offer": self.display_outcome(self.outcome_to_dict(partner)),
-            "partner_offer_utility": self.utility(partner),
+            "partner_offer_utility": self.shown_utility(partner, audience),
             "partner_message": self.relabel_text((self.partner_data() or {}).get("text"))
             if isinstance(self.partner_data(), dict) else None,
             "draft_offer": self.display_outcome(dict(self.draft)),
-            "draft_offer_utility": self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None,
+            "draft_offer_utility": self.shown_utility(draft_t, audience)
+            if draft_t and all(v is not None for v in draft_t) else None,
             "draft_message": self.draft_text,
-            "reserved_value": self.reserved_value(),
+            "reserved_value": self.shown_reserved_value(audience),
             "is_my_turn": self.is_my_turn(),
             "phase": self.phase,
             "step": getattr(st, "step", None),
@@ -1774,7 +1930,8 @@ class NegotiationSession:
             "time_left": max(0.0, self.deadline - time.time()) if self.deadline else None,
             "history": history,
             "result": self.result,
-            "tools": [t.name for t in self.tools],
+            "tools": [t.name for t in self.tools if self.tool_available(t)],
+            **({"information": self._information_note(audience)} if self.information.split else {}),
             **({"names": "Values are shown with these names: "
                          + ", ".join(f"{v} = {'the participant' if k == 'human' else 'the opponent'}"
                                      for k, v in self.labels.items())
@@ -1812,6 +1969,12 @@ class NegotiationSession:
     def _agent_gate(self, capability: str) -> dict | None:
         """While the Assistant operates a tool (:meth:`acting_for_agent`),
         refuse what the agent itself may not do; ``None`` means allowed."""
+        action = {"submit_counter": "send", "accept": "accept", "end": "end"}.get(capability)
+        st = self.information
+        human_only = action in st.human_only_actions or (action in ("send", "accept") and bool(st.human_only_issues))
+        if action and human_only and self._actor() == "agent":
+            return {"ok": False, "human_only": True,
+                    "error": f"only the participant may {action} in this negotiation; suggest it to them instead"}
         caps = getattr(_AGENT_CONTEXT, "caps", None)
         if caps is None or capability in caps:
             return None
@@ -2089,6 +2252,8 @@ class NegotiationSession:
             show_partner = self.admin_mode or bool(self.admin_prefs.get("show_opponent_type"))
             tools = []
             for t in self.tools:
+                if not self.tool_available(t):
+                    continue
                 s = self.tool_state(t)
                 tools.append(
                     dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, help=t.help_text(), pane=s["pane"],
@@ -2139,15 +2304,17 @@ class NegotiationSession:
                 "partner_offer": None
                 if partner is None
                 else dict(values=self.outcome_to_dict(partner), text=self.relabel_text(self.outcome_str(partner)),
-                          utility=self.utility(partner), view=self.offer_view("table", partner),
+                          utility=self.shown_utility(partner, "human"), view=self.offer_view("table", partner),
                           message=(pdata or {}).get("text") if isinstance(pdata, dict) else None),
-                "reserved_value": self.reserved_value(),
+                "reserved_value": self.shown_reserved_value("human"),
+                "information": self._information_client_state(),
                 "draft": dict(values=dict(self.draft), text=self.draft_text,
-                              utility=self.utility(draft_t) if draft_t and all(v is not None for v in draft_t) else None,
+                              utility=self.shown_utility(draft_t, "human")
+                              if draft_t and all(v is not None for v in draft_t) else None,
                               controls=self.draft_controls()),
                 "result": None if self.result is None else {
                     **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str"))},
-                "history": list(self.history),  # a copy: the list grows while the state is sent
+                "history": self._shown_history(),  # a copy: the list grows while the state is sent
                 "tools": tools,
                 "active_tabs": dict(self.active_tabs),
                 "reveal": getattr(self, "reveal", None),

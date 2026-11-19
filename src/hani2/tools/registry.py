@@ -73,10 +73,14 @@ class ToolSpec:
 
 def builtin_tool_classes() -> list[type[Tool]]:
     from hani2.tools import builtin as b
+    from hani2.tools import information_tools as it
 
     return [
         b.PreferencesTool,
         b.ScenarioInfoTool,
+        it.BriefingTool,
+        it.PastNegotiationsTool,
+        it.MarketResearchTool,
         b.UserResultsTool,
         b.ValueHistogramTool,
         b.UtilityPlotTool,
@@ -375,5 +379,7 @@ def addable_tool_specs(session: "NegotiationSession") -> list[ToolSpec]:
             continue
         if not spec.guest and session.mode == "guest":
             continue
+        if getattr(spec.cls, "needs_totals", False) and not getattr(session, "sees_totals", lambda _a: True)("human"):
+            continue  # this round the participant may not see what deals are worth (hani2.information)
         out.append(spec)
     return out

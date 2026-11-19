@@ -22,7 +22,7 @@ function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" |
   );
 }
 
-function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: number; last: boolean; display: string }) {
+function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: number | null; last: boolean; display: string }) {
   const mine = h.by === "human";
   const tone = mine ? "you" : "opponent";
   return (

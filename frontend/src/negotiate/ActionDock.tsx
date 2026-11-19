@@ -155,7 +155,8 @@ export function ConfirmDialog() {
   const rv = st.reserved_value;
   const po = st.partner_offer;
   const accept = confirm.kind === "accept";
-  const below = accept && po?.utility != null && po.utility < rv;
+  const below = accept && po?.utility != null && rv != null && po.utility < rv;
+  const totalsHidden = !!st.information?.totals_hidden;
   return (
     <Modal open onClose={() => setConfirm(null)} title={accept ? "Accept this offer?" : "End without agreement?"}>
       <div className="flex flex-col gap-3 text-sm">
@@ -163,10 +164,14 @@ export function ConfirmDialog() {
         {accept && po ? (
           <>
             <div className="font-medium">{po.text}</div>
-            <div>
-              <div className="mb-1 text-xs text-muted">You will receive</div>
-              <Gauge value={po.utility} reserved={rv} size="lg" />
-            </div>
+            {totalsHidden ? (
+              <div className="text-xs text-muted">In this negotiation you do not see what deals are worth to you. Ask your Assistant.</div>
+            ) : (
+              <div>
+                <div className="mb-1 text-xs text-muted">You will receive</div>
+                <Gauge value={po.utility} reserved={rv} size="lg" />
+              </div>
+            )}
             {below && (
               <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-bad">
                 This offer is worth less to you ({pct(po.utility, 1)}) than ending the negotiation ({pct(rv, 1)}).
@@ -175,7 +180,11 @@ export function ConfirmDialog() {
           </>
         ) : (
           <p>
-            The negotiation ends and you receive your value on disagreement: <b className="tnum">{pct(rv, 1)}</b>.
+            {rv != null ? (
+              <>The negotiation ends and you receive your value on disagreement: <b className="tnum">{pct(rv, 1)}</b>.</>
+            ) : (
+              <>The negotiation ends and you receive your value on disagreement, which you do not know in this negotiation. Ask your Assistant.</>
+            )}
           </p>
         )}
         <div className="mt-1 flex justify-end gap-2">
@@ -206,6 +215,7 @@ function Running({ st }: { st: SessionState }) {
   const myTurn = st.negotiation.is_my_turn && !st.negotiation.thinking;
   const po = st.partner_offer;
   const rv = st.reserved_value;
+  const totalsHidden = !!st.information?.totals_hidden;
   const [countering, setCountering] = useUiState("dock.countering", false);
   const [text, setText] = useUiState("dock.text", st.draft.text || "");
   const [textOnly, setTextOnly] = useUiState("dock.textOnly", !!st.settings.text_only_mode);
@@ -261,10 +271,12 @@ function Running({ st }: { st: SessionState }) {
                   <div className="font-semibold">{po.text}</div>
                 )}
               </div>
-              <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
-                <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
-                <Gauge value={po.utility} reserved={rv} party="opponent" />
-              </div>
+              {!totalsHidden && (
+                <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
+                  <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
+                  <Gauge value={po.utility} reserved={rv} party="opponent" />
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-sm text-muted">{st.negotiation.thinking ? "Waiting for your opponent…" : "No offer on the table yet. Make the first offer."}</div>
@@ -286,7 +298,7 @@ function Running({ st }: { st: SessionState }) {
         <div className="flex-1" />
         <Anchor id="end">
           <button className="btn-danger px-3 py-2" disabled={!myTurn} onClick={() => setConfirm({ kind: "end" })}>
-            <X size={16} /> End <span className="tnum opacity-80">{pct(rv)}</span>
+            <X size={16} /> End {rv != null && <span className="tnum opacity-80">{pct(rv)}</span>}
           </button>
         </Anchor>
       </div>
@@ -302,7 +314,7 @@ function Running({ st }: { st: SessionState }) {
                 ))}
               </div>
             )}
-            {!textOnly && (
+            {!textOnly && !totalsHidden && (
               <div className="mt-3 rounded-lg bg-sunken/70 px-3 py-2">
                 <div className="mb-1 text-xs text-muted">If your opponent accepts this offer you get</div>
                 <Gauge value={st.draft.utility} reserved={rv} size="lg" />
