@@ -74,6 +74,7 @@ export function Splitter({
     if (e.button !== 0) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    last.current = undefined; // a plain click (no move) must not re-commit an old size
     setActive(true);
     document.body.classList.add(dir === "col" ? "resizing-col" : "resizing-row");
   };
