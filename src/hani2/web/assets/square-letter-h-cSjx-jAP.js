@@ -1,1 +1,0 @@
-import{c as t}from"./index-DzM_aKt6.js";const e={name:"square-letter-h",size:24,node:[["path",{d:"M9 16V8",key:"ydmt1j"}],["path",{d:"M15 16V8",key:"1pg9zw"}],["path",{d:"M9 12h6",key:"1c52cq"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const c=t(e);export{e as __iconData,c as default};

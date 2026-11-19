@@ -1,0 +1,1 @@
+import{c as n}from"./index-BVxVlYuD.js";const e={name:"underline",size:24,node:[["path",{d:"M6 4v6a6 6 0 0 0 12 0V4",key:"9kb039"}],["line",{x1:"4",x2:"20",y1:"20",y2:"20",key:"nun2al"}]]};e.node;const o=n(e);export{e as __iconData,o as default};

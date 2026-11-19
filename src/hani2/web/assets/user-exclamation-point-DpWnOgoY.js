@@ -1,1 +1,0 @@
-import{c as t}from"./index-DzM_aKt6.js";const e={name:"user-exclamation-point",size:24,node:[["path",{d:"M15 15H9a4 4 0 00-4 4v2",key:"1pyotl"}],["path",{d:"M18.988 13v4",key:"d427d"}],["path",{d:"M18.988 21h.01",key:"1jtj2q"}],["circle",{cx:"12",cy:"7",r:"4",key:"17ys0d"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

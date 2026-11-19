@@ -25,6 +25,7 @@ function OfferChips({ offer, tone }: { offer: Record<string, any>; tone: "you" |
 function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: number | null; last: boolean; display: string }) {
   const mine = h.by === "human";
   const tone = mine ? "you" : "opponent";
+  const role = useStore((s) => (mine ? s.state?.scenario?.role : s.state?.scenario?.opponent_role));
   return (
     <Anchor id={last ? "history:last" : `history:${h.id}`} className={`enter flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
       <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mine ? "bg-you text-white" : "bg-opponent text-white"}`} aria-hidden>
@@ -33,6 +34,7 @@ function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: numb
       <div className={`flex max-w-[min(34rem,85%)] flex-col gap-1.5 rounded-xl border px-3 py-2 ${mine ? "rounded-tr-sm border-you/20 bg-you/[0.04]" : "rounded-tl-sm border-opponent/25 bg-opponent/[0.05]"}`}>
         <div className="flex items-center gap-2 text-[11px] text-muted">
           <span className={`font-semibold ${mine ? "text-you" : "text-opponent"}`}>{mine ? "You" : "Opponent"}</span>
+          {role && <span className="capitalize">{role}</span>}
           {h.step !== null && h.step !== undefined && <span className="tnum">round {h.step + 1}</span>}
           {h.relative_time !== null && h.relative_time !== undefined && (
             <span className="tnum inline-flex items-center gap-0.5">

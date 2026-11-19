@@ -1,1 +1,0 @@
-import{c as a}from"./index-DzM_aKt6.js";const e={name:"square-padding-top",size:24,node:[["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}],["path",{d:"M8 7h8",key:"i86dvs"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

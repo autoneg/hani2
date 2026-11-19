@@ -30,7 +30,7 @@ def test_island_with_assistant_shows_you_and_opponent(hani2_home):
     snap = s.snapshot()
     issue = snap["scenario"]["issues"][0]
     assert issue["values"] == ["agent", "human"] and issue["labels"] == {"agent": "Opponent", "human": "You"}
-    assert snap["scenario"]["role"] == ""
+    assert snap["scenario"]["role"] == "" and snap["scenario"]["opponent_role"] == ""
     s.start()
     s.wait_for_turn()
     first = s.issues[0].name
@@ -92,3 +92,10 @@ def test_scenario_info_uses_the_names(hani2_home):
     import re
 
     assert not re.search(r"\b(human|agent)\b", text.replace('"value": "agent"', "")), re.findall(r".{30}\b(?:human|agent)\b.{10}", text)[:3]
+
+
+def test_snapshot_names_both_roles(hani2_home):
+    s = make_session()
+    sc = s.snapshot()["scenario"]
+    you = str(s.ss.get("human_id", "")).replace(" (You)", "")
+    assert sc["role"] == you and sc["opponent_role"] == s.opponent_ufun.name and sc["opponent_role"] != you

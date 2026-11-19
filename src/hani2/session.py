@@ -679,6 +679,12 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # The opponent's utility (the Assistant's ``opponent_utility`` oracle) #
     # ------------------------------------------------------------------ #
+    def _opponent_role(self) -> str:
+        """The opponent's role name (e.g. "seller"); empty when roles are relabelled or unnamed."""
+        u = self.opponent_ufun
+        name = str(getattr(u, "name", "") or "").strip() if u is not None else ""
+        return "" if not name or name.lower() in self.labels else name
+
     @property
     def opponent_ufun(self):
         """The opponent's utility function (``None`` before a scenario is loaded)."""
@@ -2442,6 +2448,7 @@ class NegotiationSession:
                     n_issue_columns=int(info.get("n_issue_columns") or (3 if len(self.issues_spec()) >= 7 else 2)),
                     role="" if str(self.ss.get("human_id", "")).replace(" (You)", "").strip().lower() in self.labels
                     else str(self.ss.get("human_id", "")).replace(" (You)", ""),
+                    opponent_role=self._opponent_role(),
                 ),
                 "opponent": dict(
                     name=short_name(self.ss.get("last_partner_type", "")),

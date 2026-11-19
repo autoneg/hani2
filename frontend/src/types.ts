@@ -132,6 +132,7 @@ export interface SessionState {
     issues: IssueSpec[];
     n_issue_columns: number;
     role: string;
+    opponent_role?: string;
   };
   opponent: null | { name: string; type: string };
   negotiation: {
