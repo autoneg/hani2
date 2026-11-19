@@ -237,7 +237,7 @@ def api_register(response: Response, body: dict = Body(...)):
         err = "Emails do not match."
     if err:
         raise HTTPException(400, err)
-    meta = {"email": email, "full_name": str(body.get("full_name", "")).strip()}
+    meta = {"email": email, "full_name": str(body.get("full_name", "")).strip(), "self_registered": True}
     ref = projects.current_study()
     if body.get("consent") and (ref is None or ref == projects.default_study()):
         meta.update(consented=True, consent_date=time.strftime("%Y-%m-%dT%H:%M:%S"))

@@ -55,6 +55,19 @@ def test_register_validation(client):
     assert client.get("/api/admin/users").status_code == 403
 
 
+def test_registering_with_an_admin_email_does_not_grant_admin(client, hani2_home):
+    write_settings(hani2_home, "env.json", {"admin": {"emails": ["pi@lab.org"]}})
+    r = client.post("/api/auth/register", json={"username": "mallory", "password": "secret", "confirm": "secret",
+                                                "email": "PI@lab.org", "consent": True})
+    assert r.status_code == 200
+    assert not client.get("/api/auth/me").json()["is_admin"]
+    assert client.get("/api/admin/users").status_code == 403
+    from hani2 import auth
+
+    auth.create_user("pi", "secret", email="pi@lab.org")  # an account the admin made: the email is trusted
+    assert auth.is_admin_user("pi")
+
+
 def test_consent_enforced(client, hani2_home):
     write_settings(hani2_home, "env.json", {"auth": {"enforce_consent": True}})
     client.post("/api/auth/register", json={"username": "carol", "password": "secret", "confirm": "secret"})

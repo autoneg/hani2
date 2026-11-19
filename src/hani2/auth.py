@@ -197,6 +197,8 @@ def is_admin_user(username: str | None) -> bool:
     meta = get_meta(username)
     if meta.get("role") == "admin":
         return True
+    if meta.get("self_registered") and not meta.get("oauth"):
+        return False  # an email typed at registration is unverified: it must not grant admin
     email = str(meta.get("email", "")).strip().lower()
     emails = [str(e).strip().lower() for e in (get_env("admin.emails", []) or [])]
     return bool(email) and email in emails
