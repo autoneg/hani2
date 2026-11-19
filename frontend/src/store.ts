@@ -45,6 +45,7 @@ let toastId = 1;
 let retry = 0;
 let wanted: string | null = null;
 let pingTimer: number | undefined;
+let retryTimer: number | undefined;
 
 /* Tool views arrive in bursts; apply them together once per frame so a burst
  * of updates causes one re-render instead of many. */
@@ -125,27 +126,35 @@ export const useStore = create<Store>((set, get) => ({
 
   connect: (sid) => {
     wanted = sid;
+    window.clearTimeout(retryTimer); // a pending retry from an earlier socket must not replace this one
     const old = get().ws;
-    if (old) old.close();
+    if (old) {
+      old.onclose = old.onmessage = old.onopen = null; // its late events are not about this socket
+      old.close();
+    }
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}${BASE}/api/ws/${encodeURIComponent(sid)}`);
     set({ ws });
     ws.onopen = () => {
+      if (get().ws !== ws) return;
       retry = 0;
       set({ connected: true });
       window.clearInterval(pingTimer);
       pingTimer = window.setInterval(() => get().send({ type: "ping" }), 25000);
     };
     ws.onclose = (ev) => {
+      if (get().ws !== ws) return;
       set({ connected: false });
       window.clearInterval(pingTimer);
       if (wanted === sid && ev.code !== 4401 && ev.code !== 4404) {
         retry = Math.min(retry + 1, 6);
-        window.setTimeout(() => wanted === sid && get().connect(sid), 400 * 2 ** retry);
+        window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(() => wanted === sid && get().connect(sid), 400 * 2 ** retry);
       }
       if (ev.code === 4404 || ev.code === 4401) window.dispatchEvent(new CustomEvent("hani-session-lost"));
     };
     ws.onmessage = (ev) => {
+      if (get().ws !== ws) return;
       let msg: any;
       try {
         msg = JSON.parse(ev.data);
@@ -194,6 +203,8 @@ export const useStore = create<Store>((set, get) => ({
   },
   disconnect: () => {
     wanted = null;
+    window.clearTimeout(retryTimer);
+    window.clearInterval(pingTimer);
     get().ws?.close();
     set({ ws: null, state: null, toolViews: {}, connected: false, ui: {} });
   },
