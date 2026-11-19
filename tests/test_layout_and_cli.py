@@ -164,3 +164,23 @@ def test_only_shown_tools_are_rendered(hani2_home):
     hub._tools_rendering.add((s.sid, pid))
     hub.tool_changed(s.sid, pid)
     assert (s.sid, pid) in hub._tools_again and pid not in hub._tools_pending[s.sid]
+
+
+def test_write_table_to_stdout_keeps_stdout_open(capsys):
+    import sys
+    from pathlib import Path
+
+    from hani2.cli import _write_table
+
+    _write_table([{"a": 1}], ["a"], Path("-"))
+    print("still open")
+    assert not sys.stdout.closed
+    assert "still open" in capsys.readouterr().out
+
+
+def test_python_m_cli_has_every_command():
+    import subprocess
+    import sys
+
+    r = subprocess.run([sys.executable, "-m", "hani2.cli", "scheduling", "--help"], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr

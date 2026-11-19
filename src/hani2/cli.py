@@ -767,10 +767,14 @@ def _write_table(rows: list[dict], columns: list[str], out: Optional[Path]) -> N
     if out.suffix == ".json":
         out.write_text(json.dumps(rows, indent=1, default=str))
     else:
-        with (out.open("w", newline="") if str(out) != "-" else sys.stdout) as fh:
+        fh = out.open("w", newline="") if str(out) != "-" else sys.stdout
+        try:
             w = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
             w.writeheader()
             w.writerows(rows)
+        finally:
+            if fh is not sys.stdout:  # never close stdout: later output (the pass^k table) still goes there
+                fh.close()
     typer.echo(f"wrote {out}", err=True)
 
 
@@ -1422,10 +1426,6 @@ def groups_list(
                 typer.echo(f"      assistant: {g['assistant']}")
 
 
-if __name__ == "__main__":  # pragma: no cover
-    app()
-
-
 scheduling_app = typer.Typer(help="List the scheduling methods for opponents, Assistants and scenarios.")
 app.add_typer(scheduling_app, name="scheduling")
 
@@ -1453,3 +1453,7 @@ def scheduling_list(
                     typer.echo(f"      {line}".rstrip())
                 typer.echo("")
         typer.echo("")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    app()
