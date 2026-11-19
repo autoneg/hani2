@@ -198,3 +198,32 @@ def test_text_tool_calls_are_recovered():
     calls = parse_text_tool_calls('[tool call: set_message_text({"text": "hi (there)"})] and [tool call: list_tools({})]')
     assert [c["function"]["name"] for c in calls] == ["set_message_text", "list_tools"]
     assert parse_text_tool_calls("no calls here") == []
+
+
+def test_submit_counter_offer_with_a_bad_issue_sends_nothing():
+    """An unknown issue or invalid value must not send the old draft and call it submitted."""
+    s = make_session(support_settings={"autonomy": "full"})
+    s.start()
+    s.wait_for_turn()
+    n = len(s.history)
+    r = s.support_agent.dispatcher.execute("submit_counter_offer", {"outcome": {"nonexistent": 1}})
+    assert r["ok"] is False and r.get("unrecognised"), r
+    assert len(s.history) == n
+
+
+def test_accept_offer_reports_a_refused_accept(monkeypatch):
+    s = make_session(support_settings={"autonomy": "full"})
+    s.start()
+    s.wait_for_turn()
+    monkeypatch.setattr(s, "partner_offer", lambda: None)  # nothing on the table: accept() refuses
+    r = s.support_agent.dispatcher.execute("accept_offer", {})
+    assert r["ok"] is False, r
+    assert s.phase == "running"
+
+
+def test_failed_action_calls_do_not_count_as_acting():
+    from hani2.support_agent.runtime import _executed_name
+
+    assert _executed_name("accept_offer", {"ok": True, "executed": True}) == "accept_offer"
+    assert _executed_name("accept_offer", {"ok": False, "error": "x"}) == "accept_offer:failed"
+    assert _executed_name("read_tool", "text") == "read_tool"

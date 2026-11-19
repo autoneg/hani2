@@ -658,17 +658,24 @@ class ToolDispatcher:
             if isinstance(outcome, dict):
                 allowed, stripped = self._strip_human_only(outcome)
                 kept.extend(stripped)
-                res = actions["set_offer"](allowed)
-                kept.extend(x for x in (res or {}).get("human_only") or [] if x not in kept)
+                res = actions["set_offer"](allowed) or {}
+                kept.extend(x for x in res.get("human_only") or [] if x not in kept)
+                if res.get("ok") is False:  # unknown issue or invalid value: never send the old draft instead
+                    return {"ok": False, "error": res.get("error") or "the offer was not set: fix these issues",
+                            "unrecognised": res.get("unrecognised") or []}
             if message is not None:
                 actions["set_text"](str(message))
             if execute:
-                actions["reject_counter"]()
+                sent = actions["reject_counter"]()
+                if isinstance(sent, dict) and not sent.get("ok"):
+                    return {"ok": False, "error": sent.get("error") or "the counter-offer was not sent"}
             else:
                 actions["highlight"]("reject")
             return execute
 
         executed = self.runtime.run_on_doc(_do)
+        if isinstance(executed, dict):
+            return executed
         _log_agent_action(
             self.ss, "submit_counter_offer" if executed else "recommend_counter_offer", str(outcome)[:120]
         )
@@ -730,7 +737,9 @@ class ToolDispatcher:
         confirm = self.caps.autonomy_allows_confirm(cap) and not human_only  # SEMI+
 
         if execute:
-            self.runtime.run_on_doc(lambda: actions[action_key](confirm=False))
+            done = self.runtime.run_on_doc(lambda: actions[action_key](confirm=False))
+            if isinstance(done, dict) or not done:  # a gate refusal, or the session refused (no offer, not the turn)
+                return done if isinstance(done, dict) else {"ok": False, "error": f"could not {action_key} now"}
             _log_agent_action(self.ss, f"{action_key}_executed")
             return {"ok": True, "executed": True}
         if confirm:

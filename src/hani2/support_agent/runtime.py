@@ -719,7 +719,9 @@ class SupportAgent:
             return
         self.toast("Autopilot: the agent didn't act; sending a counter-offer to keep the negotiation moving.", "warning")
         try:
-            self.session.send_counter()
+            res = self.session.send_counter()
+            if isinstance(res, dict) and not res.get("ok"):
+                print(f"[autopilot] fallback counter-offer refused: {res.get('error')}")
         except Exception as e:  # noqa: BLE001
             print(f"[autopilot] fallback failed: {e}")
 
@@ -891,11 +893,11 @@ class SupportAgent:
             call_id = f"harness-{n}"
             self.messages.append({"role": "assistant", "content": "", "tool_calls": [
                 {"id": call_id, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}]})
-            executed.add(name)
             try:
                 result = self.dispatcher.execute(name, args)
             except Exception as e:  # noqa: BLE001
                 result = {"ok": False, "error": str(e)}
+            executed.add(_executed_name(name, result))
             self.messages.append({"role": "tool", "tool_call_id": call_id, "name": name,
                                   "content": json.dumps(result, default=str)})
             return result
@@ -940,7 +942,13 @@ class SupportAgent:
             result = {"ok": False, "error": str(e)}
         self.messages.append({"role": "tool", "tool_call_id": tc.get("id", name), "name": name,
                               "content": json.dumps(result, default=str)})
-        return name
+        return _executed_name(name, result)
+
+
+def _executed_name(name: str, result: Any) -> str:
+    """How a call counts in a turn's ``executed`` set: a failed or refused action
+    (``ok`` false) is not an action, so the autopilot's stall net still catches it."""
+    return name if not isinstance(result, dict) or result.get("ok", True) else f"{name}:failed"
 
 
 def _harness_response(reply: Any) -> Any:
