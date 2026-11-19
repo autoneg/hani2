@@ -325,14 +325,15 @@ def compare_rows(rows: list[dict], by: str = "opponent", columns: list[dict] | N
                         per_s.setdefault(str(r.get("scenario")), []).append(float(r[c]))
                 balanced[c] = float(np.mean([np.mean(v) for v in per_s.values()]))
         out_groups.append(dict(group=g, n=len(rs), mean=mean, std=std, balanced=balanced))
-        # pass^k per scenario, averaged over scenarios
+        # pass^k per task (a scenario against one opponent), averaged over tasks: pooling two opponents'
+        # trials into one list would turn "4/4 against A, 0/4 against B" into ~0 instead of 0.5
         per_s2: dict[str, list[bool]] = {}
         for r in rs:
             v = r.get(success)
             if not _is_num(v):
                 continue
             ok = float(v) >= (success_threshold if success_threshold is not None else 1.0 - 1e-9)
-            per_s2.setdefault(str(r.get("scenario")), []).append(ok)
+            per_s2.setdefault(f"{r.get('scenario')}|{r.get('opponent')}", []).append(ok)
         if per_s2:
             kmax = min(max_k, min(len(v) for v in per_s2.values()))
             for k in range(1, kmax + 1):

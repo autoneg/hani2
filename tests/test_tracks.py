@@ -392,3 +392,12 @@ def test_simulated_sessions_are_not_ranked_with_humans():
     lb = leaderboard(rows, "hi", "outcome", n_boot=0)
     assert lb["sessions"] == 3 and lb["excluded"] == {"simulated participant": 3}
     assert leaderboard(rows, "hi", "outcome", n_boot=0, include_simulated=True)["sessions"] == 6
+
+
+def test_pass_hat_k_is_per_scenario_and_opponent():
+    from hani2.evaluation import compare_rows
+
+    rows = [dict(group="g", scenario="s", opponent="A", agreement=1.0) for _ in range(4)]
+    rows += [dict(group="g", scenario="s", opponent="B", agreement=0.0) for _ in range(4)]
+    rel = {r["k"]: r["pass_hat_k"] for r in compare_rows(rows, by="group", max_k=4)["reliability"]}
+    assert rel[4] == pytest.approx(0.5)
