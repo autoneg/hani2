@@ -338,6 +338,8 @@ def oauth_callback(provider: str, request: Request, code: str = "", state: str =
             return RedirectResponse(root_path() + "/login?error=oauth_token")
         hdr = {"Authorization": f"Bearer {access}", "Accept": "application/json"}
         info = httpx.get(ep["user"], headers=hdr, timeout=15).json()
+        if not (info.get("login") if provider == "github" else (info.get("sub") or info.get("email"))):
+            return RedirectResponse(root_path() + "/login?error=oauth_failed")  # an error body, not a user
         if provider == "github":
             username = f"gh_{info.get('login')}"
             email = info.get("email")

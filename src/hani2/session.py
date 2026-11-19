@@ -319,6 +319,8 @@ class NegotiationSession:
         self.opponent_group: str = ""
 
         user_path = results_root() / user
+        if user_path.resolve().parent != results_root().resolve():
+            raise ValueError(f"user name {user!r} does not name a folder inside the results folder")
         user_path.mkdir(parents=True, exist_ok=True)
         try:  # make the study's opponent group packages importable
             from hani2.agents import _prime_group_syspaths

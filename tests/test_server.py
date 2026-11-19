@@ -68,6 +68,21 @@ def test_registering_with_an_admin_email_does_not_grant_admin(client, hani2_home
     assert auth.is_admin_user("pi")
 
 
+def test_usernames_cannot_name_other_folders_or_oauth_accounts():
+    from hani2.auth import validate_new_user
+
+    for name in ("..", ".", "_uploads", ".hidden", "gh_someone", "g_12345"):
+        assert validate_new_user(name, "secret"), name
+    assert validate_new_user("bob.smith", "secret") is None
+
+
+def test_session_refuses_a_user_folder_outside_the_results():
+    from hani2.testing import make_session
+
+    with pytest.raises(ValueError):
+        make_session(user="..")
+
+
 def test_consent_enforced(client, hani2_home):
     write_settings(hani2_home, "env.json", {"auth": {"enforce_consent": True}})
     client.post("/api/auth/register", json={"username": "carol", "password": "secret", "confirm": "secret"})
