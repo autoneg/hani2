@@ -94,3 +94,25 @@ def test_prolific_schedule(hani2_home, monkeypatch):
     s.start()
     s.wait_for_turn()
     assert s.ss["last_partner_type"] == "ConcederTBNegotiator"
+
+
+def test_questionnaire_only_when_one_is_open():
+    from hani2.testing import make_session
+
+    s = make_session()
+    s.start()
+    s.wait_for_turn()
+    r = s.study.submit_questionnaire({"x": 1})
+    assert r["ok"] is False and s.phase == "running"
+
+
+def test_questionnaire_answers_cannot_overwrite_row_metadata(tmp_path):
+    import csv
+
+    from hani2.study import save_questionnaire
+
+    save_questionnaire(tmp_path, {"mechanism_id": "m", "agent_type": "Real", "practice": False}, {"q1": 3})
+    save_questionnaire(tmp_path, {"mechanism_id": "m2", "agent_type": "Real", "practice": False},
+                       {"q1": 4, "agent_type": "forged"})
+    rows = list(csv.DictReader((tmp_path / "negotiation_questionnaires.csv").open()))
+    assert [r["agent_type"] for r in rows] == ["Real", "Real"]

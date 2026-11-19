@@ -192,7 +192,7 @@ def save_questionnaire(user_path: Path, row_meta: dict[str, Any], answers: dict[
         w = csv.DictWriter(fh, fieldnames=existing or fields, extrasaction="ignore")
         if not existing:
             w.writeheader()
-        w.writerow({**row_meta, **answers})
+        w.writerow({**answers, **row_meta})
 
 
 class Study:
@@ -393,7 +393,11 @@ class Study:
 
     def submit_questionnaire(self, answers: dict[str, Any]) -> dict:
         s = self.session
-        spec = s.questionnaire or {}
+        if s.phase != "questionnaire" or not s.questionnaire:
+            return {"ok": False, "error": "No questionnaire is open."}
+        spec = s.questionnaire
+        allowed = {q.get("id") for q in spec.get("questions", [])}
+        answers = {k: v for k, v in (answers or {}).items() if k in allowed}  # never the row's own metadata
         missing = [q.get("text", q.get("id")) for q in spec.get("questions", [])
                    if q.get("required") and answers.get(q.get("id")) in (None, "", [])]
         if missing:
