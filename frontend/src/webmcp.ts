@@ -232,6 +232,8 @@ function toolDefs(): ToolDef[] {
         const t = s?.tools.find((x) => x.name.toLowerCase() === String(name).toLowerCase());
         if (!s || !t) return fail(`No tool named ${name}. Available: ${s?.tools.map((x) => x.name).join(", ")}`);
         if (!t.enabled && !t.permanent) {
+          // switching a tool on changes the participant's page: not in a read-only deployment
+          if (!actionsAllowed) return fail(`${t.name} is switched off, and this page only allows reading.`);
           send({ type: "tool_layout", op: "enable", name: t.name, enabled: true });
           await sleep(1200);
         }
@@ -264,6 +266,7 @@ function toolDefs(): ToolDef[] {
       title: "Ask the negotiation assistant",
       description: "Send a message to the page's built-in negotiation assistant and return its reply.",
       inputSchema: { type: "object", properties: { message: { type: "string" } }, required: ["message"] },
+      action: true, // posts in the participant's chat and spends the Assistant's model calls
       execute: async ({ message }) => {
         const s = st();
         if (!s?.support) return fail("This session has no assistant.");
@@ -303,12 +306,15 @@ function compact(cs: Json[]): Json[] {
 let controller: AbortController | null = null;
 let registeredKey = "";
 
+let actionsAllowed = false;
+
 /** (Re-)register the tools for the current policy. Safe to call repeatedly. */
 export function syncWebMCP(policy: { enabled: boolean; actions: boolean } | undefined) {
   const mc = modelContext();
   const key = policy ? `${policy.enabled}:${policy.actions}` : "off";
   if (!mc || key === registeredKey) return;
   registeredKey = key;
+  actionsAllowed = !!policy?.actions;
   controller?.abort();
   controller = null;
   if (!policy?.enabled) return;
