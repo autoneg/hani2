@@ -93,7 +93,6 @@ export function applyMsg(f: Frame, m: ServerMsg): Frame {
         ? {
             ...f,
             state: { ...f.state, draft: { ...f.state.draft, values: d.draft, utility: d.utility, ...("controls" in d ? { controls: d.controls } : {}) } },
-            draftVersion: d.by_agent ? f.draftVersion + 1 : f.draftVersion,
           }
         : f;
     case "draft_text":

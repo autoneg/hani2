@@ -15,6 +15,8 @@ interface Store {
   /** id of the tool shown enlarged (window or full screen), if any */
   maximized: string | null;
   setMaximized: (id: string | null) => void;
+  /** Bumped when the Assistant writes the message (draft_text): the message box then shows it.
+   * Filling only the offer values must not touch what the participant is typing. */
   draftVersion: number;
   ws: WebSocket | null;
   /** sends a message; false when the socket is not open */
@@ -183,7 +185,6 @@ export const useStore = create<Store>((set, get) => ({
                     ...s.state,
                     draft: { ...s.state.draft, values: msg.draft, utility: msg.utility, ...("controls" in msg ? { controls: msg.controls } : {}) },
                   },
-                  draftVersion: msg.by_agent ? s.draftVersion + 1 : s.draftVersion,
                 }
               : {},
           );
