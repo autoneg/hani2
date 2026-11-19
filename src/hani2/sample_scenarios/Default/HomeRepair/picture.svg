@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A homeowner and a roofer in a hard hat discuss a damaged roof, with a ladder up and a skip for the debris</title><style>.skyTop{fill:#cfe0ff}.skyBottom{fill:#f3f6ff}.hill{fill:#c9e4cf}.hill2{fill:#b3d8bd}.ground{fill:#e6dccb}.ground2{fill:#d6c8b2}.water{fill:#9cc8ec}.water2{fill:#7fb3e0}.sand{fill:#f1dfb4}.floor{fill:#ece4d8}.wall{fill:#f6f1ea}.sun{fill:#ffc94a}.sunGlow{fill:#ffe8a8}.cloud{fill:#ffffff}.star{fill:#ffffff}.ink{fill:#2b3550}.inkSoft{fill:#56617d}.paper{fill:#ffffff}.paper2{fill:#eef1f7}.metal{fill:#a9b2c3}.metal2{fill:#7f8aa0}.glass{fill:#bfe0f6}.shadow{fill:#1d2740}.light{fill:#fff6d8}.blue{fill:#4a6cf0}.blue2{fill:#2f4bc4}.orange{fill:#f29a38}.orange2{fill:#d77b1c}.green{fill:#34b483}.green2{fill:#1e8a62}.red{fill:#e8574b}.red2{fill:#b93a30}.yellow{fill:#ffcf4d}.purple{fill:#8b6cf0}.teal{fill:#2fb3c2}.pink{fill:#f29bb6}.brown{fill:#a4703f}.brown2{fill:#7a4f2a}.wood{fill:#d9a86a}.leaf{fill:#4fbf73}.leaf2{fill:#2f9a57}.skin1{fill:#f2c8a6}.skin2{fill:#c98d62}.skin3{fill:#8d5a3b}.hair{fill:#3a2c28}.hair2{fill:#a8642e}.s-skyTop{stroke:#cfe0ff}.s-skyBottom{stroke:#f3f6ff}.s-hill{stroke:#c9e4cf}.s-hill2{stroke:#b3d8bd}.s-ground{stroke:#e6dccb}.s-ground2{stroke:#d6c8b2}.s-water{stroke:#9cc8ec}.s-water2{stroke:#7fb3e0}.s-sand{stroke:#f1dfb4}.s-floor{stroke:#ece4d8}.s-wall{stroke:#f6f1ea}.s-sun{stroke:#ffc94a}.s-sunGlow{stroke:#ffe8a8}.s-cloud{stroke:#ffffff}.s-star{stroke:#ffffff}.s-ink{stroke:#2b3550}.s-inkSoft{stroke:#56617d}.s-paper{stroke:#ffffff}.s-paper2{stroke:#eef1f7}.s-metal{stroke:#a9b2c3}.s-metal2{stroke:#7f8aa0}.s-glass{stroke:#bfe0f6}.s-shadow{stroke:#1d2740}.s-light{stroke:#fff6d8}.s-blue{stroke:#4a6cf0}.s-blue2{stroke:#2f4bc4}.s-orange{stroke:#f29a38}.s-orange2{stroke:#d77b1c}.s-green{stroke:#34b483}.s-green2{stroke:#1e8a62}.s-red{stroke:#e8574b}.s-red2{stroke:#b93a30}.s-yellow{stroke:#ffcf4d}.s-purple{stroke:#8b6cf0}.s-teal{stroke:#2fb3c2}.s-pink{stroke:#f29bb6}.s-brown{stroke:#a4703f}.s-brown2{stroke:#7a4f2a}.s-wood{stroke:#d9a86a}.s-leaf{stroke:#4fbf73}.s-leaf2{stroke:#2f9a57}.s-skin1{stroke:#f2c8a6}.s-skin2{stroke:#c98d62}.s-skin3{stroke:#8d5a3b}.s-hair{stroke:#3a2c28}.s-hair2{stroke:#a8642e}.star{display:none}.darkOnly{display:none}.shadow{opacity:0.12}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#f3f6ff"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A homeowner and a roofer in a hard hat discuss a damaged roof, with a ladder up and a skip for the debris -->
+<circle class="sunGlow" cx="56" cy="40" r="28" opacity="0.6"/>
+<circle class="sun" cx="56" cy="40" r="16"/>
+<circle class="star" cx="120" cy="20" r="1.3"/><circle class="star" cx="300" cy="22" r="1.5"/>
+<circle class="star" cx="372" cy="50" r="1.1"/><circle class="star" cx="450" cy="20" r="1.4"/>
+<g class="lightOnly"><ellipse class="cloud" cx="380" cy="36" rx="32" ry="9"/><ellipse class="cloud" cx="400" cy="28" rx="18" ry="9"/>
+<ellipse class="cloud" cx="128" cy="44" rx="20" ry="6"/></g>
+<path class="hill" d="M0 120 Q110 104 240 118 T480 110 V200 H0Z"/>
+<!-- house -->
+<rect class="brown2" x="252" y="40" width="14" height="30"/>
+<rect class="sand" x="150" y="86" width="150" height="62"/>
+<path class="red2" d="M136 90 L225 40 L314 90Z"/>
+<path class="s s-red" stroke-width="1.6" d="M168 72 H282 M186 62 H264 M204 52 H246 M152 82 H298"/>
+<!-- the hole in the roof and loose shingles -->
+<path class="ink" d="M236 60 L262 58 L270 74 L248 80 L232 72Z"/>
+<g transform="rotate(-24 284 66)"><rect class="red" x="276" y="62" width="14" height="6" rx="1"/></g>
+<g transform="rotate(18 228 56)"><rect class="red" x="220" y="54" width="12" height="5" rx="1"/></g>
+<rect class="blue" x="210" y="114" width="26" height="34" rx="2"/><circle class="yellow" cx="231" cy="132" r="1.8"/>
+<rect class="glass" x="166" y="102" width="30" height="24" rx="2"/><rect class="glass" x="254" y="102" width="30" height="24" rx="2"/>
+<rect class="paper" x="180" y="102" width="2" height="24"/><rect class="paper" x="268" y="102" width="2" height="24"/>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- ladder -->
+<path class="s s-metal2" stroke-width="3" d="M322 170 L296 66 M336 170 L310 66"/>
+<path class="s s-metal" stroke-width="2.4" d="M319 156 H333 M314 136 H328 M309 116 H323 M304 96 H318 M299 76 H313"/>
+<!-- skip with old roofing -->
+<ellipse class="shadow" cx="438" cy="172" rx="40" ry="5"/>
+<g transform="rotate(-20 440 132)"><rect class="red2" x="424" y="128" width="16" height="6" rx="1"/></g>
+<g transform="rotate(14 418 134)"><rect class="red" x="410" y="130" width="14" height="6" rx="1"/></g>
+<rect class="brown2" x="448" y="124" width="3" height="18" transform="rotate(20 450 133)"/>
+<path class="orange" d="M400 138 H476 L468 168 H408Z"/>
+<path class="orange2" d="M400 138 H476 L474 145 H402Z"/>
+<circle class="ink" cx="416" cy="170" r="3.5"/><circle class="ink" cx="460" cy="170" r="3.5"/>
+<!-- homeowner (left) -->
+<ellipse class="shadow" cx="96" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="87" y="148" width="7" height="24" rx="3"/><rect class="ink" x="98" y="148" width="7" height="24" rx="3"/>
+<path class="purple" d="M82 152 Q82 122 96 120 Q110 122 110 152Z"/>
+<path class="s s-purple" stroke-width="6" d="M108 128 Q118 118 124 108"/>
+<circle class="skin2" cx="125" cy="106" r="3.2"/>
+<circle class="skin2" cx="96" cy="108" r="11"/>
+<path class="hair" d="M85 107 Q84 94 96 94 Q108 94 107 107 Q103 99 96 99 Q89 99 85 107Z"/>
+<!-- roofer (right) with hard hat and clipboard -->
+<ellipse class="shadow" cx="364" cy="173" rx="18" ry="4"/>
+<rect class="blue2" x="355" y="148" width="7" height="24" rx="3"/><rect class="blue2" x="366" y="148" width="7" height="24" rx="3"/>
+<path class="orange" d="M350 152 Q350 122 364 120 Q378 122 378 152Z"/>
+<rect class="yellow" x="350" y="136" width="28" height="3"/>
+<path class="s s-orange" stroke-width="6" d="M352 128 Q344 136 346 142"/>
+<rect class="brown" x="336" y="128" width="14" height="18" rx="1.5"/><rect class="paper" x="338" y="131" width="10" height="13"/>
+<rect class="metal2" x="341" y="126" width="4" height="3"/>
+<circle class="skin1" cx="364" cy="108" r="11"/>
+<path class="yellow" d="M352 104 Q352 92 364 92 Q376 92 376 104Z"/><rect class="orange2" x="350" y="102" width="28" height="4" rx="2"/></g></svg>

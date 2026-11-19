@@ -26,7 +26,8 @@
     "layout": true,
     "panels": true,
     "tool_add": true,
-    "tool_use": true
+    "tool_use": true,
+    "private_info": true
   },
   "proactive": {
     "on_negotiation_started": false,

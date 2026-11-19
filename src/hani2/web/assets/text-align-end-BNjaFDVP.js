@@ -1,0 +1,1 @@
+import{c as a}from"./index-D2MiqRU4.js";const e={name:"text-align-end",size:24,node:[["path",{d:"M21 5H3",key:"1fi0y6"}],["path",{d:"M21 12H9",key:"dn1m92"}],["path",{d:"M21 19H7",key:"4cu937"}]],aliases:["align-right"]};e.node;const n=a(e);export{e as __iconData,n as default};

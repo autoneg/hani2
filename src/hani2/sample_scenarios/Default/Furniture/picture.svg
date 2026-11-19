@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" role="img"><title>A buyer and a seller meet over a used armchair at a garage sale, with a hand truck ready to move it</title><style>.skyTop{fill:#cfe0ff}.skyBottom{fill:#f3f6ff}.hill{fill:#c9e4cf}.hill2{fill:#b3d8bd}.ground{fill:#e6dccb}.ground2{fill:#d6c8b2}.water{fill:#9cc8ec}.water2{fill:#7fb3e0}.sand{fill:#f1dfb4}.floor{fill:#ece4d8}.wall{fill:#f6f1ea}.sun{fill:#ffc94a}.sunGlow{fill:#ffe8a8}.cloud{fill:#ffffff}.star{fill:#ffffff}.ink{fill:#2b3550}.inkSoft{fill:#56617d}.paper{fill:#ffffff}.paper2{fill:#eef1f7}.metal{fill:#a9b2c3}.metal2{fill:#7f8aa0}.glass{fill:#bfe0f6}.shadow{fill:#1d2740}.light{fill:#fff6d8}.blue{fill:#4a6cf0}.blue2{fill:#2f4bc4}.orange{fill:#f29a38}.orange2{fill:#d77b1c}.green{fill:#34b483}.green2{fill:#1e8a62}.red{fill:#e8574b}.red2{fill:#b93a30}.yellow{fill:#ffcf4d}.purple{fill:#8b6cf0}.teal{fill:#2fb3c2}.pink{fill:#f29bb6}.brown{fill:#a4703f}.brown2{fill:#7a4f2a}.wood{fill:#d9a86a}.leaf{fill:#4fbf73}.leaf2{fill:#2f9a57}.skin1{fill:#f2c8a6}.skin2{fill:#c98d62}.skin3{fill:#8d5a3b}.hair{fill:#3a2c28}.hair2{fill:#a8642e}.s-skyTop{stroke:#cfe0ff}.s-skyBottom{stroke:#f3f6ff}.s-hill{stroke:#c9e4cf}.s-hill2{stroke:#b3d8bd}.s-ground{stroke:#e6dccb}.s-ground2{stroke:#d6c8b2}.s-water{stroke:#9cc8ec}.s-water2{stroke:#7fb3e0}.s-sand{stroke:#f1dfb4}.s-floor{stroke:#ece4d8}.s-wall{stroke:#f6f1ea}.s-sun{stroke:#ffc94a}.s-sunGlow{stroke:#ffe8a8}.s-cloud{stroke:#ffffff}.s-star{stroke:#ffffff}.s-ink{stroke:#2b3550}.s-inkSoft{stroke:#56617d}.s-paper{stroke:#ffffff}.s-paper2{stroke:#eef1f7}.s-metal{stroke:#a9b2c3}.s-metal2{stroke:#7f8aa0}.s-glass{stroke:#bfe0f6}.s-shadow{stroke:#1d2740}.s-light{stroke:#fff6d8}.s-blue{stroke:#4a6cf0}.s-blue2{stroke:#2f4bc4}.s-orange{stroke:#f29a38}.s-orange2{stroke:#d77b1c}.s-green{stroke:#34b483}.s-green2{stroke:#1e8a62}.s-red{stroke:#e8574b}.s-red2{stroke:#b93a30}.s-yellow{stroke:#ffcf4d}.s-purple{stroke:#8b6cf0}.s-teal{stroke:#2fb3c2}.s-pink{stroke:#f29bb6}.s-brown{stroke:#a4703f}.s-brown2{stroke:#7a4f2a}.s-wood{stroke:#d9a86a}.s-leaf{stroke:#4fbf73}.s-leaf2{stroke:#2f9a57}.s-skin1{stroke:#f2c8a6}.s-skin2{stroke:#c98d62}.s-skin3{stroke:#8d5a3b}.s-hair{stroke:#3a2c28}.s-hair2{stroke:#a8642e}.star{display:none}.darkOnly{display:none}.shadow{opacity:0.12}.s{fill:none;stroke-linecap:round;stroke-linejoin:round}</style><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfe0ff"/><stop offset="1" stop-color="#f3f6ff"/></linearGradient><clipPath id="frame"><rect width="480" height="200" rx="18"/></clipPath></defs><g clip-path="url(#frame)"><rect width="480" height="200" fill="url(#bg)"/><!-- A buyer and a seller meet over a used armchair at a garage sale, with a hand truck ready to move it -->
+<circle class="sunGlow" cx="62" cy="40" r="28" opacity="0.6"/>
+<circle class="sun" cx="62" cy="40" r="16"/>
+<circle class="star" cx="130" cy="22" r="1.4"/><circle class="star" cx="200" cy="40" r="1.2"/>
+<circle class="star" cx="270" cy="18" r="1.5"/><circle class="star" cx="24" cy="86" r="1.1"/>
+<circle class="star" cx="462" cy="24" r="1.3"/>
+<g class="lightOnly"><ellipse class="cloud" cx="176" cy="36" rx="30" ry="9"/><ellipse class="cloud" cx="194" cy="29" rx="18" ry="9"/>
+<ellipse class="cloud" cx="456" cy="30" rx="22" ry="7"/></g>
+<path class="hill" d="M0 126 Q100 100 220 118 T480 108 V200 H0Z"/>
+<!-- house with open garage -->
+<rect class="sand" x="292" y="78" width="160" height="70"/>
+<path class="brown" d="M280 82 L372 42 L464 82Z"/>
+<rect class="brown2" x="280" y="80" width="184" height="5" rx="2"/>
+<rect class="inkSoft" x="306" y="98" width="82" height="50" rx="2" opacity="0.55"/>
+<rect class="paper2" x="302" y="94" width="90" height="6" rx="2"/>
+<rect class="glass" x="404" y="98" width="34" height="26" rx="2"/>
+<rect class="wood" x="404" y="110" width="34" height="2"/><rect class="wood" x="420" y="98" width="2" height="26"/>
+<!-- boxes in the garage -->
+<rect class="wood" x="316" y="128" width="22" height="18" rx="1"/><rect class="wood" x="342" y="134" width="18" height="12" rx="1"/>
+<rect class="orange2" x="316" y="135" width="22" height="2" opacity="0.6"/>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- armchair -->
+<ellipse class="shadow" cx="236" cy="172" rx="58" ry="6"/>
+<rect class="brown2" x="198" y="156" width="7" height="15" rx="2"/><rect class="brown2" x="267" y="156" width="7" height="15" rx="2"/>
+<rect class="purple" x="203" y="100" width="66" height="50" rx="16"/>
+<rect class="blue2" x="210" y="108" width="52" height="34" rx="12" opacity="0.35"/>
+<rect class="purple" x="202" y="138" width="68" height="16" rx="6"/>
+<rect class="purple" x="194" y="150" width="84" height="10" rx="4"/><rect class="ink" x="194" y="150" width="84" height="10" rx="4" opacity="0.22"/>
+<rect class="purple" x="188" y="124" width="20" height="34" rx="9"/><rect class="purple" x="264" y="124" width="20" height="34" rx="9"/>
+<rect class="blue2" x="188" y="124" width="20" height="7" rx="3.5" opacity="0.4"/><rect class="blue2" x="264" y="124" width="20" height="7" rx="3.5" opacity="0.4"/>
+<!-- price tag on the arm -->
+<path class="s s-inkSoft" stroke-width="1" d="M276 128 Q282 134 286 140"/>
+<g transform="rotate(14 294 146)"><path class="yellow" d="M282 140 H302 L307 147 L302 154 H282Z"/>
+<circle class="ink" cx="286" cy="147" r="1.8"/><rect class="orange2" x="290" y="145.6" width="10" height="2.6" rx="1.3"/></g>
+<!-- hand truck for the pickup -->
+<ellipse class="shadow" cx="336" cy="172" rx="14" ry="3"/>
+<path class="s s-metal2" stroke-width="3.5" d="M326 112 L334 166 H352"/>
+<path class="s s-metal2" stroke-width="3" d="M322 112 H332"/>
+<circle class="ink" cx="334" cy="166" r="6"/><circle class="metal" cx="334" cy="166" r="2.4"/>
+<!-- buyer (left), offering cash -->
+<ellipse class="shadow" cx="104" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="95" y="148" width="7" height="24" rx="3"/><rect class="ink" x="106" y="148" width="7" height="24" rx="3"/>
+<path class="teal" d="M90 152 Q90 122 104 120 Q118 122 118 152Z"/>
+<path class="s s-teal" stroke-width="6" d="M116 128 Q130 134 140 128"/>
+<circle class="skin1" cx="104" cy="108" r="11"/>
+<path class="hair" d="M93 106 Q93 94 105 95 Q116 96 115 106 Q110 100 104 101 Q98 102 93 106Z"/>
+<g transform="rotate(-12 148 126)"><rect class="green" x="140" y="120" width="18" height="11" rx="1.5"/>
+<circle class="green2" cx="149" cy="125.5" r="2.6"/></g>
+<!-- seller (right) -->
+<ellipse class="shadow" cx="392" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="383" y="148" width="7" height="24" rx="3"/><rect class="ink" x="394" y="148" width="7" height="24" rx="3"/>
+<path class="red" d="M378 152 Q378 122 392 120 Q406 122 406 152Z"/>
+<path class="s s-red" stroke-width="6" d="M380 128 Q368 134 362 126"/>
+<path class="hair2" d="M380 108 Q378 94 392 94 Q406 94 404 108 L406 122 Q400 126 396 118 L388 118 Q384 126 378 122Z"/>
+<circle class="skin2" cx="392" cy="108" r="11"/>
+<path class="hair2" d="M381 106 Q382 95 392 95 Q402 95 403 106 Q396 99 389 101 Q384 102 381 106Z"/>
+<circle class="skin2" cx="361" cy="125" r="3.5"/></g></svg>

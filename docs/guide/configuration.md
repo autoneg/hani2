@@ -162,6 +162,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `human_index` | `1` | Which side of the scenario the human plays (0 or 1) under the `index` rule, and under `auto` when the scenario suggests no role. |
 | `role_rule` | `"auto"` | How the human's role is chosen: `auto`, `index`, `roles`, `alternate` or `random`. See [Which side the participant plays](scenarios.md#which-side-the-participant-plays). |
 | `human_roles` | `[]` | Preferred roles for the `roles` rule, e.g. `["Tenant", "Buyer"]`. |
+| `information` | not set | What the participant and the Assistant each know: past negotiations, which part of the preferences, market research. Not set: both know the same. See [Who knows what](information.md). |
 | `scenario_set` | `null` | The [scenario set](scenario-sets.md) to use. `null`: `HANI2_SCENARIO_SET`, a changed `scenario_order.txt`, then the default set. |
 | `end_on_no_response` | `false` | End the negotiation when a negotiator gives no response. |
 | `allow_text_only_offers` | `true` | Let negotiators send a message without an offer. |
@@ -336,7 +337,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `max_tokens` | `2000` | Maximum answer length. |
 | `max_tool_iterations` | `10` | Maximum rounds of function calls per user message. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` | The seventeen capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`. |
+| `capabilities` | all `true` | The eighteen capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`, `private_info`. |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |

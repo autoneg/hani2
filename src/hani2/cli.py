@@ -34,6 +34,7 @@ app.add_typer(groups_app, name="groups")
 app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
+app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 
 
 def _open_when_ready(url: str) -> None:
@@ -465,6 +466,56 @@ def scenario_new(
         typer.echo(f"Unknown scenario type {type_!r}. Available: {', '.join(registry.names())}")
         raise typer.Exit(code=2)
     typer.echo("Edit the YAML files, then run: hani2 scenario check " + str(dest))
+
+
+@scenario_app.command("past")
+def scenario_past(
+    paths: Annotated[list[Path], typer.Argument(help="Scenario folders, categories or whole scenario directories.")],
+    count: Annotated[int, typer.Option(help="How many past negotiations to write per scenario.")] = 6,
+    preferences: Annotated[str, typer.Option(help="How the past parties' preferences relate to the scenario's: "
+                                             "similar, same or different.")] = "similar",
+    opponent_preferences: Annotated[Optional[str], typer.Option(
+        help="The same for every role but --human-role (default: as --preferences).")] = None,
+    human_role: Annotated[Optional[str], typer.Option(help="The role the participant plays (for --opponent-preferences).")] = None,
+    noise: Annotated[float, typer.Option(help="How far similar preferences move (0 to 1).")] = 0.25,
+    n_steps: Annotated[int, typer.Option(help="Rounds of each simulated negotiation.")] = 20,
+    seed: Annotated[int, typer.Option(help="Extra seed (the scenario's name is always part of it).")] = 0,
+    force: Annotated[bool, typer.Option("--force", help="Replace an existing _past_negotiations.yaml.")] = False,
+):
+    """Simulate past negotiations for scenario folders and save them as _past_negotiations.yaml.
+
+    A study that gives past negotiations to the participant or the Assistant (the
+    ``information`` setting) uses a folder's file instead of simulating its own, so every
+    participant meets the same records. Edit the file to add notes or real negotiations."""
+    from hani2 import information as info
+    from hani2 import scenario_store as store
+    from hani2.scenarios import registry
+
+    if preferences not in info.PREFERENCE_MODES or (opponent_preferences and opponent_preferences not in info.PREFERENCE_MODES):
+        raise typer.BadParameter(f"use one of {', '.join(info.PREFERENCE_MODES)}")
+    registry.load_plugins()
+    settings = {**info.DEFAULTS["past_negotiations"], "count": count, "preferences": preferences,
+                "opponent_preferences": opponent_preferences, "noise": noise, "n_steps": n_steps, "seed": seed,
+                "human_role": human_role}
+    n = n_err = 0
+    for root in paths:
+        for f in store.scenario_folders(root):
+            n += 1
+            if (f / info.PAST_FILE).exists() and not force:
+                typer.echo(f"skip  {f} (has {info.PAST_FILE}; --force replaces it)")
+                continue
+            s = store._load_dir(f)
+            if s is None:
+                typer.echo(f"ERROR {f}: does not load")
+                n_err += 1
+                continue
+            recs = info.simulate_past_negotiations(s, settings, seed_text=f"{s.outcome_space.name}|{f.name}")
+            info.write_past_file(f, recs)
+            agreed = sum(1 for r in recs if r.get("agreement"))
+            typer.echo(f"ok    {f}: {len(recs)} past negotiations ({agreed} with an agreement)")
+    typer.echo(f"{n} scenario(s), {n_err} with errors")
+    if n_err:
+        raise typer.Exit(code=1)
 
 
 @scenario_app.command("check")

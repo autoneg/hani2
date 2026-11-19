@@ -141,6 +141,9 @@ A scenario folder contains:
 | One `.yml` per side | A utility function in negmas format, with a `name` (the role) and an optional `reserved_value`. |
 | `_info.yaml` | Texts for the participant (optional). `_info.yml` and `_info.yaml.yml` also work. |
 | `display.py` | How offers are shown: as text, in the history, on the table and in the editor (optional; see [Showing offers](#showing-offers)). |
+| `picture.svg`, `picture_dark.svg` | The scenario's picture, shown at the top of the *Scenario Info* tool (optional; see [Scenario pictures](#scenario-pictures)). |
+| `_info.yaml` → `briefing` | Private instructions per role, with optional constraints that are checked against the agreement (see [Private briefings](information.md#private-briefings-and-hidden-constraints)). The participant sees them only in the Briefing tool. |
+| `_past_negotiations.yaml` | Records of past negotiations in this scenario, for studies that give them to the participant or the Assistant (optional; `hani2 scenario past` writes it; see [Who knows what](information.md#past-negotiations)). |
 | `inverter_h<i>.pkl` | A cached utility inverse (optional, written by `hani2 generate`). |
 
 The bundled `Trade` sample (installed as `Examples/Trade`) looks like this:
@@ -226,6 +229,8 @@ All fields are optional. negmas writes the file as `_info.yml`; `_info.yaml` and
 | `issue_widget` | The control of an issue in the counter-offer editor: `buttons`, `select`, `slider` or `number` (`issue: widget`). By default issues with up to six values get buttons, longer lists a menu, and wide numeric ranges a number field. |
 | `split` | For item splits: `units` (issue → `[singular, plural]`) and `totals` (issue → number of items). Issue values are then how many items the `human` role gets; offers read "You get 2 clocks; your opponent gets 1 clock", the history and the offer on the table show what each side gets, and the editor asks how many of each item *you* get, with a *Split evenly* button. |
 | `story` | The scenario type that generated the scenario (set by the generators). |
+| `picture` | The scenario's picture: a file in the scenario folder or a URL, or `{light: ..., dark: ...}` for one per theme, or `false` for none. See [Scenario pictures](#scenario-pictures). |
+| `picture_alt` | A short description of the picture for screen readers and the Assistant (default: the title). |
 | `role_descriptions` | A one-line description per role (`role: text`). Written by the generators for reference; the participant reads the roles in `long_description` and in the *Your role* hint. |
 
 The keys of `hints` and of role-specific `issue_description` must match the utility function `name` exactly, including case.
@@ -246,6 +251,46 @@ short_description: >-
 long_description: |
   **The domain** A buyer and a seller negotiate the quantity and the price of one trade.
 ```
+
+## Scenario pictures
+
+A scenario can have one picture that sets the scene. It is shown under the title of the
+*Scenario Info* tool; participants hide it with the *Picture* switch next to their role
+(it is on by default). Every bundled scenario has one, drawn as vector graphics in a light
+and a dark version.
+
+Put the picture in the scenario folder:
+
+| File | Shown |
+|------|-------|
+| `picture.svg` | In both themes (unless one of the next two files is there). |
+| `picture_light.svg` | In the light theme. |
+| `picture_dark.svg` | In the dark theme. |
+
+PNG, JPEG, WebP and GIF files work too (`picture.png`, `picture_dark.jpg`, ...), up to
+3 MB each. With only one picture, choose colours that read on both a white and a dark
+background, or give it its own background. The picture follows the theme the participant
+chose in the header as well as the system's.
+
+To use other file names or a URL, name them in `_info.yaml` (paths are relative to the
+scenario folder and may not leave it):
+
+```yaml title="_info.yaml"
+picture: harbour.png                                   # both themes
+picture: {light: harbour-day.svg, dark: harbour-night.svg}
+picture: false                                         # no picture at all
+picture_alt: Two traders on a busy harbour quay
+```
+
+HANI2 looks for a picture in the scenario folder first, then in its category folder (so all
+the scenarios of a pool share one picture), and last in the bundled scenario of the same
+type, folder name or story, so generated `Trade`, `Island` and `Grocery` scenarios and the
+installed `Examples` copies show the bundled pictures.
+`picture: false` stops the search.
+
+Pictures are wide banners: the bundled ones are 480 × 200. Your own tools can show
+pictures as well with `ui.image(src, dark_src=None, alt="", max_height=None)`, where `src`
+is any URL the browser can load, including a `data:` URL.
 
 ## Showing offers
 

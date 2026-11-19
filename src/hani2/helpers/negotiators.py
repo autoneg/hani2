@@ -2094,3 +2094,7 @@ class AgentGG(SAONegotiator):
         return self.get_needed_random_bid(
             self.offer_lower_ratio, self.offer_higher_ratio
         )
+
+
+# the bluffing opponent of compositional scenarios ("helpers.DeceptiveTBNegotiator")
+from hani2.helpers.deceptive import DeceptiveTBNegotiator, HonestTBNegotiator  # noqa: E402,F401

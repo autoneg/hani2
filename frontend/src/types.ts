@@ -146,7 +146,10 @@ export interface SessionState {
     server_time: number;
   };
   partner_offer: null | { values: Record<string, Json>; text: string; utility: number | null; message?: string | null; view?: Component[] | null };
-  reserved_value: number;
+  /** null when the human does not know it (an information split) */
+  reserved_value: number | null;
+  /** who knows what this round; null when the human and the Assistant know the same things */
+  information?: { totals_hidden: boolean; reserved_hidden: boolean; preferences: string; past_negotiations: number; market_research: boolean } | null;
   /** ``controls``: the scenario's own counter-offer controls (components); absent = one field per issue */
   draft: { values: Record<string, Json>; text: string; utility: number | null; controls?: Component[] | null };
   result: Result | null;

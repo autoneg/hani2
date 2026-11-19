@@ -52,6 +52,9 @@ def test_every_builtin_tool_renders(phase):
         s.end()
         s.wait_until_done()
     for t in s.tools:
+        if not s.tool_available(t):  # e.g. Past Negotiations: only with an information split
+            assert s.render_tool(s.tool_state(t)["id"]) is None
+            continue
         if not s.tool_state(t)["enabled"]:
             s.tool_controller.set_tool_enabled(t.name, True)
         view = s.render_tool(s.tool_state(t)["id"])["view"]

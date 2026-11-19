@@ -1,0 +1,55 @@
+<!-- A buyer and a dealer meet over a used car on the lot -->
+<!-- sky: sun (moon at night), stars, clouds -->
+<circle class="sunGlow" cx="402" cy="44" r="30" opacity="0.6"/>
+<circle class="sun" cx="402" cy="44" r="18"/>
+<circle class="star" cx="60" cy="30" r="1.6"/><circle class="star" cx="140" cy="18" r="1.2"/>
+<circle class="star" cx="250" cy="34" r="1.4"/><circle class="star" cx="330" cy="16" r="1.1"/>
+<circle class="star" cx="455" cy="88" r="1.2"/>
+<g class="lightOnly"><ellipse class="cloud" cx="96" cy="42" rx="34" ry="10"/><ellipse class="cloud" cx="116" cy="34" rx="20" ry="10"/>
+<ellipse class="cloud" cx="286" cy="28" rx="26" ry="8"/></g>
+<!-- showroom in the back -->
+<path class="hill" d="M0 132 Q120 96 240 120 T480 112 V200 H0Z"/>
+<rect class="wall" x="28" y="78" width="150" height="66" rx="4"/>
+<rect class="blue" x="22" y="70" width="162" height="12" rx="3"/>
+<rect class="glass" x="40" y="92" width="38" height="44" rx="2"/>
+<rect class="glass" x="86" y="92" width="38" height="44" rx="2"/>
+<rect class="glass" x="132" y="92" width="34" height="44" rx="2"/>
+<!-- bunting -->
+<path class="s s-inkSoft" stroke-width="1.2" d="M184 76 Q260 92 330 72"/>
+<path class="red" d="M200 80 l6 0 -3 8Z"/><path class="yellow" d="M222 85 l6 0 -3 8Z"/>
+<path class="blue" d="M246 88 l6 0 -3 8Z"/><path class="green" d="M272 86 l6 0 -3 8Z"/>
+<path class="orange" d="M298 80 l6 0 -3 8Z"/>
+<!-- ground -->
+<rect class="ground" x="0" y="146" width="480" height="54"/>
+<rect class="ground2" x="0" y="146" width="480" height="5"/>
+<!-- car -->
+<ellipse class="shadow" cx="250" cy="171" rx="96" ry="7"/>
+<path class="red" d="M162 160 Q160 140 178 136 L206 132 Q224 108 252 108 L282 108 Q302 108 318 130 L332 134 Q346 138 344 158 Q344 166 334 166 L172 166 Q162 166 162 160Z"/>
+<path class="red2" d="M162 156 H344 Q344 166 334 166 H172 Q162 166 162 156Z"/>
+<path class="glass" d="M214 132 Q228 114 250 114 L256 114 L256 132Z"/>
+<path class="glass" d="M264 114 L282 114 Q296 114 308 132 L264 132Z"/>
+<rect class="light" x="334" y="140" width="9" height="6" rx="2"/>
+<rect class="orange" x="163" y="140" width="7" height="6" rx="2"/>
+<circle class="ink" cx="200" cy="164" r="15"/><circle class="metal" cx="200" cy="164" r="7"/>
+<circle class="ink" cx="306" cy="164" r="15"/><circle class="metal" cx="306" cy="164" r="7"/>
+<!-- price tag on the windscreen -->
+<g transform="rotate(-8 268 98)"><path class="yellow" d="M252 86 H286 L292 96 L286 106 H252Z"/>
+<circle class="ink" cx="258" cy="96" r="2.4"/><rect class="orange2" x="264" y="93" width="18" height="2.6" rx="1.3"/>
+<rect class="orange2" x="264" y="98" width="12" height="2.6" rx="1.3"/></g>
+<!-- buyer (left) -->
+<ellipse class="shadow" cx="112" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="103" y="148" width="7" height="24" rx="3"/><rect class="ink" x="114" y="148" width="7" height="24" rx="3"/>
+<path class="teal" d="M98 152 Q98 122 112 120 Q126 122 126 152Z"/>
+<path class="s s-teal" stroke-width="6" d="M124 128 Q136 132 140 122"/>
+<circle class="skin1" cx="112" cy="108" r="11"/>
+<path class="hair2" d="M101 106 Q102 94 113 95 Q124 96 123 106 Q118 100 112 101 Q106 102 101 106Z"/>
+<!-- dealer (right) -->
+<ellipse class="shadow" cx="384" cy="173" rx="18" ry="4"/>
+<rect class="ink" x="375" y="148" width="7" height="24" rx="3"/><rect class="ink" x="386" y="148" width="7" height="24" rx="3"/>
+<path class="blue2" d="M370 152 Q370 122 384 120 Q398 122 398 152Z"/>
+<path class="paper" d="M380 122 L384 134 L388 122Z"/><path class="red" d="M383 125 h2 l1 9 h-4Z"/>
+<path class="s s-blue2" stroke-width="6" d="M372 128 Q360 132 356 122"/>
+<circle class="skin3" cx="384" cy="108" r="11"/>
+<path class="hair" d="M373 105 Q374 95 384 95 Q394 95 395 105 Q390 99 384 99 Q378 99 373 105Z"/>
+<!-- the key in the dealer's hand -->
+<circle class="yellow" cx="354" cy="118" r="4"/><rect class="yellow" x="348" y="116.5" width="6" height="3" rx="1"/>

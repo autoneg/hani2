@@ -92,6 +92,7 @@ nav:
       - Tools: guide/tools.md
       - Showing other preferences: guide/preferences.md
       - Assistant: guide/assistant.md
+      - Who knows what: guide/information.md
       - Autopilot: guide/autopilot.md
       - WebMCP (browser agents): guide/webmcp.md
       - Models and connections: guide/models.md
@@ -99,6 +100,7 @@ nav:
       - Opponents: guide/opponents.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
+      - Compositional scenarios: guide/compositional.md
       - Library and groups: guide/library.md
       - Projects and studies: guide/projects.md
       - Scheduling methods: guide/scheduling.md

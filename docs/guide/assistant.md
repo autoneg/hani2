@@ -296,6 +296,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `panels` | Custom panels | Show interactive panels (cards, tables, buttons) | `show_panel`, `close_panel` |
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
+| `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
@@ -492,6 +493,13 @@ Tool helpers (each checks the capability shown):
 | `remove_tool(name)` | `tool_add` | Removes a tool added during the session. |
 | `read_tool(name)` | `tool_use` | `{"ok", "tool", "text"}`: what the tool shows, as text. |
 | `use_tool(name, inputs=None, action=None, payload=None, row=None)` | `tool_use` | Operates the tool; returns what it shows afterwards. |
+| `private_information()` | `private_info` | What only the Assistant knows this round and who holds what (see [Who knows what](information.md)). |
+| `past_negotiation(id)` | `private_info` | `{"ok", "negotiation"}`: every offer of one past negotiation the Assistant holds. |
+
+While the human and the Assistant know different things, `read_tool` and `use_tool` refuse the
+tools that show something of the human's that the Assistant does not know itself (Preferences
+when the Assistant knows another part of them, Past Negotiations, Market Research), and tools
+that show deal values the participant may not see are not listed.
 
 
 ### Attributes
@@ -582,6 +590,8 @@ class MyAgent(Assistant):
 | `read_tool` | `name` | `tool_use` |
 | `use_tool` | `name`, `inputs` (input name to value), `action` (button or table action), `row` (table row index), `payload` | `tool_use` |
 | `add_tool` | `name` (from `can_add`), `pane`, `focus` | `tool_add` |
+| `get_private_information` | none | `private_info`, in a round where something is split |
+| `show_past_negotiation` | `id` | `private_info`, when the Assistant holds past negotiations |
 | `remove_tool` | `name` | `tool_add` |
 
 Tool names are matched case-insensitively, and a partial name also matches (`"utility"` finds `Utility Plot`). Issue names in `set_offer` are matched the same way, and values are checked against the issue; unknown issues and invalid values are reported back in `unrecognised`.

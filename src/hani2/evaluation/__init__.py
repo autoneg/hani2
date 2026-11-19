@@ -31,6 +31,7 @@ import numpy as np
 from hani2.evaluation import hard as _hard  # noqa: F401  (registers metrics)
 from hani2.evaluation import llm_judge as _llm  # noqa: F401
 from hani2.evaluation import subjective as _subj  # noqa: F401
+from hani2.evaluation import factors as _factors  # noqa: F401
 from hani2.evaluation.base import REGISTRY, Column, EvalContext, Metric, metric
 from hani2.evaluation.llm_judge import llm_judge_status
 from hani2.evaluation.reference import metric_reference

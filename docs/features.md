@@ -41,13 +41,14 @@ details are.
 | Feature | What it does | Details |
 | --- | --- | --- |
 | Assistant dock and status board | Chat with the assistant, answer its questions with buttons, and see its current advice on an always-visible board. | [The assistant dock](guide/interface.md#the-assistant-dock) |
-| Sixteen capabilities | Chat, notifications, tool control (enable, show, rearrange), fill the offer and message, send, accept, end, highlight, annotate, change the layout, custom panels, **add tools** and **use tools**. Admins grant them; each participant can switch them off. | [Capabilities](guide/assistant.md#capabilities) |
+| Eighteen capabilities | Chat, notifications, pinned messages, tool control (enable, show, rearrange), fill the offer and message, send, accept, end, highlight, annotate, change the layout, custom panels, **add tools**, **use tools** and **its own information**. Admins grant them; each participant can switch them off. | [Capabilities](guide/assistant.md#capabilities) |
 | Three autonomy levels | Suggest, semi-autonomous or fully autonomous for sending, accepting and ending. | [Autonomy](guide/assistant.md#autonomy) |
 | Interface control | Spotlight buttons, issues and tools with a short note, attach notes, switch views, resize panes and show interactive panels. | [Interface control](guide/assistant.md#interface-control) |
 | Finds and uses tools | Reads any tool as text (numbers, tables, chart summaries, inputs and buttons) and operates it like the participant, within its own permissions. A tool written for people needs no extra code. | [Tools the agent can find, use and add](guide/assistant.md#tools-the-agent-can-find-use-and-add) |
 | Adds tools while you negotiate | Puts its own tools, or registered ones, on the screen at the right moment; tools with `timing = "agent"` wait for it. | [Tools the agent can find, use and add](guide/assistant.md#tools-the-agent-can-find-use-and-add) |
 | Your own agent | Subclass `Assistant` with or without a language model; ten tutorial levels from an echo bot to an agent that brings its own tools. | [Build an Assistant](tutorials/assistant.md) |
 | Autopilot | The Assistant or any negotiator plays the human's seat. | [Autopilot](guide/autopilot.md) |
+| Who knows what | Give the participant and the Assistant different information so they must work together: past negotiations in the same scenario shared out between them, the issue weights to one and the option values to the other, market research for the Assistant, private briefings with limits only the human knows, decisions only the human makes. | [Who knows what](guide/information.md) |
 
 ## For competitions
 
@@ -69,6 +70,7 @@ participant. Options, settings and admin screens use these two names throughout.
 | --- | --- | --- |
 | Experiments | Self-contained folders with their own settings, scenarios, questionnaires and results. | [Studies and results](guide/studies.md) |
 | Scenario sets | 19 scenario types grouped into sets (HAN2026, MIT2025, PieArena2026, ANL and one per ANL year, IAGO, HAN2027, HI2027, ANAC2027, or your own; sets can include other sets). Pick the set with `hani2 --scenario-set`, `env.json` (per project or study) or, as an admin, on the start screen. | [Scenario sets](guide/scenario-sets.md) |
+| Compositional scenarios | Build scenarios from difficulty factors (number of issues, opposition, ZOPA size, a hidden constraint, a deceptive opponent, time pressure), verify each automatically (ZOPA non-empty, target reachable), sample a balanced set, run an Assistant on it and report scores per factor: where does it fail? `hani2 compose`. | [Compositional scenarios](guide/compositional.md) |
 | Who plays which role | Rules for the participant's role: the scenario's suggested role, a fixed index, preferred role names, alternating or random. | [Which side the participant plays](guide/scenarios.md#which-side-the-participant-plays) |
 | Your own scenarios | Write a story or a generator in Python and register it from a file, or serve saved scenarios from any folder with `--scenarios`. | [Writing your own scenario type](guide/scenarios.md#writing-your-own-scenario-type) |
 | Recording and replay | Every negotiation is recorded completely — screens, clicks, pointer, keys, offers, assistant messages and function calls, language-model calls with tokens and cost — and can be replayed exactly as the participant saw it, with a check that the replay matches their screen. On by default. | [Recording and replay](guide/recordings.md) |

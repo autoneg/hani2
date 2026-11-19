@@ -20,7 +20,9 @@ class ToolController:
     # -- lookup ----------------------------------------------------------
     @property
     def tools(self) -> list["Tool"]:
-        return self.session.tools
+        """The tools on offer this round (a tool can depend on the information split)."""
+        available = getattr(self.session, "tool_available", None)
+        return [t for t in self.session.tools if available is None or available(t)]
 
     def find(self, name: str) -> "Tool | None":
         key = str(name or "").strip().lower()
@@ -46,6 +48,7 @@ class ToolController:
                     enabled=st["enabled"],
                     permanent=t.permanent,
                     active=self.session.active_tabs.get(st["pane"]) == t.name,
+                    **({"private": True} if getattr(self.session, "tool_private_to_human", lambda _t: False)(t) else {}),
                 )
             )
         return out

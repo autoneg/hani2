@@ -1,0 +1,1 @@
+import{c as i}from"./index-D2MiqRU4.js";const e={name:"grid-2x2",size:24,node:[["path",{d:"M12 3v18",key:"108xh3"}],["path",{d:"M3 12h18",key:"1i2n21"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["grid-2-x-2"]};e.node;const a=i(e);export{e as __iconData,a as default};
