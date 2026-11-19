@@ -286,7 +286,7 @@ placement:
 
 See [Library and groups](library.md#tool-groups).
 
-### `recording`, `evaluation` and `questionnaire`
+### `recording`, `evaluation`, `questionnaire` and `pre_questionnaire`
 
 | Key | Meaning |
 | --- | --- |
@@ -294,6 +294,7 @@ See [Library and groups](library.md#tool-groups).
 | `evaluation.llm` | Language-model settings for the evaluation judge (same keys as `llm_settings.json`); default: the HANI2 language model. |
 | `evaluation.assertions` | Statements for the `nl_assertions` metric. See [Evaluation metrics](evaluation.md#language-model-judgements). |
 | `questionnaire` | The questionnaire after each negotiation, by name (`evaluation`) or path. |
+| `pre_questionnaire` | The questionnaire shown once before a participant's first negotiation, by name (`expertise`) or path; its answer sets the participant type. Off when unset. See [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types). |
 
 ## `llm_settings.json`
 

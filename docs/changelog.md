@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Simulated participants.** `hani2 simulate` (and `hani2.simulator`) lets a persona play the
+  human seat of headless sessions, for cheap, repeatable trials and pass^k before the human study,
+  as a qualifying round for Assistant entrants. Scripted personas: `follower` and `click_through`
+  (easy), `skeptic` and `stubborn` (hard). A language-model persona has a goal, a private
+  reservation value, a temperament and an instruction to disclose information gradually, and ends
+  with `###STOP###`. Sessions are tagged `mode: simulated` (users `sim_<persona>`), get no
+  questionnaires, never count as study participants and are never ranked with humans: the admin
+  console shows them in a separate **Qualifying round** table, and `replay compare` keeps them in
+  their own groups. Success is `goal_met`, a deal worth at least the persona's reservation value.
+  The new `simulation` metric reports it, along with validity, suggestion uptake and
+  scripted-persona conformance. `error_review` gains a **simulator** source
+  (`simulator_errors`, `simulator_critical_errors`) for auditing the simulator. See
+  [Simulated participants](guide/simulation.md).
+- **Pre-questionnaire and participant types; stratified leaderboards.** An opt-in questionnaire
+  (`"pre_questionnaire": "expertise"` in `env.json`, or `questionnaires/pre_questionnaire.yaml`)
+  is shown once before a participant's first negotiation. Its `participant_type` answer (e.g.
+  novice / experienced / expert) is stored in the new `participant_type` results column, and the
+  leaderboard is also shown per participant type. Results also gain `mode`, `persona` and
+  `goal_met` columns. See
+  [Pre-questionnaire and participant types](guide/studies.md#pre-questionnaire-and-participant-types).
 - **Admins can negotiate as a participant.** **Negotiate as a participant** in the account menu
   (or `?as_participant=1`) opens a separate session with exactly the participants' interface: no
   opponent type, no scenario or opponent pickers, no admin controls. It is not counted as a study

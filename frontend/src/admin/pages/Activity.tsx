@@ -71,7 +71,23 @@ export function Results() {
       {data.leaderboard.length > 0 && (
         <Group title="Leaderboard" id="setting-leaderboard">
           <div className="p-3">
-            <Renderer components={[{ type: "table", rows: data.leaderboard, columns: ["user", "score", "negotiations", "mean_utility"], formats: { score: "float", mean_utility: "percent" }, page_size: 10 }]} ctx={ctx} />
+            <Renderer components={[{ type: "table", rows: data.leaderboard, columns: ["user", "participant_type", "score", "negotiations", "mean_utility"], formats: { score: "float", mean_utility: "percent" }, page_size: 10 }]} ctx={ctx} />
+          </div>
+        </Group>
+      )}
+      {Object.keys(data.leaderboard_by_type ?? {}).length > 1 && (
+        <Group title="Leaderboard by participant type" footer="Stratified by the participant type from the pre-questionnaire." id="setting-leaderboard-by-type">
+          <div className="space-y-3 p-3">
+            {Object.entries(data.leaderboard_by_type as Record<string, any[]>).map(([kind, rows]) => (
+              <Renderer key={kind} components={[{ type: "card", title: kind || "type unknown", children: [{ type: "table", rows, columns: ["user", "score", "negotiations", "mean_utility"], formats: { score: "float", mean_utility: "percent" }, page_size: 10 }] }]} ctx={ctx} />
+            ))}
+          </div>
+        </Group>
+      )}
+      {(data.simulated ?? []).length > 0 && (
+        <Group title="Qualifying round (simulated participants)" footer="Simulated participants are never ranked with humans. Success: a deal worth at least the persona's reservation value." id="setting-simulated">
+          <div className="p-3">
+            <Renderer components={[{ type: "table", rows: data.simulated, columns: Object.keys(data.simulated[0]).filter((c) => c !== "mean_utility"), formats: Object.fromEntries(Object.keys(data.simulated[0]).filter((c) => c === "goal_rate" || c.startsWith("pass^")).map((c) => [c, "percent"])), page_size: 20 }]} ctx={ctx} />
           </div>
         </Group>
       )}

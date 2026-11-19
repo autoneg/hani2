@@ -939,7 +939,9 @@ class NegotiationSession:
         self._tools_hook("scenario_loaded", scenario)
         ev.log_event(self.sid, ev.EventType.SCENARIO_LOADED, user=self.user, scenario_id=str(info.get("scenario_name")))
         self.push_state()
-        self.study.after_load()
+        # a participant's first round opens the pre-questionnaire (if configured) before anything starts
+        if not self.study.maybe_pre_questionnaire():
+            self.study.after_load()
 
     # ------------------------------------------------------------------ #
     # The Assistant: which one, attribution                               #

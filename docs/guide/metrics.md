@@ -1643,6 +1643,109 @@ The share of function calls that worked. A call counts as failed when its result
 or when the result is not an object (e.g. an error text). Empty without calls; the calls per function
 are in the details.
 
+### `simulation` — Simulated participant
+
+*hard*
+
+Goal, validity, suggestion uptake and policy conformance of a simulated participant.
+
+$$
+\text{goal\_met} = [\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]
+$$
+
+For sessions played by a simulated participant (`mode: simulated`, see the simulation guide): whether
+the persona reached its goal, whether the trial is valid, how often it saw and took the Assistant's
+suggestion, and whether a scripted persona kept to its own rules. $\omega$ is the agreement and
+$r_p$ the persona's reservation value (its private one, or the scenario's).
+
+A trial is **invalid** when it hit the time-out or the turn cap, the simulator's language model failed
+or the opponent failed; leave invalid trials out of pass^k (`hani2 simulate` does), because they say
+nothing about the Assistant. **Violations** are the turns where a scripted persona broke its own
+policy (a follower ignoring a suggestion, a stubborn persona going below its floor, …), checked
+without a language model; they should be 0, and are not computed for language-model personas.
+
+**Example.** A stubborn persona with reservation value $0.4$ reaches a deal worth $0.7$ after 6 turns,
+seeing 4 suggestions and taking 1: `sim_goal_met` $= 1$, `sim_take_rate` $= 1/4$.
+
+Not computed for human sessions.
+
+#### `sim_goal_met` — Goal met
+
+*The simulated participant got a deal worth at least its reservation value*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+[\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]
+$$
+
+1 when the negotiation ended in a deal worth at least the persona's reservation value to it, else 0.
+The success criterion of pass^k for simulated runs.
+
+#### `sim_valid` — Valid trial
+
+*The trial ended normally (no time-out, turn cap or simulator failure)*
+
+**Range:** {0, 1} · **Direction:** higher is better
+
+$$
+[\,\text{no time-out, turn cap or failure}\,]
+$$
+
+0 when the trial says nothing about the Assistant: it timed out, hit the turn cap, or the simulator's
+model or the opponent failed.
+
+#### `sim_turns` — Persona turns
+
+*Moves the persona made*
+
+**Range:** count · **Direction:** no better direction
+
+$$
+\lvert T \rvert
+$$
+
+The number of moves (offers, acceptances, endings) the persona made.
+
+#### `sim_take_rate` — Suggestions taken
+
+*Share of the turns with a suggestion where the persona took it*
+
+**Range:** [0, 1] · **Direction:** no better direction
+
+$$
+\frac{\lvert \{t \in T : \text{took}(t)\} \rvert}{\lvert \{t \in T : \text{suggestion}(t)\} \rvert}
+$$
+
+Of the persona's turns on which the Assistant had suggested something (filled an offer, asked to confirm
+accept / end, or spotlighted a button), the share where the persona did what was suggested.
+Empty when the Assistant never suggested anything.
+
+#### `sim_violations` — Persona violations
+
+*Turns where a scripted persona broke its own policy*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{t \in T : \text{policy}(t)\ \text{broken}\} \rvert
+$$
+
+Turns where a scripted persona did not behave as specified, found by deterministic checks. Should be 0;
+anything else is a simulator bug. Empty for language-model personas.
+
+#### `sim_stopped` — Persona stopped
+
+*The language-model persona ended its participation with the stop token*
+
+**Range:** {0, 1} · **Direction:** no better direction
+
+$$
+[\,\texttt{\#\#\#STOP\#\#\#}\,]
+$$
+
+1 when a language-model persona wrote the stop token (its goal met or it gave up) and so walked away.
+
 ## Subjective metrics
 
 The participant's own answers to the questionnaire.
@@ -2438,6 +2541,14 @@ Assistant's suggestion and whether that helped or hurt. The full list is in the 
 An error whose source mentions "assist" or "agent" is the Assistant's, any other the Human's; an
 unknown severity counts as minor.
 
+**Simulated participants.** When a simulated participant played the Human (`mode: simulated`), the
+judge is shown the persona (its policy, goal and reservation value) and may also blame a third source,
+the **simulator**: the persona broke character or its own instructions (it revealed its private
+reservation value unprompted, ignored its policy, stopped for no reason, behaved like no human
+would). A "human" error then means an in-character negotiating mistake. Simulator errors are audited
+like this, as in τ²-bench, to tell Assistant failures from simulator failures; they count in
+`simulator_errors` and never as the Assistant's or the Human's.
+
 **Example.** The judge reports a minor Assistant error at 01:10, a critical Human error at 02:30 and a
 critical Assistant error at 03:05: `assistant_errors` $= 2$, `assistant_critical_errors` $= 1$,
 `human_errors` $= 1$, `human_critical_errors` $= 1$ and `first_critical` = human.
@@ -2502,6 +2613,33 @@ $$
 
 The Human's errors that, according to the judge, changed the final outcome.
 
+#### `simulator_errors` — Simulator errors
+
+*Errors of the user simulator (simulated participants only)*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{e \in E : \text{source}(e) = \text{simulator}\} \rvert
+$$
+
+For a simulated participant, how many errors the judge blamed on the simulator itself (the persona broke
+character or its instructions) rather than on the Assistant or on an in-character mistake. Empty for
+human sessions.
+
+#### `simulator_critical_errors` — Simulator critical errors
+
+*… of which critical*
+
+**Range:** count · **Direction:** lower is better
+
+$$
+\lvert \{e \in E : \text{source}(e) = \text{simulator} \wedge \text{severity}(e) = \text{critical}\} \rvert
+$$
+
+The simulator's errors that, according to the judge, changed the final outcome. A trial with one is a
+candidate to discard before computing pass^k. Empty for human sessions.
+
 #### `human_overrode_helpfully` — Helpful overrides
 
 *Times the human went against the assistant and it helped*
@@ -2530,12 +2668,12 @@ counted by the judge.
 
 #### `first_critical` — First critical error
 
-*Who made the first critical error: assistant, human or none*
+*Who made the first critical error: assistant, human, simulator or none*
 
 **Range:** category · **Direction:** no better direction
 
 $$
-\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{none}\}
+\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{simulator}, \text{none}\}
 $$
 
 Who made the earliest critical error (by the mm:ss time the judge gave; errors without a readable

@@ -95,6 +95,70 @@ def questionnaire_spec() -> dict | None:
     return None
 
 
+#: where a participant's pre-questionnaire answers are kept (in their results folder)
+PRE_FILE = "pre_questionnaire.json"
+
+
+def pre_questionnaire_spec() -> dict | None:
+    """The pre-questionnaire (shown once, before a participant's first negotiation), if one is
+    configured. It is opt-in: ``"pre_questionnaire": "<name or path>"`` in env.json (``expertise``
+    is bundled), ``$HANI2_PRE_YAML``, or ``questionnaires/pre_questionnaire.yaml`` in the study,
+    its project or the settings folder. Its ``participant_type`` block names the question whose
+    answer is the participant's type (see :func:`participant_type_of`)."""
+    import yaml
+
+    from hani2.config import DEFAULT_SETTINGS_DIR, get_env, settings_dir
+
+    def named(v: str) -> list[Path]:
+        if "/" in v or v.endswith((".yaml", ".yml")):
+            return [Path(v).expanduser()]
+        return [*(d / "questionnaires" / f"{v}.yaml" for d in settings_layers()),
+                settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
+
+    cands: list[Path] = []
+    if os.environ.get("HANI2_PRE_YAML"):
+        cands.extend(named(os.environ["HANI2_PRE_YAML"]))
+    if get_env("pre_questionnaire", None):
+        cands.extend(named(str(get_env("pre_questionnaire"))))
+    for layer in settings_layers():
+        cands.append(layer / "questionnaires" / "pre_questionnaire.yaml")
+    cands.append(settings_dir() / "questionnaires" / "pre_questionnaire.yaml")
+    for p in cands:
+        if p.is_file():
+            try:
+                spec = yaml.safe_load(p.read_text()) or {}
+            except Exception as e:  # pragma: no cover
+                print(f"[hani2] pre-questionnaire {p} failed to parse: {e}")
+                continue
+            if spec.get("questions"):
+                from hani2.templates import render_data
+
+                return render_data(spec)
+    return None
+
+
+def participant_type_of(spec: dict | None, answers: dict[str, Any]) -> str:
+    """The participant type from pre-questionnaire answers: the answer to the question named by
+    ``participant_type.question`` (default ``expertise``), mapped through ``participant_type.map``
+    (answer → type; unmapped answers are used as they are). ``""`` when unanswered."""
+    cfg = (spec or {}).get("participant_type") or {}
+    if isinstance(cfg, str):
+        cfg = {"question": cfg}
+    v = answers.get(str(cfg.get("question") or "expertise"))
+    if v in (None, "", []):
+        return ""
+    mapping = {str(k): str(x) for k, x in (cfg.get("map") or {}).items()}
+    return mapping.get(str(v), str(v))
+
+
+def read_pre_questionnaire(user_path: Path) -> dict | None:
+    f = Path(user_path) / PRE_FILE
+    try:
+        return json.loads(f.read_text()) if f.is_file() else None
+    except Exception:
+        return None
+
+
 def questionnaire_for(session: "NegotiationSession", spec: dict | None) -> dict | None:
     """The questionnaire as shown in this session: questions marked
     ``requires: support_agent`` are dropped when no assistant took part."""
@@ -271,7 +335,7 @@ class Study:
 
     # -- after a round --------------------------------------------------------
     def wants_questionnaire(self, summary: dict) -> bool:
-        return self.session.mode != "guest" and summary.get("n_human_actions", 0) > 0 and not summary.get("agent_failed")
+        return self.session.mode not in ("guest", "simulated") and summary.get("n_human_actions", 0) > 0 and not summary.get("agent_failed")
 
     def after_round(self, summary: dict) -> None:
         self._last_summary = summary
@@ -281,6 +345,52 @@ class Study:
             self.session.phase = "questionnaire"
             self._shown_at = datetime.now().isoformat()
 
+    # -- before the first round ---------------------------------------------
+    def wants_pre_questionnaire(self) -> bool:
+        from hani2 import assignment
+
+        s = self.session
+        return s.mode not in ("guest", "simulated") and assignment.counts_as_human(s)
+
+    def maybe_pre_questionnaire(self) -> bool:
+        """Open the pre-questionnaire if this participant has not answered it yet (after a scenario
+        loaded, before the negotiation starts). Also sets ``participant_type`` from earlier answers.
+        Returns whether it opened."""
+        s = self.session
+        done = read_pre_questionnaire(s.ss["user_path"])
+        if done is not None:
+            s.ss["participant_type"] = str(done.get("participant_type") or "")
+            return False
+        if not self.wants_pre_questionnaire() or s.phase != "ready":
+            return False
+        spec = pre_questionnaire_spec()
+        if not spec:
+            return False
+        s.questionnaire = {**spec, "stage": "pre"}
+        s.phase = "questionnaire"
+        self._shown_at = datetime.now().isoformat()
+        s.push_state()
+        return True
+
+    def _submit_pre(self, answers: dict[str, Any]) -> dict:
+        s = self.session
+        spec = s.questionnaire or {}
+        ptype = participant_type_of(spec, answers)
+        data = dict(answers=answers, participant_type=ptype, shown_at=getattr(self, "_shown_at", None) or "",
+                    submitted_at=datetime.now().isoformat(), version=str(spec.get("version") or ""),
+                    **projects.stamp(s.study_ref))
+        path = Path(s.ss["user_path"]) / PRE_FILE
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=1, default=str))
+        s.ss["participant_type"] = ptype
+        if getattr(s, "recorder", None) is not None:
+            s.recorder.mark("pre_questionnaire", answers=answers, participant_type=ptype)
+        s.questionnaire = None
+        s.phase = "ready"
+        s.push_state()
+        self.after_load()
+        return {"ok": True}
+
     def submit_questionnaire(self, answers: dict[str, Any]) -> dict:
         s = self.session
         spec = s.questionnaire or {}
@@ -288,6 +398,8 @@ class Study:
                    if q.get("required") and answers.get(q.get("id")) in (None, "", [])]
         if missing:
             return {"ok": False, "error": "Please answer every required question.", "missing": missing}
+        if spec.get("stage") == "pre":
+            return self._submit_pre(answers)
         m = s.mechanism
         shown = self._shown_at
         dur = None

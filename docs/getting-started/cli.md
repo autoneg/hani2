@@ -326,6 +326,7 @@ folders (default: the results folder).
 | `hani2 replay metrics --details [NAME]` | What a metric or column measures and how it is calculated (the [metric reference](../guide/metrics.md)). |
 | `hani2 replay evaluate [PATHS…] [-m a,b] [--llm] [--refresh] [-o file.csv] [--option k=v]` | One row of metrics per recording; `.json` output also works. |
 | `hani2 replay compare [PATHS…] --by opponent [-m …] [--llm] [-o file.csv]` | Means per group, and pass^k reliability. |
+| `hani2 simulate -a MODULE:Class [-p persona …] [-s scenario …] [-o opponent …] [-k 4] [--out file.csv] [--temp]` | Run [simulated participants](../guide/simulation.md) against an Assistant and report pass^k (a qualifying round). |
 
 ```bash
 hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metrics.csv

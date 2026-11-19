@@ -92,7 +92,7 @@ participant's questionnaire answers, so its judgements are independent of both.
 | `judge_opponent` | `jo_kindness`, `jo_intelligence`, `jo_cooperativeness`, `jo_human_likeness`, `jo_communication`, `jo_consistency`, `jo_overall` | The opponent as the human experienced it. |
 | `judge_human` | `jh_engagement`, `jh_strategy`, `jh_cooperativeness`, `jh_use_of_assistant`, `jh_communication`, `jh_overall` | The human: invested or clicking through, strategy, use of the assistant. |
 | `nl_assertions` | `assertions_met`, `assertions_total` | Natural-language statements the session should satisfy, each judged met, not met or not applicable. The defaults check the assistant's explanatory behaviour; set your own (below). |
-| `error_review` | `assistant_errors`, `assistant_critical_errors`, `human_errors`, `human_critical_errors`, `human_overrode_helpfully`, `human_overrode_harmfully`, `first_critical` | Mistakes of the assistant and of the human with their severity (minor, major, critical = changed the outcome), and whether going against the assistant helped or hurt. |
+| `error_review` | `assistant_errors`, `assistant_critical_errors`, `human_errors`, `human_critical_errors`, `simulator_errors`, `simulator_critical_errors`, `human_overrode_helpfully`, `human_overrode_harmfully`, `first_critical` | Mistakes of the assistant and of the human with their severity (minor, major, critical = changed the outcome), and whether going against the assistant helped or hurt. For [simulated participants](simulation.md#auditing-the-simulator) the judge also blames the **simulator** when the persona broke its instructions. |
 
 ### Language-model judgements
 
@@ -126,6 +126,11 @@ model; use **Refresh** / `--refresh` to ask again.
   scenario, *all* succeed (success = a deal by default; set `--option success=human_advantage
   --option success_threshold=0.5` for another criterion). pass^k comes from τ-bench (Yao et al.,
   2024): pass^1 is the success rate, and a fast drop with *k* shows an inconsistent agent.
+
+Recordings of [simulated participants](simulation.md) (`mode = simulated`) always form groups of
+their own (`<group> [simulated]`), so they are never averaged with human sessions; group by `mode`
+to compare the two directly, or by `participant_type` / `persona` to stratify. For simulated runs
+use `--option success=sim_goal_met` and evaluate with the `simulation` metric.
 
 ## Adding a metric
 

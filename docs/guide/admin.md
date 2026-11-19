@@ -89,7 +89,7 @@ The server removes sessions that have no open tab, are not negotiating, and have
 
 ## Results
 
-**Download CSV** (`/api/admin/results.csv`, saved as `hani2_results.csv`), the **Leaderboard** (`user`, `score`, `negotiations`, `mean_utility`) when there is anything to rank, and a searchable table of every negotiation, newest first. **Choose columns** picks the columns to show; it starts with the default columns plus `user`. Utilities and the human advantage are shown as percentages. The console shows the results of the server's default study; open it at `/s/<project>/<study>/admin` (or use **Open in this study** on a study's page) for another study. [Studies and results](studies.md) describes the files and their columns.
+**Download CSV** (`/api/admin/results.csv`, saved as `hani2_results.csv`), the **Leaderboard** of human participants (`user`, `participant_type`, `score`, `negotiations`, `mean_utility`) when there is anything to rank, the leaderboard **by participant type** when there are several types (see [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types)), the **Qualifying round** of [simulated participants](simulation.md) (never ranked with humans), and a searchable table of every negotiation, newest first. **Choose columns** picks the columns to show; it starts with the default columns plus `user`. Utilities and the human advantage are shown as percentages. The console shows the results of the server's default study; open it at `/s/<project>/<study>/admin` (or use **Open in this study** on a study's page) for another study. [Studies and results](studies.md) describes the files and their columns.
 
 ## Event analytics
 

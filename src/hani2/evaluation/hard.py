@@ -1136,3 +1136,82 @@ def assistant_interaction(ctx: EvalContext, options: dict) -> dict:
         max_assistant_streak=best, fn_calls=len(fns), fn_success_rate=(len(ok) / len(fns)) if fns else None,
         _details=dict(fn_by_name=dict(Counter(f.get("name") for f in fns))),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Simulated participants                                                       #
+# --------------------------------------------------------------------------- #
+@metric("simulation", kind="hard", title="Simulated participant",
+        formula=r"\text{goal\_met} = [\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]",
+        details=r"""
+For sessions played by a simulated participant (`mode: simulated`, see the simulation guide): whether
+the persona reached its goal, whether the trial is valid, how often it saw and took the Assistant's
+suggestion, and whether a scripted persona kept to its own rules. $\omega$ is the agreement and
+$r_p$ the persona's reservation value (its private one, or the scenario's).
+
+A trial is **invalid** when it hit the time-out or the turn cap, the simulator's language model failed
+or the opponent failed; leave invalid trials out of pass^k (`hani2 simulate` does), because they say
+nothing about the Assistant. **Violations** are the turns where a scripted persona broke its own
+policy (a follower ignoring a suggestion, a stubborn persona going below its floor, …), checked
+without a language model; they should be 0, and are not computed for language-model personas.
+
+**Example.** A stubborn persona with reservation value $0.4$ reaches a deal worth $0.7$ after 6 turns,
+seeing 4 suggestions and taking 1: `sim_goal_met` $= 1$, `sim_take_rate` $= 1/4$.
+
+Not computed for human sessions.
+""", columns=[
+    C("sim_goal_met", "Goal met", "The simulated participant got a deal worth at least its reservation value", True,
+      formula=r"[\,\omega \neq \varnothing \wedge u_h(\omega) \ge r_p\,]", range="{0, 1}",
+      details=r"""
+1 when the negotiation ended in a deal worth at least the persona's reservation value to it, else 0.
+The success criterion of pass^k for simulated runs.
+"""),
+    C("sim_valid", "Valid trial", "The trial ended normally (no time-out, turn cap or simulator failure)", True,
+      formula=r"[\,\text{no time-out, turn cap or failure}\,]", range="{0, 1}",
+      details=r"""
+0 when the trial says nothing about the Assistant: it timed out, hit the turn cap, or the simulator's
+model or the opponent failed.
+"""),
+    C("sim_turns", "Persona turns", "Moves the persona made", formula=r"\lvert T \rvert", range="count",
+      details=r"""
+The number of moves (offers, acceptances, endings) the persona made.
+"""),
+    C("sim_take_rate", "Suggestions taken", "Share of the turns with a suggestion where the persona took it",
+      formula=r"\frac{\lvert \{t \in T : \text{took}(t)\} \rvert}{\lvert \{t \in T : \text{suggestion}(t)\} \rvert}",
+      range="[0, 1]", details=r"""
+Of the persona's turns on which the Assistant had suggested something (filled an offer, asked to confirm
+accept / end, or spotlighted a button), the share where the persona did what was suggested.
+Empty when the Assistant never suggested anything.
+"""),
+    C("sim_violations", "Persona violations", "Turns where a scripted persona broke its own policy", False,
+      formula=r"\lvert \{t \in T : \text{policy}(t)\ \text{broken}\} \rvert", range="count",
+      details=r"""
+Turns where a scripted persona did not behave as specified, found by deterministic checks. Should be 0;
+anything else is a simulator bug. Empty for language-model personas.
+"""),
+    C("sim_stopped", "Persona stopped", "The language-model persona ended its participation with the stop token",
+      formula=r"[\,\texttt{\#\#\#STOP\#\#\#}\,]", range="{0, 1}",
+      details=r"""
+1 when a language-model persona wrote the stop token (its goal met or it gave up) and so walked away.
+"""),
+])
+def simulation(ctx: EvalContext, options: dict) -> dict:
+    """Goal, validity, suggestion uptake and policy conformance of a simulated participant."""
+    sim = ctx.rec.first("sim")
+    if not sim:
+        return {}
+    from hani2.simulator import conformance
+
+    turns = ctx.rec.of("sim_turn")
+    end = ctx.rec.last("sim_end") or {}
+    seen = [t for t in turns if t.get("suggestion")]
+    viol = None if sim.get("kind") == "llm" else conformance(sim, turns)
+    return dict(
+        sim_goal_met=int(bool(end.get("goal_met"))) if end else None,
+        sim_valid=int(bool(end.get("valid", True))) if end else 0,
+        sim_turns=len(turns),
+        sim_take_rate=(sum(1 for t in seen if t.get("took_suggestion")) / len(seen)) if seen else None,
+        sim_violations=len(viol) if viol is not None else None,
+        sim_stopped=int(bool(end.get("stopped"))) if end else 0,
+        _details=dict(persona=sim, violations=viol or [], invalid_reason=end.get("invalid_reason", "")),
+    )

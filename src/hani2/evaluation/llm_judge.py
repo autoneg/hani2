@@ -432,6 +432,14 @@ Assistant's suggestion and whether that helped or hurt. The full list is in the 
 An error whose source mentions "assist" or "agent" is the Assistant's, any other the Human's; an
 unknown severity counts as minor.
 
+**Simulated participants.** When a simulated participant played the Human (`mode: simulated`), the
+judge is shown the persona (its policy, goal and reservation value) and may also blame a third source,
+the **simulator**: the persona broke character or its own instructions (it revealed its private
+reservation value unprompted, ignored its policy, stopped for no reason, behaved like no human
+would). A "human" error then means an in-character negotiating mistake. Simulator errors are audited
+like this, as in τ²-bench, to tell Assistant failures from simulator failures; they count in
+`simulator_errors` and never as the Assistant's or the Human's.
+
 **Example.** The judge reports a minor Assistant error at 01:10, a critical Human error at 02:30 and a
 critical Assistant error at 03:05: `assistant_errors` $= 2$, `assistant_critical_errors` $= 1$,
 `human_errors` $= 1$, `human_critical_errors` $= 1$ and `first_critical` = human.
@@ -460,6 +468,20 @@ How many errors the judge attributed to the Human, of any severity. Lower is bet
       details=r"""
 The Human's errors that, according to the judge, changed the final outcome.
 """),
+    C("simulator_errors", "Simulator errors", "Errors of the user simulator (simulated participants only)", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{simulator}\} \rvert", range="count",
+      details=r"""
+For a simulated participant, how many errors the judge blamed on the simulator itself (the persona broke
+character or its instructions) rather than on the Assistant or on an in-character mistake. Empty for
+human sessions.
+"""),
+    C("simulator_critical_errors", "Simulator critical errors", "… of which critical", False,
+      formula=r"\lvert \{e \in E : \text{source}(e) = \text{simulator} \wedge \text{severity}(e) = \text{critical}\} \rvert",
+      range="count",
+      details=r"""
+The simulator's errors that, according to the judge, changed the final outcome. A trial with one is a
+candidate to discard before computing pass^k. Empty for human sessions.
+"""),
     C("human_overrode_helpfully", "Helpful overrides", "Times the human went against the assistant and it helped", True,
       formula=r"n_{\text{override}}^{+}", range="count",
       details=r"""
@@ -472,8 +494,8 @@ counted by the judge. Higher means the Human added value over the Assistant.
 How often the Human did something different from the Assistant's suggestion and it hurt them, as
 counted by the judge.
 """),
-    C("first_critical", "First critical error", "Who made the first critical error: assistant, human or none",
-      formula=r"\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{none}\}",
+    C("first_critical", "First critical error", "Who made the first critical error: assistant, human, simulator or none",
+      formula=r"\text{source}\Big(\operatorname*{arg\,min}_{e \in E,\ \text{severity}(e) = \text{critical}} \text{time}(e)\Big) \in \{\text{assistant}, \text{human}, \text{simulator}, \text{none}\}",
       range="category",
       details=r"""
 Who made the earliest critical error (by the mm:ss time the judge gave; errors without a readable
@@ -486,12 +508,15 @@ def error_review(ctx: EvalContext, options: dict) -> dict:
     helped or hurt."""
     if not ctx.acts:
         return {}
+    sim = ctx.rec.first("sim")
+    sources = '"assistant", "human" or "simulator"' if sim else '"assistant" or "human"'
     prompt = (
         "You review a negotiation in which a HUMAN (maybe helped by an AI ASSISTANT) negotiated with an OPPONENT. "
         "List the ERRORS made by the assistant and by the human: wrong or harmful advice, misreading the "
         "opponent, accepting a bad deal, rejecting a good one, ignoring their own preferences, unclear or "
         "misleading messages, acting without consent, …\n"
-        "For each error give: source (\"assistant\" or \"human\"), time (mm:ss as in the record), severity "
+        + (_simulator_brief(sim) if sim else "")
+        + f"For each error give: source ({sources}), time (mm:ss as in the record), severity "
         "(\"minor\", \"major\" or \"critical\" = it changed the final outcome), tags (short words), description. "
         "Also count overrides: times the human did something different from what the assistant suggested and "
         "whether that helped or hurt.\n\nAnswer with JSON: {\"errors\": [{\"source\": ..., \"time\": ..., "
@@ -501,7 +526,7 @@ def error_review(ctx: EvalContext, options: dict) -> dict:
     obj = ask_json(prompt)
     errs = [e for e in obj.get("errors") or [] if isinstance(e, dict)]
     for e in errs:
-        e["source"] = "assistant" if "assist" in str(e.get("source", "")).lower() or "agent" in str(e.get("source", "")).lower() else "human"
+        e["source"] = _error_source(e.get("source"), simulated=bool(sim))
         sev = str(e.get("severity", "minor")).lower()
         e["severity"] = sev if sev in SEVERITIES else "minor"
 
@@ -512,15 +537,40 @@ def error_review(ctx: EvalContext, options: dict) -> dict:
         except Exception:
             return 10 ** 9
 
+    def count(src, critical=False):
+        return sum(1 for e in errs if e["source"] == src and (not critical or e["severity"] == "critical"))
+
     crit = sorted([e for e in errs if e["severity"] == "critical"], key=lambda e: mm(e.get("time")))
     return dict(
-        assistant_errors=sum(1 for e in errs if e["source"] == "assistant"),
-        assistant_critical_errors=sum(1 for e in errs if e["source"] == "assistant" and e["severity"] == "critical"),
-        human_errors=sum(1 for e in errs if e["source"] == "human"),
-        human_critical_errors=sum(1 for e in errs if e["source"] == "human" and e["severity"] == "critical"),
+        assistant_errors=count("assistant"), assistant_critical_errors=count("assistant", True),
+        human_errors=count("human"), human_critical_errors=count("human", True),
+        simulator_errors=count("simulator") if sim else None,
+        simulator_critical_errors=count("simulator", True) if sim else None,
         human_overrode_helpfully=num(obj.get("overrides_helped")), human_overrode_harmfully=num(obj.get("overrides_hurt")),
         first_critical=crit[0]["source"] if crit else "none",
         _details={"errors": errs},
+    )
+
+
+def _error_source(source: Any, *, simulated: bool) -> str:
+    s = str(source or "").lower()
+    if simulated and any(w in s for w in ("simul", "persona")):
+        return "simulator"
+    if "assist" in s or "agent" in s:
+        return "assistant"
+    return "human"
+
+
+def _simulator_brief(sim: dict) -> str:
+    """What the judge must know when a simulated participant played the human (τ²-style audit)."""
+    return (
+        "NOTE: the HUMAN here is a SIMULATED participant (a user simulator) playing this persona: "
+        f"{sim.get('persona')} ({sim.get('kind')}, {sim.get('difficulty')}). Its policy: {sim.get('policy') or '—'} "
+        f"Its private reservation value: {sim.get('reservation')}. "
+        "Use source \"simulator\" for errors of the simulator itself: breaking character or its own policy, "
+        "revealing its private information unprompted, stopping for no reason, behaving like no human would. "
+        "Use source \"human\" only for in-character negotiating mistakes, and \"assistant\" for the assistant's "
+        "errors. Do not blame the assistant for the simulator's failures.\n"
     )
 
 

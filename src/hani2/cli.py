@@ -855,6 +855,49 @@ def replay_compare(
         _write_table(cmp["reliability"], ["group", "k", "pass_hat_k", "scenarios"], None)
 
 
+@app.command("simulate")
+def simulate_cmd(
+    persona: Annotated[list[str], typer.Option("--persona", "-p", help="Persona (repeatable): follower, skeptic, stubborn, click_through or llm; options as name:key=value,… (e.g. stubborn:max_concession=0.1, llm:goal=\"…\")")] = ["follower", "skeptic", "stubborn", "click_through"],  # noqa: B006
+    assistant: Annotated[Optional[str], typer.Option("--assistant", "-a", help="The Assistant's class (module:Class or file.py:Class); default: assistant_settings.json")] = None,
+    scenario: Annotated[list[str], typer.Option("--scenario", "-s", help="Scenario type (repeatable).")] = ["Trade"],  # noqa: B006
+    opponent: Annotated[list[str], typer.Option("--opponent", "-o", help="Opponent (repeatable).")] = ["BoulwareTBNegotiator"],  # noqa: B006
+    k: Annotated[int, typer.Option("-k", help="Trials per persona × scenario × opponent.")] = 4,
+    n_steps: Annotated[int, typer.Option(help="Rounds per negotiation.")] = 20,
+    seed: Annotated[int, typer.Option(help="Seed of the personas (trial i uses seed + i).")] = 0,
+    out: Annotated[Optional[Path], typer.Option("--out", help="Write every trial to a .csv or .json file.")] = None,
+    temp: Annotated[bool, typer.Option("--temp", help="Write results and recordings to a temporary home instead of HANI2_HOME.")] = False,
+):
+    """Run simulated participants against an Assistant and report pass^k (a qualifying round).
+
+    Every session is tagged mode: simulated (user sim_<persona>) and is never ranked with human
+    participants; its recordings can be evaluated like any other (hani2 replay evaluate, with the
+    simulation and error_review metrics)."""
+    from hani2 import config
+    from hani2.simulator import run_trials
+
+    home = None if temp else str(config.home())
+
+    def progress(tr):
+        flag = "" if tr.valid else f"  (invalid: {tr.invalid_reason})"
+        u = f"{tr.human_utility:.2f}" if tr.human_utility is not None else "–"
+        typer.echo(f"{tr.persona:14} {tr.scenario or '':10} trial {tr.trial}: {tr.status:9} utility {u}  "
+                   f"goal {'met' if tr.goal_met else 'missed'}  suggestions taken {tr.suggestions_taken}/{tr.suggestions_seen}{flag}")
+
+    res = run_trials(persona, k=k, scenarios=scenario, opponents=opponent, agent_class=assistant, n_steps=n_steps,
+                     seed=seed, progress=progress, home=home)
+    if out is not None:
+        _write_table(res["trials"], list(res["trials"][0]) if res["trials"] else [], out)
+    typer.echo("")
+    rows = [dict(group=g["group"], n=g["n"], goal_rate=g["mean"].get("goal_met"),
+                 utility=g["mean"].get("human_utility")) for g in res["groups"]]
+    _write_table(rows, ["group", "n", "goal_rate", "utility"], None)
+    if res["reliability"]:
+        typer.echo("\npass^k (success = goal met: a deal worth at least the persona's reservation value):")
+        _write_table(res["reliability"], ["group", "k", "pass_hat_k", "scenarios"], None)
+    if res["invalid"]:
+        typer.secho(f"{res['invalid']} invalid trial(s) left out (time-outs, turn caps, simulator failures).", fg="yellow")
+
+
 @replay_app.command("export")
 def replay_export(path: Path, out: Annotated[Path, typer.Option("--out", "-o", help="JSON file to write.")]):
     """Write a recording as plain JSON (header + events)."""

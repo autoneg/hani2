@@ -84,6 +84,39 @@ def _attribution(ss: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+#: who sat in the human seat: ``mode`` (``simulated`` for a simulated participant, see
+#: :mod:`hani2.simulator`), ``participant_type`` (from the pre-questionnaire, or the persona's
+#: difficulty), ``persona`` and, for simulated participants, ``goal_met``
+PARTICIPANT_COLUMNS = ["mode", "participant_type", "persona", "goal_met"]
+
+
+def _participant(ss: dict[str, Any], ufun, utility: float, agreed: bool) -> dict[str, Any]:
+    mode = str(ss.get("mode") or "")
+    out: dict[str, Any] = {"mode": mode, "participant_type": str(ss.get("participant_type") or ""),
+                           "persona": str(ss.get("persona") or ""), "goal_met": ""}
+    if mode == "simulated":
+        rv = ss.get("persona_reservation")
+        try:
+            rv = float(ufun.reserved_value) if rv is None else float(rv)
+        except Exception:
+            rv = 0.0
+        out["goal_met"] = bool(agreed and utility >= rv - 1e-9)
+    return out
+
+
+def is_simulated(df: pd.DataFrame) -> pd.Series:
+    """Rows of simulated participants (``mode == simulated`` or a ``sim_`` user); rows written
+    before the ``mode`` column existed count as human."""
+    if df is None or len(df) == 0:
+        return pd.Series([], dtype=bool)
+    sim = pd.Series(False, index=df.index)
+    if "mode" in df:
+        sim |= df["mode"].astype(str) == "simulated"
+    if "user" in df:
+        sim |= df["user"].astype(str).str.startswith("sim_")
+    return sim
+
+
 def _state_record(state: Any) -> dict[str, Any]:
     """The mechanism state as columns, with any stored key or token masked in its error texts."""
     d = asdict(state)
@@ -216,6 +249,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             autopilot=bool(ss.get("autopilot_used", False)),
         )
         | _attribution(ss)
+        | _participant(ss, human_ufun, human_utility, m.agreement is not None)
         | _stamp(ss)
         | _state_record(m.state)
         | {k: v for k, v in asdict(m.nmi).items() if not k.startswith("_") and not k.startswith("outcome_space")}
@@ -311,13 +345,64 @@ def scenario_scores(df: pd.DataFrame, normalize_by_time: bool = False) -> tuple[
     return score, scores
 
 
-def leaderboard(df: pd.DataFrame) -> list[dict]:
+def _types(df: pd.DataFrame) -> pd.Series:
+    if "participant_type" not in df:
+        return pd.Series("", index=df.index)
+    return df["participant_type"].fillna("").astype(str).replace("nan", "")
+
+
+def leaderboard(df: pd.DataFrame, participant_type: str | None = None) -> list[dict]:
+    """Human participants ranked by score; simulated participants are never ranked here (see
+    :func:`simulated_leaderboard`). Each row has the user's ``participant_type`` (from the
+    pre-questionnaire, ``""`` when unknown); pass one to rank only that stratum."""
     if df is None or len(df) == 0 or "user" not in df:
         return []
+    df = df[~is_simulated(df)]
+    types = _types(df)
+    if participant_type is not None:
+        df, types = df[types == participant_type], types[types == participant_type]
     out = []
     for user in df["user"].unique():
-        sub = df[df["user"] == user]
+        mask = df["user"] == user
+        sub = df[mask]
         score, _ = scenario_scores(sub)
+        known = [t for t in types[mask] if t]
         out.append(dict(user=str(user), score=score, negotiations=len(sub),
-                        mean_utility=float(sub["human_utility"].astype(float).mean())))
+                        mean_utility=float(sub["human_utility"].astype(float).mean()),
+                        participant_type=known[-1] if known else ""))
     return sorted(out, key=lambda r: -r["score"])
+
+
+def leaderboard_by_type(df: pd.DataFrame) -> dict[str, list[dict]]:
+    """The human leaderboard stratified by participant type (``""``: type unknown)."""
+    if df is None or len(df) == 0 or "user" not in df:
+        return {}
+    df = df[~is_simulated(df)]
+    return {t: leaderboard(df, t) for t in sorted(set(_types(df)))}
+
+
+def simulated_leaderboard(df: pd.DataFrame, max_k: int = 4) -> list[dict]:
+    """The qualifying table of simulated runs: per Assistant and persona, the trials, the goal rate
+    (a deal worth at least the persona's reservation value) and pass^k per scenario, averaged."""
+    if df is None or len(df) == 0:
+        return []
+    df = df[is_simulated(df)]
+    if len(df) == 0:
+        return []
+    from hani2.evaluation import pass_hat_k
+
+    who = df["assistant"].fillna("").astype(str) if "assistant" in df else pd.Series("", index=df.index)
+    persona = df["persona"].fillna("").astype(str) if "persona" in df else df["user"].astype(str).str[4:]
+    goal = df["goal_met"].astype(str).str.lower().isin(["true", "1", "1.0"]) if "goal_met" in df \
+        else pd.Series(False, index=df.index)
+    out = []
+    for (a, p), idx in df.groupby([who, persona]).groups.items():
+        sub, ok = df.loc[idx], goal.loc[idx]
+        row = dict(assistant=a or "(none)", persona=p, participant_type=_types(sub).iloc[-1], trials=len(sub),
+                   goal_rate=float(ok.mean()), mean_utility=float(sub["human_utility"].astype(float).mean()))
+        per = {s: ok[sub["scenario"] == s].tolist() for s in sub["scenario"].unique()}
+        kmax = min([max_k] + [len(v) for v in per.values()])
+        for k in range(1, kmax + 1):
+            row[f"pass^{k}"] = float(np.mean([pass_hat_k(len(v), sum(v), k) for v in per.values()]))
+        out.append(row)
+    return sorted(out, key=lambda r: (r["persona"], -r["goal_rate"]))

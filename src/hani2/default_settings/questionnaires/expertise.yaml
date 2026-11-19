@@ -1,0 +1,25 @@
+# A pre-questionnaire, shown once before a participant's first negotiation. Opt in with
+#   "pre_questionnaire": "expertise"   in env.json (or copy it to
+#   <study>/questionnaires/pre_questionnaire.yaml and edit it).
+# The answer to the question named under participant_type becomes the participant's type
+# (the participant_type column of the results), which stratifies the leaderboard.
+version: "1"
+title: "Before you start"
+intro: "One question about your experience, then the negotiation begins."
+participant_type:
+  question: expertise
+  map:
+    "Never": novice
+    "A few times": novice
+    "Regularly": experienced
+    "It is part of my job": expert
+questions:
+  - id: expertise
+    text: "How often do you negotiate (prices, contracts, salaries, …)?"
+    type: select
+    required: true
+    options: ["Never", "A few times", "Regularly", "It is part of my job"]
+  - id: negotiation_training
+    text: "Have you ever had training in negotiation?"
+    type: yes_no
+    required: false

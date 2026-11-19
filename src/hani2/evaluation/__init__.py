@@ -43,8 +43,8 @@ __all__ = [
 ]
 
 #: fields copied from the recording into every row (used to group and filter)
-ID_FIELDS = ("key", "id", "user", "mode", "scenario", "opponent", "support_agent", "support_model", "experiment",
-             "started", "practice")
+ID_FIELDS = ("key", "id", "user", "mode", "participant_type", "persona", "scenario", "opponent", "support_agent",
+             "support_model", "experiment", "started", "practice")
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -70,8 +70,16 @@ def _ident(rec: Recording, key: str | None) -> dict:
     sess = rec.header.get("session") or {}
     st = rec.start or {}
     sa = st.get("support_agent") or {}
+    sim = rec.first("sim") or {}
+    row = (rec.result or {}).get("row") or {}
+    mode = sess.get("mode")
+    if sim and mode != "simulated":
+        mode = "simulated"
+    ptype = (f"simulated-{sim.get('difficulty')}" if sim else
+             (row.get("participant_type") or (rec.first("pre_questionnaire") or {}).get("participant_type") or ""))
     return dict(
-        key=key or str(rec.path or rec.id), id=rec.id, user=sess.get("user"), mode=sess.get("mode"),
+        key=key or str(rec.path or rec.id), id=rec.id, user=sess.get("user"), mode=mode,
+        participant_type=ptype or None, persona=sim.get("persona"),
         scenario=(rec.scenario or {}).get("name"), opponent=st.get("opponent"),
         support_agent=(sa.get("name") or sa.get("cls")) if sa and sa.get("enabled") else "none",
         support_model=sa.get("model") if sa else None, experiment=rec.header.get("experiment"),
@@ -231,10 +239,16 @@ def compare_rows(rows: list[dict], by: str = "opponent", columns: list[dict] | N
                  success: str = "agreement", success_threshold: float | None = None, max_k: int = 5) -> dict:
     """Aggregate rows by a field: per group ``n``, ``mean``, ``std`` and a
     scenario-balanced mean (average within each scenario first), plus pass^k
-    reliability (success = ``success`` column ≥ threshold, default: a deal)."""
+    reliability (success = ``success`` column ≥ threshold, default: a deal).
+
+    Simulated sessions (``mode == "simulated"``) are never pooled with human ones: their group
+    name gets `` [simulated]`` (unless grouping by ``mode`` itself)."""
     groups: dict[str, list[dict]] = {}
     for r in rows:
-        groups.setdefault(str(r.get(by)), []).append(r)
+        g = str(r.get(by))
+        if r.get("mode") == "simulated" and by != "mode" and not g.endswith("[simulated]"):
+            g += " [simulated]"
+        groups.setdefault(g, []).append(r)
     names = [c["name"] for c in columns] if columns else sorted(
         {k for r in rows for k, v in r.items() if _is_num(v) and k not in ID_FIELDS})
     out_groups, reliability = [], []

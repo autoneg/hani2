@@ -497,10 +497,29 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
         comps.append(ui.table([{"Scenario": s, "Score": 100 * v, "Negotiations": n} for s, (v, n) in per.items()],
                               formats={"Score": "float"}, sortable=True))
     if leaderboard:
+        from hani2.results import leaderboard_by_type, simulated_leaderboard
+
         lb = make_lb(df)
         if lb:
-            comps.append(ui.card(ui.table([{"User": r["user"], "Score": r["score"], "Negotiations": r["negotiations"]}
-                                           for r in lb], formats={"Score": "float"}), title="Leaderboard"))
+            comps.append(ui.card(ui.table([{"User": r["user"], "Type": r["participant_type"] or "—", "Score": r["score"],
+                                            "Negotiations": r["negotiations"]} for r in lb],
+                                          formats={"Score": "float"}), title="Leaderboard (human participants)"))
+        strata = leaderboard_by_type(df)
+        if len([k for k in strata if k]) > 1 or (len(strata) > 1 and "" in strata):
+            for kind, rows in strata.items():
+                comps.append(ui.card(ui.table([{"User": r["user"], "Score": r["score"], "Negotiations": r["negotiations"]}
+                                               for r in rows], formats={"Score": "float"}),
+                                     title=f"Leaderboard: {kind or 'type unknown'}"))
+        sim = simulated_leaderboard(df)
+        if sim:
+            keys = [k for k in sim[0] if k.startswith("pass^")]
+            comps.append(ui.card(
+                ui.text_block("Simulated participants (not ranked with humans): pass^k of reaching a deal worth at "
+                              "least the persona's reservation value.", muted=True),
+                ui.table([{"Assistant": r["assistant"], "Persona": r["persona"], "Type": r["participant_type"],
+                           "Trials": r["trials"], "Goal rate": r["goal_rate"], **{k: r.get(k) for k in keys}}
+                          for r in sim], formats={"Goal rate": "percent", **{k: "percent" for k in keys}}),
+                title="Qualifying round (simulated)"))
     all_cols = [str(c) for c in df.columns]
     default_cols = [c for c in DEFAULT_COLUMNS + (["user"] if leaderboard else []) if c in all_cols]
     cols = [c for c in tool.values.get("columns", default_cols) if c in all_cols] or default_cols

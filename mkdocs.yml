@@ -105,6 +105,7 @@ nav:
       - Studies and results: guide/studies.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md
+      - Simulated participants: guide/simulation.md
       - Metric reference: guide/metrics.md
       - Prolific: guide/prolific.md
       - Authentication: guide/authentication.md
