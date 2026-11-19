@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 
-from hani2 import __version__, agents, auth, projects
+from hani2 import __version__, agents, auth, projects, sso
 from hani2 import events as ev
 from hani2.config import get_env, load_env, read_settings_text, save_json_settings, settings_dir
 from hani2.hub import Hub
@@ -152,6 +152,7 @@ def api_config(request: Request):
         "version": __version__,
         "auth_mode": auth_mode(),
         "oauth_providers": list(oauth_providers()),
+        "sso_providers": sso.public(),
         "allow_registration": bool(env["auth"].get("allow_registration", True)) and auth_mode() != "none",
         "enforce_consent": bool(env["auth"].get("enforce_consent", False)),
         "playground": bool((env.get("playground") or {}).get("enabled", True)),
@@ -314,6 +315,35 @@ def oauth_login(provider: str, request: Request):
         params["response_type"] = "code"
     r = RedirectResponse(f"{ep['authorize']}?{urlencode(params)}")
     r.set_cookie("hani2_oauth_state", state, max_age=600, httponly=True, samesite="lax")
+    return r
+
+
+# -- hand-off sign-in from a trusted website (hani2.sso; e.g. scmlweb) --------------
+@app.get("/api/sso/{name}/login")
+def sso_login(name: str, next: str = "/app"):
+    """Send the browser to the website's token page with this server's site key and the page to return to.
+    The website picks this server's base URL from its own settings: it never trusts a URL from here."""
+    cfg = sso.providers().get(name)
+    if not cfg or not cfg.get("login_url"):
+        raise HTTPException(404, "Unknown sign-in provider")
+    params = urlencode({"site": root_path() or "/", "next": sso.safe_next(next)})
+    sep = "&" if "?" in str(cfg["login_url"]) else "?"
+    return RedirectResponse(f"{cfg['login_url']}{sep}{params}", status_code=303)
+
+
+@app.get("/api/sso/{name}")
+def sso_callback(name: str, token: str = "", next: str = "/app"):
+    try:
+        claims = sso.verify(name, token, root_path=root_path())
+        user = sso.sign_in(name, claims)
+    except sso.SSOError as e:
+        print(f"[sso] {name}: refused ({e.code}): {e}")
+        r = RedirectResponse(root_path() + f"/login?error=sso_{e.code}", status_code=303)
+    else:
+        r = RedirectResponse(root_path() + sso.safe_next(next), status_code=303)
+        _set_auth(r, user)
+    r.headers["Referrer-Policy"] = "no-referrer"  # the token is in this URL
+    r.headers["Cache-Control"] = "no-store"
     return r
 
 

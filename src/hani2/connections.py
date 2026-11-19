@@ -407,6 +407,12 @@ def call_kwargs(c: Connection) -> dict[str, Any]:
 def secret_values() -> list[str]:
     """Every stored secret (for :func:`redact`)."""
     out: list[str] = []
+    try:
+        from hani2 import sso
+
+        out += sso.secrets_in_use()
+    except Exception:  # noqa: BLE001
+        pass
     for entry in _secrets().values():
         if not isinstance(entry, dict):
             continue

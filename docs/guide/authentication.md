@@ -87,6 +87,65 @@ HANI2 asks for `openid email profile`. A Google user becomes `g_<their Google ac
 
 OAuth users are created on their first login and do not have a usable password. After a successful login they are sent to `/app`. Failures send them back to `/login` with an `error` parameter (`oauth_state`, `oauth_token` or `oauth_failed`).
 
+## Sign-in from a trusted website
+
+A website that already has accounts, such as a competition site, can sign its users straight
+into HANI2. There are no new passwords and no second registration: the HANI2 account is created
+on the first visit. The website signs a short-lived token with a secret it shares with HANI2 and
+sends the browser to HANI2 with it.
+
+```json
+{
+  "auth": {
+    "sso": {
+      "scmlweb": {
+        "secret": "<a random string of 32 or more characters>",
+        "login_url": "https://anac.example.org/hani2/sso",
+        "label": "ANAC account",
+        "prefix": "anac_",
+        "issuer": "scmlweb"
+      }
+    }
+  }
+}
+```
+
+The secret may also come from the environment variable `HANI2_SSO_<NAME>_SECRET`, for example
+`HANI2_SSO_SCMLWEB_SECRET`. A provider without a secret (or with one shorter than 16 characters)
+is off. With a `login_url`, the login page shows **Continue with your ANAC account**.
+
+### The flow
+
+1. The login button opens `/api/sso/<name>/login?next=<page>`. HANI2 sends the browser to
+   `login_url?site=<this server's root path>&next=<page>`. `site` is `/` or the root path, for
+   example `/hiplay2`. The website chooses this server's address from its own settings by that key. It must
+   never send a token to an address taken from the request.
+2. The website, with its user logged in, sends the browser to
+   `<HANI2 base>/api/sso/<name>?token=<token>&next=<page>`. Links on the website (such as "test my
+   agent") can do this directly, without step 1.
+3. HANI2 checks the token. It creates or updates the user `<prefix><sub>` (for example `anac_789`),
+   logs the browser in and opens `next`. `next` must be a path on this server, for example
+   `/app?group=test_hi_789_x`; anything else opens `/app`. Refused tokens open
+   `/login?error=sso_<reason>`.
+
+### The token
+
+An HS256 JSON Web Token signed with the shared secret. Its claims:
+
+| Claim | Value |
+| --- | --- |
+| `iss` | The provider's `issuer` (default: its name). |
+| `aud` | `hani2` plus this server's root path, for example `hani2/hiplay2`, or just `hani2` without a root path. A token for one server does not open another. |
+| `sub` | The website's user id: 1–48 letters, digits, `_` or `-`. It names the HANI2 account. |
+| `iat`, `exp` | Issue and expiry times (Unix seconds), at most 120 seconds apart. 30 seconds of clock skew are allowed. |
+| `jti` | A random id of 8–128 characters. Each token works once. |
+| `email`, `name` | Optional: stored with the account. |
+| `leagues` | Optional: a list such as `["han", "hi"]`, stored with the account. |
+
+Any JWT library can make these tokens. Accounts made this way are marked with the provider's
+name, and names with their prefix cannot be registered by hand. The website's emails are not
+checked by HANI2, so these accounts never become admins through `admin.emails`.
+
 ## Admins
 
 A user is an admin when any of these is true:

@@ -127,6 +127,7 @@ The main deployment configuration.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `admin.password` | `"adminpass"` | Initial password of the `admin` account, used when the account is created. |
+| `auth.sso` | `{}` | Sign-in from trusted websites: per provider `secret`, `login_url`, `label`, `prefix`, `issuer`. See [Authentication](authentication.md#sign-in-from-a-trusted-website). |
 | `admin.emails` | `[]` | Users whose email is in this list are admins (case-insensitive). Emails typed at self-registration are unverified and never count. |
 
 ### `auth` and `oauth`

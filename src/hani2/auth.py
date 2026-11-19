@@ -197,8 +197,8 @@ def is_admin_user(username: str | None) -> bool:
     meta = get_meta(username)
     if meta.get("role") == "admin":
         return True
-    if meta.get("self_registered") and not meta.get("oauth"):
-        return False  # an email typed at registration is unverified: it must not grant admin
+    if (meta.get("self_registered") and not meta.get("oauth")) or meta.get("sso"):
+        return False  # an email typed at registration or sent by a hand-off site is unverified here
     email = str(meta.get("email", "")).strip().lower()
     emails = [str(e).strip().lower() for e in (get_env("admin.emails", []) or [])]
     return bool(email) and email in emails
@@ -222,6 +222,12 @@ def ensure_default_users(admin_password: str | None = None) -> list[str]:
     return created
 
 
+def _sso_prefixes() -> list[str]:
+    from hani2 import sso
+
+    return sso.reserved_prefixes()
+
+
 def validate_new_user(username: str, password: str, confirm: str | None = None) -> str | None:
     """Return an error message, or None if the registration data is valid."""
     username = (username or "").strip()
@@ -231,7 +237,7 @@ def validate_new_user(username: str, password: str, confirm: str | None = None) 
         return "Username may not contain spaces or path characters."
     if username.startswith((".", "_")):  # "..", "." or "_uploads" would name another results folder
         return "Username may not start with a dot or an underscore."
-    if username.lower() in RESERVED_NAMES or username.lower().startswith(("prolific_", "participant_", "sim_", "guest_", "gh_", "g_")):
+    if username.lower() in RESERVED_NAMES or username.lower().startswith(("prolific_", "participant_", "sim_", "guest_", "gh_", "g_", *_sso_prefixes())):
         return "This username is reserved."
     if not password or len(password) < 4:
         return "Password must have at least 4 characters."
