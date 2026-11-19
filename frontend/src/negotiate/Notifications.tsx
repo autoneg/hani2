@@ -19,6 +19,7 @@ export function PinnedMessages({ position, live = true }: { position: "top" | "b
   if (!pins.length) return null;
   return (
     <div
+      data-persona-avoid
       className={`scroll-thin flex max-h-[30vh] shrink-0 flex-col gap-1.5 overflow-y-auto bg-paper px-3 py-2 sm:px-4 ${position === "top" ? "border-b" : "border-t"} border-line`}
       role="region"
       aria-label={position === "top" ? "Pinned messages at the top" : "Pinned messages at the bottom"}
@@ -97,6 +98,13 @@ export function NotificationBell() {
   }, [open]);
   const items: NotificationItem[] = st?.notifications ?? [];
   const last = items.length ? items[items.length - 1].id : 0;
+  // a new session (or a restarted server) numbers its notifications from 1 again
+  useEffect(() => {
+    if (seen > last) {
+      setSeen(0);
+      writeSeen(sid, 0);
+    }
+  }, [seen, last, sid]);
   useEffect(() => {
     if (open && last > seen) {
       setSeen(last);

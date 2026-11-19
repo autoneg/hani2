@@ -1,1 +1,0 @@
-import{c as e}from"./index-D-TXXiV_.js";const t={name:"stretch-horizontal",size:24,node:[["rect",{width:"20",height:"6",x:"2",y:"4",rx:"2",key:"qdearl"}],["rect",{width:"20",height:"6",x:"2",y:"14",rx:"2",key:"1xrn6j"}]]};t.node;const o=e(t);export{t as __iconData,o as default};

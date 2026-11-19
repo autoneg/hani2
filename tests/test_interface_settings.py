@@ -206,3 +206,14 @@ def _admin_checks(c, layered):
     assert info["overrides"]["path"] == str(layered) and "env.json" in info["overrides"]["files"]
     meta = c.get("/api/admin/meta").json()
     assert "layout_view" in meta["participant_settings"] and "pin" in meta["capabilities"]
+
+
+def test_a_study_env_json_beats_its_project_yaml(hani2_home):
+    projects.create_project("Q", time_limit=111, role_rule="random")
+    projects.create_study("Q/a")
+    projects.create_study("Q/b", time_limit=333)
+    _write(projects.study_dir(projects.StudyRef("Q", "a")) / "env.json", {"negotiation": {"role_rule": "index"}})
+    a = make_session(study="Q/a", load=False)
+    assert a.admin_prefs["role_rule"] == "index"  # the study's env.json beats project.yaml
+    b = make_session(study="Q/b", load=False)
+    assert b.admin_prefs["role_rule"] == "random"  # project.yaml beats the settings' defaults

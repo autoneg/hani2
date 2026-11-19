@@ -285,6 +285,15 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
     return merged
 
 
+def read_json_own_file(path: Path) -> dict:
+    """One layer's own JSON file as a mapping (``{}`` when missing or unreadable)."""
+    try:
+        data = json.loads(path.read_text()) if path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def save_json_settings(filename: str, data: dict) -> Path:
     path = settings_dir() / filename
     path.parent.mkdir(parents=True, exist_ok=True)

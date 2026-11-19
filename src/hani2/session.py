@@ -380,9 +380,22 @@ class NegotiationSession:
         return list(s.outcome_space.issues) if s is not None else []
 
     def _apply_study_defaults(self) -> None:
-        """The study's / project's defaults (study.yaml, project.yaml) for this session."""
+        """The study's / project's defaults (study.yaml, project.yaml) for this session.
+
+        A study's ``study.yaml`` override wins over everything in ``env.json``; a project's
+        ``project.yaml`` default wins over the project's and the settings' ``env.json`` but not
+        over the study folder's own ``env.json`` (the more specific layer wins)."""
         ref = self.study_ref
+        study = projects.get_study(ref) if ref is not None else None
+        study_env: dict = {}
+        if study is not None:
+            from hani2.config import read_json_own_file
+
+            study_env = (read_json_own_file(projects.study_dir(study.ref) / "env.json").get("negotiation") or {})
         for key in ("scenario_set", "role_rule", "human_roles", "time_limit", "n_steps"):
+            from_study = study is not None and key in study.overrides
+            if not from_study and key in study_env:
+                continue  # the study folder's env.json is more specific than project.yaml
             v = projects.setting(key, None, ref=ref)
             if v is not None:
                 self.admin_prefs[key] = v

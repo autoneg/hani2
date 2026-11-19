@@ -92,10 +92,11 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
 
   // settle on the stored spot, clear of the offer controls (re-checked as the page changes)
   const phase = st?.phase;
+  const strips = `${(st?.pins ?? []).map((p) => p.id + p.position).join(",")}|${st?.board ? 1 : 0}|${st?.layout.view}`;
   useLayoutEffect(() => {
     if (drag) return;
     setPos(avoid(clamp(home[0], SIZE / 2 + 4, vp.w - SIZE / 2 - 4), home[1]));
-  }, [home[0], home[1], vp.w, vp.h, drag, phase, open]);
+  }, [home[0], home[1], vp.w, vp.h, drag, phase, open, strips]);
 
   if (!shown || !st?.support) return null;
   const sup = st.support;
@@ -165,7 +166,12 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         </div>
       )}
       {chatHere && (
-        <div data-persona-ui className="z-[46] flex h-[min(560px,calc(100vh-9rem))] w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-line shadow-pop" style={anchor}>
+        <div
+          data-persona-ui
+          className="z-[46] flex w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-line shadow-pop"
+          // as tall as fits on the side it opens to (below the header, inside the window)
+          style={{ ...anchor, height: Math.max(220, Math.min(560, below ? vp.h - (y + SIZE / 2 + 8) - 8 : y - SIZE / 2 - 8 - 64)) }}
+        >
           <Assistant fill />
         </div>
       )}

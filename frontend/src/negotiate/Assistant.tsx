@@ -222,7 +222,7 @@ export function StatusBoard() {
   const [collapsed, setCollapsed] = useUiState("statusBoard.collapsed", false);
   if (!hasAgent || !board) return null;
   return (
-    <div className="flex items-start gap-2 border-t border-line bg-surface px-3 py-2 sm:px-4" role="status" aria-label="Assistant status board">
+    <div className="flex items-start gap-2 border-t border-line bg-surface px-3 py-2 sm:px-4" role="status" aria-label="Assistant status board" data-persona-avoid>
       <Bot size={15} className="mt-0.5 shrink-0 text-you" />
       <div className={`min-w-0 flex-1 ${collapsed ? "line-clamp-1" : "max-h-40 overflow-y-auto"}`}>
         <Markdown text={board} size="sm" />

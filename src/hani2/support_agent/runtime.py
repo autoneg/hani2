@@ -525,6 +525,7 @@ class SupportAgent:
             "warning",
             duration=12000,
             action={"label": "Discuss with the assistant", "kind": "open_assistant"},
+            source="assistant",
           )
         if self.capabilities.has(Capability.ANNOTATE):
             self.session.annotate("offer", f"Worth {util:.0%} — below your reserved value ({reserved:.0%})", "warning")
