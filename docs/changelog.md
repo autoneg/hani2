@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Security fixes.** An email typed at self-registration no longer makes an account an admin through
+  `admin.emails` (only OAuth and admin-made accounts count). Non-admin pages can no longer load a
+  `file:` opponent from the URL (`?opponents=file:…`) or the opponent picker; group files still can.
+  Usernames may not start with `.` or `_`, and `gh_` / `g_` are kept for GitHub and Google sign-in.
+- **Fixes.** Refused *End* / *Send* / *Accept* clicks (not your turn, double clicks) no longer mark,
+  clear or log anything; the Assistant's offer, accept and end functions report what actually
+  happened; LLM offer extraction reads the nested reply; text-only studies never send a hidden
+  pre-filled offer; questionnaire answers count only while a questionnaire is open; the
+  Utility-based Selector renders the next scenario before it starts; the phone layout no longer
+  scrolls sideways; a tool or the Assistant filling the offer no longer wipes the typed message;
+  actions taken while reconnecting are kept, with a notice, instead of lost; pass^k is computed per
+  scenario and opponent; the assertions judge re-judges when `evaluation.assertions` changes.
+- **End-to-end tests.** `tests/e2e` drives a real server in Chromium with Playwright (the new `e2e`
+  extra; skipped without it).
+
 - **Scenario picture styles.** The *Scenario Info* tool now shows the picture small, beside the
   story, by default. A menu next to the *Picture* switch picks *Small*, *Large* (full width above
   the story, as before) or *Watermark* (faintly behind the story); it is a participant setting
