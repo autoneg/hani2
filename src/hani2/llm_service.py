@@ -400,12 +400,12 @@ def _parse_extraction_response(response: str, issues: list[Issue]) -> Extraction
     """Parse the LLM response for outcome extraction."""
     # Try to extract JSON from the response
     try:
-        # Look for JSON in the response
-        json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-        else:
-            data = json.loads(response)
+        # the reply nests the outcome object, so decode from the first brace (not a flat-object regex)
+        text = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
+        start = text.find("{")
+        data = json.JSONDecoder().raw_decode(text[start:])[0] if start != -1 else json.loads(text)
+        if not isinstance(data, dict):
+            raise json.JSONDecodeError("not an object", text, 0)
     except json.JSONDecodeError:
         return ExtractionResult(
             has_offer=False,
