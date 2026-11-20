@@ -1,1 +1,0 @@
-import{c as t}from"./index-C0k99-Wp.js";const e={name:"square-chevrons-left",size:24,node:[["path",{d:"M10 9L7 12L10 15",key:"yiqvdq"}],["path",{d:"M16 9L13 12L16 15",key:"1czhyg"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

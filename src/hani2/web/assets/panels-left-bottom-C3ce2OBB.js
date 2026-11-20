@@ -1,1 +1,0 @@
-import{c as t}from"./index-C0k99-Wp.js";const e={name:"panels-left-bottom",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 3v18",key:"fh3hqa"}],["path",{d:"M9 15h12",key:"5ijen5"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

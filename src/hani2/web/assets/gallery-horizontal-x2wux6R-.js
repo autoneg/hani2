@@ -1,0 +1,1 @@
+import{c as e}from"./index-Cm4iHW3L.js";const t={name:"gallery-horizontal",size:24,node:[["path",{d:"M2 3v18",key:"pzttux"}],["rect",{width:"12",height:"18",x:"6",y:"3",rx:"2",key:"btr8bg"}],["path",{d:"M22 3v18",key:"6jf3v"}]]};t.node;const o=e(t);export{t as __iconData,o as default};
