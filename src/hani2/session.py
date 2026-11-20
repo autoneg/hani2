@@ -1072,7 +1072,7 @@ class NegotiationSession:
             traceback.print_exc()
             from hani2.connections import llm_error
 
-            self.toast(f"{t.name}: {llm_error(e, admin=self.is_admin)}", "error")
+            self.toast(f"{t.name}: {llm_error(e, admin=self.is_admin, generic='something went wrong.')}", "error")
         ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=action)
 
     # ------------------------------------------------------------------ #

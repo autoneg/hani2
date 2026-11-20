@@ -448,13 +448,13 @@ _KEYLIKE = re.compile(r"\b(?:sk|rk|gsk|xai|hf|ghp|github_pat)[-_][A-Za-z0-9_\-]{
 LLM_ERROR_MESSAGE = "The language model could not answer right now. Please try again."
 
 
-def llm_error(e: Any, *, admin: bool) -> str:
+def llm_error(e: Any, *, admin: bool, generic: str = LLM_ERROR_MESSAGE) -> str:
     """The text to show in the browser for a failed language-model call ``e`` (an exception or
-    its message): a generic message for participants, a redacted one for admins. The full text
-    goes only to the server log."""
+    its message): ``generic`` for participants, a redacted one for admins. The full text goes
+    only to the server log."""
     text = f"{type(e).__name__}: {e}" if isinstance(e, BaseException) else str(e)
-    print(f"[hani2] language model error: {text}", file=sys.stderr)
-    return redact(text)[:500] if admin else LLM_ERROR_MESSAGE
+    print(f"[hani2] error (full text, not shown to participants): {text}", file=sys.stderr)
+    return redact(text)[:500] if admin else generic
 
 
 def mask(v: str | None) -> str:

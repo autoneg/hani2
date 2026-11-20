@@ -68,3 +68,23 @@ def test_assistant_turn_failure_is_generic_for_participants(monkeypatch):
 def test_assistant_turn_failure_is_redacted_for_admins(monkeypatch):
     msg = _assistant_error(monkeypatch, True)
     assert KEY not in msg and "Incorrect API key" in msg
+
+
+def _instruction_tool_status(monkeypatch, is_admin):
+    from hani2.tools.builtin import ResponseGeneratorTool
+
+    monkeypatch.setattr(llm, "_call_llm", _boom)
+    s = make_session(is_admin=is_admin)
+    tool = ResponseGeneratorTool(s.ss)
+    tool.values["instruction"] = "ask for more"
+    tool._generate()
+    return tool.status
+
+
+def test_instruction_tool_failure_is_generic_for_participants(monkeypatch):
+    assert _instruction_tool_status(monkeypatch, False) == f"Error: {conns.LLM_ERROR_MESSAGE}"
+
+
+def test_instruction_tool_failure_is_redacted_for_admins(monkeypatch):
+    status = _instruction_tool_status(monkeypatch, True)
+    assert KEY not in status and "Incorrect API key" in status

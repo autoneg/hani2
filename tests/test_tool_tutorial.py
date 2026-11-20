@@ -176,18 +176,21 @@ def test_negotiation_summary_asks_the_llm(monkeypatch):
 def test_llm_errors_are_shown(monkeypatch):
     from negotiation_summary import NegotiationSummary
 
+    from hani2.connections import LLM_ERROR_MESSAGE
+
     def boom(prompt, **kw):
         raise RuntimeError("no model")
 
     monkeypatch.setattr("hani2.llm_service.complete", boom)
-    s = make_session()
-    s.start()
-    s.wait_for_turn()
-    tool = NegotiationSummary(s.ss)
-    tool.run()
-    assert _wait(lambda: not tool.busy)
-    assert "no model" in tool.error
-    assert any(c["type"] == "alert" and "no model" in c["text"] for c in tool.render())
+    for is_admin, shown in ((True, "no model"), (False, LLM_ERROR_MESSAGE)):
+        s = make_session(is_admin=is_admin)
+        s.start()
+        s.wait_for_turn()
+        tool = NegotiationSummary(s.ss)
+        tool.run()
+        assert _wait(lambda: not tool.busy)
+        assert shown in tool.error  # participants get a generic message, admins the redacted error
+        assert any(c["type"] == "alert" and shown in c["text"] for c in tool.render())
 
 
 def test_ask_ai_needs_a_question(monkeypatch):
