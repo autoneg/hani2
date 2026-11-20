@@ -238,7 +238,7 @@ class Source:
 
 def _read(path: Path) -> Any:
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         print(f"[hani2] could not read {path}; ignoring it")
         return None

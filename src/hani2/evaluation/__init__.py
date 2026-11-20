@@ -127,7 +127,7 @@ def _load_cache(rec: Recording) -> dict:
     if p is None or not p.is_file():
         return {}
     try:
-        return json.loads(p.read_text())
+        return json.loads(p.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
@@ -137,7 +137,7 @@ def _save_cache(rec: Recording, cache: dict) -> None:
     if p is None:
         return
     try:
-        p.write_text(json.dumps(cache, indent=1, default=str))
+        p.write_text(json.dumps(cache, indent=1, default=str), encoding="utf-8")
     except Exception:  # pragma: no cover - read-only folder
         pass
 

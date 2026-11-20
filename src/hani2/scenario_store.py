@@ -414,12 +414,12 @@ def display_for(scenario: Scenario, scenario_dir: str | None = None):
 def next_index(user_path: Path, advance: bool = True) -> int:
     f = user_path / LAST_SCENARIO_FILE
     try:
-        idx = int(f.read_text().strip()) + 1 if f.exists() else 0
+        idx = int(f.read_text(encoding="utf-8").strip()) + 1 if f.exists() else 0
     except ValueError:
         idx = 0
     if advance:
         user_path.mkdir(parents=True, exist_ok=True)
-        f.write_text(str(idx))
+        f.write_text(str(idx), encoding="utf-8")
     return idx
 
 

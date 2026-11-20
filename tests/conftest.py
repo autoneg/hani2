@@ -7,6 +7,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# CLI tests read plain help and error text. On GitHub Actions (or with FORCE_COLOR / PY_COLORS)
+# typer forces a colour terminal, which puts ANSI codes inside option names; it reads these
+# variables once, when typer is first imported, so drop them before any test imports it.
+for _var in ("GITHUB_ACTIONS", "FORCE_COLOR", "PY_COLORS"):
+    os.environ.pop(_var, None)
+
 # the browser tests need Playwright (the e2e extra): without it pytest skips the folder
 collect_ignore = [] if importlib.util.find_spec("playwright") else ["e2e"]
 sys.path.insert(0, str(ROOT / "examples" / "support_agent_tutorial"))
@@ -35,7 +41,7 @@ def write_settings(home: Path, name: str, data) -> None:
 
     p = home / "settings" / name
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data) if not isinstance(data, str) else data)
+    p.write_text(json.dumps(data) if not isinstance(data, str) else data, encoding="utf-8")
 
 
 class ScriptedLLM:

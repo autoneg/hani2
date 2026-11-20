@@ -625,9 +625,9 @@ def experiment_create(
                 klass = f"{Path(path).expanduser().resolve()}:{attr}"
             _check_assistant_class(klass)
             sa["agent_class"] = klass
-        (exp / "assistant_settings.json").write_text(_json.dumps(sa, indent=2))
+        (exp / "assistant_settings.json").write_text(_json.dumps(sa, indent=2), encoding="utf-8")
         if mode == "off":
-            (exp / "autopilot_settings.json").write_text(_json.dumps({"allowed": False}, indent=2))
+            (exp / "autopilot_settings.json").write_text(_json.dumps({"allowed": False}, indent=2), encoding="utf-8")
             typer.echo("  assistant: off (assistant_settings.json), autopilot: off")
         else:
             typer.echo(f"  assistant: {mode}{' using ' + klass if klass else ''} (assistant_settings.json)")
@@ -641,7 +641,7 @@ def experiment_create(
         typer.echo(f"  assistants: {', '.join(data['assistants'])} (study.yaml)")
     if no_webmcp or opponents or tools:
         envf = exp / "env.json"
-        env = _json.loads(envf.read_text()) if envf.exists() else {}
+        env = _json.loads(envf.read_text(encoding="utf-8")) if envf.exists() else {}
         if no_webmcp:
             env["webmcp"] = {"enabled": False}
             typer.echo("  WebMCP: off (env.json)")
@@ -655,7 +655,7 @@ def experiment_create(
             _check_opponents(opponents)
             env["opponents"] = [o.strip() for o in opponents.split(",") if o.strip()]
             typer.echo(f"  opponents: {', '.join(env['opponents'])} (env.json)")
-        envf.write_text(_json.dumps(env, indent=2))
+        envf.write_text(_json.dumps(env, indent=2), encoding="utf-8")
     typer.echo(f"Created experiment at {exp}")
     typer.echo(f"Run it with:  hani2 --experiment {name}   (it is the study default/{name}: /s/default/{name}/play)")
 
@@ -768,9 +768,9 @@ def _write_table(rows: list[dict], columns: list[str], out: Optional[Path]) -> N
             typer.echo("  ".join(_fmt(r.get(c))[:40].ljust(widths.get(c, 0)) for c in columns))
         return
     if out.suffix == ".json":
-        out.write_text(json.dumps(rows, indent=1, default=str))
+        out.write_text(json.dumps(rows, indent=1, default=str), encoding="utf-8")
     else:
-        fh = out.open("w", newline="") if str(out) != "-" else sys.stdout
+        fh = out.open("w", newline="", encoding="utf-8") if str(out) != "-" else sys.stdout
         try:
             w = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
             w.writeheader()
@@ -988,7 +988,7 @@ def replay_leaderboard(
         typer.secho(str(e), fg="red", err=True)
         raise typer.Exit(1) from None
     if out is not None and out.suffix == ".json":
-        out.write_text(json.dumps(lbs if len(lbs) > 1 else lbs[boards[0]], indent=1, default=str))
+        out.write_text(json.dumps(lbs if len(lbs) > 1 else lbs[boards[0]], indent=1, default=str), encoding="utf-8")
         typer.echo(f"wrote {out}", err=True)
         return
     for b, lb in lbs.items():
@@ -1042,7 +1042,7 @@ def replay_judge_reliability(
         raise typer.Exit(1) from None
     md = reliability_markdown(rep)
     if out is not None:
-        out.write_text(json.dumps(rep, indent=1, default=str) if out.suffix == ".json" else md)
+        out.write_text(json.dumps(rep, indent=1, default=str) if out.suffix == ".json" else md, encoding="utf-8")
         typer.echo(f"wrote {out}", err=True)
     typer.echo(md)
 
@@ -1097,7 +1097,7 @@ def replay_export(path: Path, out: Annotated[Path, typer.Option("--out", "-o", h
 
     from hani2.recording import Recording
 
-    out.write_text(json.dumps(Recording.load(path).to_json(), default=str))
+    out.write_text(json.dumps(Recording.load(path).to_json(), default=str), encoding="utf-8")
     typer.echo(f"wrote {out}")
 
 
@@ -1211,7 +1211,7 @@ def tools_new(
         raise typer.Exit(1)
     template = _LLM_TOOL_TEMPLATE if llm else _TOOL_TEMPLATE
     doc = "a tool that asks the language model." if llm else "a HANI2 tool."
-    path.write_text(template.format(title=name.strip(), cls=cls, doc=doc))
+    path.write_text(template.format(title=name.strip(), cls=cls, doc=doc), encoding="utf-8")
     typer.echo(f"Created {path}")
     if folder is not None and folder.expanduser().resolve() != tools_dir().resolve():
         typer.echo(f"Start the server with `hani2 --tools {target_dir}` to load it.")

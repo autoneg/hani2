@@ -784,11 +784,11 @@ def admin_get_settings(kind: str, layer: str | None = None, study: str | None = 
     if kind in SETTINGS_KINDS:
         f = folder / SETTINGS_KINDS[kind][0]
         try:
-            return json.loads(f.read_text()) if f.exists() else {}
+            return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
         except json.JSONDecodeError:
             raise HTTPException(409, f"{f.name} in this layer is not valid JSON") from None
     f = folder / TEXT_FILES[kind]
-    return {"text": f.read_text() if f.exists() else "", "exists": f.exists(),
+    return {"text": f.read_text(encoding="utf-8") if f.exists() else "", "exists": f.exists(),
             "effective": read_settings_text(TEXT_FILES[kind], "")}
 
 
@@ -889,7 +889,7 @@ def admin_project(project: str, _: str = Depends(require_admin)):
         raise HTTPException(400, str(e)) from None
     f = projects.project_dir(project) / projects.PROJECT_FILE
     sched = pr.defaults.get("scheduling")
-    return {**pr.to_dict(), "path": str(pr.path) if pr.path else None, "yaml": f.read_text() if f.exists() else "",
+    return {**pr.to_dict(), "path": str(pr.path) if pr.path else None, "yaml": f.read_text(encoding="utf-8") if f.exists() else "",
             "scheduling": dict(sched) if isinstance(sched, dict) else {}, "errors": list(pr.errors),
             "studies": [_study_info(projects.StudyRef(project, s)) for s in projects.list_studies(project)]}
 
@@ -951,7 +951,7 @@ def admin_study(project: str, study: str, _: str = Depends(require_admin)):
     if not projects.study_exists(ref):
         raise HTTPException(404, "Unknown study")
     f = projects.study_dir(ref) / projects.STUDY_FILE
-    return {**_study_info(ref), "yaml": f.read_text() if f.exists() else ""}
+    return {**_study_info(ref), "yaml": f.read_text(encoding="utf-8") if f.exists() else ""}
 
 
 @app.put("/api/admin/projects/{project}/studies/{study}")
@@ -1020,7 +1020,7 @@ def admin_get_group(project: str, kind: str, key: str, _: str = Depends(require_
     g = groups.load_file(f, k, key, "project")
     if g is None:
         raise HTTPException(404, "Unknown group")
-    return {**g.to_dict(), "data": json.loads(f.read_text())}
+    return {**g.to_dict(), "data": json.loads(f.read_text(encoding="utf-8"))}
 
 
 @app.put("/api/admin/projects/{project}/groups/{kind}/{key}")
@@ -1523,7 +1523,7 @@ def spa(path: str, request: Request):
         return FileResponse(f)
     index = WEB_DIR / "index.html"
     if index.exists():
-        return HTMLResponse(_index_html(index.read_text(), study_prefix), headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(_index_html(index.read_text(encoding="utf-8"), study_prefix), headers={"Cache-Control": "no-cache"})
     return HTMLResponse(
         "<h1>HANI2</h1><p>The web interface has not been built. Run <code>npm run build</code> in "
         "<code>frontend/</code>.</p>",

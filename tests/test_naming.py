@@ -57,10 +57,10 @@ def test_no_relabelling_without_a_support_agent(hani2_home):
 
 def test_names_can_be_configured(hani2_home):
     env = hani2_home / "settings" / "env.json"
-    data = json.loads(env.read_text()) if env.exists() else {}
+    data = json.loads(env.read_text(encoding="utf-8")) if env.exists() else {}
     data["names"] = {"apply": "always", "self": "Me", "opponent": "Them"}
     env.parent.mkdir(parents=True, exist_ok=True)
-    env.write_text(json.dumps(data))
+    env.write_text(json.dumps(data), encoding="utf-8")
     s = make_session(scenario_type="Island", support_settings={"mode": "off"})
     assert s.labels == {"human": "Me", "agent": "Them"}
 

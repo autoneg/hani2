@@ -96,9 +96,9 @@ def test_prolific_schedule(hani2_home, monkeypatch):
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
     d = hani2_home / "db" / "prolific_S1"
     d.mkdir(parents=True)
-    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
-    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
-    (d / "schedule.json").write_text(json.dumps({"negotiations": [{"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Island", "scenario_index": 0}]}))
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}), encoding="utf-8")
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n", encoding="utf-8")
+    (d / "schedule.json").write_text(json.dumps({"negotiations": [{"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Island", "scenario_index": 0}]}), encoding="utf-8")
     s = make_session(user="prolific_S1", mode="guest", partner=None, query={"noautostart": "1"})
     assert not s.ss["is_practice_round"]  # returning participant
     assert s._scenario_name().startswith("Island")

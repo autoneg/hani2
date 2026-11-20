@@ -156,8 +156,8 @@ class ClaudeCode(HarnessAdapter):
             raise HarnessUnavailable("the Claude Code CLI was not found (install 'hani2[harness]', which bundles it)")
         f = harness.home_of(c) / "claude-launcher.py"
         text = _LAUNCHER.format(python=sys.executable, cli=cli)
-        if not f.exists() or f.read_text() != text:
-            f.write_text(text)
+        if not f.exists() or f.read_text(encoding="utf-8") != text:
+            f.write_text(text, encoding="utf-8")
             f.chmod(0o700)
         return f
 

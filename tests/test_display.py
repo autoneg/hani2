@@ -61,14 +61,14 @@ def test_display_file_prefers_its_own_class(tmp_path):
         "from hani2.scenarios.story import StoryOutcomeDisplay\n"
         "class Mine(StoryOutcomeDisplay):\n"
         "    def text(self, offer, ctx):\n"
-        "        return 'mine'\n"
+        "        return 'mine'\n", encoding="utf-8"
     )
     assert type(store.load_display_file(f)).__name__ == "Mine"
     f.write_text("from hani2.display import OfferDisplay\n"
                  "class _Base(OfferDisplay):\n    pass\n"
-                 "display = _Base()\n")
+                 "display = _Base()\n", encoding="utf-8")
     assert type(store.load_display_file(f)).__name__ == "_Base"
-    f.write_text("raise RuntimeError('boom')\n")
+    f.write_text("raise RuntimeError('boom')\n", encoding="utf-8")
     assert store.load_display_file(f) is None
 
 
@@ -173,7 +173,7 @@ def test_scenario_check_exercises_the_display(tmp_path):
         "from hani2.display import OfferDisplay\n"
         "class D(OfferDisplay):\n"
         "    def controls(self, draft, ctx):\n"
-        "        raise RuntimeError('broken controls')\n"
+        "        raise RuntimeError('broken controls')\n", encoding="utf-8"
     )
     _, errors, _ = store.check_scenario(p)
     assert any("broken controls" in e for e in errors)
@@ -192,7 +192,7 @@ def test_template_folder_display_is_used_for_generated_scenarios(tmp_path):
         "from hani2.display import OfferDisplay\n"
         "class EstateText(OfferDisplay):\n"
         "    def text(self, offer, ctx):\n"
-        "        return 'estate:' + ','.join(str(v) for v in offer.values())\n"
+        "        return 'estate:' + ','.join(str(v) for v in offer.values())\n", encoding="utf-8"
     )
     story = Story.from_folder(folder, roles=dict(iago.ESTATE_STORY.roles), setup=iago.ESTATE_STORY.setup)
     assert type(story.display).__name__ == "EstateText"

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Files are read and written as UTF-8 on every system.** Settings, texts, scenarios, results CSV
+  files and the metric reference no longer use the Windows code page, which failed on non-ASCII
+  text (for example, the metric reference page in the admin console).
+
 ## 0.2.0 (2026-11-20)
 
 Projects and studies on one server, a shared library of scenarios, opponents, Assistants and tools,

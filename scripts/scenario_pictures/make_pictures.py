@@ -119,10 +119,10 @@ def build(names: list[str]) -> list[Path]:
         dest = TARGET / f.stem
         if not dest.is_dir():
             raise SystemExit(f"no bundled scenario folder {dest}")
-        body = f.read_text()
+        body = f.read_text(encoding="utf-8")
         title = body.split("-->", 1)[0].replace("<!--", "").strip() if body.lstrip().startswith("<!--") else f.stem
-        (dest / "picture.svg").write_text(wrap(body, 0, title))
-        (dest / "picture_dark.svg").write_text(wrap(body, 1, title))
+        (dest / "picture.svg").write_text(wrap(body, 0, title), encoding="utf-8")
+        (dest / "picture_dark.svg").write_text(wrap(body, 1, title), encoding="utf-8")
         out.append(dest)
     return out
 

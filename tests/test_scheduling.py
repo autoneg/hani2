@@ -107,7 +107,7 @@ def test_validation_lists_the_valid_methods():
 
 
 def test_docs_page_is_in_sync_with_the_registry():
-    page = (ROOT / "docs" / "guide" / "scheduling.md").read_text()
+    page = (ROOT / "docs" / "guide" / "scheduling.md").read_text(encoding="utf-8")
     assert scheduling.docs_section(page) == scheduling.markdown_reference(), \
         "run: python -m hani2.scheduling docs/guide/scheduling.md"
     for dim in scheduling.DIMENSIONS:
@@ -210,7 +210,7 @@ def test_external_with_a_practice_round(study, monkeypatch):
     d = projects.study_dir(study) / "results" / "prolific_PR"
     d.mkdir(parents=True)
     (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
-        {"slot": 0, "agent_class_name": "LinearTBNegotiator", "scenario_type": "Trade", "assistant": RULES}]}))
+        {"slot": 0, "agent_class_name": "LinearTBNegotiator", "scenario_type": "Trade", "assistant": RULES}]}), encoding="utf-8")
     s = prolific("PR", study)
     assert s.round_plan["practice"] is True
     assert s.round_plan["opponent_scheduling"] == "practice" and s.round_plan["scenario_scheduling"] == "practice"
@@ -229,7 +229,7 @@ def test_external_assistant_without_schedule_fails_loudly(study):
     assert s.support_agent is None and "external" in s.assistant_error
     assert s.snapshot()["assistant_error"] == s.assistant_error
     d = s.ss["user_path"]
-    (d / "schedule.json").write_text(json.dumps({"version": 2, "assistant": RULES, "negotiations": []}))
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "assistant": RULES, "negotiations": []}), encoding="utf-8")
     s2 = prolific("X", study)
     assert type(s2.support_agent).__name__ == "RulesAgent" and s2.assistant_choice.scheduling == "external"
 
@@ -321,7 +321,7 @@ def test_schedule_json_wins_and_external_missing_is_visible(study, monkeypatch):
     d = projects.study_dir(study) / "results" / "prolific_W"
     d.mkdir(parents=True)
     (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
-        {"slot": 0, "agent_class_name": "LinearTBNegotiator", "scenario_type": "Trade", "scenario_index": 0}]}))
+        {"slot": 0, "agent_class_name": "LinearTBNegotiator", "scenario_type": "Trade", "scenario_index": 0}]}), encoding="utf-8")
     _set_study(study, scheduling={"opponents": "random"})
     s = prolific("W", study)
     assert s.round_plan["partner"] == "LinearTBNegotiator" and s.round_plan["opponent_scheduling"] == "external"
@@ -517,12 +517,12 @@ def test_files_with_conflicting_keys(study):
     groups.validate_data(groups.OPPONENT, {"agents": ["A"], "assistant": HELLO, "support_agent": HELLO})  # same: fine
     f = projects.study_dir(study) / "results" / "groups" / "both.json"
     f.parent.mkdir(parents=True)
-    f.write_text(json.dumps({"agents": ["ConcederTBNegotiator"], "assistant": HELLO, "support_agent": RULES}))
+    f.write_text(json.dumps({"agents": ["ConcederTBNegotiator"], "assistant": HELLO, "support_agent": RULES}), encoding="utf-8")
     s = make_session(user="guest_c", mode="guest", partner=None, study=study, query={"group": "both"})
     assert s.support_agent is None and "support_agent" in s.assistant_error
     a = projects.project_dir("HI") / "assistant_groups" / "mixed.json"
     a.parent.mkdir(parents=True)
-    a.write_text(json.dumps({"assistants": [HELLO], "agents": [RULES]}))
+    a.write_text(json.dumps({"assistants": [HELLO], "agents": [RULES]}), encoding="utf-8")
     _set_study(study, assistants=":mixed")
     s = prolific("C", study)
     assert s.support_agent is None and "keep only 'assistants'" in s.assistant_error

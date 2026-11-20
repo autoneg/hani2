@@ -168,7 +168,7 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
     try:
         if not path.is_file():
             return None
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001 - a broken file must not break the server
         print(f"⚠️ Could not read group file {path}: {e}")
         return None
@@ -456,7 +456,7 @@ def prime_syspaths(ref: Any = None) -> None:
                 continue
             for f in sorted(d.glob("*.json")):
                 try:
-                    data = json.loads(f.read_text())
+                    data = json.loads(f.read_text(encoding="utf-8"))
                 except Exception:  # noqa: BLE001
                     continue
                 if isinstance(data, dict):
@@ -503,7 +503,7 @@ def write_group(project: str, kind: str, key: str, data: Any) -> Path:
     f = project_group_dir(project, kind) / f"{key}.json"
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(clean, indent=2))
+    tmp.write_text(json.dumps(clean, indent=2), encoding="utf-8")
     tmp.replace(f)
     return f
 

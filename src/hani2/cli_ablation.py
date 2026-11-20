@@ -80,7 +80,7 @@ def ablation_report_cmd(
     rep = ablation_report(ev["rows"], value=value, cell=_split(cell), by=by, include_practice=practice,
                           include_opponent_info=opponent_info, off_is_control=off_is_control)
     if out is not None:
-        out.write_text(json.dumps(rep, indent=1, default=str))
+        out.write_text(json.dumps(rep, indent=1, default=str), encoding="utf-8")
         typer.echo(f"wrote {out}", err=True)
     typer.echo(f"value: {rep['value']}   cell: {' × '.join(rep['cell'])}   negotiations: {rep['n']}"
                + (f"   left out: {rep['dropped']}" if rep["dropped"] else ""))

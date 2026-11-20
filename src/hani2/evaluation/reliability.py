@@ -386,7 +386,7 @@ def load_report(src: Any) -> dict:
     if isinstance(src, dict):
         rep = src
     else:
-        rep = json.loads(Path(src).expanduser().read_text())
+        rep = json.loads(Path(src).expanduser().read_text(encoding="utf-8"))
     if not isinstance(rep, dict) or "ready" not in rep or "judges" not in rep:
         raise ValueError(f"{src!r} is not a judge reliability report (write one with `hani2 replay "
                          "judge-reliability -o report.json`)")

@@ -104,7 +104,7 @@ def run_cmd(
     """Play every scenario of a pool with the opponent and step limit of its episode factors."""
     from hani2.compositional import run_pool
 
-    extra = json.loads(settings.read_text()) if settings else None
+    extra = json.loads(settings.read_text(encoding="utf-8")) if settings else None
     res = run_pool(folder, home, driver=driver, agent_class=agent_class, assistant_settings=extra, repeats=repeats,
                    timeout=timeout, limit=limit, log=typer.echo)
     deals = sum(1 for r in res if r["agreement"])
@@ -135,4 +135,4 @@ def report_cmd(
     text = format_report(rep)
     typer.echo(text if rep["groups"] else "No recordings of compositional scenarios found.")
     if output:
-        output.write_text(json.dumps(rep, indent=1) if output.suffix == ".json" else text)
+        output.write_text(json.dumps(rep, indent=1) if output.suffix == ".json" else text, encoding="utf-8")

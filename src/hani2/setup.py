@@ -45,9 +45,9 @@ def run_setup(force: bool = False, admin_password: str | None = None, quiet: boo
         shutil.copyfile(src, dst)
         say(f"  created  {dst}")
     if admin_password:
-        env = json.loads((sdir / "env.json").read_text())
+        env = json.loads((sdir / "env.json").read_text(encoding="utf-8"))
         env.setdefault("admin", {})["password"] = admin_password
-        (sdir / "env.json").write_text(json.dumps(env, indent=2))
+        (sdir / "env.json").write_text(json.dumps(env, indent=2), encoding="utf-8")
     qdir = sdir / "questionnaires"
     if not (qdir / "per_negotiation.example.yaml").exists():
         qdir.mkdir(parents=True, exist_ok=True)

@@ -126,7 +126,7 @@ class Codex(HarnessAdapter):
         entry = {**entry, "apply_patch_tool_type": None, "tool_mode": None, "multi_agent_version": None,
                  "experimental_supported_tools": []}
         f = home / "catalog.json"
-        f.write_text(json.dumps({"models": [entry]}))
+        f.write_text(json.dumps({"models": [entry]}), encoding="utf-8")
         return f
 
     def build(self, c: Any, model: str, *, system: str, prompt: str, workdir: Path, limits: Limits,
@@ -144,7 +144,7 @@ class Codex(HarnessAdapter):
             if (codex_home / f).exists():
                 (codex_home / f).unlink()
         catalog = self._catalog(exe, model, workdir)  # per call: concurrent calls may use other models
-        (workdir / "instructions.md").write_text(system or "You are a helpful assistant.")
+        (workdir / "instructions.md").write_text(system or "You are a helpful assistant.", encoding="utf-8")
         cfg = {
             "model_provider": '"hani2"',
             "model_providers.hani2.name": '"OpenAI (API key)"',

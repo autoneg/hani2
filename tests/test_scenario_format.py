@@ -56,7 +56,7 @@ def test_a_template_drives_every_generated_scenario(tmp_path):
     builtin = registry.get("License").story
     folder = tmp_path / "License"
     shutil.copytree(DEFAULT_SCENARIOS / "License", folder)
-    info = yaml.safe_load((folder / "_info.yaml").read_text())
+    info = yaml.safe_load((folder / "_info.yaml").read_text(encoding="utf-8"))
     info["title"] = "Licensing a Hearing Aid"
     info["issue_description"]["Royalty"] = "Per cent of every sale"
     info["hints"]["Inventor"]["Your role"] = "You invented the device."
@@ -80,9 +80,9 @@ def test_from_folder_reports_mismatches(tmp_path):
         Story.from_folder("License", roles={"Firm": builtin.roles["Firm"]})
     folder = tmp_path / "License"
     shutil.copytree(DEFAULT_SCENARIOS / "License", folder)
-    dom = yaml.safe_load((folder / "License.yml").read_text())
+    dom = yaml.safe_load((folder / "License.yml").read_text(encoding="utf-8"))
     dom["issues"][2]["values"].append(8)  # a royalty the role functions do not score
-    (folder / "License.yml").write_text(yaml.safe_dump(dom, sort_keys=False))
+    (folder / "License.yml").write_text(yaml.safe_dump(dom, sort_keys=False), encoding="utf-8")
     story = Story.from_folder(folder, roles=builtin.roles, setup=builtin.setup)
     with pytest.raises(ValueError, match="no score for Royalty"):
         make_story_scenario(story, 0, random.Random(0))
@@ -113,7 +113,7 @@ def test_a_hand_made_scenario_is_served(hani2_home, monkeypatch, tmp_path):
     monkeypatch.setenv("HANI2_SCENARIOS_BASE", str(base))
     folder = base / "MyCase"
     shutil.copytree(DEFAULT_SCENARIOS / "Estate", folder)
-    info = yaml.safe_load((folder / "_info.yaml").read_text())
+    info = yaml.safe_load((folder / "_info.yaml").read_text(encoding="utf-8"))
     for h in info["hints"].values():
         for k in DERIVED_HINTS:
             h.pop(k, None)
@@ -129,8 +129,8 @@ def test_a_hand_made_scenario_is_served(hani2_home, monkeypatch, tmp_path):
 def test_save_scenario_removes_stale_files(tmp_path):
     folder = tmp_path / "x"
     shutil.copytree(DEFAULT_SCENARIOS / "Trade", folder)
-    (folder / "_info.yml").write_text("title: stale\n")
-    (folder / "Old.yml").write_text("name: Old\n")
+    (folder / "_info.yml").write_text("title: stale\n", encoding="utf-8")
+    (folder / "Old.yml").write_text("name: Old\n", encoding="utf-8")
     s = store._load_dir(folder)
     store.save_scenario(s, folder)
     names = sorted(p.name for p in folder.iterdir())
@@ -149,7 +149,7 @@ def test_cli_scenario_new_and_check(tmp_path):
     res = r.invoke(app, ["scenario", "check", str(tmp_path)])
     assert res.exit_code == 0, res.output
     assert "2 scenario(s), 0 with errors" in res.output
-    (tmp_path / "L" / "_info.yaml").write_text("human_role: Nobody\n")
+    (tmp_path / "L" / "_info.yaml").write_text("human_role: Nobody\n", encoding="utf-8")
     res = r.invoke(app, ["scenario", "check", str(tmp_path / "L")])
     assert res.exit_code == 1 and "human_role" in res.output
 
@@ -175,10 +175,10 @@ def test_issue_types_in_the_template_are_kept(tmp_path):
     builtin = registry.get("Estate").story
     folder = tmp_path / "Estate"
     shutil.copytree(DEFAULT_SCENARIOS / "Estate", folder)
-    dom = yaml.safe_load((folder / "Estate.yml").read_text())
+    dom = yaml.safe_load((folder / "Estate.yml").read_text(encoding="utf-8"))
     dom["issues"][0] = {"name": dom["issues"][0]["name"], "type": "DiscreteOrdinalIssue",
                         "values": list(range(7))}
-    (folder / "Estate.yml").write_text(yaml.safe_dump(dom, sort_keys=False))
+    (folder / "Estate.yml").write_text(yaml.safe_dump(dom, sort_keys=False), encoding="utf-8")
     story = Story.from_folder(folder, roles=builtin.roles, setup=builtin.setup)
     s = make_story_scenario(story, 0, random.Random(0))
     assert type(s.outcome_space.issues[0]).__name__ == "DiscreteOrdinalIssue"

@@ -31,7 +31,7 @@ def _exe(tmp_path: Path, script: str) -> str:
     written into it: a harness's environment holds nothing HANI2 did not choose)."""
     p = tmp_path / f"bin-{script}"
     log = tmp_path / "harness.log"
-    p.write_text(f"#!/bin/sh\nFAKE_HARNESS_LOG={log} exec {sys.executable} {FAKE / script} \"$@\"\n")
+    p.write_text(f"#!/bin/sh\nFAKE_HARNESS_LOG={log} exec {sys.executable} {FAKE / script} \"$@\"\n", encoding="utf-8")
     p.chmod(0o755)
     return str(p)
 
@@ -40,6 +40,8 @@ def _exe(tmp_path: Path, script: str) -> str:
 def fakes(tmp_path, monkeypatch):
     """Fake harness executables, a log of their command lines, and secrets of the server's user
     in the environment (which must not reach a harness)."""
+    if sys.platform == "win32":
+        pytest.skip("the fake harness executables are POSIX scripts with a shebang line")
     log = tmp_path / "harness.log"
     monkeypatch.setenv("HANI2_PI_PATH", _exe(tmp_path, "fake_pi.py"))
     monkeypatch.setenv("HANI2_CODEX_PATH", _exe(tmp_path, "fake_codex.py"))
@@ -54,7 +56,7 @@ def fakes(tmp_path, monkeypatch):
 
 def runs(log: Path) -> list[dict]:
     """The fake harness runs (``--version`` checks left out)."""
-    out = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+    out = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
     return [r for r in out if "--version" not in r["argv"]]
 
 
@@ -98,13 +100,13 @@ def test_stored_subscription_connections_load_disabled(hani2_home):
     f = hani2_home / "settings" / "connections.json"
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps({"connections": [{"name": "gh", "provider": "github_copilot", "auth": "subscription"},
-                                             {"name": "cg", "provider": "openai", "auth": "subscription"}]}))
+                                             {"name": "cg", "provider": "openai", "auth": "subscription"}]}), encoding="utf-8")
     gh, cg = conns.get("gh"), conns.get("cg")
     assert gh.disabled and cg.disabled and "not offered" in cg.disabled
     assert conns.has_credentials(gh) == (False, gh.disabled)
     with pytest.raises(conns.ConnectionError_):
         conns.call_kwargs(cg)
-    (hani2_home / "settings" / "models.json").write_text(json.dumps(["gh:gpt-5", "cg:gpt-5.5"]))
+    (hani2_home / "settings" / "models.json").write_text(json.dumps(["gh:gpt-5", "cg:gpt-5.5"]), encoding="utf-8")
     r = mc.resolve("assistant")
     assert not r.ok and all("not offered" in s["reason"] for s in r.skipped)
     assert conns.public(gh)["disabled"]
@@ -156,7 +158,7 @@ def test_pi_completion_is_isolated(hani2_home, fakes):
     # a stored pi login in the isolated folder is wiped before every call
     agent = harness.home_of(c) / "pi-agent"
     agent.mkdir(parents=True, exist_ok=True)
-    (agent / "auth.json").write_text(json.dumps({"anthropic": {"type": "oauth", "refresh": "x"}}))
+    (agent / "auth.json").write_text(json.dumps({"anthropic": {"type": "oauth", "refresh": "x"}}), encoding="utf-8")
     r = harness.complete(c, "claude-haiku-5-5", [{"role": "system", "content": "SYSTEM-X"},
                                                  {"role": "user", "content": "/etc/passwd hello"}], {})
     assert r.text.startswith("pi says:  /etc/passwd") and "SYSTEM-X" in r.text and r.usage["input_tokens"] == 11
@@ -196,7 +198,7 @@ def test_codex_completion_is_isolated_and_tool_free(hani2_home, fakes):
     c = conns.add({"name": "cx", "provider": "codex", "auth": "api_key_env"})
     home = harness.home_of(c) / "codex-home"
     home.mkdir(parents=True, exist_ok=True)
-    (home / "auth.json").write_text('{"tokens": {"access_token": "chatgpt-login"}}')  # a ChatGPT login: removed
+    (home / "auth.json").write_text('{"tokens": {"access_token": "chatgpt-login"}}', encoding="utf-8")  # a ChatGPT login: removed
     r = harness.complete(c, "gpt-5-mini", [{"role": "system", "content": "JUDGE-SYS"},
                                            {"role": "user", "content": "rate this"}])
     assert r.text == "codex says: rate this | JUDGE-SYS" and r.usage == {"input_tokens": 9, "output_tokens": 3}
@@ -295,7 +297,7 @@ def test_claude_code_options_lock_it_down(hani2_home, fakes, fake_sdk):
 
     full = {**os.environ, **env, "CLAUDE_CODE_ENTRYPOINT": "sdk-py"}
     subprocess.run([o.cli_path, "--version"], env=full, check=True, capture_output=True)
-    (run,) = [x for x in json.loads("[" + ",".join(fakes.read_text().splitlines()) + "]") if x["argv"] == ["--version"]][-1:]
+    (run,) = [x for x in json.loads("[" + ",".join(fakes.read_text(encoding="utf-8").splitlines()) + "]") if x["argv"] == ["--version"]][-1:]
     assert set(run["env"]) <= set(env["HANI2_HARNESS_KEEP"].split(",")) | {"PWD", "SHLVL", "_", "__CF_USER_TEXT_ENCODING", "FAKE_HARNESS_LOG"}
     for v in FORBIDDEN:
         assert run["env"].get(v) != "user-secret-must-not-leak-123456", v
@@ -323,7 +325,7 @@ def test_harness_completion_through_litellm_and_the_chain(hani2_home, fakes):
     """``model_chain.completion`` (text, tools, judge) and negmas-llm opponents call litellm: the
     custom provider routes the call to the harness; function schemas are refused there."""
     conns.add({"name": "p", "provider": "pi", "auth": "api_key", "upstream": "anthropic"}, api_key=KEY)
-    (hani2_home / "settings" / "models.json").write_text(json.dumps(["p:claude-haiku-5-5"]))
+    (hani2_home / "settings" / "models.json").write_text(json.dumps(["p:claude-haiku-5-5"]), encoding="utf-8")
     r = mc.completion("text", [{"role": "user", "content": "hello"}])
     assert r.choices[0].message.content.startswith("pi says: hello")
     kw = mc.litellm_kwargs(mc.resolve("opponent"))
@@ -409,7 +411,7 @@ def test_entry_params_reach_the_harness_and_opponents_drop_ufun_tools(hani2_home
 
     conns.add({"name": "p", "provider": "pi", "auth": "none", "upstream": "ollama"})
     (hani2_home / "settings" / "models.json").write_text(json.dumps(
-        [{"connection": "p", "model": "qwen3:4b", "params": {"effort": "low", "timeout": 30}}]))
+        [{"connection": "p", "model": "qwen3:4b", "params": {"effort": "low", "timeout": 30}}]), encoding="utf-8")
     mc.completion("text", [{"role": "user", "content": "hi"}])
     (run,) = runs(fakes)
     assert run["argv"][run["argv"].index("--thinking") + 1] == "low"

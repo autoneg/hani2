@@ -107,5 +107,5 @@ for name, types in sets.items():
         if source:
             out += [f"*Source:* {source}", ""]
 target = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "docs" / "guide" / "scenario-sets.md"
-target.write_text("\n".join(out).rstrip() + "\n")
+target.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
 print(f"wrote {target}")

@@ -84,7 +84,7 @@ def test_texts_have_no_escape_accidents():
                     reason="needs node and the frontend's node_modules (npm install)")
 def test_every_formula_renders_with_katex(tmp_path):
     items = [{"where": w, "tex": t, "display": d} for w, t, d in _all_tex()]
-    (tmp_path / "tex.json").write_text(json.dumps(items))
+    (tmp_path / "tex.json").write_text(json.dumps(items), encoding="utf-8")
     script = tmp_path / "check.cjs"
     script.write_text(
         "const katex = require(process.argv[2]);\n"
@@ -92,7 +92,7 @@ def test_every_formula_renders_with_katex(tmp_path):
         "const bad = [];\n"
         "for (const it of items) { try { katex.renderToString(it.tex, {displayMode: it.display, throwOnError: true, strict: 'ignore'}); }"
         " catch (e) { bad.push(it.where + ': ' + e.message); } }\n"
-        "console.log(JSON.stringify({n: items.length, bad}));\n")
+        "console.log(JSON.stringify({n: items.length, bad}));\n", encoding="utf-8")
     res = subprocess.run(["node", str(script), str(ROOT / "frontend/node_modules/katex"), str(tmp_path / "tex.json")],
                          capture_output=True, text=True, timeout=120)
     assert res.returncode == 0, res.stderr
@@ -102,9 +102,9 @@ def test_every_formula_renders_with_katex(tmp_path):
 
 def test_docs_page_is_in_sync():
     page = ROOT / "docs/guide/metrics.md"
-    assert page.read_text() == reference_markdown(), \
+    assert page.read_text(encoding="utf-8") == reference_markdown(), \
         "docs/guide/metrics.md is out of date: run .venv/bin/python scripts/make_metric_reference.py"
-    text = page.read_text()
+    text = page.read_text(encoding="utf-8")
     for m, c in _columns():
         assert f"`{c.name}`" in text
     assert "HANI " not in text and "HANI." not in text

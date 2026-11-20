@@ -57,7 +57,7 @@ class Mine(SupportAgent):
 
 def test_support_agent_class_from_file(hani2_home, tmp_path, monkeypatch):
     f = tmp_path / "mine.py"
-    f.write_text(AGENT_FILE)
+    f.write_text(AGENT_FILE, encoding="utf-8")
     monkeypatch.setenv("HANI2_SUPPORT_AGENT", "on")
     monkeypatch.setenv("HANI2_SUPPORT_AGENT_CLASS", f"{f}:Mine")
     s = make_session()
@@ -70,15 +70,15 @@ def test_experiment_create_with_support_agent_class(hani2_home, tmp_path, monkey
     from hani2.cli import app
 
     f = tmp_path / "mine.py"
-    f.write_text(AGENT_FILE)
+    f.write_text(AGENT_FILE, encoding="utf-8")
     monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
     r = CliRunner().invoke(app, ["experiment", "create", "hi", "--assistant", f"{f}:Mine"])
     assert r.exit_code == 0, r.output
-    sa = json.loads((tmp_path / "exps" / "hi" / "assistant_settings.json").read_text())
+    sa = json.loads((tmp_path / "exps" / "hi" / "assistant_settings.json").read_text(encoding="utf-8"))
     assert sa == {"mode": "on", "agent_class": f"{f.resolve()}:Mine"}
     r = CliRunner().invoke(app, ["experiment", "create", "han", "--no-assistant"])
     assert r.exit_code == 0, r.output
-    assert json.loads((tmp_path / "exps" / "han" / "assistant_settings.json").read_text()) == {"mode": "off"}
+    assert json.loads((tmp_path / "exps" / "han" / "assistant_settings.json").read_text(encoding="utf-8")) == {"mode": "off"}
     r = CliRunner().invoke(app, ["experiment", "create", "bad", "--assistant", "nope.module:Missing"])
     assert r.exit_code != 0
 
@@ -137,7 +137,7 @@ def test_cli_opponents_option(hani2_home, tmp_path, monkeypatch):
     monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
     r = CliRunner().invoke(cli.app, ["experiment", "create", "han", "--no-support-agent", "--opponents", "BoulwareTBNegotiator"])
     assert r.exit_code == 0, r.output
-    env = json.loads((tmp_path / "exps" / "han" / "env.json").read_text())
+    env = json.loads((tmp_path / "exps" / "han" / "env.json").read_text(encoding="utf-8"))
     assert env["opponents"] == ["BoulwareTBNegotiator"]
     os.environ.pop("HANI2_OPPONENTS", None)
 

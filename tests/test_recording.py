@@ -37,7 +37,7 @@ def test_diff_patch_roundtrip():
 def test_truncated_file_still_loads(tmp_path):
     p = tmp_path / "x.hrec.jsonl"
     p.write_text(json.dumps({"k": "header", "format": "hani2-recording", "version": 1, "id": "x", "t0": 0}) + "\n"
-                 + json.dumps({"t": 1, "k": "ev", "type": "a"}) + "\n" + '{"t": 2, "k": "e')
+                 + json.dumps({"t": 1, "k": "ev", "type": "a"}) + "\n" + '{"t": 2, "k": "e', encoding="utf-8")
     r = Recording.load(p)
     assert r.id == "x" and len(r.events) == 1 and not r.complete
 
@@ -325,7 +325,7 @@ def test_cli_evaluate(hani2_home, tmp_path):
     out = tmp_path / "m.csv"
     res = CliRunner().invoke(app, ["replay", "evaluate", str(hani2_home), "-m", "outcome,length", "--out", str(out)])
     assert res.exit_code == 0, res.output
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
     assert "human_utility" in text and "n_offers" in text
     res = CliRunner().invoke(app, ["replay", "compare", str(hani2_home), "--by", "scenario"])
     assert res.exit_code == 0 and "pass^k" in res.output

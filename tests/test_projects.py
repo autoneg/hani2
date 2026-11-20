@@ -95,16 +95,16 @@ def test_settings_layers_study_project_settings_bundled(two_studies):
 
     home = two_studies
     write_settings(home, "consent.md", "settings consent")
-    (home / "projects" / "HI2027" / "consent.md").write_text("project consent")
-    (home / "projects" / "HI2027" / "env.json").write_text(json.dumps({"title": "Project title"}))
-    (home / "projects" / "HI2027" / "studies" / "hi-01" / "env.json").write_text(json.dumps({"subtitle": "Study sub"}))
+    (home / "projects" / "HI2027" / "consent.md").write_text("project consent", encoding="utf-8")
+    (home / "projects" / "HI2027" / "env.json").write_text(json.dumps({"title": "Project title"}), encoding="utf-8")
+    (home / "projects" / "HI2027" / "studies" / "hi-01" / "env.json").write_text(json.dumps({"subtitle": "Study sub"}), encoding="utf-8")
     assert read_settings_text("consent.md") == "settings consent"
     with projects.use_study("HI2027/hi-01"):
         assert read_settings_text("consent.md") == "project consent"
         env = load_env()
         assert env["title"] == "Project title" and env["subtitle"] == "Study sub"
         assert results_root() == home / "projects" / "HI2027" / "studies" / "hi-01" / "results"
-        (home / "projects" / "HI2027" / "studies" / "hi-01" / "consent.md").write_text("study consent")
+        (home / "projects" / "HI2027" / "studies" / "hi-01" / "consent.md").write_text("study consent", encoding="utf-8")
         assert read_settings_text("consent.md") == "study consent"
     with projects.use_study("HAN2027/han-01"):
         assert read_settings_text("consent.md") == "settings consent"
@@ -187,7 +187,7 @@ def test_two_studies_concurrently(two_studies, client, monkeypatch):
     for sid in list(hub_sessions):
         hub_sessions[sid].recorder and hub_sessions[sid].recorder.finalize()
     idx = next((home / "projects" / "HI2027" / "studies" / "hi-01" / "results" / "prolific_P1" / "recordings").glob("*.json"))
-    info = json.loads(idx.read_text())
+    info = json.loads(idx.read_text(encoding="utf-8"))
     assert info["project"] == "HI2027" and info["study"] == "hi-01"
     # nothing leaked into the process default study
     assert files_under(home / "experiments" / "decoy") == []
@@ -296,11 +296,11 @@ def test_templates(two_studies, monkeypatch):
 
 def test_texts_rendered_for_participants_raw_for_admins(two_studies, client):
     home = two_studies
-    (home / "projects" / "HI2027" / "consent.md").write_text("# {{project_full_name}} ({{study_title}})")
-    (home / "projects" / "HI2027" / "announcements.md").write_text("Run {{study_name}}")
+    (home / "projects" / "HI2027" / "consent.md").write_text("# {{project_full_name}} ({{study_title}})", encoding="utf-8")
+    (home / "projects" / "HI2027" / "announcements.md").write_text("Run {{study_name}}", encoding="utf-8")
     (home / "projects" / "HI2027" / "questionnaires").mkdir()
     (home / "projects" / "HI2027" / "questionnaires" / "per_negotiation.yaml").write_text(
-        "questions:\n  - id: q\n    text: How was {{project_name}}?\n    type: text\n")
+        "questions:\n  - id: q\n    text: How was {{project_name}}?\n    type: text\n", encoding="utf-8")
     assert client.get("/s/HI2027/hi-01/api/consent").json()["markdown"] == "# Human-AI Interaction 2027 (January run)"
     assert client.get("/s/HI2027/hi-01/api/announcements").json()["markdown"] == "Run hi-01"
     from hani2.study import questionnaire_spec
@@ -342,7 +342,7 @@ def test_consent_per_study_and_reask_on_change(two_studies, client):
     rec = auth.get_meta("eve")["consents"]["HI2027/hi-01"]
     assert rec["hash"] == c["hash"] and rec["study"] == "hi-01" and rec["date"]
     # a changed text asks again
-    (home / "projects" / "HI2027" / "studies" / "hi-01" / "consent.md").write_text("New consent")
+    (home / "projects" / "HI2027" / "studies" / "hi-01" / "consent.md").write_text("New consent", encoding="utf-8")
     assert client.get("/s/HI2027/hi-01/api/auth/me").json()["needs_consent"]
     assert client.post("/s/HI2027/hi-01/api/session", json={"mode": "main"}).status_code == 403
 
@@ -399,7 +399,7 @@ def test_admin_projects_api(two_studies, client):
     assert client.get("/api/admin/projects/NEW/studies/missing").status_code == 404
     # settings layers
     assert client.put("/api/admin/settings/consent?study=NEW/s1", json={"text": "study text"}).json()["ok"]
-    assert (two_studies / "projects" / "NEW" / "studies" / "s1" / "consent.md").read_text() == "study text"
+    assert (two_studies / "projects" / "NEW" / "studies" / "s1" / "consent.md").read_text(encoding="utf-8") == "study text"
     assert client.put("/api/admin/settings/assistant?project=NEW", json={"mode": "off"}).json()["ok"]
     assert client.get("/api/admin/settings/assistant?project=NEW").json() == {"mode": "off"}
     assert client.get("/api/admin/settings/assistant?study=NEW/s1").json() == {}
@@ -455,6 +455,6 @@ def test_a_blank_study_override_inherits_the_project_default(two_studies):
     path = st.path / "study.yaml" if hasattr(st, "path") else None
     if path is None or not path.exists():
         pytest.skip("study.yaml location unknown")
-    path.write_text(path.read_text() + "\nn_required:\n")
+    path.write_text(path.read_text(encoding="utf-8") + "\nn_required:\n", encoding="utf-8")
     ref = projects.parse_ref("HI2027/hi-02")
     assert projects.setting("n_required", 99, ref=ref) == 2

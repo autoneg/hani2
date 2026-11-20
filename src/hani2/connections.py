@@ -176,7 +176,7 @@ def _write_private(path: Path, text: str) -> None:
         pass
     tmp = path.with_name(f".{path.name}.tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as fh:
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(text)
     os.chmod(tmp, 0o600)
     tmp.replace(path)
@@ -186,7 +186,7 @@ def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         print(f"[hani2] could not read {path}; ignoring it")
         return {}
@@ -210,7 +210,7 @@ def _save(items: list[dict[str, Any]]) -> None:
     p = _file()
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_name(f".{p.name}.tmp")
-    tmp.write_text(json.dumps({"connections": items}, indent=2))
+    tmp.write_text(json.dumps({"connections": items}, indent=2), encoding="utf-8")
     tmp.replace(p)
 
 

@@ -74,7 +74,7 @@ def test_results_paths_and_files(wave, monkeypatch):
     s = make_session(user="prolific_P1", mode="guest", partner=None, query={"noautostart": "1"})
     user_dir = wave / "prolific_P1"
     assert s.ss["user_path"] == user_dir
-    meta = json.loads((user_dir / "prolific_session.json").read_text())
+    meta = json.loads((user_dir / "prolific_session.json").read_text(encoding="utf-8"))
     assert {"started_at", "scenario_type", "max_minutes", "max_negs"} <= set(meta)
     assert meta["max_minutes"] == 60 and meta["max_negs"] == 2
     _play_one(s)
@@ -92,7 +92,7 @@ def test_no_experiment_writes_to_home_db(hani2_home):
 
 def test_per_negotiation_questionnaire_from_env(wave, tmp_path, monkeypatch):
     q = tmp_path / "per_negotiation.yaml"
-    q.write_text(PER_NEG)
+    q.write_text(PER_NEG, encoding="utf-8")
     monkeypatch.setenv("PROLIFIC_PER_NEG_YAML", str(q))
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
     s = make_session(user="prolific_Q1", mode="guest", partner=None, query={"noautostart": "1"})
@@ -109,11 +109,11 @@ def test_schedule_json_version_2_is_honoured(wave, monkeypatch):
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
     d = wave / "prolific_S1"
     d.mkdir(parents=True)
-    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
-    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}), encoding="utf-8")
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n", encoding="utf-8")
     (d / "schedule.json").write_text(json.dumps({"version": 2, "pid": "S1", "negotiations": [
         {"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Island", "scenario_index": 0,
-         "time_limit": 77}]}))
+         "time_limit": 77}]}), encoding="utf-8")
     s = make_session(user="prolific_S1", mode="guest", partner=None, query={"noautostart": "1"})
     assert not s.ss["is_practice_round"]
     assert s._scenario_name().startswith("Island")
@@ -133,8 +133,8 @@ def test_schedule_json_version_2_is_honoured(wave, monkeypatch):
 def test_group_file_in_results(wave):
     g = wave / "groups"
     g.mkdir(parents=True)
-    (g / "finalists.json").write_text(json.dumps({"syspath": [], "agents": ["ConcederTBNegotiator"]}))
-    (g / "plain.json").write_text(json.dumps(["LinearTBNegotiator"]))
+    (g / "finalists.json").write_text(json.dumps({"syspath": [], "agents": ["ConcederTBNegotiator"]}), encoding="utf-8")
+    (g / "plain.json").write_text(json.dumps(["LinearTBNegotiator"]), encoding="utf-8")
     s = make_session(user="tester", partner=None, query={"group": "finalists"})
     assert [str(x) for x in s.opponent_pool()] == ["ConcederTBNegotiator"]
     s2 = make_session(user="tester2", partner=None, query={"group": "plain"})
@@ -217,13 +217,13 @@ def test_hi_test_your_agent_group_file(wave, tmp_path, client, key):
     # the outside system unzips the participant's package and names it in the group file
     pkgs = tmp_path / f"_agents_{key}"
     (pkgs / f"a789{key}").mkdir(parents=True)
-    (pkgs / f"a789{key}" / "__init__.py").write_text("")
-    (pkgs / f"a789{key}" / "module.py").write_text(AGENT_PY)
+    (pkgs / f"a789{key}" / "__init__.py").write_text("", encoding="utf-8")
+    (pkgs / f"a789{key}" / "module.py").write_text(AGENT_PY, encoding="utf-8")
     gkey = "test_hi_789_0123456789"
     g = wave / "groups"
     g.mkdir(parents=True)
     (g / f"{gkey}.json").write_text(json.dumps({"syspath": [str(pkgs)], "agents": ["ConcederTBNegotiator"],
-                                                key: f"a789{key}.module.MyAgent"}))
+                                                key: f"a789{key}.module.MyAgent"}), encoding="utf-8")
     s = make_session(user="guest_t1", mode="guest", partner=None, query={"group": gkey})
     assert type(s.support_agent).__name__ == "MyAgent" and s.support_agent.user_enabled
     assert [str(x) for x in s.opponent_pool()] == ["ConcederTBNegotiator"]
@@ -241,11 +241,11 @@ def test_schedule_json_assistant_field(wave, monkeypatch):
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
     d = wave / "prolific_SA"
     d.mkdir(parents=True)
-    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
-    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}), encoding="utf-8")
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n", encoding="utf-8")
     (d / "schedule.json").write_text(json.dumps({"version": 2, "pid": "SA", "negotiations": [
         {"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Trade", "scenario_index": 0,
-         "time_limit": 77, "assistant": "level2_rules:RulesAgent"}]}))
+         "time_limit": 77, "assistant": "level2_rules:RulesAgent"}]}), encoding="utf-8")
     s = ms(user="prolific_SA", mode="guest", partner=None, query={"noautostart": "1"})
     assert type(s.support_agent).__name__ == "RulesAgent"
     _play_one(s)

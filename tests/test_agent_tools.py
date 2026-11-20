@@ -165,7 +165,7 @@ def test_cli_tools_option_registers_agent_only_tools(hani2_home, tmp_path, monke
         "    name = 'Team Tool'\n"
         "    timing = 'agent'\n"
         "    def view(self):\n"
-        "        return [ui.markdown('hello')]\n"
+        "        return [ui.markdown('hello')]\n", encoding="utf-8"
     )
     monkeypatch.setattr(cli, "_serve", lambda *a, **k: None)
     r = CliRunner().invoke(cli.app, ["--tools", f"{f}:TeamTool", "--no-browser"])

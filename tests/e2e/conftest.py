@@ -28,11 +28,11 @@ def _add_sso_provider(home: Path) -> None:
     import json
 
     p = home / "settings" / "env.json"
-    env = json.loads(p.read_text()) if p.exists() else {}
+    env = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
     env.setdefault("auth", {})["sso"] = {"scmlweb": {"login_url": "https://anac.example.org/hani2/sso",
                                                      "label": "ANAC account"}}
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(env))
+    p.write_text(json.dumps(env), encoding="utf-8")
 
 
 def _free_port() -> int:
@@ -78,7 +78,7 @@ def server(tmp_path_factory):
     else:
         proc.kill()
     if proc.poll() is not None:
-        pytest.fail("the server did not start:\n" + Path(log.name).read_text()[-3000:])
+        pytest.fail("the server did not start:\n" + Path(log.name).read_text(encoding="utf-8")[-3000:])
     yield url
     proc.terminate()
     try:

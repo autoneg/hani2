@@ -126,10 +126,10 @@ def test_settings_layer_order_with_an_experiment(hani2_home, tmp_path, monkeypat
     exp.mkdir(parents=True)
     write_settings(hani2_home, "support_agent_settings.json", {"a": 1, "b": 1, "c": 1, "d": 1})
     write_settings(hani2_home, "assistant_settings.json", {"b": 2, "c": 2, "d": 2})
-    (exp / "support_agent_settings.json").write_text(json.dumps({"c": 3, "d": 3}))
+    (exp / "support_agent_settings.json").write_text(json.dumps({"c": 3, "d": 3}), encoding="utf-8")
     s = load_assistant_settings()
     assert (s["a"], s["b"], s["c"], s["d"]) == (1, 2, 3, 3)
-    (exp / "assistant_settings.json").write_text(json.dumps({"d": 4}))
+    (exp / "assistant_settings.json").write_text(json.dumps({"d": 4}), encoding="utf-8")
     s = load_assistant_settings()
     assert (s["a"], s["b"], s["c"], s["d"]) == (1, 2, 3, 4)
 
@@ -217,7 +217,7 @@ def test_experiment_create_off_flags(flag, tmp_path, monkeypatch):
     monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
     r = CliRunner().invoke(app, ["experiment", "create", "comp", flag])
     assert r.exit_code == 0, r.output
-    assert json.loads((tmp_path / "exps" / "comp" / "assistant_settings.json").read_text()) == {"mode": "off"}
+    assert json.loads((tmp_path / "exps" / "comp" / "assistant_settings.json").read_text(encoding="utf-8")) == {"mode": "off"}
 
 
 @pytest.mark.parametrize("flag", ["--assistant", "--support-agent"])
@@ -227,7 +227,7 @@ def test_experiment_create_mode_flags(flag, tmp_path, monkeypatch):
     monkeypatch.setenv("HANI2_EXPERIMENTS", str(tmp_path / "exps"))
     r = CliRunner().invoke(app, ["experiment", "create", "lab", flag, "auto"])
     assert r.exit_code == 0, r.output
-    assert json.loads((tmp_path / "exps" / "lab" / "assistant_settings.json").read_text()) == {"mode": "auto"}
+    assert json.loads((tmp_path / "exps" / "lab" / "assistant_settings.json").read_text(encoding="utf-8")) == {"mode": "auto"}
 
 
 # --------------------------------------------------------------------------- #
@@ -243,7 +243,7 @@ def _changelog_lines(path: Path):
     """Only the Unreleased section of the changelog is checked: released
     entries keep the words they were written with."""
     checking = False
-    for i, line in enumerate(path.read_text().splitlines(), 1):
+    for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if line.startswith("## "):
             checking = line.strip().lower() == "## unreleased"
         if checking:

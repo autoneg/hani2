@@ -161,7 +161,7 @@ def _use_once(name: str, jti: str, until: float, now: float) -> None:
     path = settings_dir() / ".sso_used.json"
     with _used_lock:
         try:
-            used = json.loads(path.read_text()) if path.exists() else {}
+            used = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         except (OSError, json.JSONDecodeError):
             used = {}
         used = {k: v for k, v in used.items() if isinstance(v, (int, float)) and v >= now}
@@ -171,7 +171,7 @@ def _use_once(name: str, jti: str, until: float, now: float) -> None:
         used[key] = until
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")  # two servers share a home
-        tmp.write_text(json.dumps(used))
+        tmp.write_text(json.dumps(used), encoding="utf-8")
         tmp.replace(path)
 
 

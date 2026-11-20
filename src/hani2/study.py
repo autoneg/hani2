@@ -83,7 +83,7 @@ def questionnaire_spec() -> dict | None:
     for p in cands:
         if p.is_file():
             try:
-                spec = yaml.safe_load(p.read_text()) or {}
+                spec = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
                 if not spec.get("questions"):
                     continue
             except Exception as e:  # pragma: no cover
@@ -126,7 +126,7 @@ def pre_questionnaire_spec() -> dict | None:
     for p in cands:
         if p.is_file():
             try:
-                spec = yaml.safe_load(p.read_text()) or {}
+                spec = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
             except Exception as e:  # pragma: no cover
                 print(f"[hani2] pre-questionnaire {p} failed to parse: {e}")
                 continue
@@ -154,7 +154,7 @@ def participant_type_of(spec: dict | None, answers: dict[str, Any]) -> str:
 def read_pre_questionnaire(user_path: Path) -> dict | None:
     f = Path(user_path) / PRE_FILE
     try:
-        return json.loads(f.read_text()) if f.is_file() else None
+        return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else None
     except Exception:
         return None
 
@@ -176,19 +176,19 @@ def save_questionnaire(user_path: Path, row_meta: dict[str, Any], answers: dict[
     fields = base + sorted(answers) + [k for k in ("project", "study") if k in row_meta]
     existing: list[str] = []
     if path.exists():
-        with path.open() as fh:
+        with path.open(encoding="utf-8") as fh:
             existing = next(csv.reader(fh), [])
     if existing and set(fields) - set(existing):
         # new questions: rewrite with the union header
-        with path.open() as fh:
+        with path.open(encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh))
         fields = existing + [f for f in fields if f not in existing]
-        with path.open("w", newline="") as fh:
+        with path.open("w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
             w.writeheader()
             w.writerows(rows)
         existing = fields
-    with path.open("a", newline="") as fh:
+    with path.open("a", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=existing or fields, extrasaction="ignore")
         if not existing:
             w.writeheader()
@@ -384,7 +384,7 @@ class Study:
                     **projects.stamp(s.study_ref))
         path = Path(s.ss["user_path"]) / PRE_FILE
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=1, default=str))
+        path.write_text(json.dumps(data, indent=1, default=str), encoding="utf-8")
         s.ss["participant_type"] = ptype
         if getattr(s, "recorder", None) is not None:
             s.recorder.mark("pre_questionnaire", answers=answers, participant_type=ptype)
@@ -470,7 +470,7 @@ class ProlificStudy(Study):
         path = self.user_path / self.META
         if path.exists():
             try:
-                return json.loads(path.read_text())
+                return json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 pass
         types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
@@ -487,7 +487,7 @@ class ProlificStudy(Study):
         if idx is not None:
             meta["participant_index"] = idx
         self.user_path.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(meta))
+        path.write_text(json.dumps(meta), encoding="utf-8")
         return meta
 
     def _rows(self) -> list[dict]:
@@ -495,7 +495,7 @@ class ProlificStudy(Study):
         if not f.exists():
             return []
         try:
-            with f.open(newline="") as fh:
+            with f.open(newline="", encoding="utf-8") as fh:
                 return list(csv.DictReader(fh))
         except Exception:
             return []
@@ -551,7 +551,7 @@ class ProlificStudy(Study):
         if not path.exists():
             return None
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return None
 
@@ -596,18 +596,18 @@ class ProlificStudy(Study):
         try:
             per_user = self.user_path / "fallback_rotation.txt"
             if per_user.exists():
-                return int(per_user.read_text().strip() or 0)
+                return int(per_user.read_text(encoding="utf-8").strip() or 0)
             counter = self.user_path.parent / "_prolific_fallback_counter.txt"
             # one participant at a time, also across processes sharing the results folder
             with _locked(counter):
                 if per_user.exists():
-                    return int(per_user.read_text().strip() or 0)
-                n = int(counter.read_text().strip() or 0) if counter.exists() else 0
+                    return int(per_user.read_text(encoding="utf-8").strip() or 0)
+                n = int(counter.read_text(encoding="utf-8").strip() or 0) if counter.exists() else 0
                 tmp = counter.with_name(f".{counter.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-                tmp.write_text(str(n + 1))
+                tmp.write_text(str(n + 1), encoding="utf-8")
                 tmp.replace(counter)
                 tmp = per_user.with_name(f".{per_user.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-                tmp.write_text(str(n))
+                tmp.write_text(str(n), encoding="utf-8")
                 tmp.replace(per_user)
             return n
         except Exception:

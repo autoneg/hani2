@@ -100,14 +100,14 @@ class Pi(HarnessAdapter):
 
         agent = private_dir(workdir / ".pi-agent")
         # never a stored login: pi reads auth.json before any key in the environment
-        (agent / "auth.json").write_text("{}")
+        (agent / "auth.json").write_text("{}", encoding="utf-8")
         up = harness.upstream_of(c)
         models_file = agent / "models.json"
         if up == "ollama":
             base = (c.base_url or "http://localhost:11434").rstrip("/")
             models_file.write_text(json.dumps({"providers": {"ollama": {
                 "baseUrl": f"{base}/v1", "api": "openai-completions", "apiKey": "ollama",
-                "models": [{"id": self._model_id(c, model)}]}}}))
+                "models": [{"id": self._model_id(c, model)}]}}}), encoding="utf-8")
         return agent
 
     @staticmethod
@@ -127,9 +127,9 @@ class Pi(HarnessAdapter):
         home = harness.home_of(c)
         agent = self._agent_dir(c, model, workdir)
         up = harness.upstream_of(c)
-        (workdir / "system.txt").write_text(system or "")
+        (workdir / "system.txt").write_text(system or "", encoding="utf-8")
         specs = tool_specs(tools or [])
-        (workdir / "tools.json").write_text(json.dumps(specs))
+        (workdir / "tools.json").write_text(json.dumps(specs), encoding="utf-8")
         argv = [exe, "--mode", "rpc", "--offline", "--no-session", "--no-extensions", "--extension", str(BRIDGE),
                 "--no-tools"]
         if specs:

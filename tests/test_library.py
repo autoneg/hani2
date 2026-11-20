@@ -141,7 +141,7 @@ def test_scenario_sets_use_the_shared_algorithm():
 def _gfile(home: Path, sub: str, key: str, data) -> Path:
     p = home / "settings" / sub / f"{key}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data))
+    p.write_text(json.dumps(data), encoding="utf-8")
     return p
 
 
@@ -198,7 +198,7 @@ def test_upload_opponent_py_and_use_it_in_a_session(study, hani2_home):
     assert not items["LibBoulware"]["removable"]  # added at the project, not at this study
     assert library.list_items("opponents", "project:P1")[0]["source"] == "builtin"
     # the group file holds the spec, so it works without the library
-    data = json.loads((projects.project_dir("P1") / "groups" / "lib.json").read_text())
+    data = json.loads((projects.project_dir("P1") / "groups" / "lib.json").read_text(encoding="utf-8"))
     assert data["agents"] == [spec]
     with projects.use_study(study):
         from hani2.agents import get_agent_type, resolve_agent_group
@@ -226,7 +226,7 @@ def test_upload_assistant_zip_package(study, hani2_home):
     r = library.add_upload("assistants", "coachpkg_lib.zip", z, "settings", group="mine")
     assert r["items"][0]["spec"] == "coachpkg_lib.coach:LibCoach"
     assert groups.expand_assistants([":mine"]) == ["coachpkg_lib.coach:LibCoach"]
-    data = json.loads((hani2_home / "settings" / "assistant_groups" / "mine.json").read_text())
+    data = json.loads((hani2_home / "settings" / "assistant_groups" / "mine.json").read_text(encoding="utf-8"))
     assert data["syspath"] and Path(data["syspath"][0]).is_dir()
     with pytest.raises(LibraryError):
         library.remove_item("assistants", "LibCoach", "project:P1")
@@ -257,8 +257,8 @@ def test_broken_code_and_unsafe_archives_are_refused(hani2_home):
 def test_link_opponent_spec_and_folder(tmp_path, hani2_home):
     pkg = tmp_path / "ext"
     (pkg / "extneg_lib").mkdir(parents=True)
-    (pkg / "extneg_lib" / "__init__.py").write_text("")
-    (pkg / "extneg_lib" / "agent.py").write_text(OPPONENT_PY)
+    (pkg / "extneg_lib" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "extneg_lib" / "agent.py").write_text(OPPONENT_PY, encoding="utf-8")
     r = library.add_link("opponents", str(pkg))
     assert r["items"][0]["spec"] == "extneg_lib.agent.LibBoulware"
     assert library.remove_item("opponents", "LibBoulware")["how"] == "unlinked"
@@ -286,7 +286,7 @@ def test_tool_upload_link_and_registry(study, hani2_home, tmp_path):
         library.add_upload("tools", "counter2.py", TOOL_PY.encode(), "study:P1/s1")
     library.remove_item("tools", "Lib Counter", "study:P1/s1")
     f = tmp_path / "linked_tool.py"
-    f.write_text(TOOL_PY)
+    f.write_text(TOOL_PY, encoding="utf-8")
     assert library.add_link("tools", str(f))["items"][0]["source"] == "linked"
     assert "Lib Counter" in [s.name for s in tool_specs()]
 
@@ -383,7 +383,7 @@ def test_scenario_upload_refusals(hani2_home, tmp_path):
         library.add_upload("scenarios", "junk.zip", _zip({"junk/readme.txt": "hi"}))
     bad = tmp_path / "bad" / "Broken"
     bad.mkdir(parents=True)
-    (bad / "Broken.yml").write_text("type: NotADomain\n")
+    (bad / "Broken.yml").write_text("type: NotADomain\n", encoding="utf-8")
     with pytest.raises(LibraryError):
         library.add_link("scenarios", str(bad))
     library.add_upload("scenarios", "Rent.zip", _zip_folder(folder))
@@ -419,16 +419,16 @@ def test_scenario_set_edits_per_layer(study, hani2_home):
 def test_opponent_group_edits_keep_other_fields(study, hani2_home):
     d = projects.project_dir("P1") / "groups"
     d.mkdir(parents=True)
-    (d / "test_x.json").write_text(json.dumps({"syspath": ["/tmp"], "agents": ["A"], "support_agent": "pkg:Coach"}))
+    (d / "test_x.json").write_text(json.dumps({"syspath": ["/tmp"], "agents": ["A"], "support_agent": "pkg:Coach"}), encoding="utf-8")
     library.put_group("opponents", "test_x", ["A", "@llm"], "project:P1")
-    data = json.loads((d / "test_x.json").read_text())
+    data = json.loads((d / "test_x.json").read_text(encoding="utf-8"))
     assert data["agents"] == ["A", "@llm"] and data["syspath"] == ["/tmp"] and data["assistant"] == "pkg:Coach"
     g = next(x for x in library.list_groups("opponents", "project:P1") if x["name"] == "test_x")
     assert g["expanded"][0] == "A" and "LLMHybridNegotiator" in g["expanded"] and g["assistant"] == "pkg:Coach"
     # the outside system's results folder wins and is read-only here
     res = projects.study_dir(study) / "results" / "groups"
     res.mkdir(parents=True)
-    (res / "test_x.json").write_text(json.dumps(["B"]))
+    (res / "test_x.json").write_text(json.dumps(["B"]), encoding="utf-8")
     gs = [x for x in library.list_groups("opponents", "study:P1/s1") if x["name"] == "test_x"]
     assert gs[0]["layer"] == "results" and gs[0]["active"] and not gs[1]["active"]
     with pytest.raises(LibraryError):
@@ -553,7 +553,7 @@ def test_tool_groups_compose_and_builtins_are_read_only(hani2_home):
         library.put_group("tools", "admin", ["Trace"])
     with pytest.raises(LibraryError):
         library.delete_group("tools", "information")
-    assert yaml.safe_load((hani2_home / "settings" / "tools.yaml").read_text())["groups"]["plots"] == ["visualization"]
+    assert yaml.safe_load((hani2_home / "settings" / "tools.yaml").read_text(encoding="utf-8"))["groups"]["plots"] == ["visualization"]
 
 
 # --------------------------------------------------------------------------- #
@@ -585,18 +585,18 @@ def test_broken_files_are_not_overwritten(hani2_home, tmp_path):
     sd = settings_dir()
     sd.mkdir(parents=True, exist_ok=True)
     folder = _scenario_files(tmp_path, "Rent")
-    (sd / "scenario_links.yaml").write_text("links: [unclosed\n")
+    (sd / "scenario_links.yaml").write_text("links: [unclosed\n", encoding="utf-8")
     with pytest.raises(LibraryError) as e:
         library.add_link("scenarios", str(folder), name="Rent")
     assert e.value.status == 409 and "scenario_links.yaml" in str(e.value)
-    assert (sd / "scenario_links.yaml").read_text() == "links: [unclosed\n"
+    assert (sd / "scenario_links.yaml").read_text(encoding="utf-8") == "links: [unclosed\n"
     (sd / "scenario_links.yaml").unlink()
-    (sd / "library.yaml").write_text("opponents: {a: [1, 2\n")
+    (sd / "library.yaml").write_text("opponents: {a: [1, 2\n", encoding="utf-8")
     with pytest.raises(LibraryError) as e:
         library.add_upload("opponents", "mine.py", OPPONENT_PY.encode())
-    assert e.value.status == 409 and (sd / "library.yaml").read_text().startswith("opponents: {a")
+    assert e.value.status == 409 and (sd / "library.yaml").read_text(encoding="utf-8").startswith("opponents: {a")
     assert not (sd / "library/opponents/mine").exists()
-    (sd / "scenario_sets.yaml").write_text("- not\n- a mapping\n")
+    (sd / "scenario_sets.yaml").write_text("- not\n- a mapping\n", encoding="utf-8")
     with pytest.raises(LibraryError) as e:
         library.put_group("scenarios", "Mine", ["Trade"])
     assert e.value.status == 409
@@ -611,7 +611,7 @@ def test_archive_size_limit(hani2_home, tmp_path, monkeypatch):
     with pytest.raises(LibraryError, match="more than"):
         library.safe_extract(z, tmp_path / "out")
     z.write_bytes(_zip({"a/x.txt": "x" * 600}))
-    assert (library.safe_extract(z, tmp_path / "ok") / "x.txt").read_text() == "x" * 600
+    assert (library.safe_extract(z, tmp_path / "ok") / "x.txt").read_text(encoding="utf-8") == "x" * 600
 
 
 def test_group_warnings_unknown_entries_and_cycles(study, hani2_home):
@@ -640,7 +640,7 @@ def test_default_set_per_layer(study, hani2_home):
     assert e.value.status == 404
     assert library.put_default_set(None, "project:P1")["here"] is None
     f = projects.project_dir("P1") / "scenario_sets.yaml"
-    assert "default" not in yaml.safe_load(f.read_text()) and "Pilot" in yaml.safe_load(f.read_text())["sets"]
+    assert "default" not in yaml.safe_load(f.read_text(encoding="utf-8")) and "Pilot" in yaml.safe_load(f.read_text(encoding="utf-8"))["sets"]
 
 
 def test_describe_entries(study, hani2_home):
@@ -670,12 +670,12 @@ def test_copying_a_group_into_a_layer_keeps_its_fields(study, hani2_home):
     d = settings_dir() / "groups"
     d.mkdir(parents=True, exist_ok=True)
     (d / "base.json").write_text(json.dumps({"agents": ["BoulwareTBNegotiator"], "description": "Base",
-                                             "syspath": ["/srv/x"], "assistant": "hani2.assistant:Assistant"}))
+                                             "syspath": ["/srv/x"], "assistant": "hani2.assistant:Assistant"}), encoding="utf-8")
     r = library.put_group("opponents", "base", ["BoulwareTBNegotiator", "LinearTBNegotiator"], "project:P1")
-    data = json.loads(Path(r["path"]).read_text())
+    data = json.loads(Path(r["path"]).read_text(encoding="utf-8"))
     assert data["agents"] == ["BoulwareTBNegotiator", "LinearTBNegotiator"]
     assert data["description"] == "Base" and data["syspath"] == ["/srv/x"] and data["assistant"] == "hani2.assistant:Assistant"
-    assert json.loads((d / "base.json").read_text())["agents"] == ["BoulwareTBNegotiator"]
+    assert json.loads((d / "base.json").read_text(encoding="utf-8"))["agents"] == ["BoulwareTBNegotiator"]
 
 
 def test_a_broken_tools_yaml_is_not_overwritten(hani2_home):
@@ -683,13 +683,13 @@ def test_a_broken_tools_yaml_is_not_overwritten(hani2_home):
 
     f = settings_dir() / "tools.yaml"
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text("offer: [a\n")
+    f.write_text("offer: [a\n", encoding="utf-8")
     for call in (lambda: library.put_offer(["Trace"]), lambda: library.put_placement({"Trace": {"pane": "side"}}),
                  lambda: library.put_group("tools", "mine", ["Trace"])):
         with pytest.raises(LibraryError) as e:
             call()
         assert e.value.status == 409
-    assert f.read_text() == "offer: [a\n"
+    assert f.read_text(encoding="utf-8") == "offer: [a\n"
 
 
 def test_api_is_admin_only(client):
@@ -744,7 +744,7 @@ def test_cli(hani2_home, tmp_path):
     from hani2.cli import app
 
     f = tmp_path / "counter.py"
-    f.write_text(TOOL_PY)
+    f.write_text(TOOL_PY, encoding="utf-8")
     run = CliRunner().invoke
     r = run(app, ["library", "add", "tools", str(f), "--group", "extras"])
     assert r.exit_code == 0, r.output
@@ -763,5 +763,5 @@ def test_cli(hani2_home, tmp_path):
     assert r.exit_code == 0, r.output
     r = run(app, ["library", "placement", "Trace", "--view", "simple", "--hidden"])
     assert r.exit_code == 0, r.output
-    assert yaml.safe_load((hani2_home / "settings" / "tools.yaml").read_text())["placement"]["Trace"] == \
+    assert yaml.safe_load((hani2_home / "settings" / "tools.yaml").read_text(encoding="utf-8"))["placement"]["Trace"] == \
         {"simple": {"visible": False}}

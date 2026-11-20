@@ -162,7 +162,7 @@ def test_behind_a_root_path_like_the_hi_instance(client, monkeypatch):
 def test_consent_is_still_asked_when_the_study_enforces_it(client, hani2_home):
     import json
 
-    env = json.loads((hani2_home / "settings" / "env.json").read_text())
+    env = json.loads((hani2_home / "settings" / "env.json").read_text(encoding="utf-8"))
     env["auth"]["enforce_consent"] = True
     write_settings(hani2_home, "env.json", env)
     go(client, sso.sign(claims(sub="c1"), SECRET))
@@ -180,7 +180,7 @@ def _group(hani2_home, key, data):
     base = projects.study_dir(ref) / "results" if ref else hani2_home / "db"
     g = base / "groups"
     g.mkdir(parents=True, exist_ok=True)
-    (g / f"{key}.json").write_text(json.dumps(data))
+    (g / f"{key}.json").write_text(json.dumps(data), encoding="utf-8")
 
 
 @pytest.mark.parametrize("finish_first", [False, True])

@@ -251,10 +251,10 @@ def scenario_with_criteria(hani2_home, monkeypatch):
     base = hani2_home / "pool"
     dst = base / "Acq" / "Acquisition"
     shutil.copytree(DEFAULT_SCENARIOS / "Acquisition", dst)
-    info = yaml.safe_load((dst / "_info.yaml").read_text())
+    info = yaml.safe_load((dst / "_info.yaml").read_text(encoding="utf-8"))
     info["evaluation"] = {"targets": {"agreement": 1}, "rules": ["irrational_accept"],
                           "communicate": ["SECRET-FACT Price is your most important issue"]}
-    (dst / "_info.yaml").write_text(yaml.safe_dump(info, sort_keys=False))
+    (dst / "_info.yaml").write_text(yaml.safe_dump(info, sort_keys=False), encoding="utf-8")
     monkeypatch.setenv("HANI2_SCENARIOS_BASE", str(base))
     return "Acq"
 
@@ -281,7 +281,7 @@ def test_criteria_are_hidden_recorded_and_evaluated(hani2_home, scenario_with_cr
     assert row["hi_outcome"] is not None
     # the participant's copy of the scenario keeps the criteria
     copies = list((hani2_home).rglob("db/*/scenarios/*/_info.y*ml"))
-    assert copies and all("evaluation" in yaml.safe_load(c.read_text()) for c in copies)
+    assert copies and all("evaluation" in yaml.safe_load(c.read_text(encoding="utf-8")) for c in copies)
 
 
 def test_scenario_check_reads_the_criteria():
@@ -309,7 +309,7 @@ def test_cli_and_api(hani2_home, scenario_with_criteria, tmp_path):
     out = tmp_path / "lb.json"
     r = CliRunner().invoke(cli, ["replay", "leaderboard", str(hani2_home), "-t", "han", "-b", "outcome", "-o", str(out)])
     assert r.exit_code == 0, r.output
-    lb = json.loads(out.read_text())
+    lb = json.loads(out.read_text(encoding="utf-8"))
     assert lb["track"] == "han" and len(lb["entries"]) == 1 and lb["entries"][0]["n"] == 1
     assert CliRunner().invoke(cli, ["replay", "leaderboard", "--track", "x"]).exit_code == 1
     with TestClient(app) as c:
@@ -373,7 +373,7 @@ def test_judged_scores_end_to_end(hani2_home, monkeypatch):
     for i, agent in enumerate(("A", "A", "B", "B")):
         recs = _records(PTS, agreement="B", ended_by="agent", extra=chat + acts, header={"id": f"r{i}", "session": {"user": f"u{i}"}},
                         start={"support_agent": {"enabled": True, "name": agent}})
-        (folder / f"r{i}.hrec").write_text("".join(dumps_line(r) + "\n" for r in recs))
+        (folder / f"r{i}.hrec").write_text("".join(dumps_line(r) + "\n" for r in recs), encoding="utf-8")
     first = evaluate_paths([folder], use_llm=True)
     assert not first["errors"], first["errors"]
     n = len(calls)

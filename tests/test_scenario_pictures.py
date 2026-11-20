@@ -13,7 +13,7 @@ SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 1"><rect width="2"
 
 def _write(folder: Path, name: str, text: str = SVG) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / name).write_text(text)
+    (folder / name).write_text(text, encoding="utf-8")
     return folder / name
 
 
@@ -155,9 +155,9 @@ def test_project_and_study_layers_set_the_defaults(hani2_home):
     projects.create_study("P/s1")
     projects.create_study("P/s2")
     (projects.project_dir("P") / "env.json").write_text(json.dumps(
-        {"interface": {"prefs": {"show_scenario_picture": False, "open_scenario_description": True}}}))
+        {"interface": {"prefs": {"show_scenario_picture": False, "open_scenario_description": True}}}), encoding="utf-8")
     (projects.study_dir(projects.StudyRef("P", "s1")) / "env.json").write_text(json.dumps(
-        {"interface": {"prefs": {"show_scenario_picture": True}}}))
+        {"interface": {"prefs": {"show_scenario_picture": True}}}), encoding="utf-8")
     s1, s2 = make_session(study="P/s1"), make_session(study="P/s2")
     assert any(c["type"] == "image" for c in _info_view(s1))  # the study beats its project
     assert not any(c["type"] == "image" for c in _info_view(s2))  # the project's default
@@ -173,7 +173,7 @@ def test_admin_can_lock_the_settings_for_participants(hani2_home):
     projects.create_study("P/locked")
     (projects.study_dir(projects.StudyRef("P", "locked")) / "env.json").write_text(json.dumps({"interface": {
         "participant_settings": {"show_scenario_picture": False, "open_scenario_description": False},
-        "prefs": {"show_scenario_picture": False}}}))
+        "prefs": {"show_scenario_picture": False}}}), encoding="utf-8")
     s = make_session(study="P/locked")
     ui = s.snapshot()["interface"]["participant_settings"]
     assert ui["show_scenario_picture"] is False and ui["open_scenario_description"] is False
@@ -196,10 +196,10 @@ def test_picture_style_is_a_layered_participant_setting(hani2_home):
     projects.create_study("P/wm")
     projects.create_study("P/locked")
     (projects.study_dir(projects.StudyRef("P", "wm")) / "env.json").write_text(json.dumps(
-        {"interface": {"prefs": {"scenario_picture_style": "watermark"}}}))
+        {"interface": {"prefs": {"scenario_picture_style": "watermark"}}}), encoding="utf-8")
     (projects.study_dir(projects.StudyRef("P", "locked")) / "env.json").write_text(json.dumps({"interface": {
         "prefs": {"scenario_picture_style": "large"},
-        "participant_settings": {"scenario_picture_style": False}}}))
+        "participant_settings": {"scenario_picture_style": False}}}), encoding="utf-8")
     s = make_session(study="P/wm")
     assert next(c for c in _info_view(s) if c["type"] == "figure")["placement"] == "watermark"
     assert s.set_pref("scenario_picture_style", "small")  # the participant's own choice

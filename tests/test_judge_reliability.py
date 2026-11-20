@@ -229,7 +229,7 @@ def test_leaderboard_leaves_out_components_that_are_not_ready(hani2_home, monkey
     assert any("without a judge reliability report" in w for w in off["warnings"])
     # official with the report named in env.json (relative: the settings folder)
     (hani2_home / "settings").mkdir(parents=True, exist_ok=True)
-    (hani2_home / "settings" / "rel.json").write_text(json.dumps(rep))
+    (hani2_home / "settings" / "rel.json").write_text(json.dumps(rep), encoding="utf-8")
     write_settings(hani2_home, "env.json", {"evaluation": {"reliability": {"report": "rel.json"}}})
     env = leaderboard(rows, "han", "interaction", n_boot=0, official=True)
     assert env["components"] == gated["components"] and env["reliability"]["report"].endswith("rel.json")
@@ -265,7 +265,7 @@ def test_cli_report_and_gated_leaderboard(hani2_home, monkeypatch, tmp_path):
     args = ["replay", "judge-reliability", str(folder), "-j", JUDGES[0], "-j", JUDGES[1], "-o", str(out)]
     r = CliRunner().invoke(app, args)
     assert r.exit_code == 0, r.output
-    rep = json.loads(out.read_text())
+    rep = json.loads(out.read_text(encoding="utf-8"))
     comp = {c["name"]: c for c in rep["components"]}
     assert rep["recordings"] == 12 and not rep["errors"]
     assert {"ja_helpfulness", "ja_overall", "jh_engagement", "jh_use_of_assistant", "assertions_met",
@@ -283,7 +283,7 @@ def test_cli_report_and_gated_leaderboard(hani2_home, monkeypatch, tmp_path):
     assert CliRunner().invoke(app, args).exit_code == 0 and len(calls) == n  # from the cache
     # --all-soft adds the columns no score uses (first_critical is nominal)
     r2 = CliRunner().invoke(app, args[:-2] + ["--all-soft", "-o", str(tmp_path / "all.json")])
-    allc = {c["name"]: c for c in json.loads((tmp_path / "all.json").read_text())["components"]}
+    allc = {c["name"]: c for c in json.loads((tmp_path / "all.json").read_text(encoding="utf-8"))["components"]}
     assert r2.exit_code == 0 and allc["first_critical"]["level"] == "nominal" and not allc["first_critical"]["in_score"]
     # the leaderboard reads the report
     n = len(calls)

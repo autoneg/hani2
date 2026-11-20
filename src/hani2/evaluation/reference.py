@@ -160,7 +160,7 @@ def figure_svg(name: str) -> str:
     """The SVG of a figure (``FIGURES``), to inline in a page."""
     if name not in FIGURES:
         raise KeyError(name)
-    return (FIG_DIR / f"{name}.svg").read_text().strip()
+    return (FIG_DIR / f"{name}.svg").read_text(encoding="utf-8").strip()
 
 
 def _metrics() -> list[Metric]:

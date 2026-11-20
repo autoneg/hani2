@@ -269,7 +269,7 @@ class SessionRecorder:
             info.update(projects.stamp(getattr(s, "study_ref", None)))
         except Exception:
             pass
-        final.with_name(f"{rec_id}.json").write_text(json.dumps(_clean(info), indent=1))
+        final.with_name(f"{rec_id}.json").write_text(json.dumps(_clean(info), indent=1), encoding="utf-8")
 
     def close(self) -> None:
         self.finalize()

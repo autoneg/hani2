@@ -78,7 +78,7 @@ def read_file(path: Path) -> dict[str, Any]:
     if not Path(path).is_file():
         return out
     try:
-        data = yaml.safe_load(Path(path).read_text()) or {}
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
         if not isinstance(data, dict):
             raise ValueError("expected a mapping with groups, offer and placement")
         groups = data.get("groups") or {}
@@ -137,7 +137,7 @@ def _rw(layer_dir: Path) -> tuple[Path, dict[str, Any]]:
     raw: dict[str, Any] = {}
     if f.is_file():
         try:
-            raw = yaml.safe_load(f.read_text()) or {}
+            raw = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
         except Exception as e:  # noqa: BLE001
             raise ValueError(f"cannot read {f}: {e}") from None
         if not isinstance(raw, dict):
@@ -150,7 +150,7 @@ def _save(f: Path, raw: dict[str, Any]) -> Path:
     # an empty ``offer`` is kept: it means "no tool", while no ``offer`` means "every tool"
     clean = {k: v for k, v in raw.items() if v not in (None, {}, []) or (k == "offer" and v == [])}
     tmp = f.with_suffix(".yaml.tmp")
-    tmp.write_text(yaml.safe_dump(clean, sort_keys=False, allow_unicode=True))
+    tmp.write_text(yaml.safe_dump(clean, sort_keys=False, allow_unicode=True), encoding="utf-8")
     tmp.replace(f)
     return f
 

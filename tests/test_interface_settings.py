@@ -14,7 +14,7 @@ from hani2.testing import make_session
 
 def _write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def layered(hani2_home, tmp_path, monkeypatch):
     """time_limit set at every level: settings 100 < overrides 200 < project 300 < study 400."""
     _write(hani2_home / "settings" / "env.json", {"negotiation": {"time_limit": 100, "n_steps": 11, "step_time_limit": 10}})
     ov = tmp_path / "overrides.yaml"
-    ov.write_text("negotiation:\n  time_limit: 200\n  n_steps: 22\n  step_time_limit: 20\nassistant:\n  autonomy: semi\n")
+    ov.write_text("negotiation:\n  time_limit: 200\n  n_steps: 22\n  step_time_limit: 20\nassistant:\n  autonomy: semi\n", encoding="utf-8")
     monkeypatch.setenv(OVERRIDES_ENV_VAR, str(ov))
     projects.create_project("P")
     projects.create_study("P/s1")
@@ -34,12 +34,12 @@ def layered(hani2_home, tmp_path, monkeypatch):
 
 def test_overrides_file_maps_kinds_and_env_keys(tmp_path):
     f = tmp_path / "o.yaml"
-    f.write_text("interface:\n  notifications: {toast_seconds: 2}\nassistant: {autonomy: suggest}\nmodels: {default: ['ollama:x']}\n")
+    f.write_text("interface:\n  notifications: {toast_seconds: 2}\nassistant: {autonomy: suggest}\nmodels: {default: ['ollama:x']}\n", encoding="utf-8")
     out = read_overrides_file(f)
     assert out["env.json"] == {"interface": {"notifications": {"toast_seconds": 2}}}
     assert out["assistant_settings.json"] == {"autonomy": "suggest"}
     assert out["models.json"] == {"default": ["ollama:x"]}
-    f.write_text("- not a mapping\n")
+    f.write_text("- not a mapping\n", encoding="utf-8")
     with pytest.raises(ValueError):
         read_overrides_file(f)
 
@@ -76,7 +76,7 @@ def test_cli_rejects_a_bad_settings_file(tmp_path, monkeypatch):
     from hani2.cli import app
 
     bad = tmp_path / "bad.yaml"
-    bad.write_text("- 1\n")
+    bad.write_text("- 1\n", encoding="utf-8")
     r = CliRunner().invoke(app, ["--settings", str(bad), "--no-browser", "info"])
     assert r.exit_code != 0 and "mapping" in r.output
 

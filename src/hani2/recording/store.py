@@ -71,7 +71,7 @@ def _quick_info(path: Path) -> dict:
     side = path.with_name(f"{rid}.json")
     if side.is_file() and path.name.endswith(".hrec"):
         try:
-            return json.loads(side.read_text())
+            return json.loads(side.read_text(encoding="utf-8"))
         except Exception:
             pass
     recs = read_records(path)

@@ -207,7 +207,7 @@ def read_index(layer_dir: Path) -> dict[str, dict[str, dict[str, Any]]]:
     if not f.is_file():
         return {}
     try:
-        data = yaml.safe_load(f.read_text()) or {}
+        data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
         if not isinstance(data, dict):
             raise ValueError("expected a mapping of kinds")
         return {k: {str(n): dict(e) for n, e in (v or {}).items() if isinstance(e, dict)}
@@ -224,7 +224,7 @@ def check_writable(path: Path) -> None:
     if not f.is_file():
         return
     try:
-        data = yaml.safe_load(f.read_text())
+        data = yaml.safe_load(f.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001
         raise LibraryError(f"{f.name} at {f.parent} is not valid YAML ({e}); fix it by hand first", 409) from None
     if data is not None and not isinstance(data, dict):
@@ -263,7 +263,7 @@ def write_index(layer_dir: Path, data: dict[str, Any]) -> Path:
     f.parent.mkdir(parents=True, exist_ok=True)
     clean = {k: v for k, v in data.items() if v}
     tmp = f.with_suffix(".yaml.tmp")
-    tmp.write_text(yaml.safe_dump(clean, sort_keys=False, allow_unicode=True))
+    tmp.write_text(yaml.safe_dump(clean, sort_keys=False, allow_unicode=True), encoding="utf-8")
     tmp.replace(f)
     return f
 
@@ -1321,7 +1321,7 @@ def put_default_set(name: str | None, layer: "str | Layer | None" = None) -> dic
     else:
         data.pop("default", None)
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
+    f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return get_default_set(la)
 
 
@@ -1405,7 +1405,7 @@ def _put_set(la: Layer, name: str, entries: list[str], rename_from: str | None) 
     sets[name] = entries
     data["sets"] = sets
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
+    f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return f
 
 
@@ -1430,7 +1430,7 @@ def _put_group_file(kind: str, la: Layer, name: str, entries: list[str], descrip
         src = Path(lower["path"]) if lower else None
     if src is not None:
         try:
-            data = json.loads(src.read_text())
+            data = json.loads(src.read_text(encoding="utf-8"))
             current = dict(data) if isinstance(data, dict) else {groups.MEMBERS_KEY[gk]: data}
         except Exception:  # noqa: BLE001 - a broken file is replaced
             current = {}
@@ -1457,7 +1457,7 @@ def _put_group_file(kind: str, la: Layer, name: str, entries: list[str], descrip
     f = d / f"{name}.json"
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(clean, indent=2))
+    tmp.write_text(json.dumps(clean, indent=2), encoding="utf-8")
     if old.is_file() and old.resolve() != f.resolve():
         old.unlink()
     tmp.replace(f)
@@ -1485,7 +1485,7 @@ def delete_group(kind: str, name: str, layer: "str | Layer | None" = None) -> di
         check_writable(f)
         data = scenario_sets._read(f)
         data["sets"] = {k: v for k, v in (data.get("sets") or {}).items() if str(k).lower() != name.lower()}
-        f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
+        f.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     elif kind == "tools":
         from hani2 import tool_groups
 

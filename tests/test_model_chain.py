@@ -5,6 +5,7 @@ and model calls are faked."""
 import json
 import os
 import stat
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -21,7 +22,7 @@ SECRET = "sk-test-SECRET-0123456789abcdef"
 def write(home, rel, data):
     p = home / rel
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data) if not isinstance(data, str) else data)
+    p.write_text(json.dumps(data) if not isinstance(data, str) else data, encoding="utf-8")
     return p
 
 
@@ -362,8 +363,9 @@ def test_secrets_are_private_and_masked(hani2_home):
     conns.add({"name": "k", "provider": "anthropic", "auth": "api_key"}, api_key=SECRET,
               headers={"X-Team": "hdr-secret-value"})
     sec = hani2_home / "settings/secrets/connections.json"
-    assert stat.S_IMODE(sec.stat().st_mode) == 0o600
-    assert SECRET not in (hani2_home / "settings/connections.json").read_text()
+    if sys.platform != "win32":  # Windows has no POSIX permission bits
+        assert stat.S_IMODE(sec.stat().st_mode) == 0o600
+    assert SECRET not in (hani2_home / "settings/connections.json").read_text(encoding="utf-8")
     pub = json.dumps(conns.public(conns.get("k")))
     assert SECRET not in pub and "hdr-secret-value" not in pub
     assert SECRET not in conns.redact(f"error with {SECRET} and Bearer abcdefghijklmnopqrstuvwxyz")
@@ -493,7 +495,7 @@ def test_admin_models_layers(admin, study):
     home = study
     body = {"default": ["ollama:a", {"provider": "ollama", "model": "a", "params": {"temperature": 0.1}}]}
     assert admin.put("/api/admin/models?layer=study:P1/s1", json=body).status_code == 200
-    assert json.loads((home / "projects/P1/studies/s1/models.json").read_text()) == body
+    assert json.loads((home / "projects/P1/studies/s1/models.json").read_text(encoding="utf-8")) == body
     g = admin.get("/api/admin/models?layer=study:P1/s1").json()
     assert g["effective"]["assistant"]["source"] == "study:P1/s1" and g["inherited"]["assistant"]["source"] == "legacy"
     # a study-bound console must name the layer
@@ -579,7 +581,7 @@ def test_a_bare_list_models_file_reads_as_the_default_chain(admin, hani2_home):
     assert g.status_code == 200 and g.json()["own"] == {"default": ["ollama:a"]}
     assert admin.get("/api/admin/models?layer=settings").json()["own"] == {"default": ["ollama:a"]}
     assert admin.patch("/api/admin/settings/models?layer=settings", json={"judge": ["ollama:j"]}).status_code == 200
-    assert json.loads((hani2_home / "settings/models.json").read_text()) == {"default": ["ollama:a"],
+    assert json.loads((hani2_home / "settings/models.json").read_text(encoding="utf-8")) == {"default": ["ollama:a"],
                                                                             "judge": ["ollama:j"]}
 
 

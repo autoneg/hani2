@@ -183,7 +183,7 @@ def read_json_own(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         raise LayerError(409, f"{path.name} in this layer is not valid JSON") from None
     if not isinstance(data, dict):
@@ -194,7 +194,7 @@ def read_json_own(path: Path) -> dict:
 def write_json_own(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f".{path.name}.tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     tmp.replace(path)
 
 

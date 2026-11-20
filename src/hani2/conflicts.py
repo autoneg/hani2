@@ -101,7 +101,7 @@ def settings_problems() -> list[str]:
         f = settings_dir() / FILE
         if f.exists():
             try:
-                data = json.loads(f.read_text())
+                data = json.loads(f.read_text(encoding="utf-8"))
             except json.JSONDecodeError as e:
                 out.append(f"{f} is not valid JSON ({e})")
             else:

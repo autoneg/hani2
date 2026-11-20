@@ -74,14 +74,14 @@ def test_every_bundled_set_only_lists_known_types():
 
 def test_user_sets_and_a_changed_order_file(hani2_home):
     (hani2_home / "settings").mkdir(parents=True)
-    (hani2_home / "settings" / "scenario_sets.yaml").write_text("sets:\n  Mine: [Lease, Trade]\n")
+    (hani2_home / "settings" / "scenario_sets.yaml").write_text("sets:\n  Mine: [Lease, Trade]\n", encoding="utf-8")
     assert scenario_sets.resolve("mine") == "Mine" and "HAN2026" in scenario_sets.set_names()
-    (hani2_home / "settings" / "scenario_order.txt").write_text("Trade\nIsland\nGrocery\n")
+    (hani2_home / "settings" / "scenario_order.txt").write_text("Trade\nIsland\nGrocery\n", encoding="utf-8")
     assert scenario_sets.active_set() == "HAN2026"  # an unchanged copy (as `hani2 setup` writes) is not custom
-    (hani2_home / "settings" / "scenario_order.txt").write_text("Island\n")
+    (hani2_home / "settings" / "scenario_order.txt").write_text("Island\n", encoding="utf-8")
     assert scenario_sets.active_set() == "Custom" and store.scenario_order() == ["Island"]
     assert store.scenario_order("Mine") == ["Lease", "Trade"]
-    (hani2_home / "settings" / "scenario_sets.yaml").write_text("sets: [broken")
+    (hani2_home / "settings" / "scenario_sets.yaml").write_text("sets: [broken", encoding="utf-8")
     assert "HAN2026" in scenario_sets.set_names()  # a broken file is ignored
 
 
@@ -136,7 +136,7 @@ STORIES = [Story(
 
 def test_scenario_types_from_a_file(tmp_path, monkeypatch, hani2_home):
     f = tmp_path / "shirt.py"
-    f.write_text(STORY_FILE)
+    f.write_text(STORY_FILE, encoding="utf-8")
     monkeypatch.setenv("HANI2_SCENARIO_TYPES", str(f))
     assert "TestShirt" in registry.load_plugins()
     s, info, _ = store.load_scenario("TestShirt", 0)
@@ -150,7 +150,7 @@ def test_scenario_types_from_a_file(tmp_path, monkeypatch, hani2_home):
 def test_catalog_page_lists_every_type_and_set():
     from pathlib import Path
 
-    page = (Path(__file__).resolve().parents[1] / "docs" / "guide" / "scenario-sets.md").read_text()
+    page = (Path(__file__).resolve().parents[1] / "docs" / "guide" / "scenario-sets.md").read_text(encoding="utf-8")
     sets, _ = scenario_sets.load_sets()
     for name in sets:
         assert name == "Custom" or f"## {name}\n" in page, name
@@ -172,7 +172,7 @@ def test_sets_made_of_sets(hani2_home):
         "  B: [Trade, Island, '@A']\n"
         "  C: [a, b, Grocery, Lease]\n"  # bare set names (any case), duplicates dropped
         "  Loop1: [Loop2, Energy]\n"
-        "  Loop2: [Loop1, Chores]\n"
+        "  Loop2: [Loop1, Chores]\n", encoding="utf-8"
     )
     sets, _ = scenario_sets.load_sets()
     assert sets["B"] == ["Trade", "Island", "Lease"]

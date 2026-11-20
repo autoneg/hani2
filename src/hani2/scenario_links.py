@@ -40,7 +40,7 @@ def read_file(path: Path) -> dict[str, str]:
     if not path.is_file():
         return {}
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if isinstance(data, dict) and isinstance(data.get("links"), dict):
             data = data["links"]
         if not isinstance(data, dict):
@@ -76,7 +76,7 @@ def write_link(layer_dir: Path, name: str, target: Path | str) -> Path:
     links = read_file(f)
     links[name] = str(target)
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(yaml.safe_dump({"links": links}, sort_keys=False, allow_unicode=True))
+    f.write_text(yaml.safe_dump({"links": links}, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return f
 
 
@@ -86,5 +86,5 @@ def remove_link(layer_dir: Path, name: str) -> bool:
     if name not in links:
         return False
     del links[name]
-    f.write_text(yaml.safe_dump({"links": links}, sort_keys=False, allow_unicode=True))
+    f.write_text(yaml.safe_dump({"links": links}, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return True

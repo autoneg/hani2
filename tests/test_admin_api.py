@@ -113,7 +113,7 @@ def test_layers(admin, studies, monkeypatch):
     assert by["settings"]["label"] == "All projects (settings folder)" and by["settings"]["kind"] == "settings"
     assert by["project:HI2027"]["label"] == "Project HI2027" and by["project:HI2027"]["project"] == "HI2027"
     assert by["study:HI2027/hi-01"]["label"] == "Study HI2027/hi-01" and by["study:HI2027/hi-01"]["study"] == "hi-01"
-    assert by["study:HI2027/hi-01"]["path"].endswith("projects/HI2027/studies/hi-01")
+    assert by["study:HI2027/hi-01"]["path"].replace("\\", "/").endswith("projects/HI2027/studies/hi-01")
     assert r["bound"] is None and r["default_study"] is None
     assert admin.get("/s/HI2027/hi-01/api/admin/layers").json()["bound"] == "study:HI2027/hi-01"
     monkeypatch.setenv("HANI2_STUDY", "HI2027/hi-01")
@@ -141,7 +141,7 @@ def test_layer_explicit_saves(admin, studies):
     assert not (home / "settings" / "llm_settings.json").exists()
     assert not (home / "projects/HI2027/studies/hi-01/llm_settings.json").exists()
     assert admin.put(f"{base}?layer=study:HI2027/hi-01", json={"temperature": 0.9}).json() == {"ok": True}
-    st = json.loads((home / "projects/HI2027/studies/hi-01/llm_settings.json").read_text())
+    st = json.loads((home / "projects/HI2027/studies/hi-01/llm_settings.json").read_text(encoding="utf-8"))
     assert st == {"temperature": 0.9}
     g = admin.get(f"{base}?layer=study:HI2027/hi-01").json()
     assert g["layer"] == "study:HI2027/hi-01" and g["own"] == {"temperature": 0.9}
@@ -163,7 +163,7 @@ def test_layer_explicit_saves(admin, studies):
     assert admin.delete(f"{base}?layer=project:HI2027").json() == {"ok": True}
     assert not (home / "projects/HI2027/llm_settings.json").exists()
     assert admin.get(f"{base}?layer=project:HI2027").json()["own"] == {}
-    assert json.loads((home / "settings/llm_settings.json").read_text()) == {"model": "m-settings"}
+    assert json.loads((home / "settings/llm_settings.json").read_text(encoding="utf-8")) == {"model": "m-settings"}
     assert admin.patch("/api/admin/settings/consent?layer=settings", json={"x": 1}).status_code == 400
 
 
@@ -188,20 +188,20 @@ def test_409_when_bound_without_layer(admin, studies):
                                       "(?layer=settings, ?layer=project:HI2027 or ?layer=study:HI2027/hi-01)")
     assert not (studies / "settings/llm_settings.json").exists()
     assert admin.put(pre + "?layer=settings", json={"model": "x"}).status_code == 200
-    assert json.loads((studies / "settings/llm_settings.json").read_text()) == {"model": "x"}
+    assert json.loads((studies / "settings/llm_settings.json").read_text(encoding="utf-8")) == {"model": "x"}
     # unbound: back-compatible write of the settings folder
     assert admin.put("/api/admin/settings/llm", json={"model": "y"}).status_code == 200
-    assert json.loads((studies / "settings/llm_settings.json").read_text()) == {"model": "y"}
+    assert json.loads((studies / "settings/llm_settings.json").read_text(encoding="utf-8")) == {"model": "y"}
     assert admin.put("/api/admin/settings/consent?study=HI2027/hi-01", json={"text": "t"}).status_code == 200
 
 
 def test_text_settings_layers(admin, studies):
     home = studies
     (home / "settings").mkdir(exist_ok=True)
-    (home / "settings/consent.md").write_text("settings consent")
+    (home / "settings/consent.md").write_text("settings consent", encoding="utf-8")
     r = admin.get("/api/admin/settings/consent?layer=study:HI2027/hi-01").json()
     assert r["text"] == "" and r["exists"] is False and r["effective"] == "settings consent"
-    assert r["source"] == "settings" and r["source_path"].endswith("settings/consent.md")
+    assert r["source"] == "settings" and r["source_path"].replace("\\", "/").endswith("settings/consent.md")
     assert admin.put("/api/admin/settings/consent?layer=project:HI2027", json={"text": "project consent"}).json()["ok"]
     r = admin.get("/api/admin/settings/consent?layer=study:HI2027/hi-01").json()
     assert r["effective"] == "project consent" and r["source"] == "project:HI2027"
@@ -233,16 +233,16 @@ def test_template_preview_with_layer(admin, studies):
 def test_study_info_results_rows(admin, studies):
     d = studies / "projects/HI2027/studies/hi-01/results"
     (d / "u1").mkdir(parents=True)
-    (d / "u1/results.csv").write_text("a,b\n1,2\n3,4\n")
+    (d / "u1/results.csv").write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
     (d / "u2").mkdir()
-    (d / "u2/results.csv").write_text("a,b\n5,6\n")
+    (d / "u2/results.csv").write_text("a,b\n5,6\n", encoding="utf-8")
     r = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
     assert r["participants"] == 2 and r["results_rows"] == 3
     assert "results_rows" not in admin.get("/api/admin/projects/HI2027/studies/hi-01").json()["overrides"]
     # what the GET adds is dropped on PUT, so the console can send back what it read
     r = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
     assert admin.put("/api/admin/projects/HI2027/studies/hi-01", json={"data": r}).status_code == 200
-    sdata = yaml.safe_load((studies / "projects/HI2027/studies/hi-01/study.yaml").read_text())
+    sdata = yaml.safe_load((studies / "projects/HI2027/studies/hi-01/study.yaml").read_text(encoding="utf-8"))
     assert not {"results_rows", "participants", "links", "scheduling_effective", "errors"} & set(sdata)
 
 
@@ -274,27 +274,27 @@ def test_pools_read_modify_write(admin, studies):
     pf = home / "projects/HI2027/project.yaml"
     admin.put("/api/admin/pools/opponent?layer=settings", json={"items": [":template"]})
     s = admin.get("/api/admin/pools/opponent?layer=settings").json()
-    assert s["items"] == [":template"] and s["key"] == "opponents" and s["file"].endswith("settings/env.json")
+    assert s["items"] == [":template"] and s["key"] == "opponents" and s["file"].replace("\\", "/").endswith("settings/env.json")
     assert s["editable"] and len(s["effective"]) > 3
-    assert json.loads((home / "settings/env.json").read_text()) == {"opponents": [":template"]}
+    assert json.loads((home / "settings/env.json").read_text(encoding="utf-8")) == {"opponents": [":template"]}
     g = admin.put("/api/admin/pools/opponent?layer=project:HI2027",
                   json={"items": ["BoulwareTBNegotiator", "LinearTBNegotiator"]}).json()
     assert g["key"] == "defaults.opponents" and g["items"] == ["BoulwareTBNegotiator", "LinearTBNegotiator"]
     assert g["inherited"] == [":template"] and g["effective"] == ["BoulwareTBNegotiator", "LinearTBNegotiator"]
-    data = yaml.safe_load(pf.read_text())
+    data = yaml.safe_load(pf.read_text(encoding="utf-8"))
     assert data["defaults"] == {"n_required": 2, "opponents": ["BoulwareTBNegotiator", "LinearTBNegotiator"]}
     assert data["full_name"] == "Human-AI 2027" and data["kind"] == "assistant"
     admin.put("/api/admin/projects/HI2027/studies/hi-01", json={"data": {"type": "online", "title": "T", "wave": 3}})
     st = admin.put("/api/admin/pools/opponents?layer=study:HI2027/hi-01", json={"items": ["LinearTBNegotiator"]}).json()
     assert st["key"] == "overrides.opponents" and st["inherited"] == ["BoulwareTBNegotiator", "LinearTBNegotiator"]
-    sdata = yaml.safe_load((home / "projects/HI2027/studies/hi-01/study.yaml").read_text())
+    sdata = yaml.safe_load((home / "projects/HI2027/studies/hi-01/study.yaml").read_text(encoding="utf-8"))
     assert sdata["overrides"] == {"opponents": ["LinearTBNegotiator"]} and sdata["title"] == "T" and sdata["wave"] == 3
     # empty list removes the key (and the empty container)
     admin.put("/api/admin/pools/opponent?layer=study:HI2027/hi-01", json={"items": []})
-    sdata = yaml.safe_load((home / "projects/HI2027/studies/hi-01/study.yaml").read_text())
+    sdata = yaml.safe_load((home / "projects/HI2027/studies/hi-01/study.yaml").read_text(encoding="utf-8"))
     assert "overrides" not in sdata and sdata["title"] == "T"
     admin.put("/api/admin/pools/opponent?layer=project:HI2027", json={"items": []})
-    assert yaml.safe_load(pf.read_text())["defaults"] == {"n_required": 2}
+    assert yaml.safe_load(pf.read_text(encoding="utf-8"))["defaults"] == {"n_required": 2}
     assert admin.put("/api/admin/pools/opponent?layer=settings", json={"items": "x"}).status_code == 400
     assert admin.get("/api/admin/pools/bogus?layer=settings").status_code == 400
 
@@ -321,7 +321,7 @@ def test_balance(admin, studies):
     path.write_text(json.dumps({"version": 1, "next_index": 2, "humans": {
         "u1": {"index": 0, "first_seen": "t0", "assistant": "level1_hello:HelloAgent", "assistant_group": "",
                "assigned_at": "t1"},
-        "u2": {"index": 1, "first_seen": "t2"}}}))
+        "u2": {"index": 1, "first_seen": "t2"}}}), encoding="utf-8")
     r = admin.get("/api/admin/projects/HI2027/studies/hi-01/balance").json()
     assert r["pool"] == ["level1_hello:HelloAgent", "level2_rules:RulesAgent"] and r["source"] == "project"
     assert r["counts"] == {"level1_hello:HelloAgent": 1, "level2_rules:RulesAgent": 0} and r["humans"] == 2
@@ -416,7 +416,7 @@ def test_scenario_upload_details_and_layers(admin, studies, tmp_path):
     assert pz["layer"] == "settings" and pz["removable"] is False
     d = admin.get("/api/admin/scenarios/Zebra?layer=settings").json()
     assert d["generated"] is False and d["kind"] == "folder" and d["pool"] == ["Zebra"]
-    assert d["loaded_from"].endswith("scenarios/Zebra")
+    assert d["loaded_from"].replace("\\", "/").endswith("scenarios/Zebra")
     assert [r["name"] for r in d["roles"]] == ["buyer", "seller"] and d["issues"][0]["values"] == ["a", "b", "c"]
     assert admin.get("/api/admin/scenarios/Zebra?layer=settings&generate=1").status_code == 400
     assert admin.get("/api/admin/scenarios/Zebra?layer=settings&scenario=zzz").status_code == 404
@@ -436,7 +436,7 @@ def test_scenario_upload_details_and_layers(admin, studies, tmp_path):
     make_scenario(ext / "Dingo", "Dingo")
     r = admin.post(f"{LIB}/scenarios/link?layer=project:HI2027", json={"target": str(ext / "Dingo")})
     assert r.status_code == 200, r.text
-    links = yaml.safe_load((home / "projects/HI2027/scenario_links.yaml").read_text())
+    links = yaml.safe_load((home / "projects/HI2027/scenario_links.yaml").read_text(encoding="utf-8"))
     assert links == {"links": {"Dingo": str((ext / "Dingo").resolve())}}
     d = admin.get("/api/admin/scenarios/Dingo?layer=study:HI2027/hi-01").json()
     assert d["kind"] == "link" and d["loaded_from"] == str((ext / "Dingo").resolve())
@@ -450,7 +450,7 @@ def test_scenario_upload_details_and_layers(admin, studies, tmp_path):
 def test_scenario_sets_and_default_set(admin, studies):
     home = studies
     (home / "settings").mkdir(exist_ok=True)
-    (home / "settings/scenario_sets.yaml").write_text("sets:\n  Mine: [Lease, Chores]\n")
+    (home / "settings/scenario_sets.yaml").write_text("sets:\n  Mine: [Lease, Chores]\n", encoding="utf-8")
     L = "?layer=study:HI2027/hi-01"
     r = admin.put(f"{LIB}/scenarios/groups/Wide{L}", json=["@Mine", "Energy", "Nonexistent", "@Ghost"]).json()
     assert r["expanded"] == ["Lease", "Chores", "Energy", "Nonexistent"]
@@ -466,14 +466,14 @@ def test_scenario_sets_and_default_set(admin, studies):
     assert d["here"] is None and d["effective"] and "Wide" in d["sets"]
     d = admin.put(f"{LIB}/scenarios/default{L}", json={"default": "wide"}).json()
     assert d["here"] == "Wide" and d["effective"] == "Wide"
-    sf = yaml.safe_load((home / "projects/HI2027/studies/hi-01/scenario_sets.yaml").read_text())
+    sf = yaml.safe_load((home / "projects/HI2027/studies/hi-01/scenario_sets.yaml").read_text(encoding="utf-8"))
     assert sf["default"] == "Wide" and sf["sets"]["Wide"][0] == "@Mine"
     assert admin.get(f"{LIB}/scenarios/default?layer=settings").json()["here"] is None
     assert admin.put(f"{LIB}/scenarios/default{L}", json={"default": "Nope"}).status_code == 404
     assert admin.put(f"{LIB}/scenarios/default{L}", json={"default": 3}).status_code == 400
     d = admin.put(f"{LIB}/scenarios/default{L}", json={"default": None}).json()
     assert d["here"] is None
-    assert "default" not in yaml.safe_load((home / "projects/HI2027/studies/hi-01/scenario_sets.yaml").read_text())
+    assert "default" not in yaml.safe_load((home / "projects/HI2027/studies/hi-01/scenario_sets.yaml").read_text(encoding="utf-8"))
     assert admin.put(f"{LIB}/scenarios/groups/Custom{L}", json=["Lease"]).status_code == 409
 
 
@@ -510,7 +510,7 @@ def test_opponent_upload_group_describe_and_remove(admin, studies):
     assert r.json()["notice"] and r.json()["items"][0]["name"] == "AdmFirst"
     items = {i["name"]: i for i in admin.get(f"{LIB}/opponents?layer=project:HI2027").json()["items"]}
     assert items["AdmFirst"]["groups"] == ["mine"] and items["AdmFirst"]["description"].startswith("A first")
-    g = json.loads((home / "projects/HI2027/groups/mine.json").read_text())
+    g = json.loads((home / "projects/HI2027/groups/mine.json").read_text(encoding="utf-8"))
     assert g["agents"] == [items["AdmFirst"]["spec"]]
     d = {x["entry"]: x for x in admin.post(f"{LIB}/opponents/describe?layer=project:HI2027",
                                           json=["AdmFirst", "@mine", ":llm", "no.such.Thing", "@ghost"]).json()["entries"]}

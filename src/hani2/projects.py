@@ -150,7 +150,7 @@ def read_yaml(path: Path) -> dict:
         if hit and hit[0] == mtime:
             return dict(hit[1])
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except Exception as e:  # noqa: BLE001 - a broken edit must not break the server
         print(f"[hani2] ignoring {path}: {e}")
         data = {}
@@ -166,7 +166,7 @@ def write_yaml(path: Path, data: dict) -> Path:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True))
+    tmp.write_text(yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     tmp.replace(path)
     return path
 

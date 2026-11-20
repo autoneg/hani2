@@ -37,7 +37,7 @@ def test_strict_never_generates(pool):
 
 def test_strict_reports_a_broken_slot(pool):
     _gen(pool, ["Lease"])
-    (pool / "Lease" / "0000Lease" / "Lease.yml").write_text("issues: [oops\n")
+    (pool / "Lease" / "0000Lease" / "Lease.yml").write_text("issues: [oops\n", encoding="utf-8")
     with pytest.raises(store.StrictScenarioError, match="cannot load"):
         store.load_scenario("Lease", 0, strict=True)
     _, info, _ = store.load_scenario("Lease", 0)  # not strict: replaced by a generated one

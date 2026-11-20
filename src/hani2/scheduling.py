@@ -831,11 +831,11 @@ def markdown_reference() -> str:
 def write_docs(path: str | Path) -> bool:
     """Rewrite the generated part of the docs page; ``True`` when it changed."""
     p = Path(path)
-    text = p.read_text()
+    text = p.read_text(encoding="utf-8")
     a, b = text.index(DOCS_START), text.index(DOCS_END)
     new = text[: a + len(DOCS_START)] + "\n\n" + markdown_reference() + "\n" + text[b:]
     if new != text:
-        p.write_text(new)
+        p.write_text(new, encoding="utf-8")
         return True
     return False
 

@@ -108,7 +108,7 @@ def _locked(path: Path) -> Iterator[None]:
 
 def _read(path: Path) -> dict[str, Any]:
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(data, dict):
             data.setdefault("humans", {})
             return data
@@ -125,7 +125,7 @@ def _read(path: Path) -> dict[str, Any]:
 
 def _write(path: Path, data: dict[str, Any]) -> None:
     tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-    tmp.write_text(json.dumps(data, indent=1))
+    tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
     tmp.replace(path)
 
 
@@ -328,7 +328,7 @@ def _negotiations_done(session: Any) -> int:
     try:
         import csv
 
-        with open(Path(path) / "results.csv", newline="") as fh:
+        with open(Path(path) / "results.csv", newline="", encoding="utf-8") as fh:
             return max(0, sum(1 for _ in csv.reader(fh)) - 1)
     except (OSError, TypeError):
         return int(getattr(session, "round_number", 0) or 0)

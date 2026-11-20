@@ -702,7 +702,7 @@ def generate_pool(base: Path | str, n: int, levels: dict[str, list[str]] | None 
             f"({v.measured['zopa_deals']} deals) tries={c.tries}")
     manifest = dict(category=category, seed=seed, requested=n, levels=levels or {}, scenarios=entries,
                     failed=failed, factors={k: dict(kind=f.kind, levels=f.level_names) for k, f in FACTORS.items()})
-    (folder / MANIFEST).write_text(json.dumps(manifest, indent=1, default=str))
+    (folder / MANIFEST).write_text(json.dumps(manifest, indent=1, default=str), encoding="utf-8")
     return manifest
 
 
@@ -729,7 +729,7 @@ def run_pool(folder: Path | str, home: Path | str, *, driver: str = "Assistant",
     settings = home / "settings"
     settings.mkdir(parents=True, exist_ok=True)
     (settings / "autopilot_settings.json").write_text(json.dumps(
-        {"allowed": True, "driver": driver, "allowed_drivers": None, "step_delay": 0}))
+        {"allowed": True, "driver": driver, "allowed_drivers": None, "step_delay": 0}), encoding="utf-8")
     old_env = {k: os.environ.get(k) for k in ("HANI2_SCENARIOS_BASE", "HANI2_HOME")}
     os.environ["HANI2_SCENARIOS_BASE"] = str(folder.parent)
     try:

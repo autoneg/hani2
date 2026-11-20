@@ -15,5 +15,5 @@ from hani2.evaluation import metric_reference  # noqa: F401  (registers every me
 from hani2.evaluation.reference import reference_markdown
 
 out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1] / "docs" / "guide" / "metrics.md"
-out.write_text(reference_markdown())
+out.write_text(reference_markdown(), encoding="utf-8")
 print(f"wrote {out}")

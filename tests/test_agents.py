@@ -13,13 +13,13 @@ def test_query_override_and_group_file(hani2_home):
     assert session_agent_override({"agents": "AspirationNegotiator"}) == ["AspirationNegotiator"]
     g = hani2_home / "db" / "groups"
     g.mkdir(parents=True)
-    (g / "finalists.json").write_text(json.dumps(["NaiveTitForTatNegotiator", ":notext"]))
+    (g / "finalists.json").write_text(json.dumps(["NaiveTitForTatNegotiator", ":notext"]), encoding="utf-8")
     pool = session_agent_override({"group": "finalists"})
     assert pool[0] == "NaiveTitForTatNegotiator" and "LinearTBNegotiator" in pool
 
 
 def test_file_spec(tmp_path, monkeypatch):
-    (tmp_path / "mine.py").write_text("from negmas.sao import AspirationNegotiator\nclass Mine(AspirationNegotiator):\n    pass\n")
+    (tmp_path / "mine.py").write_text("from negmas.sao import AspirationNegotiator\nclass Mine(AspirationNegotiator):\n    pass\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     assert get_agent_type("file:mine.Mine").__name__ == "Mine"
 
@@ -64,7 +64,7 @@ def test_url_file_specs_need_an_admin(tmp_path, monkeypatch):
     from hani2.agents import session_agent_override
 
     marker = tmp_path / "ran.txt"
-    (tmp_path / "evil.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nclass X: pass\n")
+    (tmp_path / "evil.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nclass X: pass\n", encoding="utf-8")
     q = {"opponents": f"file:{tmp_path / 'evil'}.X,BoulwareTBNegotiator"}
     specs = session_agent_override(q, allow_files=False)
     assert specs and not any(str(s).startswith("file:") for s in specs)

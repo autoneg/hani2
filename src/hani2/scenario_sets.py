@@ -31,7 +31,7 @@ DEFAULT_SET = "HAN2026"
 
 def _read(path: Path) -> dict:
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not isinstance(data, dict):
             raise ValueError("expected a mapping with `sets` and `default`")
         sets = data.get("sets") or {}
@@ -95,7 +95,7 @@ def _order_lines(text: str) -> list[str]:
 def custom_order() -> list[str]:
     """The types in ``scenario_order.txt`` (the settings or experiment copy, or the bundled one)."""
     p = get_settings_file(ORDER_FILE)
-    return _order_lines(p.read_text()) if p.exists() else []
+    return _order_lines(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
 def custom_order_changed() -> bool:
@@ -104,7 +104,7 @@ def custom_order_changed() -> bool:
     bundled = DEFAULT_SETTINGS_DIR / ORDER_FILE
     if not p.exists() or p.resolve() == bundled.resolve():
         return False
-    return _order_lines(p.read_text()) != (_order_lines(bundled.read_text()) if bundled.exists() else [])
+    return _order_lines(p.read_text(encoding="utf-8")) != (_order_lines(bundled.read_text(encoding="utf-8")) if bundled.exists() else [])
 
 
 def set_names() -> list[str]:

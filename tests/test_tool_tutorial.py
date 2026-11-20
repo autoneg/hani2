@@ -85,7 +85,7 @@ def test_tools_folder_is_loaded_and_reloaded(hani2_home):
     folder = hani2_home / "tools"
     folder.mkdir(parents=True)
     f = folder / "hello.py"
-    f.write_text(HELLO.replace("VERSION", "one"))
+    f.write_text(HELLO.replace("VERSION", "one"), encoding="utf-8")
     s = make_session()
     tool = s.tool_controller.find("Hello")
     assert tool is not None and s.tool_state(tool)["pane"] == "side"
@@ -93,7 +93,7 @@ def test_tools_folder_is_loaded_and_reloaded(hani2_home):
     assert tool.render()[0]["text"] == "Hello one"
     assert registry.SOURCES[type(tool)] == str(f)
     # an edited file is picked up by the next session, without a restart
-    f.write_text(HELLO.replace("VERSION", "two"))
+    f.write_text(HELLO.replace("VERSION", "two"), encoding="utf-8")
     import os
     os.utime(f, (time.time() + 5, time.time() + 5))
     s2 = make_session()
@@ -103,7 +103,7 @@ def test_tools_folder_is_loaded_and_reloaded(hani2_home):
 def test_tools_env_var_paths_and_file_specs(hani2_home, tmp_path, monkeypatch):
     other = tmp_path / "mine"
     other.mkdir()
-    (other / "hello.py").write_text(HELLO.replace("VERSION", "env"))
+    (other / "hello.py").write_text(HELLO.replace("VERSION", "env"), encoding="utf-8")
     # --tools / HANI2_TOOLS mixes folders and classes, separated by commas
     monkeypatch.setenv("HANI2_TOOLS", f"{other},{Path(__file__).parents[1] / 'examples/tools/offer_counter.py'}:OfferCounter")
     assert registry.tool_paths()[-1] == other
@@ -121,7 +121,7 @@ def test_tools_env_var_paths_and_file_specs(hani2_home, tmp_path, monkeypatch):
 def test_broken_tool_file_does_not_break_sessions(hani2_home, capsys):
     folder = hani2_home / "tools"
     folder.mkdir(parents=True)
-    (folder / "broken.py").write_text("raise RuntimeError('boom')\n")
+    (folder / "broken.py").write_text("raise RuntimeError('boom')\n", encoding="utf-8")
     s = make_session()
     assert s.tool_controller.find("Preferences") is not None
     assert "could not load tools from" in capsys.readouterr().out

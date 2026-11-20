@@ -157,7 +157,7 @@ def get_settings_file(filename: str) -> Path:
 
 def read_settings_text(filename: str, default: str = "") -> str:
     path = get_settings_file(filename)
-    return path.read_text() if path.exists() else default
+    return path.read_text(encoding="utf-8") if path.exists() else default
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -203,7 +203,7 @@ def read_overrides_file(path: Path) -> dict[str, Any]:
     import yaml
 
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as e:
         raise ValueError(f"{path}: {e}") from None
     if not isinstance(data, dict):
@@ -262,7 +262,7 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
     bundled = DEFAULT_SETTINGS_DIR / filename
     if bundled.exists():
         try:
-            merged = _deep_merge(merged, json.loads(bundled.read_text()))
+            merged = _deep_merge(merged, json.loads(bundled.read_text(encoding="utf-8")))
         except json.JSONDecodeError:
             pass
     names = [*old_names, filename]
@@ -278,7 +278,7 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
             merged = _deep_merge(merged, layer)
         elif layer.exists():
             try:
-                merged = _deep_merge(merged, json.loads(layer.read_text()))
+                merged = _deep_merge(merged, json.loads(layer.read_text(encoding="utf-8")))
             except json.JSONDecodeError:
                 print(f"[hani2] could not parse {layer}; ignoring it")
     merged.pop("_comment", None)
@@ -288,7 +288,7 @@ def load_json_settings(filename: str, defaults: dict | None = None, old_names: t
 def read_json_own_file(path: Path) -> dict:
     """One layer's own JSON file as a mapping (``{}`` when missing or unreadable)."""
     try:
-        data = json.loads(path.read_text()) if path.exists() else {}
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     except (OSError, json.JSONDecodeError):
         return {}
     return data if isinstance(data, dict) else {}
@@ -297,7 +297,7 @@ def read_json_own_file(path: Path) -> dict:
 def save_json_settings(filename: str, data: dict) -> Path:
     path = settings_dir() / filename
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return path
 
 
@@ -337,12 +337,12 @@ def load_env() -> dict[str, Any]:
         # Persist a random secret so sessions survive restarts.
         secret_file = settings_dir() / ".cookie_secret"
         if secret_file.exists():
-            env["auth"]["cookie_secret"] = secret_file.read_text().strip()
+            env["auth"]["cookie_secret"] = secret_file.read_text(encoding="utf-8").strip()
         else:
             s = secrets.token_hex(32)
             try:
                 secret_file.parent.mkdir(parents=True, exist_ok=True)
-                secret_file.write_text(s)
+                secret_file.write_text(s, encoding="utf-8")
             except OSError:
                 pass
             env["auth"]["cookie_secret"] = s

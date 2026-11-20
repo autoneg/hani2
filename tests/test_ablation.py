@@ -241,12 +241,12 @@ def test_three_arms_share_cells(study, hani2_home, scripted):
         s.recorder.finalize()
         s.close()
     assert arms == {HELLO, "none"}
-    before = json.loads(store_path(study).read_text())
+    before = json.loads(store_path(study).read_text(encoding="utf-8"))
     cells = cells_of([hani2_home])
     assert cells and all(c["opponent"] == "ConcederTBNegotiator" for c in cells)
     runs = run_no_human(cells=cells, study=study, n_steps=4, timeout=60)
     assert runs and all(r["ok"] and r["assistant"] == HELLO for r in runs), runs
-    assert json.loads(store_path(study).read_text()) == before  # no participant slot taken
+    assert json.loads(store_path(study).read_text(encoding="utf-8")) == before  # no participant slot taken
     ev = evaluate_paths([hani2_home], ["outcome", "condition"])
     assert {r["condition"] for r in ev["rows"]} == {"team", "human_alone", "no_human"}
     assert all(r["opponent"] == "ConcederTBNegotiator" for r in ev["rows"])

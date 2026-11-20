@@ -71,8 +71,8 @@ def settings_get(kind: str, layer: Layer) -> dict:
     f = layer.dir / fname
     with binding(layer):
         src = get_settings_file(fname)
-    return {"layer": layer.id, "text": f.read_text() if f.exists() else "", "exists": f.exists(),
-            "effective": src.read_text() if src.exists() else "",
+    return {"layer": layer.id, "text": f.read_text(encoding="utf-8") if f.exists() else "", "exists": f.exists(),
+            "effective": src.read_text(encoding="utf-8") if src.exists() else "",
             "source": layer_of_path(src) if src.exists() else "bundled", "source_path": str(src)}
 
 
@@ -99,7 +99,7 @@ def settings_put(kind: str, layer: Layer, body: dict) -> dict:
         return {"ok": True}
     p = layer.dir / TEXT_FILES[kind]
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(str(body.get("text", "")))
+    p.write_text(str(body.get("text", "")), encoding="utf-8")
     return {"ok": True}
 
 
@@ -159,7 +159,7 @@ def _read_yaml_strict(path: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as e:
         raise LayerError(409, f"{path.name} is not valid YAML: {e}") from None
     if not isinstance(data, dict):

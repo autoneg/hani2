@@ -41,7 +41,7 @@ def client(hani2_home, monkeypatch):
 
 def _write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def _set_study(ref, **data):
@@ -242,13 +242,13 @@ def test_schedule_assistant_wins(study, monkeypatch):
     _set_study(study, assistants=[HELLO])
     d = projects.study_dir(study) / "results" / "prolific_S"
     d.mkdir(parents=True)
-    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
-    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}), encoding="utf-8")
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n", encoding="utf-8")
     (d / "schedule.json").write_text(json.dumps({"version": 2, "assistant": RULES, "negotiations": [
         {"slot": 0, "agent_class_name": "ConcederTBNegotiator", "scenario_type": "Trade", "scenario_index": 0,
          "time_limit": 60, "assistant": COACH},
         {"slot": 1, "agent_class_name": "LinearTBNegotiator", "scenario_type": "Trade", "scenario_index": 1,
-         "time_limit": 60}]}))
+         "time_limit": 60}]}), encoding="utf-8")
     s = prolific("S", study)
     assert s.round_plan["assistant"] == COACH and type(s.support_agent).__name__ == "DealCoach"
     assert s.assistant_choice.source == "schedule"
@@ -324,7 +324,7 @@ def test_rotation_offsets_unique_under_concurrency(tmp_path):
         t.join()
     assert sorted(out.values()) == list(range(n))  # unique and contiguous
     assert again == out  # kept per participant
-    assert (tmp_path / "_prolific_fallback_counter.txt").read_text() == str(n)
+    assert (tmp_path / "_prolific_fallback_counter.txt").read_text(encoding="utf-8") == str(n)
 
 
 # --------------------------------------------------------------------------- #
@@ -404,7 +404,7 @@ def test_attribution_in_results_events_and_recordings(study):
     assert vals and vals[-1]["assistant"] == HELLO and vals[-1]["opponent_group"] == "fin"
     if s.recorder is not None:
         s.recorder.finalize()
-        info = json.loads(next((s.ss["user_path"] / "recordings").glob("*.json")).read_text())
+        info = json.loads(next((s.ss["user_path"] / "recordings").glob("*.json")).read_text(encoding="utf-8"))
         assert info["assistant"] == HELLO and info["assistant_group"] == "duo" and info["opponent_group"] == "fin"
 
 
@@ -454,7 +454,7 @@ def test_admin_group_endpoints(study, client):
     assert client.put(f"{base}/assistant/pair", json=[HELLO, RULES]).json()["ok"]
     g = client.get(f"{base}/opponent/finalists").json()
     assert g["members"] == ["ConcederTBNegotiator"] and g["assistant"] == HELLO and g["description"] == "F"
-    assert json.loads((projects.project_dir("HI") / "assistant_groups" / "pair.json").read_text()) == \
+    assert json.loads((projects.project_dir("HI") / "assistant_groups" / "pair.json").read_text(encoding="utf-8")) == \
         {"assistants": [HELLO, RULES]}
     lst = client.get("/api/admin/groups?project=HI").json()
     keys = {(g["key"], g["source"]) for g in lst["opponent"]}
@@ -519,9 +519,9 @@ def test_schedule_opponent_outside_the_pool_has_no_group(study, monkeypatch):
     _write(projects.project_dir("HI") / "groups" / "fin.json", ["ConcederTBNegotiator"])
     d = projects.study_dir(study) / "results" / "prolific_G"
     d.mkdir(parents=True)
-    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}))
-    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n")
-    (d / "schedule.json").write_text(json.dumps([{"agent_class_name": "LinearTBNegotiator"}]))
+    (d / "prolific_session.json").write_text(json.dumps({"started_at": "2000-01-01T00:00:00", "scenario_type": "Trade"}), encoding="utf-8")
+    (d / "results.csv").write_text("ended_at,practice,n_human_actions,status\n1999-01-01T00:00:00,False,3,success\n", encoding="utf-8")
+    (d / "schedule.json").write_text(json.dumps([{"agent_class_name": "LinearTBNegotiator"}]), encoding="utf-8")
     s = prolific("G", study, query={"noautostart": "1", "group": "fin"})
     assert s.round_plan["partner"] == "LinearTBNegotiator" and s.round_plan["opponent_group"] == ""
 
@@ -529,9 +529,9 @@ def test_schedule_opponent_outside_the_pool_has_no_group(study, monkeypatch):
 def _participant_package(root: Path, pkg: str) -> None:
     """A submitted agent unpacked as scmlweb does: <root>/<pkg>/coach.py, imported as pkg.coach.Class."""
     (root / pkg).mkdir(parents=True)
-    (root / pkg / "__init__.py").write_text("")
+    (root / pkg / "__init__.py").write_text("", encoding="utf-8")
     (root / pkg / "coach.py").write_text(
-        "from level5_deal_coach import DealCoach\n\n\nclass MyCoach(DealCoach):\n    pass\n")
+        "from level5_deal_coach import DealCoach\n\n\nclass MyCoach(DealCoach):\n    pass\n", encoding="utf-8")
 
 
 def test_scmlweb_hi_test_group_for_a_signed_in_participant(study, tmp_path):
@@ -551,8 +551,8 @@ def test_scmlweb_hi_test_group_for_a_signed_in_participant(study, tmp_path):
 def test_scmlweb_han_test_group_plays_the_participants_agent(study, tmp_path):
     root = tmp_path / "agents" / "a456"
     root.mkdir(parents=True)
-    (root / "__init__.py").write_text("")
-    (root / "neg.py").write_text("from negmas.sao import BoulwareTBNegotiator\n\n\nclass Mine(BoulwareTBNegotiator):\n    pass\n")
+    (root / "__init__.py").write_text("", encoding="utf-8")
+    (root / "neg.py").write_text("from negmas.sao import BoulwareTBNegotiator\n\n\nclass Mine(BoulwareTBNegotiator):\n    pass\n", encoding="utf-8")
     g = projects.study_dir(study) / "results" / "groups"
     _write(g / "test_han_456_tok.json", {"syspath": [str(tmp_path / "agents")], "agents": ["a456.neg.Mine"]})
     s = make_session(user="anac_456", mode="main", partner=None, study=study, query={"group": "test_han_456_tok"})
