@@ -643,7 +643,7 @@ def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[
                 raise
             reason = conns.redact(f"{type(e).__name__}: {e}")[:300]
             if models is not None and resolution is None:
-                nxt = models.advance(purpose, reason)
+                nxt = models.advance(purpose, reason, failed=res)
             else:
                 skipped = res.skipped + [{"position": res.index + 1, "entry": res.entry.title if res.entry else "",
                                           "reason": reason}]
@@ -690,18 +690,25 @@ class SessionModels:
     def peek(self, purpose: str) -> Resolution | None:
         return self.pinned.get(purpose)
 
-    def advance(self, purpose: str, reason: str) -> Resolution:
-        """Move ``purpose`` to the next available entry after a hard failure."""
+    def advance(self, purpose: str, reason: str, failed: Resolution | None = None) -> Resolution:
+        """The next available entry after ``failed`` (default: the pinned entry) had a hard failure.
+
+        The next entry is found from the entry that failed, not from the pinned one, so a call whose
+        entry another call has already moved past still tries every later entry in order. The pinned
+        entry only moves forward."""
         with self._lock:
             cur = self.pinned.get(purpose) or self.get(purpose)
-            skipped = cur.skipped + [{"position": cur.index + 1, "entry": cur.entry.title if cur.entry else "",
-                                      "reason": reason}]
+            base = failed if failed is not None else cur
+            skipped = base.skipped + [{"position": base.index + 1, "entry": base.entry.title if base.entry else "",
+                                       "reason": reason}]
             with self._bound():
-                nxt = resolve(purpose, start=cur.index + 1, chain=cur.chain,
-                              source=Source(cur.source, {}, implicit=False), skipped=skipped)
-            if nxt.ok:
+                nxt = resolve(purpose, start=base.index + 1, chain=base.chain,
+                              source=Source(base.source, {}, implicit=False), skipped=skipped)
+            if nxt.ok and nxt.index > cur.index:
                 self.pinned[purpose] = nxt
-            self._announce(nxt, "model_fallback", previous=cur)
+                self._announce(nxt, "model_fallback", previous=cur)
+            elif not nxt.ok and base is cur:
+                self._announce(nxt, "model_fallback", previous=cur)
             return nxt
 
     def _announce(self, res: Resolution, action: str, previous: Resolution | None = None) -> None:

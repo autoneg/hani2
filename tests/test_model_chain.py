@@ -625,3 +625,43 @@ def test_llm_opponent_keys_never_reach_files(hani2_home, monkeypatch):
             if SECRET.encode() in data or b"hdr-secret-value-1" in data:
                 found.append(str(f))
     assert not found, found
+
+
+def test_every_fallback_is_tried_once_in_order_even_by_concurrent_callers(hani2_home, monkeypatch):
+    import threading
+
+    import litellm
+
+    write(hani2_home, "settings/models.json", ["ollama:a", "ollama:b", "ollama:c"])
+    tried: dict[str, list[str]] = {}
+    both_on_a = threading.Barrier(2, timeout=10)
+
+    def down(**kw):
+        model = kw["model"].split("/")[-1]
+        tried.setdefault(threading.current_thread().name, []).append(model)
+        if model == "a":
+            both_on_a.wait()  # both callers fail on the first entry before either falls back
+        raise litellm.APIConnectionError(message="connection refused", llm_provider="ollama", model=model)
+
+    monkeypatch.setattr(litellm, "completion", down)
+    models = mc.SessionModels()
+    models.get("text")
+    errors: list[BaseException] = []
+
+    def call():
+        try:
+            mc.completion("text", [{"role": "user", "content": "x"}], models=models)
+        except BaseException as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=call, name=f"caller{i}") for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(20)
+    assert len(errors) == 2 and all(isinstance(e, litellm.APIConnectionError) for e in errors)
+    assert tried == {"caller0": ["a", "b", "c"], "caller1": ["a", "b", "c"]}
+    # the session's entry only moves forward, one entry at a time, and keeps the last one
+    fallbacks = [(c["previous"]["model"], c.get("model")) for c in models.changes if c["action"] == "model_fallback"]
+    assert [p for p, n in fallbacks if n] == ["a", "b"]
+    assert models.pinned["text"].model == "c"

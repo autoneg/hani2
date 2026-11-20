@@ -919,7 +919,7 @@ class SupportAgent:
                     record_llm_call(kw, None, _time.perf_counter() - t0, reason)
                     if n or not model_chain.hard_failure(e) or models is None:
                         raise  # functions already ran: do not repeat the turn on another model
-                    res = models.advance("assistant", reason)
+                    res = models.advance("assistant", reason, failed=res)
                     if not res.ok:
                         raise
                     continue

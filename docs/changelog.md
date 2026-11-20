@@ -7,6 +7,9 @@
   interface refuses the admin login with `adminpass` until it is changed with `hani2 users passwd admin`.
   The new `auth.default_password_login` setting (`auto`, `refuse`, `allow`) applies the rule behind a
   reverse proxy or switches it off.
+- **Every fallback model is tried.** When calls running at the same time failed on the same model,
+  one of them moved past the next model of the chain without trying it (and could give up early);
+  each call now tries every later model in order, and the session's model only moves forward.
 - **One session per browser, even on a double load.** Two tabs, a double page load or a retry that
   open the same session at the same moment now share one session instead of each making one (which
   split the history, duplicated result rows and left a tab attached to a discarded session).
