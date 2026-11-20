@@ -14,7 +14,7 @@ A user is an administrator when any of these is true:
 - the account has the role `admin` (`hani2 users add --admin`, the **Administrator** switch when adding a user, or **Make admin** on the Users page);
 - the account's email is listed in `admin.emails` in `env.json` (useful for OAuth sign-in).
 
-See [Authentication](authentication.md). The `?admin=1` query parameter on the negotiation page does not open the console; see [the interface](interface.md).
+See [Authentication](authentication.md). The `?admin=1` query parameter does nothing for a non-admin and does not open the console; see [the interface](interface.md).
 
 ## Pages
 
@@ -214,7 +214,7 @@ class does not load are marked.
 **Opponents participants face** is the pool of the chosen layer, as a list of groups and single
 classes to tick. It is stored in `env.json` (`opponents`) for the settings layer, in
 `project.yaml` (`defaults.opponents`) for a project and in `study.yaml` (`overrides.opponents`)
-for a study. A URL's `?opponents=` or `?group=`, `HANI2_OPPONENTS` and an outside system's
+for a study. An admin's `?opponents=`, any URL's `?group=`, `HANI2_OPPONENTS` and an outside system's
 schedule still win. See [Opponents](opponents.md#group-files).
 
 ### Assistants
@@ -366,7 +366,7 @@ An administrator negotiating on `/app` (or on `/play` while logged in) gets more
 - Admin-only tools in the tool panes.
 - Every participant setting in **My settings**, marked when the current project or study hides it from participants.
 
-The opponent picker and the opponent's name are also available in admin mode (`?admin=1`) without an admin account. The other controls are not.
+The opponent picker, the opponent's name and `?opponents=` links need an admin account too.
 
 ### Negotiate as a participant
 

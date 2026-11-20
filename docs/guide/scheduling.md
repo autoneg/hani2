@@ -44,7 +44,7 @@ hani2 study show HI2027/hi-2027-01  # the methods in use, and any error
   below use it as $i$; $k$ is the negotiation (counted negotiations for Prolific,
   online and lab participants: practice rounds do not count).
 - **Not scheduled.** Admins, playground guests (`guest_*`), test links that bring
-  their own pool (`?opponents=`, `?group=`), the opponent picker (`?admin=1`) and an
+  their own pool (an admin's `?opponents=`, `?group=`), the opponent picker and an
   admin's own scenario choice are left alone, as are all sessions outside a study:
   they keep HANI2's plain behaviour (a random opponent from the pool, the set order
   of scenarios, the balanced Assistant pick).

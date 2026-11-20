@@ -2,7 +2,7 @@
 
 !!! note "Two kinds of agents"
     HANI2 has two kinds of agents. The **opponent agent** negotiates *against* the participant; it is
-    chosen with `--opponents`, `HANI2_OPPONENTS`, `?opponents=` and `opponents` in `env.json`. The
+    chosen with `--opponents`, `HANI2_OPPONENTS`, `?opponents=` (admins) and `opponents` in `env.json`. The
     **Assistant** helps the participant; it is chosen with `--assistant` (see
     [Assistant](assistant.md)). Participants see it labelled **Opponent**.
     The older names `--agents`, `HANI2_AGENTS`, `?agents=` and `agents` still work.
@@ -134,7 +134,7 @@ and their `syspath`, so they work without the library.
 
 When a negotiation starts, HANI2 builds the pool from the first source in this list that yields at least one agent:
 
-1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens), else `?group=<key>`. `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
+1. The query string of the page: `?opponents=<specs>` (comma-separated specs and tokens; admins only, ignored for everyone else), else `?group=<key>` (anyone). `?group=` accepts a group-file key or a built-in token with or without the colon (`?group=template`, `?group=:template`).
 2. The `--opponents` option of `hani2` (stored in the `HANI2_OPPONENTS` environment variable).
 3. The *Opponent agents* setting (`env.json → negotiation → opponent_types`, on the admin console's Negotiation page, per layer).
 4. The `opponents` list in `env.json`, also editable as *Opponents participants face* on the *Opponents* page of the admin console (which also writes a project's or study's `opponents`).
@@ -151,7 +151,7 @@ hani2 --opponents ":notext,helpers.AgentK"
 ```
 
 ```text
-http://localhost:5006/play?opponents=LLMHybridNegotiator
+http://localhost:5006/play?opponents=LLMHybridNegotiator    # logged in as an admin
 http://localhost:5006/play?group=finalists
 ```
 
@@ -184,7 +184,7 @@ negotiation uses position `k mod n` of that row. With four opponents A, B, C, D:
 | 2 | C | D | B | A |
 | 3 | D | A | C | B |
 
-Admins and playground guests are not counted and keep the random choice, and so do admin-mode sessions and logged-in users whose pool comes from the URL (`?opponents=`, `?group=`, a test link); Prolific, online and lab participants arriving with `?group=` follow the square over that group. Participants are
+Admins and playground guests are not counted and keep the random choice, and so do admin-mode sessions and logged-in users whose pool comes from the URL (an admin's `?opponents=`, `?group=`, a test link); Prolific, online and lab participants arriving with `?group=` follow the square over that group. Participants are
 counted per study, so each study is balanced on its own. A participant with a `schedule.json`
 gets the schedule's opponents; participants of a study started before this rule (with a
 `fallback_rotation.txt`) and sessions outside a study keep the older rotation. Each participant

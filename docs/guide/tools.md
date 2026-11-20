@@ -54,7 +54,7 @@ Every tool has a help text that says what it does and how it works. Participants
 
 "Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the Assistant) switches them on.
 
-"Admins only" means a logged-in admin account. Opening a page with `?admin=1` turns on the admin badge and the opponent picker in the UI but does not give a session the admin-only tools, and the admin-only options inside tools stay hidden.
+"Admins only" means a logged-in admin account. `?admin=1` in the URL changes nothing for other users.
 
 ### Opening admin-only tools to participants
 

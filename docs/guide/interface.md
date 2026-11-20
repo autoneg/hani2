@@ -275,4 +275,4 @@ Administrators see every participant setting, with a **hidden from participants*
 
 ## Admin mode
 
-A session is in admin mode when the user is an administrator, or when the page is opened with `?admin=1` (any truthy value: `1`, `true`, `yes`, `on`) by anyone except a Prolific participant. This works on `/play` and on `/app`. Admin mode shows the opponent's name and the opponent picker. It does not grant the admin settings drawer, the admin-only tools, the admin row in the counter-offer editor, or access to the admin console; those need an administrator account.
+A session is in admin mode when the user is an administrator (never for a Prolific participant), on `/play` and on `/app`. Admin mode shows the opponent's name and the opponent picker, alongside the admin settings drawer, the admin-only tools and the admin row in the counter-offer editor. `?admin=1` in the URL no longer turns admin mode on for other users.

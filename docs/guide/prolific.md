@@ -22,7 +22,7 @@ What changes for a URL with a Prolific ID:
 
 - The participant's user name is `prolific_<PID>` and their session key is `prolific:<PID>` (for a study other than the server's default study, the key also names the study, so the same person can take part in two studies). Opening the link again, in any browser, returns to the same session while the server is running.
 - The link works even when the playground is disabled in `env.json`.
-- The session is never in admin mode, even for a logged-in admin and even with `?admin=1`.
+- The session is never in admin mode, even for a logged-in admin.
 - The Assistant starts switched off. The participant can still switch it on, if the Assistant is available to them at all (see [Assistant](assistant.md)).
 - The *Different scenario* button on the start screen is hidden.
 

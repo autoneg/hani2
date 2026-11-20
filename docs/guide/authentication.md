@@ -202,9 +202,9 @@ Some tools are hidden in sessions without an account (see [Tools](tools.md)), an
 
 ## The `?admin=1` switch
 
-Adding `?admin=1` (or `true`, `yes`, `on`) to the URL of `/app` or `/play` turns on the *admin view* of that session for anyone, except Prolific participants. It shows the admin badge, the opponent's type and the opponent picker, which is useful for demonstrations and for testing opponents from the playground.
+An admin's session on `/app` or `/play` is always in the *admin view*: the admin badge, the opponent's type and the opponent picker. `?admin=1` and `?opponents=` are admin options. For anyone else they are ignored, so a shared link cannot unlock the opponent picker or pick arbitrary opponent classes. `?group=` works for everyone.
 
-It does not make the user an admin: admin-only tools, admin settings, the message helpers and the admin console still require an admin account.
+To let a user of a trusted website (for example an organiser on the ANAC site) use these options, make their HANI2 account an admin on the *Users* page of the admin console. Signing in again from the website keeps the role.
 
 ## Logging
 

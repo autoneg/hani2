@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **`?admin=1` and `?opponents=` are for admins.** For other users both are ignored, so a shared
+  link no longer shows the opponent picker or the opponent's type, and cannot choose arbitrary
+  opponent classes. `?group=` still works for everyone. See
+  [The `?admin=1` switch](guide/authentication.md#the-admin1-switch).
 - **The playground uses your account when you are logged in.** `/play` in a logged-in browser records
   the rounds under that account and shows them in **My Results**; without a login it is the guest
   playground as before. See [The playground and guests](guide/authentication.md#the-playground-and-guests).
