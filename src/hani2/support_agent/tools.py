@@ -665,17 +665,17 @@ class ToolDispatcher:
                             "unrecognised": res.get("unrecognised") or []}
             if message is not None:
                 actions["set_text"](str(message))
-            if execute:
-                sent = actions["reject_counter"]()
-                if isinstance(sent, dict) and not sent.get("ok"):
-                    return {"ok": False, "error": sent.get("error") or "the counter-offer was not sent"}
-            else:
+            if not execute:
                 actions["highlight"]("reject")
             return execute
 
         executed = self.runtime.run_on_doc(_do)
         if isinstance(executed, dict):
             return executed
+        if executed:  # outside run_on_doc: sending may call the language model (auto_extract / auto_generate)
+            sent = actions["reject_counter"]()
+            if isinstance(sent, dict) and not sent.get("ok"):
+                return {"ok": False, "error": sent.get("error") or "the counter-offer was not sent"}
         _log_agent_action(
             self.ss, "submit_counter_offer" if executed else "recommend_counter_offer", str(outcome)[:120]
         )

@@ -1832,13 +1832,35 @@ class NegotiationSession:
         # the study's setting decides for participants; only an admin may switch it per message
         text_only = bool(p.get("text_only_mode")) if text_only is None or not self.is_admin else bool(text_only)
         msg = (self.draft_text or "").strip() if p.get("allow_text_human", True) else ""
-        if p.get("auto_extract") and not text_only and msg:
-            try:
-                self.extract_offer_from_text()
-            except Exception:
-                traceback.print_exc()
-        if p.get("auto_generate") and not text_only and not msg:
-            msg = self._llm_generate_text() or ""
+        extract = p.get("auto_extract") and not text_only and msg
+        generate = p.get("auto_generate") and not text_only and not msg
+        if extract or generate:
+            # the model may take seconds: call it without the lock (the interface stays responsive)
+            # and use the result only if the turn, offer and message are still the ones it was made for
+            state = lambda: (self.round_number, self._trace_seen, dict(self.draft), self.draft_text)  # noqa: E731
+            with self.lock:
+                before = state()
+            extracted = None
+            if extract:
+                try:
+                    from hani2.llm_service import extract_outcome_from_text
+
+                    extracted = extract_outcome_from_text(msg, self.issues, context=self.llm_context()).outcome
+                except Exception:
+                    traceback.print_exc()
+            if generate:
+                msg = self._llm_generate_text() or ""
+            with self.lock:
+                if state() != before:
+                    return {"ok": False, "error": "The offer or message changed while it was being prepared. "
+                                                  "Check it and send again."}
+                if extracted is not None:
+                    self.set_draft(self.outcome_to_dict(extracted) or {})
+                return self._send_prepared(msg, text_only)
+        return self._send_prepared(msg, text_only)
+
+    def _send_prepared(self, msg: str, text_only: bool) -> dict:
+        p = self.admin_prefs
         if text_only and not msg:
             return {"ok": False, "error": "Write a message to send in text-only mode."}
         if text_only:
