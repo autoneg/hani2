@@ -9,6 +9,7 @@ import { Gauge } from "../ui/Gauge";
 import { clock, fmtValue, pct, showValue } from "../ui/format";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
+import { NumberInput } from "../ui/NumberInput";
 import { Renderer, STATIC_CTX } from "../ui/Renderer";
 
 /* ------------------------------------------------------------------ */
@@ -87,17 +88,7 @@ function IssueField({ issue, value, disabled, widget, label }: { issue: IssueSpe
     );
   } else {
     input = (
-      <input
-        type="number"
-        className="field tnum"
-        aria-label={issue.name}
-        min={issue.min}
-        max={issue.max}
-        step={issue.kind === "int" ? 1 : "any"}
-        value={value ?? ""}
-        disabled={disabled}
-        onChange={(e) => e.target.value !== "" && set(Number(e.target.value))}
-      />
+      <NumberInput aria-label={issue.name} min={issue.min} max={issue.max} int={issue.kind === "int"} value={value} disabled={disabled} onCommit={set} />
     );
   }
   return (

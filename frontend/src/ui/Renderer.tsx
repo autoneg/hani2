@@ -5,6 +5,7 @@ import type { Component } from "../types";
 import { Anchor } from "./Anchor";
 import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
+import { NumberInput } from "./NumberInput";
 import { Plot } from "./Plot";
 import { Gauge } from "./Gauge";
 import { sanitize } from "./sanitize";
@@ -281,7 +282,7 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
     case "number":
       return (
         <Field label={c.label}>
-          <input type="number" className="field tnum" value={v ?? ""} min={c.min} max={c.max} step={c.step ?? "any"} onChange={(e) => ctx.onInput(c.name, e.target.value === "" ? null : Number(e.target.value))} />
+          <NumberInput value={v} min={c.min} max={c.max} step={c.step} onCommit={(n) => ctx.onInput(c.name, n)} />
         </Field>
       );
     case "checkbox":

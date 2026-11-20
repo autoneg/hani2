@@ -190,7 +190,9 @@ weights: [0.25, 0.75]
 Any outcome space and utility function type that negmas can load works. HANI2 renders each issue in the counter-offer editor according to its type:
 
 - Integer ranges with at most 31 values and discrete issues become a choice of values.
-- Wider integer ranges and continuous issues become numeric inputs with a minimum and maximum.
+- Wider integer ranges and continuous issues become numeric inputs with a minimum and maximum. A value
+  outside that range (or text that is not a number yet) is outlined and not used; leaving the field
+  restores the last valid value.
 
 ### Which side the participant plays
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Number fields keep offers in range.** The number field of a continuous or wide-range issue (and
+  `number` controls) no longer sends empty, partial or out-of-range values: such text is outlined and
+  reverts to the last valid value when you leave the field. The server also refuses an infinite value
+  for a whole-number issue instead of failing.
 - **Persona options may contain commas.** In `name:key=value,…` persona specs (`hani2 simulate -p`),
   a value such as `llm:goal="Keep it under 300, please",reservation=0.5` is no longer split at its comma;
   options are separated only by commas that start a new `key=`.

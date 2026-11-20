@@ -1,0 +1,1 @@
+import{c as t}from"./index-RQ5hg3Nf.js";const e={name:"square-text",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M7 8h8",key:"1jbsf9"}],["path",{d:"M7 12h10",key:"b7w52i"}],["path",{d:"M7 16h6",key:"1vyc9m"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
