@@ -848,6 +848,12 @@ def _register(kind: str, la: Layer, entries: list[dict[str, Any]], name: str | N
             del mine[own]
         mine[n] = e
         added.append({"name": n, "spec": spec, "layer": la.name, "source": e["source"]})
+    if replace:  # entries of the replaced upload that the new files no longer provide
+        paths = {e["path"] for e in entries if e["source"] == "uploaded"}
+        names = {a["name"] for a in added}
+        for k in [k for k, v in mine.items() if k not in names and v.get("source") == "uploaded"
+                  and v.get("path") in paths]:
+            del mine[k]
     write_index(la.dir, idx)
     if group:
         for a in added:

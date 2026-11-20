@@ -361,6 +361,14 @@ def test_reupload_and_replace_code(hani2_home):
     assert load_class(r["items"][0]["spec"]).VERSION == 2
 
 
+def test_replace_drops_index_entries_of_classes_gone(hani2_home):
+    library.add_upload("opponents", "opp.py", OPPONENT_PY.encode())
+    renamed = OPPONENT_PY.replace("LibBoulware", "LibRenamed")
+    library.add_upload("opponents", "opp.py", renamed.encode(), replace=True)
+    assert set(library.read_index(hani2_home / "settings")["opponents"]) == {"LibRenamed"}
+    assert "LibBoulware" not in {i["name"] for i in library.list_items("opponents")}
+
+
 def test_scenario_upload_refusals(hani2_home, tmp_path):
     folder = _scenario_files(tmp_path, "Rent")
     with pytest.raises(LibraryError, match="registered scenario type"):
