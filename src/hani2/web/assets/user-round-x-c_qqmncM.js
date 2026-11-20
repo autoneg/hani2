@@ -1,1 +1,0 @@
-import{c as a}from"./index-CJ18zsLm.js";const e={name:"user-round-x",size:24,node:[["path",{d:"m16.5 16.5 5 5",key:"zc9lw7"}],["path",{d:"M2 21a8 8 0 0 1 11.531-7.18",key:"x5izle"}],["path",{d:"m21.5 16.5-5 5",key:"1empo3"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}]],aliases:["user-x-2"]};e.node;const c=a(e);export{e as __iconData,c as default};

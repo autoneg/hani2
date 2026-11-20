@@ -1,0 +1,1 @@
+import{c as s}from"./index-BK3_Y6J1.js";const e={name:"user-round-plus",size:24,node:[["path",{d:"M2 21a8 8 0 0 1 13.292-6",key:"bjp14o"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["path",{d:"M19 16v6",key:"tddt3s"}],["path",{d:"M22 19h-6",key:"vcuq98"}]],aliases:["user-plus-2"]};e.node;const o=s(e);export{e as __iconData,o as default};

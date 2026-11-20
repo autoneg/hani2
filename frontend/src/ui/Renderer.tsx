@@ -7,6 +7,7 @@ import { Icon } from "./Icon";
 import { Markdown } from "./Markdown";
 import { Plot } from "./Plot";
 import { Gauge } from "./Gauge";
+import { sanitize } from "./sanitize";
 import { fmtCell, fmtValue } from "./format";
 
 export interface RenderCtx {
@@ -504,13 +505,3 @@ function DataTable({ c, ctx }: { c: Component; ctx: RenderCtx }) {
   );
 }
 
-function sanitize(html: string) {
-  const doc = new DOMParser().parseFromString(html || "", "text/html");
-  doc.querySelectorAll("script,iframe,object,embed,style,link").forEach((n) => n.remove());
-  doc.querySelectorAll("*").forEach((el) => {
-    for (const a of Array.from(el.attributes)) {
-      if (a.name.startsWith("on") || (a.name === "href" && a.value.trim().toLowerCase().startsWith("javascript:"))) el.removeAttribute(a.name);
-    }
-  });
-  return doc.body.innerHTML;
-}

@@ -5,6 +5,10 @@
 - **Closed sessions stay closed.** Closing a session (or the server dropping it) now cancels its
   timers: a pending auto-start or auto-load of the next negotiation, its warning toast and the time-limit
   check no longer fire later on the closed session.
+- **`ui.html()` is sanitised with an allowlist.** The HTML is now cleaned with DOMPurify, which keeps only
+  plain HTML tags and attributes, instead of a blocklist that let through `javascript:` links hidden by
+  entities or whitespace, SVG links, `data:` links and form actions. SVG, MathML and forms are no longer
+  rendered in this component.
 - **Default passwords are no longer left open.** Every server start warns about a default account
   (`admin`, `user`) that still has its well-known password, and a server listening on a non-loopback
   interface refuses the admin login with `adminpass` until it is changed with `hani2 users passwd admin`.
