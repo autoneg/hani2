@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Persona options may contain commas.** In `name:key=value,…` persona specs (`hani2 simulate -p`),
+  a value such as `llm:goal="Keep it under 300, please",reservation=0.5` is no longer split at its comma;
+  options are separated only by commas that start a new `key=`.
 - **Replacing a Library upload keeps the index in step.** When a replaced `.py`/`.zip` upload no longer
   defines a class it had before, that class's entry is now dropped instead of staying in the Library as a
   dangling item.

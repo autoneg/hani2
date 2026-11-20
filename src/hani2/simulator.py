@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import time
 import traceback
 import zlib
@@ -458,7 +459,9 @@ def make_persona(spec: "str | Persona | dict", **kw: Any) -> Persona:
     if cls is None:
         raise ValueError(f"unknown persona {name!r}; known: {', '.join(sorted(set(PERSONAS) - {'clickthrough'}))}")
     args: dict[str, Any] = {}
-    for part in filter(None, (p.strip() for p in rest.split(","))):
+    # split only at commas outside double quotes that start a new ``key=`` (values may contain commas)
+    parts = re.split(r',(?=\s*[A-Za-z_]\w*\s*=)(?=(?:[^"]*"[^"]*")*[^"]*$)', rest)
+    for part in filter(None, (p.strip() for p in parts)):
         k, _, v = part.partition("=")
         try:
             args[k.strip()] = json.loads(v)

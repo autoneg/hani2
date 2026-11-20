@@ -56,7 +56,8 @@ a time-based concession from its best utility down to its reservation value
 (`aspiration_exponent`, 2 by default and 6 for `stubborn`). Options are given as
 `name:key=value,…`: `seed`, `reservation` (the persona's own walk-away value; by default the
 scenario's), `difficulty`, `aspiration_exponent` and the persona's own (`max_concession`, and the
-language-model options).
+language-model options). A value may contain commas (quote it to be safe:
+`llm:goal="Win, but politely",seed=2`); only a comma followed by `key=` starts a new option.
 
 The persona's type, `easy` or `hard`, becomes its **participant type** (`simulated-easy`,
 `simulated-hard`), which stratifies the qualifying table and can be grouped on with

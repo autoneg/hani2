@@ -70,6 +70,13 @@ def test_scripted_personas_decide_as_specified():
     assert st.decide(_view(partner_offer_utility=0.95, own_next_utility=0.92)).kind == "accept"
     assert make_persona("stubborn:max_concession=0.3").max_concession == 0.3
     assert make_persona({"kind": "skeptic", "seed": 3}).seed == 3
+    # values may contain commas, quoted or not
+    p = make_persona('llm:goal="Keep it under 300, please",reservation=0.5')
+    assert (p.goal, p.reservation) == ("Keep it under 300, please", 0.5)
+    p = make_persona("llm:temperament=Dr. Lee, PhD; terse, seed=2")
+    assert (p.temperament, p.seed) == ("Dr. Lee, PhD; terse", 2)
+    p = make_persona('llm:goal="a, b=c",seed=1')
+    assert (p.goal, p.seed) == ("a, b=c", 1)
     with pytest.raises(ValueError):
         make_persona("nobody")
 
