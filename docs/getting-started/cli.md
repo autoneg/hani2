@@ -15,7 +15,7 @@ hani2 [OPTIONS]
 Starts the HANI2 server: the app, the playground, the admin console and the API on one port. If the settings folder has no `env.json` yet, it first runs `hani2 setup` silently. It then prints the URLs and the settings folder:
 
 ```text
-  HANI2 0.1.0
+  HANI2 0.2.0
   App         http://localhost:5006/app
   Playground  http://localhost:5006/play
   Admin       http://localhost:5006/admin
@@ -96,7 +96,7 @@ hani2 info
 Shows where HANI2 keeps its files and how it is configured:
 
 ```text
-version         0.1.0
+version         0.2.0
 home            /home/me/negmas/hani2
 settings        /home/me/negmas/hani2/settings
 scenarios       /home/me/negmas/hani2/settings/scenarios

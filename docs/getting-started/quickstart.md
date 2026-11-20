@@ -12,7 +12,7 @@ hani2         # starts the server and opens the app in your browser
 `hani2` prints the addresses it serves and the settings folder it uses:
 
 ```text
-  HANI2 0.1.0
+  HANI2 0.2.0
   App         http://localhost:5006/app
   Playground  http://localhost:5006/play
   Admin       http://localhost:5006/admin

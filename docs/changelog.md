@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-20)
 
+Projects and studies on one server, a shared library of scenarios, opponents, Assistants and tools,
+a new admin console, recording, replay and evaluation with HAN / HI leaderboards, simulated
+participants, scenario sets and new scenario types, model chains, sign-in from a trusted website,
+and many fixes. See [Features](features.md) for the full list with links.
+
+- **Serve under a sub-path.** `hani2 --root-path /hanplay` (or `HANI2_ROOT_PATH`) mounts the whole
+  server under a path behind a reverse proxy, whether the proxy strips the prefix or forwards it
+  unchanged. See [Installation](getting-started/installation.md).
+- **HAN opponent groups.** The optional `han` extra (`pip install "hani2[han]"`, from the
+  `han-agents` package) adds `:han<year>-all`, `-qualified`, `-finalists` and `-winners` opponent
+  groups, such as `:han2026-finalists`. See [Opponents](guide/opponents.md).
+- **Utility-based Selector covers the whole range by default.** The width slider starts at 100 %, so
+  the range runs from the minimum up to your best outcome; the range is measured from your worst to
+  your best outcome, so un-normalized utility functions work too.
 - **Admin pages report failed requests.** When loading a list (projects, studies, users, results,
   events, texts) or a user / connection action fails, the admin pages now show the error instead of
   failing silently.
@@ -89,6 +103,16 @@
   scrolls sideways; a tool or the Assistant filling the offer no longer wipes the typed message;
   actions taken while reconnecting are kept, with a notice, instead of lost; pass^k is computed per
   scenario and opponent; the assertions judge re-judges when `evaluation.assertions` changes.
+- **More fixes.** A malformed layout or WebSocket frame can no longer stop a session from starting
+  or end its connection; the Assistant's below-reservation warning and `Tool.transcript()` no longer
+  show the participant values they are not meant to know; decision times of sessions without a
+  browser are measured from the start of the turn, so the `click_through` flag no longer fires on
+  every one of them; a blank key in `study.yaml` takes the project's default, and a study's `env.json`
+  wins over its project's `project.yaml` for the scenario set, roles, time limit and number of
+  steps; `-o -` no longer closes standard output; WebMCP read-only mode no longer switches tools on or
+  chats with the Assistant; in the web app, clicking a divider without dragging keeps its size, a
+  tool's options menu closes on an outside click, a stale connection's late events no longer replace
+  the live one, and the consent page returns to the page that needed it (keeping `?group=`).
 - **End-to-end tests.** `tests/e2e` drives a real server in Chromium with Playwright (the new `e2e`
   extra; skipped without it).
 
