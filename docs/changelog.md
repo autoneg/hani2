@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **One `page_view` per page view.** The negotiation page no longer records another `page_view` event
+  each time its connection to the server is re-established.
 - **Number fields keep offers in range.** The number field of a continuous or wide-range issue (and
   `number` controls) no longer sends empty, partial or out-of-range values: out-of-range text is outlined
   and any such text reverts to the last valid value when you leave the field. The server also refuses an infinite value

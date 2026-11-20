@@ -404,8 +404,11 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
     if (connected) useStore.getState().send({ type: "device", device, landscape });
   }, [connected, device, landscape]);
 
+  // once per page view, not again on every reconnect
+  const viewed = useRef<string | null>(null);
   useEffect(() => {
-    if (connected) useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: currentPath(), width: window.innerWidth } });
+    if (connected && viewed.current !== mode && useStore.getState().send({ type: "event", name: "page_view", component: mode, value: { path: currentPath(), width: window.innerWidth } }))
+      viewed.current = mode;
   }, [connected, mode]);
 
   useEffect(() => {
