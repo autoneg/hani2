@@ -61,6 +61,26 @@ def test_draft_validation_and_utility():
     assert 0 <= s.utility(s.draft_outcome()) <= 1
 
 
+def test_draft_rejects_out_of_range_and_partial_numbers():
+    from negmas import make_issue, make_os
+
+    from hani2.testing import TestSession
+
+    os_ = make_os([make_issue((1, 10), "Quantity"), make_issue((0.0, 10.0), "Price")])  # a range and a continuous issue
+
+    class Continuous(TestSession):
+        issues = property(lambda self: list(os_.issues))
+
+    s = make_session(session_class=Continuous)
+    assert s.set_draft({"Quantity": 3, "Price": 2.5})["ok"]
+    for name, above in (("Quantity", 11), ("Price", 10.01)):
+        for bad in (above, -1, float("nan"), float("inf"), None, "", "-", "1e"):
+            for r in (s.set_draft({name: bad}), s.draft_input(name, bad)):
+                assert not r["ok"] and not r["applied"], (name, bad)
+    assert s.draft == {"Quantity": 3, "Price": 2.5}
+    assert s.draft_input("Price", 10.0)["ok"] and s.draft["Price"] == 10.0
+
+
 def test_text_only_requires_message():
     s = make_session(is_admin=True)
     s.start()

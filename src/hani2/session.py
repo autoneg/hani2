@@ -1722,7 +1722,7 @@ class NegotiationSession:
             for v in issue.all:
                 if str(v) == str(value):
                     return v
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return value
         return value
 
