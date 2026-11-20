@@ -15,7 +15,8 @@ Set the mode in `env.json`:
     "mode": "password",
     "cookie_secret": "",
     "enforce_consent": false,
-    "allow_registration": true
+    "allow_registration": true,
+    "default_password_login": "auto"
   }
 }
 ```
@@ -37,6 +38,7 @@ Set the mode in `env.json`:
 | `cookie_secret` | `""` | Secret used to sign the login cookie. When empty, HANI2 generates one and keeps it in `settings/.cookie_secret`, so logins survive restarts. Set it explicitly when several installations must accept the same cookies. |
 | `enforce_consent` | `false` | When `true`, a logged-in user who has not consented sees the consent form (the content of `consent.md`) and must agree and sign with their full name before negotiating. The server does not block admins who have not consented, but the login page still sends them to the consent form. |
 | `allow_registration` | `true` | Shows the registration form. Registration is always off in `oauth` and `none` modes. |
+| `default_password_login` | `"auto"` | Whether an admin may log in with the well-known default password: `auto` refuses it when the server listens on a non-loopback interface, `refuse` always refuses it, `allow` never does. See [Default accounts](#default-accounts). |
 
 The login cookie (`hani2_auth`) is valid for 30 days.
 
@@ -181,7 +183,24 @@ hani2 users remove bob
 
 or the **Users** section of the admin console. The `admin` account cannot be deleted, and admins cannot delete themselves.
 
-`hani2 setup` and every server start create two default accounts when they are missing: `admin` (password from `admin.password`, default `adminpass`) and `user` (password `userpass`). Change both passwords before a public deployment.
+### Default accounts
+
+`hani2 setup` and every server start create two default accounts when they are missing: `admin` (password from `admin.password`, default `adminpass`) and `user` (password `userpass`). Change both passwords before a public deployment:
+
+```bash
+hani2 users passwd admin
+hani2 users passwd user
+```
+
+While an account still has its default password, every server start prints a warning such as
+
+```text
+[hani2] WARNING: the account 'admin' still has its default password; set one with `hani2 users passwd admin`
+```
+
+When the server listens on an interface other machines can reach (for example `hani2 --host 0.0.0.0`), the `admin` account cannot log in with `adminpass`. The login page explains why, and the admin sets a new password on the server with `hani2 users passwd admin` and logs in again. A server that listens only on `127.0.0.1` or `localhost` (the default) still accepts the default password, so a local install works as soon as it is set up. The `user` account is only warned about, never refused.
+
+The server only knows the interface it listens on. Behind a reverse proxy it usually listens on `127.0.0.1`, so set `auth.default_password_login` to `"refuse"` to apply the rule there too. Set it to `"allow"` to switch the rule off.
 
 ### Password storage
 

@@ -34,7 +34,7 @@ Opening `/app` without being logged in sends you to the login page.
 | `admin` | `adminpass` | Administrator: sees the admin console, the per-session admin settings and the opponent's type |
 | `user` | `userpass` | Ordinary participant |
 
-Change the admin password before you run a study, either with `hani2 setup --admin-password ...` or with `hani2 users passwd admin`. The login page also links to registration (when `auth.allow_registration` is on) and to the playground (when `playground.enabled` is on). See [Authentication](../guide/authentication.md) for the other sign-in modes.
+Change the admin password before you run a study, either with `hani2 setup --admin-password ...` or with `hani2 users passwd admin`. A server started with `--host 0.0.0.0` (reachable from other machines) refuses the admin login with `adminpass` until you do (see [Default accounts](../guide/authentication.md#default-accounts)). The login page also links to registration (when `auth.allow_registration` is on) and to the playground (when `playground.enabled` is on). See [Authentication](../guide/authentication.md) for the other sign-in modes.
 
 If you only want to try the interface, open `http://localhost:5006/play` instead. The playground needs no account.
 

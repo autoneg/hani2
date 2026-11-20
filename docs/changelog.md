@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Default passwords are no longer left open.** Every server start warns about a default account
+  (`admin`, `user`) that still has its well-known password, and a server listening on a non-loopback
+  interface refuses the admin login with `adminpass` until it is changed with `hani2 users passwd admin`.
+  The new `auth.default_password_login` setting (`auto`, `refuse`, `allow`) applies the rule behind a
+  reverse proxy or switches it off.
 - **One session per browser, even on a double load.** Two tabs, a double page load or a retry that
   open the same session at the same moment now share one session instead of each making one (which
   split the history, duplicated result rows and left a tab attached to a discarded session).

@@ -95,7 +95,8 @@ The main deployment configuration.
     "mode": "password",
     "cookie_secret": "",
     "enforce_consent": false,
-    "allow_registration": true
+    "allow_registration": true,
+    "default_password_login": "auto"
   },
   "oauth": {
     "redirect_uri": "",
@@ -138,6 +139,7 @@ The main deployment configuration.
 | `auth.cookie_secret` | `""` | Secret for signing login cookies. Generated and stored in `settings/.cookie_secret` when empty. |
 | `auth.enforce_consent` | `false` | Require logged-in users to sign the consent form before negotiating. |
 | `auth.allow_registration` | `true` | Offer the registration form. |
+| `auth.default_password_login` | `"auto"` | Admin logins with the default password: `auto` (refused on a non-loopback bind), `refuse` or `allow`. See [Authentication](authentication.md#default-accounts). |
 | `oauth.redirect_uri` | `""` | Public base URL used to build `/api/oauth/<provider>/callback`. Empty: the request's base URL. |
 | `oauth.providers.github` | disabled | `enabled`, `key` (client ID), `secret`. |
 | `oauth.providers.google` | disabled | `enabled`, `key` (client ID), `secret`. |
