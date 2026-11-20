@@ -35,6 +35,8 @@ def _ctx(points, reserved=(0.2, 0.2)):
     pytest.param([(0.9, 0.1), (0.1, 0.9)], (0.2, 0.2), None, id="none-acceptable-to-both"),
     pytest.param([(NAN, 0.9), (0.6, 0.6)], (0.2, 0.2), (0.6, 0.6), id="nan-utility"),
     pytest.param([(INF, 0.5), (0.6, 0.6)], (0.2, 0.2), (0.6, 0.6), id="inf-utility"),
+    # an infinite point that dominates the finite ones is the only Pareto point, and it does not count
+    pytest.param([(INF, 0.9), (0.6, 0.6)], (0.2, 0.2), None, id="inf-dominates-finite"),
     pytest.param([(NAN, NAN)], (0.2, 0.2), None, id="only-nan"),
     pytest.param([(INF, INF)], (0.2, 0.2), None, id="only-inf"),
 ])
@@ -44,3 +46,11 @@ def test_ks_point_edge_cases(points, reserved, expected):
         assert ks is None
     else:
         assert ks is not None and tuple(ks) == pytest.approx(expected)
+
+
+def test_optimality_degenerate_scenario_reports_kalai_distance():
+    from hani2.evaluation import evaluate_recording
+    ctx = _ctx([(0.2, 0.9), (0.2, 0.5)])
+    out = evaluate_recording(ctx.rec, ["optimality"])
+    assert not out["errors"]
+    assert out["row"]["kalai_distance"] == pytest.approx(0.7)  # no deal (0.2, 0.2) vs KS point (0.2, 0.9)

@@ -6,9 +6,9 @@
   a value such as `llm:goal="Keep it under 300, please",reservation=0.5` is no longer split at its comma;
   options are separated only by commas that start a new `key=`.
 - **`kalai_distance` handles degenerate scenarios.** When one side's best utility equals its reservation
-  value, or utilities are infinite, the Kalai–Smorodinsky point no longer crashes the evaluation or picks
-  an outcome below a reservation value. Outcomes with non-finite utilities are ignored, and the metric
-  is empty when no Pareto outcome is acceptable to both sides.
+  value, or utilities are infinite, computing the Kalai–Smorodinsky point no longer fails (which left the
+  whole `optimality` group empty) or picks an outcome below a reservation value. Pareto outcomes with
+  non-finite utilities are skipped, and the metric is empty if no remaining one is acceptable to both sides.
 - **Replacing a Library upload keeps the index in step.** When a replaced `.py`/`.zip` upload no longer
   defines a class it had before, that class's entry is now dropped instead of staying in the Library as a
   dangling item.
