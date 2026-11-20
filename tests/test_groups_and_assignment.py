@@ -301,6 +301,29 @@ def test_no_study_keeps_the_old_rotation(hani2_home, monkeypatch):
     assert (hani2_home / "db" / "prolific_N" / "fallback_rotation.txt").exists()
 
 
+def test_rotation_offsets_unique_under_concurrency(tmp_path):
+    from hani2.study import ProlificStudy
+
+    n = 40
+    barrier = threading.Barrier(n)
+    out: dict[int, int] = {}
+
+    def run(i):
+        st = SimpleNamespace(user_path=tmp_path / f"prolific_C{i}")
+        st.user_path.mkdir()
+        barrier.wait()
+        out[i] = ProlificStudy._rotation_offset(st)
+        assert ProlificStudy._rotation_offset(st) == out[i]  # kept per participant
+
+    threads = [threading.Thread(target=run, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(out.values()) == list(range(n))  # unique and contiguous
+    assert (tmp_path / "_prolific_fallback_counter.txt").read_text() == str(n)
+
+
 # --------------------------------------------------------------------------- #
 # Failing loudly                                                               #
 # --------------------------------------------------------------------------- #

@@ -587,14 +587,22 @@ class ProlificStudy(Study):
     _finalists_group = ""
 
     def _rotation_offset(self) -> int:
+        from hani2.assignment import _locked
+
         try:
             per_user = self.user_path / "fallback_rotation.txt"
             if per_user.exists():
                 return int(per_user.read_text().strip() or 0)
             counter = self.user_path.parent / "_prolific_fallback_counter.txt"
-            n = int(counter.read_text().strip() or 0) if counter.exists() else 0
-            counter.write_text(str(n + 1))
-            per_user.write_text(str(n))
+            # one participant at a time, also across processes sharing the results folder
+            with _locked(counter):
+                if per_user.exists():
+                    return int(per_user.read_text().strip() or 0)
+                n = int(counter.read_text().strip() or 0) if counter.exists() else 0
+                tmp = counter.with_name(f".{counter.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+                tmp.write_text(str(n + 1))
+                tmp.replace(counter)
+                per_user.write_text(str(n))
             return n
         except Exception:
             return 0
