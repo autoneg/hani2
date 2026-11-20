@@ -296,3 +296,90 @@ def test_admin_link_options_need_an_admin_account(client):
     login(client)
     admin = hub.get(client.post("/api/session", json={"mode": "guest", "query": q}).json()["sid"])
     assert admin.admin_mode and [str(x) for x in admin.opponent_pool()] == ["ConcederTBNegotiator"]
+
+
+def test_concurrent_session_requests_create_one_session(client, monkeypatch):
+    """Two tabs (or a retry) asking for the same session at once must share one session object."""
+    import threading
+
+    import hani2.server as server
+
+    created = []
+    real = server.NegotiationSession
+
+    def slow_session(*a, **kw):
+        time.sleep(0.2)  # widen the window between "missing" and "added"
+        s = real(*a, **kw)
+        created.append(s)
+        return s
+
+    monkeypatch.setattr(server, "NegotiationSession", slow_session)
+    login(client)
+    barrier, sids, errors = threading.Barrier(4), [], []
+
+    def hit():
+        try:
+            barrier.wait()
+            r = client.post("/api/session", json={"mode": "main", "query": {"noautostart": "1"}})
+            assert r.status_code == 200, r.text
+            sids.append(r.json()["sid"])
+        except Exception as e:  # pragma: no cover - reported below
+            errors.append(e)
+
+    threads = [threading.Thread(target=hit) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors
+    assert len(set(sids)) == 1 and len(created) == 1
+    assert server.hub.get(sids[0]) is created[0]
+
+
+def test_hub_get_or_create_is_atomic_per_sid():
+    import threading
+
+    from hani2.hub import Hub
+
+    class S:
+        def __init__(self, sid):
+            self.sid, self.loaded, self.closed = sid, False, False
+
+        def close(self):
+            self.closed = True
+
+    hub, made = Hub(), []
+
+    def factory(sid):
+        def make():
+            time.sleep(0.1)
+            s = S(sid)
+            made.append(s)
+            return s
+        return make
+
+    def load(s):
+        time.sleep(0.1)
+        s.loaded = True
+
+    got, barrier = [], threading.Barrier(6)
+
+    def hit(sid):
+        barrier.wait()
+        s, _ = hub.get_or_create(sid, factory(sid), init=load)
+        got.append((sid, s, s.loaded))
+
+    threads = [threading.Thread(target=hit, args=(sid,)) for sid in ["a", "a", "a", "b", "b", "b"]]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted(s.sid for s in made) == ["a", "b"]  # one per sid
+    assert all(loaded for _, _, loaded in got)  # nobody gets a session before it is loaded
+    assert {id(s) for sid, s, _ in got if sid == "a"} == {id(hub.get("a"))}
+    # fresh: replaces the session (closing the old one) exactly once per call
+    old = hub.get("a")
+    new, created = hub.get_or_create("a", factory("a"), fresh=True, init=load)
+    assert created and new is not old and old.closed and hub.get("a") is new
+    same, created = hub.get_or_create("a", factory("a"), init=load)
+    assert same is new and not created

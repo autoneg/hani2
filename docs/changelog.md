@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **One session per browser, even on a double load.** Two tabs, a double page load or a retry that
+  open the same session at the same moment now share one session instead of each making one (which
+  split the history, duplicated result rows and left a tab attached to a discarded session).
 - **`?admin=1` and `?opponents=` are for admins.** For other users both are ignored, so a shared
   link no longer shows the opponent picker or the opponent's type, and cannot choose arbitrary
   opponent classes. `?group=` still works for everyone. See

@@ -503,16 +503,15 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
         viewer, is_admin, admin_mode = user, False, False
         user, sid = f"{user}~participant", f"{sid}~participant"
     sid = _session_sid(sid, ref)
-    s = hub.get(sid)
-    if s is not None and body.get("fresh"):
-        hub.remove(sid)
-        s = None
-    if s is None:
-        s = NegotiationSession(sid, user, mode=mode, is_admin=is_admin, admin_mode=admin_mode, query=query,
-                               hub=hub, user_agent=ua, display_name=display, study=ref, admin_viewer=viewer)
-        hub.add(s)
-        s.load()
-    else:
+    # atomic per sid: a double page load, two tabs or a retry must not each make (and replace) a session
+    s, created = hub.get_or_create(
+        sid,
+        lambda: NegotiationSession(sid, user, mode=mode, is_admin=is_admin, admin_mode=admin_mode, query=query,
+                                   hub=hub, user_agent=ua, display_name=display, study=ref, admin_viewer=viewer),
+        fresh=bool(body.get("fresh")),
+        init=lambda s: s.load(),
+    )
+    if not created:
         s.query.update(query)
         s.refresh_assistant(getattr(s, "round_plan", None))  # a new ?group= may name another Assistant
     s.last_seen = time.time()

@@ -39,6 +39,7 @@ class Hub:
         self.sessions: dict[str, Any] = {}
         self._sockets: dict[str, set[Any]] = {}
         self._lock = threading.RLock()
+        self._create_locks: dict[str, threading.Lock] = {}  # one per sid: serialises get-or-create
         self._state_pending: set[str] = set()
         self._tools_pending: dict[str, set[str]] = {}
         self._tools_rendering: set[tuple[str, str]] = set()
@@ -63,6 +64,28 @@ class Hub:
     def add(self, session) -> None:
         with self._lock:
             self.sessions[session.sid] = session
+
+    def get_or_create(self, sid: str, factory, *, fresh: bool = False, init=None):
+        """The session ``sid``, made with ``factory()`` (then ``init(session)``) if it is missing.
+
+        Atomic per sid: concurrent calls for one sid get the same session, and none
+        gets it before ``init`` has finished. Calls for other sids are not blocked.
+        ``fresh=True`` removes an existing session first. Returns ``(session, created)``.
+        """
+        with self._lock:
+            lock = self._create_locks.setdefault(sid, threading.Lock())
+        with lock:
+            s = self.sessions.get(sid)
+            if s is not None and fresh:
+                self.remove(sid)
+                s = None
+            if s is not None:
+                return s, False
+            s = factory()
+            self.add(s)
+            if init is not None:
+                init(s)
+            return s, True
 
     def remove(self, sid: str) -> None:
         with self._lock:
