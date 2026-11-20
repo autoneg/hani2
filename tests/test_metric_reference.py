@@ -265,6 +265,17 @@ def test_headless_sessions_record_turns(hani2_home):
     assert len(times) == 3 and all(0.25 < t < 2 for t in times), times
 
 
+def test_turn_events_pair_by_file_order():
+    """On a coarse clock the opponent's reply and the next turn event share the action's timestamp:
+    the action still belongs to the turn written before it."""
+    ev = [{"t": 1.0, "k": "turn"},
+          {"t": 1.5, "k": "act", "actor": "human", "type": "offer", "offer": ["B"]},
+          {"t": 1.5, "k": "turn"},
+          {"t": 2.25, "k": "act", "actor": "human", "type": "end"}]
+    times = evaluate_recording(_example(extra=ev), ["timing"])["details"]["timing"]["decision_times"]
+    assert times == [0.5, 0.75], times
+
+
 def test_system_use_example():
     ev = [{"t": 1, "k": "draft", "by": "agent", "values": {"x": "B"}},
           {"t": 2, "k": "act", "actor": "human", "type": "offer", "offer": ["B"]},

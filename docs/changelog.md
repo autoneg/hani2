@@ -5,6 +5,10 @@
 - **Files are read and written as UTF-8 on every system.** Settings, texts, scenarios, results CSV
   files and the metric reference no longer use the Windows code page, which failed on non-ASCII
   text (for example, the metric reference page in the admin console).
+- **Decision times are right on coarse clocks.** Recordings time their events with a high-resolution
+  clock, and the `timing` metric pairs each action with the turn event written before it. On Windows
+  with Python 3.11 and 3.12, an opponent that answered within one 15 ms clock tick made the next turn
+  look as if it started at the action, giving a decision time of 0 and a false `click_through` flag.
 
 ## 0.2.0 (2026-11-20)
 

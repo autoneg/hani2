@@ -118,7 +118,9 @@ class SessionRecorder:
         self.seq = 0
         self.fh = None
         self.path: Path | None = None
-        self.t0 = time.time()
+        self.t0 = time.time()  # wall clock at the start (the header's t0)
+        self.p0 = time.perf_counter()  # event times: high resolution on every system (time.time()
+        # moves in 15.6 ms steps on Windows before Python 3.13, giving distinct events one time)
         self.rec_id: str | None = None
         self.n_events = 0
         self.n_states = 0
@@ -157,6 +159,7 @@ class SessionRecorder:
                 self.path = d / f"{self.rec_id}{PARTIAL_SUFFIX}"
                 self.fh = self.path.open("w", encoding="utf-8")
                 self.t0 = now
+                self.p0 = time.perf_counter()
                 self.n_events = 0
                 self.n_states = 0
                 self.llm_prefix = {}
@@ -207,6 +210,10 @@ class SessionRecorder:
         self.fh.flush()
         self.n_events += 1
 
+    def _now(self) -> float:
+        """Seconds since the recording started."""
+        return round(time.perf_counter() - self.p0, 4)
+
     def _write(self, _kind: str, /, **fields: Any) -> None:
         fields.pop("t", None)
         fields.pop("k", None)
@@ -216,7 +223,7 @@ class SessionRecorder:
                     if len(self.pre) < _PRE_BUFFER:
                         self.pre.append({"k": _kind, **fields})
                     return
-                self._line({"t": round(time.time() - self.t0, 4), "k": _kind, **fields})
+                self._line({"t": self._now(), "k": _kind, **fields})
         except Exception:
             traceback.print_exc()
 
@@ -227,7 +234,7 @@ class SessionRecorder:
             if fh is None or path is None:
                 return None
             try:
-                self._line({"t": round(time.time() - self.t0, 4), "k": "end", "n_events": self.n_events})
+                self._line({"t": self._now(), "k": "end", "n_events": self.n_events})
             except Exception:
                 pass
             self.fh = None

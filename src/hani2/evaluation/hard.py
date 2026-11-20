@@ -711,23 +711,36 @@ suggest answers given without reading. Empty without a questionnaire or without 
 ])
 def timing(ctx: EvalContext, options: dict) -> dict:
     """Interaction time per decision and overall."""
-    acts = [a for a in ctx.acts if a.get("actor") == "human" and a.get("type") in ("offer", "accept", "end", "text")]
-    starts = ctx.turn_starts
-    if starts:
-        def latest(t):
-            return max((s for s in starts if s <= t), default=None)
+    def is_decision(e):
+        return e.get("actor") == "human" and e.get("type") in ("offer", "accept", "end", "text")
+
+    acts = [a for a in ctx.acts if is_decision(a)]
+    times = []
+    screen = ctx.screen_turn_starts
+    if screen:
+        # a browser was connected: a turn starts when it shows on screen
+        for a in acts:
+            s = max((t for t in screen if t <= a["t"]), default=None)
+            if s is not None:
+                times.append(a["t"] - s)
+    elif ctx.rec.of("turn"):
+        # the session's turn events: each action pairs with the last turn event written before it
+        # (file order, not timestamps: on a coarse clock the opponent's reply and the next turn
+        # event can share the action's timestamp)
+        start = None
+        for e in ctx.rec.events:
+            if e.get("k") == "turn":
+                start = float(e["t"])
+            elif e.get("k") == "act" and is_decision(e) and start is not None:
+                times.append(e["t"] - start)
     else:
         # older recordings without a browser or turn events: a turn starts with the negotiation or
         # with the human's previous move (text messages do not end a turn)
         starts = [ctx.started_at or 0.0] + [a["t"] for a in acts if a.get("type") != "text"]
-
-        def latest(t):
-            return max((s for s in starts if s < t), default=None)
-    times = []
-    for a in acts:
-        s = latest(a["t"])
-        if s is not None:
-            times.append(a["t"] - s)
+        for a in acts:
+            s = max((t for t in starts if t < a["t"]), default=None)
+            if s is not None:
+                times.append(a["t"] - s)
     q = ctx.rec.questionnaire
     qs = None
     if q is not None:
