@@ -448,13 +448,23 @@ _KEYLIKE = re.compile(r"\b(?:sk|rk|gsk|xai|hf|ghp|github_pat)[-_][A-Za-z0-9_\-]{
 LLM_ERROR_MESSAGE = "The language model could not answer right now. Please try again."
 
 
+def error_summary(text: Any, limit: int = 120) -> str:
+    """A short, safe summary of an error text: its first line, secrets masked, URLs dropped."""
+    first = next((ln.strip() for ln in str(text).splitlines() if ln.strip()), "")
+    s = re.sub(r"\b\w+://\S+", "<url>", redact(first))
+    return s if len(s) <= limit else s[: limit - 1].rstrip() + "…"
+
+
 def llm_error(e: Any, *, admin: bool, generic: str = LLM_ERROR_MESSAGE) -> str:
     """The text to show in the browser for a failed language-model call ``e`` (an exception or
-    its message): ``generic`` for participants, a redacted one for admins. The full text goes
-    only to the server log."""
+    its message): for participants ``generic`` plus a short summary (:func:`error_summary`),
+    for admins the redacted text. The full text goes only to the server log."""
     text = f"{type(e).__name__}: {e}" if isinstance(e, BaseException) else str(e)
     print(f"[hani2] error (full text, not shown to participants): {text}", file=sys.stderr)
-    return redact(text)[:500] if admin else generic
+    if admin:
+        return redact(text)[:500]
+    summary = error_summary(text)
+    return f"{generic} ({summary})" if summary else generic
 
 
 def mask(v: str | None) -> str:

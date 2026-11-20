@@ -43,8 +43,8 @@
   entities or whitespace, SVG links, `data:` links and form actions. SVG, MathML and forms are no longer
   rendered in this component.
 - **Language-model errors no longer leak secrets to the browser.** When a model call fails, participants
-  see a generic message (in the Assistant chat, offer extraction, the instruction tool and LLM tools)
-  and admins see the error with API keys, Bearer tokens and stored secrets masked. The full error is
+  see a generic message with a one-line summary of the error, secrets masked and URLs removed (in
+  the Assistant chat, offer extraction, the instruction tool and LLM tools), and admins see the error with API keys, Bearer tokens and stored secrets masked. The full error is
   written only to the server log.
 - **Default passwords are no longer left open.** Every server start warns about a default account
   (`admin`, `user`) that still has its well-known password, and a server listening on a non-loopback

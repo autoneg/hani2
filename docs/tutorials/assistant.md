@@ -370,7 +370,7 @@ Check that you started `hani2` from the folder holding the module with `PYTHONPA
 
 **The agent does not react to events.** It is switched off in the dock header (Prolific participants start with it off), or, for the default `on_event`, the matching `proactive` flag is false or `proactive_note` returned `None`.
 
-**"Assistant error" in the chat.** The model call failed. Participants see only a generic message; admins see the provider's error with API keys, Bearer tokens and stored secrets masked. Check that Ollama is running and the model is pulled, or that the environment variable named in `api_key_env` is set. The server log has the full traceback.
+**"Assistant error" in the chat.** The model call failed. Participants see a generic message with a short summary of the error (its first line, with secrets masked and URLs removed); admins see the provider's error with API keys, Bearer tokens and stored secrets masked. Check that Ollama is running and the model is pulled, or that the environment variable named in `api_key_env` is set. The server log has the full traceback.
 
 **"I'm still working on the previous request".** Only one model turn runs at a time. Wait for the current one to finish, or lower `max_tool_iterations`.
 

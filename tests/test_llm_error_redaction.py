@@ -17,7 +17,9 @@ def _boom(*args, **kwargs):
 
 
 def test_llm_error_generic_for_participants_redacted_for_admins(capsys):
-    assert conns.llm_error(RuntimeError(RAW), admin=False) == conns.LLM_ERROR_MESSAGE
+    short = conns.llm_error(RuntimeError(RAW), admin=False)
+    assert short.startswith(conns.LLM_ERROR_MESSAGE) and "AuthenticationError" in short  # a summary
+    assert KEY not in short and "tok_abcdefghijklmnop" not in short
     shown = conns.llm_error(RuntimeError(RAW), admin=True)
     assert KEY not in shown and "tok_abcdefghijklmnop" not in shown
     assert "AuthenticationError" in shown
@@ -40,7 +42,8 @@ def _extract_error(monkeypatch, is_admin):
 
 
 def test_extraction_failure_is_generic_for_participants(monkeypatch):
-    assert _extract_error(monkeypatch, False) == conns.LLM_ERROR_MESSAGE
+    err = _extract_error(monkeypatch, False)
+    assert err.startswith(conns.LLM_ERROR_MESSAGE) and KEY not in err
 
 
 def test_extraction_failure_is_redacted_for_admins(monkeypatch):
@@ -62,7 +65,7 @@ def _assistant_error(monkeypatch, is_admin):
 
 def test_assistant_turn_failure_is_generic_for_participants(monkeypatch):
     msg = _assistant_error(monkeypatch, False)
-    assert conns.LLM_ERROR_MESSAGE in msg and "Incorrect API key" not in msg
+    assert conns.LLM_ERROR_MESSAGE in msg and KEY not in msg
 
 
 def test_assistant_turn_failure_is_redacted_for_admins(monkeypatch):
@@ -82,9 +85,16 @@ def _instruction_tool_status(monkeypatch, is_admin):
 
 
 def test_instruction_tool_failure_is_generic_for_participants(monkeypatch):
-    assert _instruction_tool_status(monkeypatch, False) == f"Error: {conns.LLM_ERROR_MESSAGE}"
+    status = _instruction_tool_status(monkeypatch, False)
+    assert status.startswith(f"Error: {conns.LLM_ERROR_MESSAGE}") and KEY not in status
 
 
 def test_instruction_tool_failure_is_redacted_for_admins(monkeypatch):
     status = _instruction_tool_status(monkeypatch, True)
     assert KEY not in status and "Incorrect API key" in status
+
+
+def test_error_summary_is_short_and_drops_urls():
+    long = "APIConnectionError: could not reach https://internal.example:8443/v1/chat?key=abc " + "x" * 300
+    s = conns.error_summary(long + "\nTraceback line two")
+    assert len(s) <= 120 and "internal.example" not in s and "line two" not in s and s.startswith("APIConnectionError")
