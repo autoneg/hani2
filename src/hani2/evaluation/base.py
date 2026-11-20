@@ -268,19 +268,25 @@ class EvalContext:
 
     @cached_property
     def ks_point(self) -> np.ndarray | None:
-        """Kalai–Smorodinsky: the Pareto point that best equalises normalised gains."""
+        """Kalai–Smorodinsky: the Pareto point that best equalises normalised gains.
+
+        Only Pareto points with finite utilities at or above both reservation values count; ``None``
+        when there is none. A side whose best utility equals its reservation value cannot gain, so
+        it counts as fully satisfied and the other side's gain decides. Ties go to the first point.
+        """
         P = self.two_party[:, self.pareto] if self.pareto.size else None
         if P is None:
             return None
         d = self.disagreement
-        best = P.max(axis=1)
-        rng = np.where(best - d > 1e-12, best - d, np.nan)
-        g = (P - d[:, None]) / rng[:, None]
-        valid = np.all(P >= d[:, None] - 1e-12, axis=0)
+        finite = np.all(np.isfinite(P), axis=0)
+        valid = finite & np.all(P >= d[:, None] - 1e-12, axis=0)
         if not np.any(valid):
             return None
+        rng = P[:, finite].max(axis=1) - d
+        ok = rng > 1e-12
+        g = np.where(ok[:, None], (P - d[:, None]) / np.where(ok, rng, 1.0)[:, None], 1.0)
         score = np.where(valid, np.minimum(g[0], g[1]), -np.inf)
-        return P[:, int(np.nanargmax(score))]
+        return P[:, int(np.argmax(score))]
 
     @cached_property
     def max_welfare(self) -> float | None:
