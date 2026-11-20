@@ -204,6 +204,59 @@ def is_admin_user(username: str | None) -> bool:
     return bool(email) and email in emails
 
 
+# the well-known passwords of the default accounts (also printed by ``hani2 setup``)
+DEFAULT_PASSWORDS = {"admin": "adminpass", "user": "userpass"}
+
+
+def default_password_users() -> list[str]:
+    """Default accounts whose password is still the well-known default.
+
+    Read-only: compares the stored hashes with the defaults (a legacy plain-text
+    entry is not upgraded here)."""
+    users = load_users()
+    return [u for u, pw in DEFAULT_PASSWORDS.items() if u in users and _check(str(users[u]), pw)]
+
+
+def is_loopback_host(host: str | None) -> bool:
+    """True for an unset host, ``localhost`` and loopback addresses (127.x, ::1)."""
+    import ipaddress
+
+    h = (host or "").strip().strip("[]").lower()
+    if not h or h == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(h).is_loopback
+    except ValueError:
+        return False  # a hostname or 0.0.0.0 / :: (every interface)
+
+
+BIND_HOST_ENV_VAR = "HANI2_BIND_HOST"  # set by ``hani2`` before it starts the server
+
+
+def refuses_default_admin_password() -> bool:
+    """Whether an admin may not log in with a default password.
+
+    ``auth.default_password_login``: ``auto`` (the default) refuses only when the
+    server is bound to a non-loopback interface; ``refuse`` always refuses (e.g.
+    behind a reverse proxy on 127.0.0.1); ``allow`` never refuses."""
+    import os
+
+    mode = str(get_env("auth.default_password_login", "auto") or "auto").strip().lower()
+    if mode == "allow":
+        return False
+    if mode == "refuse":
+        return True
+    return not is_loopback_host(os.environ.get(BIND_HOST_ENV_VAR))
+
+
+def is_refused_default_login(username: str, password: str) -> bool:
+    """A login of an admin with that account's well-known default password that
+    the server refuses (see :func:`refuses_default_admin_password`)."""
+    default = DEFAULT_PASSWORDS.get(username)
+    return (default is not None and hmac.compare_digest(password, default)
+            and is_admin_user(username) and refuses_default_admin_password())
+
+
 def ensure_default_users(admin_password: str | None = None) -> list[str]:
     """Create the default ``admin`` and ``user`` accounts if missing."""
     created = []

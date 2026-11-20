@@ -313,6 +313,7 @@ DEFAULT_ENV: dict[str, Any] = {
         "cookie_secret": "",
         "enforce_consent": False,
         "allow_registration": True,
+        "default_password_login": "auto",  # auto | refuse | allow (admins with a default password)
     },
     "oauth": {
         "redirect_uri": "http://localhost:5006",

@@ -105,6 +105,11 @@ async def lifespan(app: FastAPI):
         raise conflicts.ConflictError("confusing settings: " + "; ".join(problems))
     hub.attach_loop(asyncio.get_running_loop())
     auth.ensure_default_users()
+    for u in auth.default_password_users():
+        print(f"[hani2] WARNING: the account {u!r} still has its default password; "
+              f"set one with `hani2 users passwd {u}`"
+              + (" (admin logins with it are refused on this server)"
+                 if auth.is_admin_user(u) and auth.refuses_default_admin_password() else ""))
     try:
         from hani2.agents import _prime_group_syspaths
 
@@ -211,6 +216,11 @@ def api_login(response: Response, body: dict = Body(...)):
     if not auth.verify_user_password(username, password):
         ev.log_event(None, ev.EventType.LOGIN_FAILED, user=username)
         raise HTTPException(401, "Invalid username or password")
+    if auth.is_refused_default_login(username, password):
+        ev.log_event(None, ev.EventType.LOGIN_FAILED, user=username)
+        raise HTTPException(403, f"The {username!r} account still has its default password, which is refused "
+                            f"on a server reachable from other machines. Set a new one on the server with "
+                            f"`hani2 users passwd {username}` and log in again.")
     _set_auth(response, username)
     ev.log_event(None, ev.EventType.LOGIN, user=username)
     return {"ok": True, "user": username}

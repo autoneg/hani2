@@ -70,6 +70,9 @@ def _serve(host: str, port: int, open_path: str | None, reload: bool = False, lo
     typer.echo(f"  Settings    {settings_dir()}\n")
     if open_path is not None:
         _open_when_ready(f"http://{url_host}:{port}{open_path}")
+    from hani2.auth import BIND_HOST_ENV_VAR
+
+    os.environ[BIND_HOST_ENV_VAR] = host  # the server refuses default admin passwords off loopback
     uvicorn.run("hani2.server:app", host=host, port=port, reload=reload, log_level=log_level, workers=1)
 
 
