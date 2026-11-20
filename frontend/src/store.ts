@@ -48,6 +48,8 @@ let retry = 0;
 let wanted: string | null = null;
 let pingTimer: number | undefined;
 let retryTimer: number | undefined;
+/** Something (a pong at least) arrived since the last ping. */
+let heard = true;
 
 /* Tool views arrive in bursts; apply them together once per frame so a burst
  * of updates causes one re-render instead of many. */
@@ -142,7 +144,18 @@ export const useStore = create<Store>((set, get) => ({
       retry = 0;
       set({ connected: true });
       window.clearInterval(pingTimer);
-      pingTimer = window.setInterval(() => get().send({ type: "ping" }), 25000);
+      heard = true;
+      pingTimer = window.setInterval(() => {
+        if (!heard) {
+          // no answer to the last ping: the connection is dead even if it never closes
+          window.clearInterval(pingTimer);
+          set({ connected: false });
+          if (wanted === sid) get().connect(sid);
+          return;
+        }
+        heard = false;
+        get().send({ type: "ping" });
+      }, 25000);
     };
     ws.onclose = (ev) => {
       if (get().ws !== ws) return;
@@ -157,6 +170,7 @@ export const useStore = create<Store>((set, get) => ({
     };
     ws.onmessage = (ev) => {
       if (get().ws !== ws) return;
+      heard = true;
       let msg: any;
       try {
         msg = JSON.parse(ev.data);

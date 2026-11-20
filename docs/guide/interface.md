@@ -12,7 +12,7 @@ This page describes the participant's negotiation page in detail: the same page 
 | `/admin` | The [admin console](admin.md). |
 | `/` | Redirects to `/app`, keeping the query string. |
 
-Each browser keeps one session per page. Reloading reconnects to the same session; if the connection drops, a "Reconnecting…" bar appears under the header and the page reconnects on its own.
+Each browser keeps one session per page. Reloading reconnects to the same session; if the connection drops, a "Reconnecting…" bar appears under the header and the page reconnects on its own. A connection that stays open but stops answering (the page pings the server every 25 seconds) counts as dropped once a ping goes unanswered.
 
 ## The header
 

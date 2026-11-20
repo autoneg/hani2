@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Dead connections are noticed.** When the server stops answering the page's ping (a connection that
+  hangs without closing), the page now shows "Reconnecting…" and reconnects instead of looking
+  connected while nothing works.
 - **No doubled chat messages.** A chat message the page already shows (for example, one that is in the
   snapshot sent when the connection is re-established) is no longer added a second time.
 - **Starting is never silently lost.** If the page cannot open its session, the error screen now has a

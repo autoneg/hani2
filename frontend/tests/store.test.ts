@@ -1,7 +1,7 @@
 // Run with `npm test`. The session store's websocket handling, with a fake WebSocket.
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
-import { afterEach, test } from "node:test";
+import { afterEach, mock, test } from "node:test";
 import { JSDOM } from "jsdom";
 
 // the app's sources import siblings without an extension (the bundler adds it)
@@ -43,6 +43,9 @@ class FakeSocket {
 }
 
 const { window } = new JSDOM("", { url: "http://localhost/app" });
+// the store uses window's timers: route them to the global ones, which `mock.timers` replaces
+for (const k of ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] as const)
+  (window as any)[k] = (...a: any[]) => (globalThis as any)[k](...a);
 Object.assign(globalThis, { window, document: window.document, location: window.location, WebSocket: FakeSocket });
 const { useStore } = await import("../src/store.ts");
 
@@ -63,4 +66,25 @@ test("a chat message that is already shown is not added again", () => {
   ws.recv({ type: "chat", message: m });
   ws.recv({ type: "chat", message: { ...m, id: "a2", text: "again" } });
   assert.deepEqual(useStore.getState().state!.chat.map((x: any) => x.id), ["a1", "a2"]);
+});
+
+test("a connection that stops answering pings is replaced", () => {
+  mock.timers.enable({ apis: ["setInterval", "setTimeout"] });
+  try {
+    const ws = connect();
+    mock.timers.tick(25000);
+    assert.deepEqual(ws.sent.at(-1), { type: "ping" });
+    ws.recv({ type: "pong" });
+    mock.timers.tick(25000); // answered: still the same socket
+    assert.equal(FakeSocket.all.at(-1), ws);
+    assert.equal(useStore.getState().connected, true);
+    mock.timers.tick(25000); // the second ping got no answer
+    assert.notEqual(FakeSocket.all.at(-1), ws);
+    assert.equal(useStore.getState().connected, false);
+    FakeSocket.all.at(-1)!.open();
+    assert.equal(useStore.getState().connected, true);
+  } finally {
+    useStore.getState().disconnect();
+    mock.timers.reset();
+  }
 });
