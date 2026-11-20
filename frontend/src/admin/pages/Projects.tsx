@@ -56,7 +56,7 @@ export function Projects() {
   const [name, setName] = useState("");
   const nav = useNav();
   const { reload } = useLayer();
-  const load = () => api("/api/admin/projects").then(setD);
+  const load = () => api("/api/admin/projects").then(setD).catch((e) => toast(e.message, "error"));
   useEffect(() => {
     load();
   }, []);
@@ -282,7 +282,7 @@ function ProjectView({ name }: { name: string }) {
       setD(r);
       setData(dataOf(r, PROJECT_FIELDS));
       setDirty(false);
-    });
+    }).catch((e) => toast(e.message, "error"));
   useEffect(() => {
     load();
     api("/api/admin/meta").then(setMeta).catch(() => {});
@@ -384,7 +384,7 @@ export function StudyView({ project, study }: { project: string; study: string }
       setD(r);
       setData(dataOf(r, STUDY_FIELDS));
       setDirty(false);
-    });
+    }).catch((e) => toast(e.message, "error"));
   useEffect(() => {
     load();
     api("/api/admin/meta").then(setMeta).catch(() => {});

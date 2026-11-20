@@ -95,3 +95,12 @@ def test_start_while_disconnected_says_so(new_page):
     expect(p.get_by_text("Reconnecting")).to_have_count(0, timeout=30000)
     p.get_by_role("button", name="Start negotiation").click()
     expect(p.get_by_role("button", name="Counter-offer").or_(p.get_by_role("button", name="Send offer")).first).to_be_visible()
+
+
+@pytest.mark.parametrize("page_id,endpoint", [("users", "/api/admin/users"), ("results", "/api/admin/results")])
+def test_a_failing_admin_request_shows_an_error(new_page, page_id, endpoint):
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.route(f"**{endpoint}", lambda r: r.fulfill(status=500, json={"detail": "Storage unavailable"}))
+    p.goto(f"/admin#{page_id}")
+    expect(p.get_by_text("Storage unavailable")).to_be_visible()

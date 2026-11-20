@@ -152,8 +152,7 @@ function ConnectionRow({ c, reload }: { c: ConnectionInfo; reload: () => void })
           aria-label={`Remove ${c.name}`}
           onClick={async () => {
             if (confirm(`Remove the connection ${c.name}? Its key and sign-in are deleted.`)) {
-              await api(`/api/admin/connections/${encodeURIComponent(c.name)}`, { method: "DELETE" });
-              reload();
+              await api(`/api/admin/connections/${encodeURIComponent(c.name)}`, { method: "DELETE" }).then(reload).catch((e) => toast(e.message, "error"));
             }
           }}
         >

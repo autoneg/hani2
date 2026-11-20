@@ -40,10 +40,10 @@ export function Texts() {
       setD(r);
       setText(r.exists === false ? (r.effective ?? "") : (r.text ?? ""));
       setDirty(false);
-    });
+    }).catch((e) => toast(e.message, "error"));
   useEffect(() => {
     setD(null);
-    load().catch((e) => toast(e.message, "error"));
+    load();
   }, [kind, layer.id]);
   const candidates = layer.kind === "project" ? studies.filter((s) => s.startsWith(`${layer.project}/`)) : studies;
   const study = ownStudy ?? (previewStudy || info.bound?.slice(6) || "");

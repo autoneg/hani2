@@ -8,6 +8,7 @@ import { NavContext, SubPage } from "./Nav";
 import { searchSettings, Hit } from "./search";
 import { PAGES } from "./pages";
 import { Spinner } from "./schema";
+import { toast } from "./toast";
 import { Tile } from "./Row";
 
 function pageFromHash(): { page: string | null; row: string | null } {
@@ -51,7 +52,7 @@ export function SettingsShell() {
     api("/api/auth/me").then((m) => {
       if (!m.user) navigate("/login?next=/admin", true);
       else setAllowed(!!m.is_admin);
-    });
+    }).catch((e) => toast(e.message, "error"));
     api("/api/admin/meta").then(setMeta).catch(() => {});
     if (first.row) reveal(first.row);
     const onHash = () => {

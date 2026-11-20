@@ -8,6 +8,7 @@ import { Group } from "../Group";
 import { Row } from "../Row";
 import { Select } from "../controls/Select";
 import { TextField } from "../controls/TextField";
+import { toast } from "../toast";
 import { Spinner } from "../schema";
 
 const ctx = { onInput: () => {}, onAction: () => {} };
@@ -56,7 +57,7 @@ export function Results() {
     api("/api/admin/results").then((d) => {
       setData(d);
       setCols(d.default_columns.filter((c: string) => d.columns.includes(c)));
-    });
+    }).catch((e) => toast(e.message, "error"));
   }, []);
   if (!data) return <Spinner />;
   return (
@@ -111,9 +112,9 @@ export function Analytics() {
   const [events, setEvents] = useState<any[]>([]);
   const [f, setF] = useState({ user: "", types: "", since: "", until: "" });
   const load = () => {
-    api("/api/admin/events/summary").then(setSum);
+    api("/api/admin/events/summary").then(setSum).catch((e) => toast(e.message, "error"));
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v) as any).toString();
-    api(`/api/admin/events?limit=2000&${q}`).then(setEvents);
+    api(`/api/admin/events?limit=2000&${q}`).then(setEvents).catch((e) => toast(e.message, "error"));
   };
   useEffect(load, []);
   const types = sum ? Object.keys(sum.by_type) : [];

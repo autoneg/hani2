@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Admin pages report failed requests.** When loading a list (projects, studies, users, results,
+  events, texts) or a user / connection action fails, the admin pages now show the error instead of
+  failing silently.
 - **Dead connections are noticed.** When the server stops answering the page's ping (a connection that
   hangs without closing), the page now shows "Reconnecting…" and reconnects instead of looking
   connected while nothing works.

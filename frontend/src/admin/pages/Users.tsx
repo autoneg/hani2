@@ -11,7 +11,7 @@ export function Users() {
   const [rows, setRows] = useState<any[]>([]);
   const [n, setN] = useState({ username: "", password: "", email: "", is_admin: false });
   const [q, setQ] = useState("");
-  const load = () => api("/api/admin/users").then(setRows);
+  const load = () => api("/api/admin/users").then(setRows).catch((e) => toast(e.message, "error"));
   useEffect(() => {
     load();
   }, []);
@@ -60,7 +60,7 @@ export function Users() {
             hint={[u.full_name, u.email, u.oauth && `via ${u.oauth}`, u.consented ? "consented" : "no consent yet"].filter(Boolean).join(" · ")}
           >
             {u.username !== "admin" && (
-              <button className="btn-ghost text-xs" onClick={async () => { await api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "PATCH", body: { is_admin: !u.is_admin } }); load(); }}>
+              <button className="btn-ghost text-xs" onClick={() => api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "PATCH", body: { is_admin: !u.is_admin } }).then(load).catch((e) => toast(e.message, "error"))}>
                 {u.is_admin ? "Remove admin" : "Make admin"}
               </button>
             )}
@@ -69,8 +69,9 @@ export function Users() {
               onClick={async () => {
                 const p = prompt(`New password for ${u.username}`);
                 if (p) {
-                  await api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "PATCH", body: { password: p } });
-                  toast("Password changed");
+                  await api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "PATCH", body: { password: p } })
+                    .then(() => toast("Password changed"))
+                    .catch((e) => toast(e.message, "error"));
                 }
               }}
             >
@@ -82,8 +83,7 @@ export function Users() {
                 aria-label={`Delete ${u.username}`}
                 onClick={async () => {
                   if (confirm(`Delete ${u.username}? Their results are kept.`)) {
-                    await api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "DELETE" });
-                    load();
+                    await api(`/api/admin/users/${encodeURIComponent(u.username)}`, { method: "DELETE" }).then(load).catch((e) => toast(e.message, "error"));
                   }
                 }}
               >
