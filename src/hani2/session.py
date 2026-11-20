@@ -585,6 +585,11 @@ class NegotiationSession:
         for key in information.PRIVATE_INFO_KEYS:
             (scenario.info or {}).pop(key, None)
 
+    @property
+    def anonymous_guest(self) -> bool:
+        """A playground or study session without an account of its own (not a signed-in user's ``/play``)."""
+        return self.mode == "guest" and not str(self.sid).startswith("play:")
+
     def sees_totals(self, audience: str) -> bool:
         """Whether ``audience`` (``human`` / ``assistant`` / ``shared``) may see what deals are worth."""
         st = self.information

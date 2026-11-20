@@ -188,3 +188,33 @@ def test_a_signed_link_from_the_website_opens_the_app_logged_in(new_page):
     assert p.request.get("/api/auth/me").json()["user"] == f"anac_{sub}"
     p.goto(f"/api/sso/scmlweb?token={token}&next=/app")  # the same link again: refused
     expect(p.get_by_text("already used")).to_be_visible()
+
+
+def test_signed_in_playground_records_under_the_account(new_page):
+    import time
+    import uuid
+
+    from hani2 import sso
+
+    from .conftest import SSO_SECRET
+
+    p = new_page()
+    now, sub = int(time.time()), uuid.uuid4().hex[:10]
+    token = sso.sign({"iss": "scmlweb", "aud": "hani2", "sub": sub, "iat": now, "exp": now + 60,
+                      "jti": uuid.uuid4().hex}, SSO_SECRET)
+    p.goto(f"/api/sso/scmlweb?token={token}&next=/play")
+    start(p)
+    wait_for_my_turn_with_an_offer(p).click()
+    p.get_by_role("button", name="Accept offer").click()
+    expect(p.get_by_text("Agreement reached").first).to_be_visible()
+    p.get_by_role("tab", name="My Results").click()
+    expect(p.get_by_text("Agreements").first).to_be_visible()
+    import json
+
+    sid = p.request.post("/api/session", data=json.dumps({"mode": "guest", "query": {}}),
+                         headers={"content-type": "application/json"}).json()["sid"]
+    assert sid == f"play:anac_{sub}"
+    guest = new_page()
+    guest_sid = guest.request.post("/api/session", data=json.dumps({"mode": "guest", "query": {}}),
+                                   headers={"content-type": "application/json"}).json()["sid"]
+    assert guest_sid.startswith("guest:")

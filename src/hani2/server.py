@@ -483,13 +483,16 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
             user, display = f"participant_{participant}", "Participant"
             sid = f"participant:{participant}"
             pid = participant
+        elif user:
+            # a signed-in browser plays under its own account (its results show in its Results tab);
+            # a separate session from its /app one. Without a login: the anonymous guest playground.
+            display = auth.get_meta(user).get("full_name") or user
+            sid = f"play:{user}"
         else:
             gid = _guest_id(request, response)
             # each browser gets its own results folder (no concurrent writes to one file)
             user, display = f"guest_{gid}", "Guest"
             sid = f"guest:{gid}"
-            if current_user(request) and is_admin:
-                display = current_user(request)  # type: ignore
         is_admin = False if pid else is_admin
     admin_mode = is_admin or (_truthy(query.get("admin", "")) and not pid)
     # An admin can negotiate exactly as a participant would (?as_participant=1): no admin controls, no
@@ -671,8 +674,8 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
     if s is None:
         await websocket.close(code=4404)
         return
-    # The main-app session belongs to a logged-in user: check the cookie.
-    if sid.startswith("main:"):
+    # The main-app and signed-in playground sessions belong to a logged-in user: check the cookie.
+    if sid.startswith(("main:", "play:")):
         user = None
         tok = websocket.cookies.get(AUTH_COOKIE)
         if tok:

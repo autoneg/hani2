@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The playground uses your account when you are logged in.** `/play` in a logged-in browser records
+  the rounds under that account and shows them in **My Results**; without a login it is the guest
+  playground as before. See [The playground and guests](guide/authentication.md#the-playground-and-guests).
 - **Sign-in from a trusted website.** A website with its own accounts, such as the ANAC competition
   site, can sign its users straight into HANI2 with a short-lived signed token: the account
   (`anac_<id>`) is made on the first visit, and the login page shows *Continue with your ANAC

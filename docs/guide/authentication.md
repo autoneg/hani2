@@ -193,9 +193,12 @@ Passwords are stored as PBKDF2-SHA256 hashes with a random salt and 200,000 iter
 
 - A guest session is keyed by a `hani2_guest` cookie, so reloading the page keeps the same session. Its results are stored under the user name `guest_<id>`, one folder per browser.
 - A Prolific session is keyed by the PID, so a participant can return from another browser.
-- An admin who is logged in and opens `/play` is still recognized as an admin.
+- A browser that is logged in (with a password, OAuth or [a trusted website](#sign-in-from-a-trusted-website))
+  plays `/play` under its own account: its playground results are stored with the account and
+  appear in its **My Results** tab. It is a separate session from the account's `/app` one and
+  never counts towards a study's balance. An admin stays an admin there.
 
-Some tools are hidden in guest sessions (see [Tools](tools.md)), and admin-only settings stay admin-only.
+Some tools are hidden in sessions without an account (see [Tools](tools.md)), and admin-only settings stay admin-only.
 
 ## The `?admin=1` switch
 

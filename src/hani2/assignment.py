@@ -141,6 +141,7 @@ def counts_as_human(session: "NegotiationSession") -> bool:
     return (not session.is_admin and not getattr(session, "admin_viewer", None)
             and not getattr(session, "uncounted", False)  # e.g. the No-Human ablation runs
             and not str(session.user).startswith(("guest_", "sim_"))
+            and not str(getattr(session, "sid", "")).startswith("play:")  # a signed-in user's playground
             and getattr(session, "mode", "") != "simulated")
 
 

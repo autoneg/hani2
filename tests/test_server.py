@@ -261,3 +261,23 @@ def test_oauth_error_reply_creates_no_shared_account(oauth, client):
 def test_oauth_rejects_a_wrong_state(oauth, client):
     r = client.get("/api/oauth/github/callback", params={"code": "c", "state": "forged"}, follow_redirects=False)
     assert "error=oauth_state" in r.headers["location"]
+
+
+def test_signed_in_playground_uses_the_account_and_guests_stay_anonymous(client):
+    from hani2.server import hub
+
+    guest = client.post("/api/session", json={"mode": "guest", "query": {}}).json()["sid"]
+    assert guest.startswith("guest:") and hub.get(guest).user.startswith("guest_")
+    login(client, "user", "userpass")
+    sid = client.post("/api/session", json={"mode": "guest", "query": {}}).json()["sid"]
+    assert sid == "play:user" and hub.get(sid).user == "user"
+    from hani2.assignment import counts_as_human
+
+    assert not counts_as_human(hub.get(sid))  # the playground never counts towards a study's balance
+    assert sid != client.post("/api/session", json={"mode": "main", "query": {}}).json()["sid"]  # its own session
+    with client.websocket_connect(f"/api/ws/{sid}") as ws:
+        assert json.loads(ws.receive_text())["type"]
+    client.post("/api/auth/logout")
+    with pytest.raises(Exception):
+        with client.websocket_connect(f"/api/ws/{sid}") as ws:
+            ws.receive_text()  # someone else's signed-in playground: refused

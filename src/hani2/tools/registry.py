@@ -350,7 +350,7 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
             continue
         if spec.admin_only and not session.is_admin:
             continue
-        if not spec.guest and session.mode == "guest":
+        if not spec.guest and getattr(session, "anonymous_guest", session.mode == "guest"):
             continue
         try:
             tool = spec.cls(session.ss, enabled=spec.enabled)
@@ -377,7 +377,7 @@ def addable_tool_specs(session: "NegotiationSession") -> list[ToolSpec]:
             continue
         if spec.admin_only and not session.is_admin:
             continue
-        if not spec.guest and session.mode == "guest":
+        if not spec.guest and getattr(session, "anonymous_guest", session.mode == "guest"):
             continue
         if getattr(spec.cls, "needs_totals", False) and not getattr(session, "sees_totals", lambda _a: True)("human"):
             continue  # this round the participant may not see what deals are worth (hani2.information)
