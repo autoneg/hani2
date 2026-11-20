@@ -5,6 +5,9 @@
 - **Replacing a Library upload keeps the index in step.** When a replaced `.py`/`.zip` upload no longer
   defines a class it had before, that class's entry is now dropped instead of staying in the Library as a
   dangling item.
+- **Practice rounds no longer count in results.** The score, negotiation and agreement counts of
+  *My Results* and *All Results* and the leaderboards leave out practice rounds; the results table
+  still lists them.
 - **Closed sessions stay closed.** Closing a session (or the server dropping it) now cancels its
   timers: a pending auto-start or auto-load of the next negotiation, its warning toast and the time-limit
   check no longer fire later on the closed session.

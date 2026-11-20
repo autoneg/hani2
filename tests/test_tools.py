@@ -237,3 +237,31 @@ def test_admin_can_open_admin_only_tools_to_everyone(hani2_home):
     trace = s.tool_controller.find("Trace")
     trace.values["show_agent"] = True
     assert "Opponent utility" in trace.render()[-1]["columns"]
+
+
+def test_practice_rounds_never_count_in_scores_or_leaderboard():
+    import pandas as pd
+
+    from hani2.results import leaderboard
+    from hani2.tools.builtin import _results_view
+
+    # practice is read back from results.csv as a bool (or a string in mixed/old files)
+    rows = [dict(user="alice", scenario="s", human_utility=u, practice=p, status="success")
+            for u, p in [(0.5, False), (0.5, False), (1.0, True), (1.0, "True")]]
+    rows += [dict(user="bob", scenario="s", human_utility=u, practice=False) for u in (0.6, 0.6)]
+    df = pd.DataFrame(rows)
+    lb = leaderboard(df)
+    assert [r["user"] for r in lb] == ["bob", "alice"]
+    assert lb[1]["negotiations"] == 2 and lb[1]["mean_utility"] == pytest.approx(0.5)
+
+    class _T:
+        values: dict = {}
+
+    comps = _results_view(_T(), df[df["user"] == "alice"], leaderboard=False)
+    stats = {c["label"]: c["value"] for c in comps[0]["children"]}
+    assert stats == {"Score": "50.0", "Negotiations": 2, "Agreements": 2}
+    assert len(comps[-1]["rows"]) == 4  # the table still lists the practice rounds
+    # right after the practice round: nothing counts yet, but the round is listed
+    comps = _results_view(_T(), df.iloc[2:4], leaderboard=False)
+    assert {c["label"]: c["value"] for c in comps[0]["children"]} == {"Score": "0.0", "Negotiations": 0, "Agreements": 0}
+    assert len(comps[-1]["rows"]) == 2

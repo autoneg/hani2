@@ -599,6 +599,9 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
         from hani2.results import is_simulated
 
         df = df[~is_simulated(df)]
+    from hani2.results import is_practice
+
+    df = df[~is_practice(df)]  # practice rounds stay in the table but never count
     score, per = scenario_scores(df)
     comps: list[ui.Component] = [
         ui.stats(

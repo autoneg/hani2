@@ -135,6 +135,13 @@ def is_simulated(df: pd.DataFrame) -> pd.Series:
     return sim
 
 
+def is_practice(df: pd.DataFrame) -> pd.Series:
+    """Rows of practice rounds (``practice`` true); they never count towards scores or ranks."""
+    if df is None or len(df) == 0 or "practice" not in df:
+        return pd.Series(False, index=None if df is None else df.index, dtype=bool)
+    return df["practice"].astype(str).str.lower().isin(["true", "1", "1.0"])
+
+
 def _state_record(state: Any) -> dict[str, Any]:
     """The mechanism state as columns, with any stored key or token masked in its error texts."""
     d = asdict(state)
@@ -412,10 +419,11 @@ def _types(df: pd.DataFrame) -> pd.Series:
 def leaderboard(df: pd.DataFrame, participant_type: str | None = None) -> list[dict]:
     """Human participants ranked by score; simulated participants are never ranked here (see
     :func:`simulated_leaderboard`). Each row has the user's ``participant_type`` (from the
-    pre-questionnaire, ``""`` when unknown); pass one to rank only that stratum."""
+    pre-questionnaire, ``""`` when unknown); pass one to rank only that stratum. Practice rounds
+    are left out."""
     if df is None or len(df) == 0 or "user" not in df:
         return []
-    df = df[~is_simulated(df)]
+    df = df[~is_simulated(df) & ~is_practice(df)]
     types = _types(df)
     if participant_type is not None:
         df, types = df[types == participant_type], types[types == participant_type]
@@ -435,7 +443,7 @@ def leaderboard_by_type(df: pd.DataFrame) -> dict[str, list[dict]]:
     """The human leaderboard stratified by participant type (``""``: type unknown)."""
     if df is None or len(df) == 0 or "user" not in df:
         return {}
-    df = df[~is_simulated(df)]
+    df = df[~is_simulated(df) & ~is_practice(df)]
     return {t: leaderboard(df, t) for t in sorted(set(_types(df)))}
 
 
