@@ -1,1 +1,0 @@
-import{c as o}from"./index-RQ5hg3Nf.js";const e={name:"rows-2",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 12h18",key:"1i2n21"}]],aliases:["rows"]};e.node;const a=o(e);export{e as __iconData,a as default};

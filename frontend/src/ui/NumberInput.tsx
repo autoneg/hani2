@@ -25,8 +25,9 @@ export function NumberInput({ value, onCommit, min, max, int, step, className = 
 }) {
   const shown = value == null ? "" : String(value);
   const [text, setText] = useState(shown);
+  const [partial, setPartial] = useState(false); // text a number field cannot parse yet ("-", "1e")
   useEffect(() => setText((t) => (parseNumber(t, min, max, int) === value ? t : shown)), [value]);
-  const invalid = text.trim() !== "" && parseNumber(text, min, max, int) === null;
+  const invalid = partial || (text.trim() !== "" && parseNumber(text, min, max, int) === null);
   return (
     <input
       {...rest}
@@ -40,10 +41,15 @@ export function NumberInput({ value, onCommit, min, max, int, step, className = 
       title={invalid ? `Enter a number${min != null && max != null ? ` from ${min} to ${max}` : ""}` : undefined}
       onChange={(e) => {
         setText(e.target.value);
+        setPartial(e.target.validity.badInput);
         const n = parseNumber(e.target.value, min, max, int);
         if (n !== null && n !== value) onCommit(n);
       }}
-      onBlur={() => setText(shown)}
+      onBlur={(e) => {
+        setPartial(false);
+        setText(shown);
+        if (e.target.validity.badInput) e.target.value = shown; // the browser keeps unparsed text otherwise
+      }}
     />
   );
 }

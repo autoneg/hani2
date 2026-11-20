@@ -1,0 +1,1 @@
+import{c as t}from"./index-C0k99-Wp.js";const e={name:"letter-z",size:24,node:[["path",{d:"M6 4h11.5a.5.5 0 01.387.817L6.114 19.183a.5.5 0 00.387.817H18",key:"2p8y6y"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

@@ -1,1 +1,0 @@
-import{c as t}from"./index-RQ5hg3Nf.js";const e={name:"square-stop",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
