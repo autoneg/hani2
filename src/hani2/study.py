@@ -602,7 +602,9 @@ class ProlificStudy(Study):
                 tmp = counter.with_name(f".{counter.name}.{os.getpid()}.{threading.get_ident()}.tmp")
                 tmp.write_text(str(n + 1))
                 tmp.replace(counter)
-                per_user.write_text(str(n))
+                tmp = per_user.with_name(f".{per_user.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+                tmp.write_text(str(n))
+                tmp.replace(per_user)
             return n
         except Exception:
             return 0

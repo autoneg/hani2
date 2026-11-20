@@ -307,13 +307,14 @@ def test_rotation_offsets_unique_under_concurrency(tmp_path):
     n = 40
     barrier = threading.Barrier(n)
     out: dict[int, int] = {}
+    again: dict[int, int] = {}
 
     def run(i):
         st = SimpleNamespace(user_path=tmp_path / f"prolific_C{i}")
         st.user_path.mkdir()
         barrier.wait()
         out[i] = ProlificStudy._rotation_offset(st)
-        assert ProlificStudy._rotation_offset(st) == out[i]  # kept per participant
+        again[i] = ProlificStudy._rotation_offset(st)
 
     threads = [threading.Thread(target=run, args=(i,)) for i in range(n)]
     for t in threads:
@@ -321,6 +322,7 @@ def test_rotation_offsets_unique_under_concurrency(tmp_path):
     for t in threads:
         t.join()
     assert sorted(out.values()) == list(range(n))  # unique and contiguous
+    assert again == out  # kept per participant
     assert (tmp_path / "_prolific_fallback_counter.txt").read_text() == str(n)
 
 
