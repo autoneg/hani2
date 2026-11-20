@@ -23,9 +23,13 @@ class Proxy:
         self.sent: list[str] = []
         self.routes: list = []
         self.mute = False  # True: the server's messages no longer reach the page (a dead connection)
+        self.refuse = False  # True: new connections are closed at once (the server is unreachable)
         page.route_web_socket(WS, self._handle)
 
     def _handle(self, ws):
+        if self.refuse:
+            ws.close()
+            return
         server = ws.connect_to_server()
         self.routes.append(ws)
         ws.on_message(lambda m: (self.sent.append(m), server.send(m)))
@@ -65,3 +69,29 @@ def test_page_view_is_sent_once_not_on_every_reconnect(new_page):
     assert len(proxy.routes) == 2
     p.wait_for_timeout(500)
     assert proxy.count('"page_view"') == 1
+
+
+def test_a_failed_session_request_can_be_retried(new_page):
+    p = logged_in(new_page)
+    p.route("**/api/session", lambda r: r.fulfill(status=503, json={"detail": "Server busy"}))
+    p.goto("/app")
+    expect(p.get_by_text("Server busy")).to_be_visible()
+    p.unroute("**/api/session")
+    p.get_by_role("button", name="Try again").click()
+    expect(p.get_by_role("button", name="Start negotiation")).to_be_visible()
+
+
+def test_start_while_disconnected_says_so(new_page):
+    p = logged_in(new_page)
+    proxy = Proxy(p)
+    p.goto("/app")
+    expect(p.get_by_role("button", name="Start negotiation")).to_be_visible()
+    proxy.refuse = True
+    proxy.routes[-1].close()
+    expect(p.get_by_text("Reconnecting")).to_be_visible()
+    p.get_by_role("button", name="Start negotiation").click()
+    expect(p.get_by_text("Not connected")).to_be_visible()
+    proxy.refuse = False
+    expect(p.get_by_text("Reconnecting")).to_have_count(0, timeout=30000)
+    p.get_by_role("button", name="Start negotiation").click()
+    expect(p.get_by_role("button", name="Counter-offer").or_(p.get_by_role("button", name="Send offer")).first).to_be_visible()

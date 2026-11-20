@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Starting is never silently lost.** If the page cannot open its session, the error screen now has a
+  *Try again* button; pressing *Start negotiation* while the connection is down shows a "Not connected"
+  notice instead of doing nothing.
 - **One `page_view` per page view.** The negotiation page no longer records another `page_view` event
   each time its connection to the server is re-established.
 - **Number fields keep offers in range.** The number field of a continuous or wide-range issue (and

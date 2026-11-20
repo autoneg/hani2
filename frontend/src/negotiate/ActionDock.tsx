@@ -493,7 +493,7 @@ function Intro({ st }: { st: SessionState }) {
       )}
       {(st.can_choose_scenario || st.admin_mode) && <AdminPickers st={st} />}
       <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-primary px-5 py-2.5 text-base" onClick={() => send({ type: "start" })} disabled={!st.scenario}>
+        <button className="btn-primary px-5 py-2.5 text-base" onClick={() => sendOrWarn({ type: "start" })} disabled={!st.scenario}>
           <Play size={17} /> Start negotiation
         </button>
         {!prolific && (

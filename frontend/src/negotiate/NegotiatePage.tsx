@@ -361,6 +361,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   const connected = useStore((s) => s.connected);
   const connect = useStore((s) => s.connect);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again"
   const { device, landscape } = useDevice();
   useAutoOpenAssistant();
 
@@ -392,7 +393,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
       window.removeEventListener("hani-session-lost", lost);
       useStore.getState().disconnect();
     };
-  }, [mode, connect]);
+  }, [mode, connect, attempt]);
 
   const webmcp = st?.webmcp;
   useEffect(() => {
@@ -421,6 +422,9 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
         <div>
           <div className="mb-2 text-lg font-semibold">This page could not be opened</div>
           <p className="text-sm text-muted">{error}</p>
+          <button className="btn-primary mt-4" onClick={() => (setError(null), setAttempt((a) => a + 1))}>
+            Try again
+          </button>
         </div>
       </div>
     );
