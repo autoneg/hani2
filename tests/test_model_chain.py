@@ -665,3 +665,34 @@ def test_every_fallback_is_tried_once_in_order_even_by_concurrent_callers(hani2_
     fallbacks = [(c["previous"]["model"], c.get("model")) for c in models.changes if c["action"] == "model_fallback"]
     assert [p for p, n in fallbacks if n] == ["a", "b"]
     assert models.pinned["text"].model == "c"
+
+
+def test_hard_failure_uses_classes_and_status_codes_before_a_narrow_text_match():
+    import litellm
+
+    hard = [
+        litellm.NotFoundError(message="nope", llm_provider="openai", model="x"),
+        litellm.AuthenticationError(message="bad key", llm_provider="openai", model="x"),
+        litellm.RateLimitError(message="slow down", llm_provider="openai", model="x"),
+        type("ProxyError", (Exception,), {"status_code": 503})("upstream down"),
+        type("ProxyError", (Exception,), {"status_code": 401})("unauthorised"),
+        type("ProxyError", (Exception,), {"status_code": 404})("<html>404 Not Found</html>"),
+        TimeoutError("timed out"),
+        RuntimeError("model 'llama3' not found, try pulling it first"),
+        RuntimeError("The model `gpt-x` does not exist or you do not have access to it."),
+        RuntimeError("Model not found"),
+        RuntimeError("connect: connection refused"),
+    ]
+    soft = [
+        ValueError("tool 'lookup' not found"),
+        RuntimeError("the model called function 'quote' which was not found"),
+        litellm.BadRequestError(message="user said: my file was not found", llm_provider="openai", model="x"),
+        type("ProxyError", (Exception,), {"status_code": 400})("key 'model' not found in payload"),
+        KeyError("not found"),
+        RuntimeError("404 page not found"),
+        FileNotFoundError("prompt.txt"),
+        ModuleNotFoundError("no module named 'foo'"),
+        ValueError("invalid json schema"),
+    ]
+    assert [mc.hard_failure(e) for e in hard] == [True] * len(hard)
+    assert [mc.hard_failure(e) for e in soft] == [False] * len(soft)

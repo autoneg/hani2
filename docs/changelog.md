@@ -9,6 +9,9 @@
   value, or utilities are infinite, computing the Kalai–Smorodinsky point no longer fails (which left the
   whole `optimality` group empty) or picks an outcome below a reservation value. Pareto outcomes with
   non-finite utilities are skipped, and the metric is empty if no remaining one is acceptable to both sides.
+- **Model fallback is triggered by real model failures only.** A failed model call now moves to the next
+  entry of the chain based on the error's type and HTTP status, and on messages saying the *model* is not found;
+  errors that merely contain "not found" (a missing tool, quoted text) no longer switch the session's model.
 - **Replacing a Library upload keeps the index in step.** When a replaced `.py`/`.zip` upload no longer
   defines a class it had before, that class's entry is now dropped instead of staying in the Library as a
   dangling item.

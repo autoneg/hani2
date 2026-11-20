@@ -211,7 +211,9 @@ opponent is created. Each choice is then kept for the whole session.
 **When a call fails.** A call can fail hard: it cannot connect, the sign-in is refused, the model
 is not found, the provider is overloaded or rate limited. HANI2 then moves the session's purpose to
 the next available entry and retries the call, and records the switch as a `model_fallback` event.
-Other errors are not retried, for example a request the model rejects. When no later entry is
+HANI2 recognises these from the error's type and HTTP status (401, 402, 403, 404, 408, 429 and 5xx), or from a
+message that says the model is not found or does not exist. Other errors are not retried, for example a request the
+model rejects, or a message that only mentions that something else (a tool, a file) was not found. When no later entry is
 available, the call fails with its own error and the session keeps its entry, so the next call
 tries it again. LLM opponents call the model
 themselves, so they keep the entry they were created with until the end of their negotiation.

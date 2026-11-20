@@ -607,16 +607,24 @@ def litellm_kwargs(res: Resolution, **overrides: Any) -> dict[str, Any]:
 
 
 _HARD = ("HarnessError", "HarnessUnavailable", "HarnessTimeout", "AuthenticationError", "NotFoundError", "APIConnectionError", "ServiceUnavailableError",
-         "PermissionDeniedError", "RateLimitError", "Timeout", "InternalServerError", "BadGatewayError")
+         "PermissionDeniedError", "RateLimitError", "Timeout", "TimeoutError", "TimeoutException", "InternalServerError",
+         "BadGatewayError")
+
+
+_HARD_STATUS = {401, 402, 403, 404, 408, 429}
+# "model 'x' not found", "The model `x` does not exist", "model not found" -- not any "not found"
+_MODEL_MISSING = re.compile(r"\bmodel(?:\s+[\"'`]?[\w./:@-]+[\"'`]?)?\s+(?:is\s+)?(?:not found|does not exist)")
 
 
 def hard_failure(e: BaseException) -> bool:
     """Errors after which the next entry of the chain is tried."""
-    name = type(e).__name__
-    if any(h in name for h in _HARD):
+    if any(c.__name__ in _HARD for c in type(e).__mro__):  # exact names: FileNotFoundError is not NotFoundError
+        return True
+    status = getattr(e, "status_code", None)
+    if isinstance(status, int) and (status in _HARD_STATUS or status >= 500):
         return True
     msg = str(e).lower()
-    return "not found" in msg or ("model" in msg and "does not exist" in msg) or "connection refused" in msg
+    return bool(_MODEL_MISSING.search(msg)) or "connection refused" in msg
 
 
 def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[dict]], *,
