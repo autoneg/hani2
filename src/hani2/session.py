@@ -310,6 +310,8 @@ class NegotiationSession:
         self.human_last_offer: Outcome | None = None
         self._trace_seen = 0
         self._timer: threading.Timer | None = None
+        #: set by close(); late timer callbacks check it and do nothing
+        self.closed = False
         self.autopilot_active = False
         self.autopilot_driver_name: str | None = None
         self.next_opponent: str = ""
@@ -1936,7 +1938,7 @@ class NegotiationSession:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
-        if self.deadline is None:
+        if self.deadline is None or self.closed:
             return
         delay = max(0.0, self.deadline - time.time()) + 0.25
         self._timer = threading.Timer(delay, self.in_study(self._on_timeout))
@@ -1944,7 +1946,7 @@ class NegotiationSession:
         self._timer.start()
 
     def _on_timeout(self) -> None:
-        if self.phase != "running":
+        if self.closed or self.phase != "running":
             return
         if self.autopilot_active:
             self._schedule_timeout()
@@ -2626,6 +2628,8 @@ class NegotiationSession:
 
     @_in_own_study
     def close(self) -> None:
+        self.closed = True
+        self.study.close()
         if self.recorder is not None:
             self.recorder.close()
         self.ui_executor.shutdown(wait=False, cancel_futures=True)

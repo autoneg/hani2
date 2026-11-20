@@ -81,6 +81,17 @@ def test_prolific_practice_counted_and_finish(hani2_home, monkeypatch):
     assert s.phase == "finished" and s.finish_url
 
 
+def test_prolific_auto_timers_do_nothing_after_close(hani2_home, monkeypatch):
+    import time
+
+    monkeypatch.setenv("PROLIFIC_AUTO_START_SECONDS", "1")
+    s = make_session(user="prolific_C1", mode="guest", partner=None)
+    assert s.study.auto_kind == "start" and s.phase == "ready"
+    s.close()
+    time.sleep(1.5)
+    assert s.phase == "ready" and s.mechanism is None  # the auto-start never fired
+
+
 def test_prolific_schedule(hani2_home, monkeypatch):
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
     d = hani2_home / "db" / "prolific_S1"

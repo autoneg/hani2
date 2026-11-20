@@ -203,6 +203,9 @@ class Study:
         self._shown_at: str | None = None
         self._last_summary: dict | None = None
 
+    def close(self) -> None:
+        """Cancel the study's timers (the session is being closed)."""
+
     # -- planning -----------------------------------------------------------
     def plan_round(self, scenario_type: str | None, name: str | None) -> dict[str, Any]:
         plan: dict[str, Any] = {"type": scenario_type, "name": name}
@@ -456,6 +459,7 @@ class ProlificStudy(Study):
         self.no_auto = any(k in q for k in ("noautostart", "noAutoStart", "no_auto_start"))
         self.meta = self._meta()
         self._timer: threading.Timer | None = None
+        self._warn_timer: threading.Timer | None = None
         self.auto_deadline: float | None = None
         self.auto_kind: str | None = None
         # The participant's Assistant starts switched off (still user-toggleable).
@@ -743,34 +747,38 @@ class ProlificStudy(Study):
         return render(st.completion_url, study_variables(self.session.study_ref)).replace("{pid}", self.pid)
 
     # -- timers ---------------------------------------------------------------
+    def close(self) -> None:
+        self._cancel()
+
     def _cancel(self) -> None:
-        if self._timer is not None:
-            self._timer.cancel()
-        self._timer = None
+        for t in (self._timer, self._warn_timer):
+            if t is not None:
+                t.cancel()
+        self._timer = self._warn_timer = None
         self.auto_deadline = None
         self.auto_kind = None
 
     def _arm(self, seconds: int, kind: str) -> None:
         self._cancel()
-        if self.no_auto or seconds <= 0:
+        if self.no_auto or seconds <= 0 or self.session.closed:
             return
         self.auto_deadline = time.time() + seconds
         self.auto_kind = kind
         warn_at = max(0, seconds - self.auto_load_warn)
 
         def _warn():
-            if self.auto_kind == kind and self.session.phase in ("ready", "ended"):
+            if not self.session.closed and self.auto_kind == kind and self.session.phase in ("ready", "ended"):
                 self.session.toast(
                     f"The next negotiation starts automatically in {self.auto_load_warn} seconds.", "warning")
 
         if kind == "load" and warn_at > 0:
-            w = threading.Timer(warn_at, self.session.in_study(_warn))
-            w.daemon = True
-            w.start()
+            self._warn_timer = threading.Timer(warn_at, self.session.in_study(_warn))
+            self._warn_timer.daemon = True
+            self._warn_timer.start()
 
         def _fire():
             s = self.session
-            if self.auto_kind != kind:
+            if s.closed or self.auto_kind != kind:
                 return
             self.auto_deadline = None
             if kind == "start" and s.phase == "ready":
