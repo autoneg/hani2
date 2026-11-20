@@ -151,8 +151,10 @@ class LLMTool(Tool):
             reply = self.ask_llm(self.build_prompt(), system=self.system)
             self.answer = self.postprocess(reply)
             self._answered_at = n
-        except Exception as e:  # noqa: BLE001 - shown to the participant
-            self.error = f"The language model failed: {e}"
+        except Exception as e:  # noqa: BLE001 - shown in the browser, redacted
+            from hani2.connections import llm_error
+
+            self.error = llm_error(e, admin=getattr(self.session, "is_admin", False))
         finally:
             self.busy = False
             self.refresh()

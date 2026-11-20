@@ -783,9 +783,9 @@ class SupportAgent:
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             if not force_action:
-                from hani2.connections import redact
+                from hani2.connections import llm_error
 
-                self.post(f"⚠️ Assistant error: {redact(e)}")
+                self.post(f"⚠️ Assistant error: {llm_error(e, admin=self.session.is_admin)}")
             return executed
         finally:
             self._busy.release()

@@ -926,6 +926,7 @@ class ResponseGeneratorTool(OutcomeSelector):
             self.toast("Applied to your offer", "success")
 
     def _generate(self):
+        from hani2.connections import llm_error
         from hani2.llm_service import generate_from_instruction
 
         try:
@@ -936,14 +937,14 @@ class ResponseGeneratorTool(OutcomeSelector):
             res = generate_from_instruction(instruction=instr, issues=self.issues, context=self.session.llm_context(),
                                             output_mode=self.values.get("mode", "both"))
             if res.error:
-                self.status = f"Error: {res.error}"
+                self.status = f"Error: {llm_error(res.error, admin=self.session.is_admin)}"
                 return
             out = self.outcome_dict(res.outcome) if res.outcome is not None else None
             self.generated = {"outcome": out, "text": res.text,
                               "utility": self.session.utility(res.outcome) if res.outcome is not None else None}
             self.status = ""
         except Exception as e:  # noqa: BLE001
-            self.status = f"Error: {e}"
+            self.status = f"Error: {llm_error(e, admin=self.session.is_admin)}"
         finally:
             self.busy = False
             self.refresh()

@@ -1070,7 +1070,9 @@ class NegotiationSession:
             t.on_action(action, payload or {})
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
-            self.toast(f"{t.name}: {e}", "error")
+            from hani2.connections import llm_error
+
+            self.toast(f"{t.name}: {llm_error(e, admin=self.is_admin)}", "error")
         ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=action)
 
     # ------------------------------------------------------------------ #
@@ -1919,7 +1921,9 @@ class NegotiationSession:
 
         res = extract_outcome_from_text(self.draft_text or "", self.issues, context=self.llm_context())
         if res.error:
-            return {"ok": False, "error": res.error}
+            from hani2.connections import llm_error
+
+            return {"ok": False, "error": llm_error(res.error, admin=self.is_admin)}
         if res.outcome is None:
             return {"ok": False, "error": "No offer found in the message."}
         return self.set_draft(self.outcome_to_dict(res.outcome) or {})

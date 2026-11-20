@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -436,7 +437,24 @@ def redact(text: Any) -> str:
     for v in sorted(set(secret_values()), key=len, reverse=True):
         s = s.replace(v, mask(v))
     s = re.sub(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{12,}", r"\1***", s)
+    s = _KEYLIKE.sub("***", s)
     return s
+
+
+#: provider-style API keys that are not (or no longer) stored here, e.g. echoed by an SDK error
+_KEYLIKE = re.compile(r"\b(?:sk|rk|gsk|xai|hf|ghp|github_pat)[-_][A-Za-z0-9_\-]{16,}|\bAIza[0-9A-Za-z_\-]{30,}")
+
+#: what a participant sees when a language-model call fails
+LLM_ERROR_MESSAGE = "The language model could not answer right now. Please try again."
+
+
+def llm_error(e: Any, *, admin: bool) -> str:
+    """The text to show in the browser for a failed language-model call ``e`` (an exception or
+    its message): a generic message for participants, a redacted one for admins. The full text
+    goes only to the server log."""
+    text = f"{type(e).__name__}: {e}" if isinstance(e, BaseException) else str(e)
+    print(f"[hani2] language model error: {text}", file=sys.stderr)
+    return redact(text)[:500] if admin else LLM_ERROR_MESSAGE
 
 
 def mask(v: str | None) -> str:
