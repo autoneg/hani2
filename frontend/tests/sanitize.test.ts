@@ -64,12 +64,13 @@ for (const p of PAYLOADS) {
 
 test("keeps ordinary formatting, tables, links and images", () => {
   const html = sanitize(
-    `<p><b>bold</b> <i>it</i> <a href="https://example.org/x">link</a></p>` +
+    `<p><b>bold</b> <i>it</i> <a href="https://example.org/x" target="_blank">link</a></p>` +
       `<table><tr><th>a</th></tr><tr><td>1</td></tr></table><img src="data:image/png;base64,AAAA" alt="pic">`,
   );
   const body = new window.DOMParser().parseFromString(html, "text/html").body;
   assert.equal(body.querySelector("b")?.textContent, "bold");
   assert.equal(body.querySelector("a")?.getAttribute("href"), "https://example.org/x");
+  assert.equal(body.querySelector("a")?.getAttribute("target"), "_blank");
   assert.equal(body.querySelector("td")?.textContent, "1");
   assert.equal(body.querySelector("img")?.getAttribute("src"), "data:image/png;base64,AAAA");
 });

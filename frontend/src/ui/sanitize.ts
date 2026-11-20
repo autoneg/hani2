@@ -6,5 +6,5 @@ import DOMPurify from "dompurify";
  * scripts, event handlers, forms or `javascript:` / `data:` links) and drops the rest.
  */
 export function sanitize(html: string): string {
-  return DOMPurify.sanitize(html || "", { USE_PROFILES: { html: true }, FORBID_TAGS: ["style", "form"] });
+  return DOMPurify.sanitize(html || "", { USE_PROFILES: { html: true }, FORBID_TAGS: ["style", "form"], ADD_ATTR: ["target"] });
 }
