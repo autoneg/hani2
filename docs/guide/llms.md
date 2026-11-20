@@ -154,6 +154,11 @@ The helpers are used by:
 - the admin-only `LLM` tool (see [Tools](tools.md)),
 - tools built on `LLMTool` or calling `Tool.ask_llm()`, such as the Summary and Ask the AI example tools (see [Build a tool](../tutorials/tools.md#step-4-a-tool-that-uses-a-language-model)). Your own code can call the same model with `hani2.llm_service.complete(prompt, system=None, session=None, **settings)`.
 
+When the Assistant sends a counter-offer with `auto_extract` or `auto_generate` on, the model runs
+without locking the session, so the interface stays responsive meanwhile. If the offer, the message
+or the turn changes while the model works, its result is dropped and the send is refused (*The offer
+or message changed while it was being prepared*), so the offer can be checked and sent again.
+
 The **Language model** page of the admin console shows whether the configuration is usable: the provider, the model and whether the API key variable is set.
 
 ## Prompt templates
