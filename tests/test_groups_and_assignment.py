@@ -6,6 +6,7 @@ import json
 import sqlite3
 import threading
 from collections import Counter
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
