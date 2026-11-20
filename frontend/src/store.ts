@@ -175,7 +175,14 @@ export const useStore = create<Store>((set, get) => ({
           set((s) => (s.state ? { state: { ...s.state, history: msg.items as HistoryItem[] } } : {}));
           break;
         case "chat":
-          set((s) => (s.state ? { state: { ...s.state, chat: [...s.state.chat, msg.message] } } : {}));
+          set((s) => {
+            if (!s.state) return {};
+            // the same message may already be there (e.g. in the snapshot sent on reconnect): replace it
+            const id = msg.message?.id;
+            const i = id == null ? -1 : s.state.chat.findIndex((m) => m.id === id);
+            const chat = i < 0 ? [...s.state.chat, msg.message] : s.state.chat.map((m, j) => (j === i ? msg.message : m));
+            return { state: { ...s.state, chat } };
+          });
           break;
         case "draft":
           set((s) =>

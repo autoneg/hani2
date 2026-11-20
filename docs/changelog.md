@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **No doubled chat messages.** A chat message the page already shows (for example, one that is in the
+  snapshot sent when the connection is re-established) is no longer added a second time.
 - **Starting is never silently lost.** If the page cannot open its session, the error screen now has a
   *Try again* button; pressing *Start negotiation* while the connection is down shows a "Not connected"
   notice instead of doing nothing.
