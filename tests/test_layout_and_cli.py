@@ -104,8 +104,13 @@ def test_opponents_from_the_command_line_and_old_names(hani2_home, monkeypatch):
     monkeypatch.delenv("HANI2_OPPONENTS")
     monkeypatch.setenv("HANI2_AGENTS", "BoulwareTBNegotiator")  # old name still works
     assert [str(x).split(".")[-1] for x in NegotiationSession("o2", "alice").opponent_pool()] == ["BoulwareTBNegotiator"]
-    s = NegotiationSession("o3", "alice", query={"opponents": "AspirationNegotiator"})
+    s = NegotiationSession("o3", "alice", is_admin=True, query={"opponents": "AspirationNegotiator"})
     assert [str(x).split(".")[-1] for x in s.opponent_pool()] == ["AspirationNegotiator"]
+    # a non-admin's ?opponents= is ignored; ?group= still works
+    s = NegotiationSession("o4", "alice", query={"opponents": "AspirationNegotiator"})
+    assert "AspirationNegotiator" not in [str(x).split(".")[-1] for x in s.opponent_pool()]
+    s = NegotiationSession("o5", "alice", query={"group": ":template"})
+    assert s.opponent_pool() and s.opponent_group == "template"
 
 
 def test_old_admin_pref_names_map_to_opponent_names(hani2_home):

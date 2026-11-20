@@ -145,6 +145,7 @@ def make_session(
         for v, value in old_env.items():
             if value is not None:
                 os.environ[v] = value
+    s.trust_url_opponents = True  # ``opponent=`` arrives as ?opponents=; browsers need an admin for that
     s.admin_prefs["n_steps"] = n_steps
     s.admin_prefs["time_limit"] = time_limit
     s.admin_prefs["allow_scenario_selection"] = True

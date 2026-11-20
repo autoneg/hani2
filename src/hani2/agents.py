@@ -377,10 +377,13 @@ def client_spec_allowed(spec: str) -> bool:
     return not str(spec).strip().lower().startswith("file:")
 
 
-def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = True) -> "list | None":
+def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = True,
+                           allow_specs: bool = True) -> "list | None":
     """Per-session opponent-pool override from the query string: ``?opponents=``
     (csv of specs/tokens; ``?agents=`` is the old name) takes precedence over
-    ``?group=<key>``. ``allow_files=False`` drops ``file:`` specs from the URL (non-admins)."""
+    ``?group=<key>``. ``allow_files=False`` drops ``file:`` specs from the URL;
+    ``allow_specs=False`` ignores ``?opponents=`` / ``?agents=`` altogether (non-admins),
+    leaving only ``?group=``."""
     args = args or {}
 
     def _val(name):
@@ -392,7 +395,7 @@ def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = T
             v = v.decode()
         return str(v).strip()
 
-    agents = _val("opponents") or _val("agents")
+    agents = (_val("opponents") or _val("agents")) if allow_specs else None
     if agents:
         items = [s for s in agents.split(",") if s.strip()]
         if not allow_files:

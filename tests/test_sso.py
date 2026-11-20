@@ -113,6 +113,14 @@ def test_a_listed_admin_email_does_not_make_a_handoff_account_admin(client):
     assert not client.get("/api/auth/me").json()["is_admin"]
 
 
+
+def test_an_admin_role_given_in_hani2_survives_the_next_handoff(client):
+    """An organiser's hand-off account can be made admin on the Users page; signing in again keeps it."""
+    go(client, sso.sign(claims(), SECRET))
+    auth.update_meta("anac_789", role="admin")
+    go(client, sso.sign(claims(name="Pat Lee"), SECRET))
+    assert client.get("/api/auth/me").json()["is_admin"]
+
 def test_handoff_names_cannot_be_registered_by_hand(client):
     r = client.post("/api/auth/register", json={"username": "anac_789", "password": "secret", "confirm": "secret"})
     assert r.status_code == 400

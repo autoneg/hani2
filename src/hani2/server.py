@@ -494,7 +494,7 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
             user, display = f"guest_{gid}", "Guest"
             sid = f"guest:{gid}"
         is_admin = False if pid else is_admin
-    admin_mode = is_admin or (_truthy(query.get("admin", "")) and not pid)
+    admin_mode = is_admin  # ?admin=1 no longer turns on the admin view for non-admins
     # An admin can negotiate exactly as a participant would (?as_participant=1): no admin controls, no
     # opponent type, no scenario/opponent pickers. It is a separate session and results folder, and it
     # is never counted as a study participant.

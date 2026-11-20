@@ -1300,10 +1300,13 @@ class NegotiationSession:
         ``opponents``), ``opponents`` in env.json, else the built-in default pool.
         Old names (``?agents=``, ``HANI2_AGENTS``, ``agents``) are still read.
         :attr:`opponent_group` names the group the pool came from (when it came from one)."""
-        override = session_agent_override(self.query, allow_files=self.is_admin)
+        # ?opponents= is for admins (also an admin playing ?as_participant=1) and for sessions made in
+        # code (hani2.testing); anyone may use ?group=
+        admin = bool(self.is_admin or getattr(self, "admin_viewer", None) or self.trust_url_opponents)
+        override = session_agent_override(self.query, allow_files=admin, allow_specs=admin)
         if override:
             q = self.query
-            raw = q.get("opponents") or q.get("agents")
+            raw = (q.get("opponents") or q.get("agents")) if admin else None
             self.opponent_group = _group_name(raw) if raw else str(q.get("group") or "").strip().lstrip(":")
             return override
         cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
@@ -1322,6 +1325,9 @@ class NegotiationSession:
         return pool or list(DEFAULT_POOL)
 
     partner_pool = opponent_pool  # old name
+
+    #: whether ``?opponents=`` in :attr:`query` is honoured for a non-admin (set for sessions made in code)
+    trust_url_opponents = False
 
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}

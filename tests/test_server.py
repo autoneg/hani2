@@ -281,3 +281,18 @@ def test_signed_in_playground_uses_the_account_and_guests_stay_anonymous(client)
     with pytest.raises(Exception):
         with client.websocket_connect(f"/api/ws/{sid}") as ws:
             ws.receive_text()  # someone else's signed-in playground: refused
+
+
+def test_admin_link_options_need_an_admin_account(client):
+    """?admin=1 and ?opponents= only work for admins; ?group= works for anyone."""
+    from hani2.server import hub
+
+    q = {"admin": "1", "opponents": "ConcederTBNegotiator", "noautostart": "1"}
+    guest = hub.get(client.post("/api/session", json={"mode": "guest", "query": q}).json()["sid"])
+    assert not guest.admin_mode and "ConcederTBNegotiator" not in [str(x) for x in guest.opponent_pool()]
+    grp = hub.get(client.post("/api/session", json={"mode": "guest", "fresh": True,
+                                                    "query": {"group": ":template"}}).json()["sid"])
+    assert grp.opponent_pool() and grp.opponent_group == "template"
+    login(client)
+    admin = hub.get(client.post("/api/session", json={"mode": "guest", "query": q}).json()["sid"])
+    assert admin.admin_mode and [str(x) for x in admin.opponent_pool()] == ["ConcederTBNegotiator"]
