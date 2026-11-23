@@ -237,3 +237,30 @@ def test_failed_action_calls_do_not_count_as_acting():
     assert _executed_name("accept_offer", {"ok": True, "executed": True}) == "accept_offer"
     assert _executed_name("accept_offer", {"ok": False, "error": "x"}) == "accept_offer:failed"
     assert _executed_name("read_tool", "text") == "read_tool"
+
+
+def _assistant_texts(s):
+    return [h["text"] for h in s.chat if h.get("user") == s.support_agent.name]
+
+
+def test_tool_loop_out_of_rounds_answers_without_tools(scripted):
+    """A model that keeps calling tools gets one last call with tools off, and its answer is shown
+    instead of a technical stop message."""
+    s = make_session(support_settings={"autonomy": "suggest", "max_tool_iterations": 3})
+    s.start()
+    s.wait_for_turn()
+    llm = scripted(*([("highlight", {"target": "accept", "message": "x"})] * 3), "Offer a little more on price.")
+    chat(s, "What should I offer next, and why?")
+    assert llm.calls[-1]["no_tools"] is True and not any(c["no_tools"] for c in llm.calls[:-1])
+    texts = _assistant_texts(s)
+    assert texts[-1] == "Offer a little more on price."
+    assert not any("too many tool calls" in t for t in texts)
+
+
+def test_tool_loop_out_of_rounds_falls_back_to_a_plain_apology(scripted):
+    s = make_session(support_settings={"autonomy": "suggest", "max_tool_iterations": 2})
+    s.start()
+    s.wait_for_turn()
+    scripted(*([("highlight", {"target": "accept", "message": "x"})] * 3))  # still a tool call at the end
+    chat(s, "help")
+    assert _assistant_texts(s)[-1].startswith("Sorry, I could not finish")

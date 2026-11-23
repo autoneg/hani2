@@ -788,7 +788,7 @@ When the default agent handles a chat message, a proactive event or a panel clic
 1. appends the message to its conversation, with the current context snapshot as JSON;
 2. calls the model with the effective function schemas;
 3. runs every function the model calls and appends the results;
-4. repeats until the model answers without calling a function, or `max_tool_iterations` is reached.
+4. repeats until the model answers without calling a function, or `max_tool_iterations` is reached. In that case the model is asked once more, with functions switched off, to answer from what it found so far; if it still gives no answer, the human sees a short apology asking them to try again.
 
 The final text goes to the chat (or, for proactive turns, to the participant's chosen delivery channel). Only one turn runs at a time; a chat message that arrives during a turn gets the reply "I'm still working on the previous request". For Ollama models, function calls and results are flattened into plain text messages, because Ollama's chat format drops them.
 

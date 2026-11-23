@@ -778,7 +778,7 @@ class SupportAgent:
                 if force_action and executed & self._ACTION_TOOLS:
                     return executed
             if not force_action:
-                self.post("(Stopped after too many tool calls without finishing.)")
+                self._final_answer(output_channel)
             return executed
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -817,7 +817,26 @@ class SupportAgent:
         return model_chain.resolve("assistant", chain=entries,
                                    source=model_chain.Source("assistant settings", {}, implicit=True))
 
-    def _complete(self, tools: list[dict], force_action: bool = False) -> dict:
+    def _final_answer(self, output_channel: str) -> None:
+        """The tool loop ran out of rounds: ask once more, with tools switched off, for an answer
+        from what the tools returned so far; a short apology only if that fails too."""
+        self.messages.append({"role": "user", "content": (
+            "(system) You have used all your tool calls for this request. Answer the human now in a few "
+            "sentences, from what you already found. Do not call any tool.")})
+        text = ""
+        try:
+            message = self._complete(self.dispatcher.schemas(), no_tools=True)
+            if not message.get("tool_calls"):
+                text = str(message.get("content") or "").strip()
+                if text:
+                    self.messages.append({"role": "assistant", "content": text})
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+        self._deliver_assistant_message(
+            text or "Sorry, I could not finish working that out. Could you ask me again, perhaps more simply?",
+            channel=output_channel)
+
+    def _complete(self, tools: list[dict], force_action: bool = False, no_tools: bool = False) -> dict:
         """One LLM completion via litellm; returns ``{"role", "content", "tool_calls"?}``.
 
         The model comes from the ``assistant`` model chain (see :mod:`hani2.model_chain`); a hard
@@ -834,8 +853,9 @@ class SupportAgent:
 
         extra: dict[str, Any] = {}
         if tools:
+            # with no_tools the schemas stay (the history holds tool calls) but none may be called
             extra["tools"] = tools
-            extra["tool_choice"] = "required" if force_action else "auto"
+            extra["tool_choice"] = "none" if no_tools else "required" if force_action else "auto"
         # the session's own settings may still tune the call (old keys; a chain entry's params win)
         params = {k: s.get(k) for k in ("temperature", "max_tokens") if s.get(k) is not None}
         from hani2.recording.recorder import current_actor, llm_role

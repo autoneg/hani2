@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **The Assistant answers even when it runs out of tool calls.** A model that kept calling functions
+  until `max_tool_iterations` showed "(Stopped after too many tool calls without finishing.)"; it is now
+  asked once more, with functions switched off, to answer from what it found, and the human sees that
+  answer (or a short apology).
 - **Study forms per project and study.** Consent, a pre-questionnaire, a questionnaire after each
   negotiation and a new post-session questionnaire (after the last counted negotiation, before the
   completion link) can each be set up per project and overridden or switched off (`enabled: false`)

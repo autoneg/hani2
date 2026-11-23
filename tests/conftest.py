@@ -51,8 +51,8 @@ class ScriptedLLM:
         self.queue = list(messages)
         self.calls = []
 
-    def __call__(self, agent, tools, force_action=False):
-        self.calls.append({"tools": [t["function"]["name"] for t in tools], "force": force_action})
+    def __call__(self, agent, tools, force_action=False, no_tools=False):
+        self.calls.append({"tools": [t["function"]["name"] for t in tools], "force": force_action, "no_tools": no_tools})
         if not self.queue:
             return {"role": "assistant", "content": "done"}
         m = self.queue.pop(0)
@@ -74,7 +74,7 @@ def scripted(monkeypatch):
         llm = ScriptedLLM(*messages)
         from hani2.support_agent.runtime import SupportAgent
 
-        monkeypatch.setattr(SupportAgent, "_complete", lambda self, tools, force_action=False: llm(self, tools, force_action))
+        monkeypatch.setattr(SupportAgent, "_complete", lambda self, tools, force_action=False, no_tools=False: llm(self, tools, force_action, no_tools))
         return llm
 
     return _make

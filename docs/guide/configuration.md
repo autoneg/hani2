@@ -353,7 +353,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `api_base` | `null` | Custom endpoint URL. |
 | `temperature` | `0.3` | Sampling temperature. |
 | `max_tokens` | `2000` | Maximum answer length. |
-| `max_tool_iterations` | `10` | Maximum rounds of function calls per user message. |
+| `max_tool_iterations` | `10` | Maximum rounds of function calls per user message; then one last call without functions gives the answer. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
 | `capabilities` | all `true` except `opponent_utility` | The nineteen capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `panels`, `tool_add`, `tool_use`, `private_info`, and the admin-only oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)). |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
