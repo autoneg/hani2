@@ -182,13 +182,13 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
             <span className="relative h-4 w-7 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-surface after:transition-transform peer-checked:bg-you peer-checked:after:translate-x-3 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-you" />
           </label>
         )}
-        {active && <ToolHelp key={active.id} tool={active} />}
+        {active && <ToolHelp key={`help-${active.id}`} tool={active} />}
         {active && canMaximize && maximized !== active.id && (
           <button className="btn-ghost px-1.5 py-1" onClick={() => maximize(active!)} aria-label={`Enlarge ${active.name}`} title="Enlarge">
             <Maximize2 size={14} />
           </button>
         )}
-        {active && <ToolMenu key={active.id} tool={active} allowMove={allowMove} />}
+        {active && <ToolMenu key={`menu-${active.id}`} tool={active} allowMove={allowMove} />}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3" role="tabpanel">
         {active && maximized === active.id ? (

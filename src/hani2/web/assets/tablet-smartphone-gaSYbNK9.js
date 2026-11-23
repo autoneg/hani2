@@ -1,0 +1,1 @@
+import{c as t}from"./index-D96V0EnF.js";const e={name:"tablet-smartphone",size:24,node:[["rect",{width:"10",height:"14",x:"3",y:"8",rx:"2",key:"1vrsiq"}],["path",{d:"M5 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-2.4",key:"1j4zmg"}],["path",{d:"M8 18h.01",key:"lrp35t"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

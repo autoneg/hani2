@@ -1,1 +1,0 @@
-import{c as t}from"./index-Cm4iHW3L.js";const e={name:"square-letter-z",size:24,node:[["path",{d:"M9 8h5.501a.5.5 0 0 1 .37.836L9.13 15.164A.5.5 0 0 0 9.5 16H15",key:"hctxk0"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const r=t(e);export{e as __iconData,r as default};
