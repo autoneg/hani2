@@ -526,8 +526,10 @@ class ProlificStudy(Study):
         self._warn_timer: threading.Timer | None = None
         self.auto_deadline: float | None = None
         self.auto_kind: str | None = None
-        # The participant's Assistant starts switched off (still user-toggleable).
-        session.ss.setdefault("support_agent_default_enabled", False)
+        # The participant's Assistant starts switched off (still user-toggleable), unless the study
+        # says otherwise (``assistant_starts_on`` in study.yaml / project.yaml, or PROLIFIC_ASSISTANT_ON)
+        session.ss.setdefault("support_agent_default_enabled", projects.setting(
+            "assistant_starts_on", False, env="PROLIFIC_ASSISTANT_ON", cast=bool, ref=ref))
 
     # -- persistent files ----------------------------------------------------
     def _meta(self) -> dict:

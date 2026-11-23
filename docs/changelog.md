@@ -16,6 +16,8 @@
   every participant work with every Assistant once, one per counted negotiation, in a balanced order.
   See [Scheduling methods](guide/scheduling.md#assistants).
 - **The pre-questionnaire reaches Prolific and online participants.** It was skipped for them before.
+- **A study can start the Assistant switched on** for Prolific and online participants
+  (`assistant_starts_on: true` in study.yaml or project.yaml, or `PROLIFIC_ASSISTANT_ON=1`).
 
 - **Ollama cloud models through a local server are accepted.** Model names ending in `-cloud`
   (for example `gpt-oss:120b-cloud`) now work through a local Ollama server (`ollama`), also with the

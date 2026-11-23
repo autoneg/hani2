@@ -23,7 +23,7 @@ What changes for a URL with a Prolific ID:
 - The participant's user name is `prolific_<PID>` and their session key is `prolific:<PID>` (for a study other than the server's default study, the key also names the study, so the same person can take part in two studies). Opening the link again, in any browser, returns to the same session while the server is running.
 - The link works even when the playground is disabled in `env.json`.
 - The session is never in admin mode, even for a logged-in admin.
-- The Assistant starts switched off. The participant can still switch it on, if the Assistant is available to them at all (see [Assistant](assistant.md)).
+- The Assistant starts switched off. The participant can still switch it on, if the Assistant is available to them at all (see [Assistant](assistant.md)). To start it switched on, set `assistant_starts_on: true` in `study.yaml` or `project.yaml`, or `PROLIFIC_ASSISTANT_ON=1`.
 - The *Different scenario* button on the start screen is hidden.
 
 ## The study flow
@@ -109,6 +109,7 @@ All Prolific settings are environment variables, read when a Prolific session is
 | `PROLIFIC_AUTO_LOAD_SECONDS` | `30` | Delay before the next negotiation loads and starts by itself. `0` turns it off. |
 | `PROLIFIC_AUTO_LOAD_PRACTICE_SECONDS` | `60` | The same, when the practice round must be repeated. |
 | `PROLIFIC_AUTO_LOAD_WARN_SECONDS` | `15` | How long before an auto-load the warning appears. |
+| `PROLIFIC_ASSISTANT_ON` | none | `1`: the Assistant starts switched on (wins over `assistant_starts_on` in `study.yaml`). |
 | `PROLIFIC_MAX_MINUTES` | `45` | Recorded in `prolific_session.json` and sent to the browser. HANI2 does not enforce it. |
 | `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Comma-separated specs for the practice opponent. |
 | `PROLIFIC_FINALISTS` | the opponent pool | Comma-separated specs for the counted opponents. |

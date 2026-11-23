@@ -371,3 +371,24 @@ def test_admin_reads_forms_at_project_and_settings_layers(admin, study, hani2_ho
     assert r["exists"] and r["active"] and r["source"] == source and r["n_questions"] == 1
     r = admin.get("/api/admin/settings/pre_questionnaire?layer=study:HI/s1").json()
     assert not r["exists"] and r["active"] and r["source"] == source  # inherited by the study
+
+
+def test_a_study_can_start_the_assistant_switched_on(study, monkeypatch):
+    s = prolific("A0", study)
+    try:
+        assert s.ss["support_agent_default_enabled"] is False  # the default for study participants
+    finally:
+        s.close()
+    _set_study(study, assistant_starts_on=True)
+    s = prolific("A1", study)
+    try:
+        assert s.ss["support_agent_default_enabled"] is True
+    finally:
+        s.close()
+    _set_study(study, assistant_starts_on=None)
+    monkeypatch.setenv("PROLIFIC_ASSISTANT_ON", "1")
+    s = prolific("A2", study)
+    try:
+        assert s.ss["support_agent_default_enabled"] is True
+    finally:
+        s.close()
