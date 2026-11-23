@@ -85,9 +85,6 @@ class Pi(HarnessAdapter):
     def check_model(self, c: Any, model: str) -> str:
         from hani2 import harness
 
-        if harness.upstream_of(c) == "ollama" and model.endswith("-cloud"):
-            return ("pi with Ollama: cloud models (-cloud) use the server's Ollama account sign-in, which is not "
-                    "allowed for a harness; use a local model or an Ollama Cloud API key connection")
         if "/" in model and model.split("/", 1)[0] in UPSTREAMS and model.split("/", 1)[0] != harness.upstream_of(c):
             return f"{model!r} names another provider than this connection's ({harness.upstream_of(c)})"
         return ""

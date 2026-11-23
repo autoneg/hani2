@@ -130,8 +130,8 @@ PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider(
         "ollama", "Ollama (local server)", "ollama", ("none",), base_url="http://localhost:11434",
         probe="ollama_tags", featured=True,
-        help="A local Ollama server with local models. Cloud models through it (names ending in -cloud, "
-             "after `ollama signin`) are refused: use an Ollama Cloud connection with an API key.",
+        help="A local Ollama server with local models. Cloud models through it (names ending in -cloud) "
+             "are accepted and use the server's `ollama signin` account.",
         sources=("https://docs.ollama.com/api/authentication", "https://ollama.com/pricing", "https://ollama.com/terms"),
         examples=("qwen3:4b-instruct", "llama3.2", "gemma3:4b"),
     ),

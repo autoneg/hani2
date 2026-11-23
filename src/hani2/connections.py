@@ -614,20 +614,11 @@ def _short_error(e: Exception) -> str:
     return redact(f"{name}: {e}")[:200]
 
 
-#: why an Ollama cloud model through a local server is refused
-OLLAMA_CLOUD_REFUSED = ("cloud models (names ending in -cloud) through a local Ollama server use the server's "
-                        "Ollama account sign-in, and Ollama's terms (one account per person; shared use through "
-                        "the Team plan) do not clearly allow an application to serve others with it. Use an "
-                        "Ollama Cloud connection with an API key (provider ollama_cloud) instead.")
-
-
 def refusal(c: Connection, model: str) -> str:
     """Why ``model`` may never be used through ``c`` (``""``: no rule against it). Unlike a failed
     check, a refusal is final: not even the old single-model settings use the entry unchecked."""
     if c.disabled:
         return c.disabled
-    if c.provider == "ollama" and (model or "").strip().endswith("-cloud"):
-        return OLLAMA_CLOUD_REFUSED
     return ""
 
 

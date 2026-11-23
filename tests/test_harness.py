@@ -189,9 +189,8 @@ def test_pi_runs_hanis_functions_through_the_executor(hani2_home, fakes):
     models = json.loads(run["files"]["models.json"])
     assert models["providers"]["ollama"]["baseUrl"] == "http://localhost:11434/v1"
     assert_isolated(run, hani2_home, key_var=None, key=None)
-    # Ollama cloud models need the server's account sign-in: refused for a harness
-    with pytest.raises(harness.HarnessUnavailable, match="cloud"):
-        harness.complete(c, "gpt-oss:120b-cloud", [{"role": "user", "content": "x"}])
+    # Ollama cloud models (the server's account sign-in) are accepted by a harness too
+    assert harness.adapter(c).check_model(c, "gpt-oss:120b-cloud") == ""
 
 
 def test_codex_completion_is_isolated_and_tool_free(hani2_home, fakes):
@@ -359,13 +358,10 @@ def test_the_assistant_runs_a_turn_through_a_harness(hani2_home, fakes):
     assert run["argv"][run["argv"].index("--tools") + 1] == ",".join(names)
 
 
-def test_ollama_cloud_models_through_a_local_server_are_refused(hani2_home):
+def test_ollama_cloud_models_through_a_local_server_are_accepted(hani2_home):
     r = mc.resolve("assistant", chain=mc.parse_chain("ollama:gpt-oss:120b-cloud,ollama:qwen3:4b"),
                    source=mc.Source("legacy", {}, implicit=True))
-    assert r.model == "qwen3:4b" and "Team plan" in r.skipped[0]["reason"]
-    only = mc.resolve("assistant", chain=mc.parse_chain("ollama:gpt-oss:120b-cloud"),
-                      source=mc.Source("legacy", {}, implicit=True))
-    assert not only.ok  # not even the old settings use it unchecked
+    assert r.model == "gpt-oss:120b-cloud" and not r.skipped
 
 
 def test_cli_and_admin_harness(hani2_home, fakes, monkeypatch):

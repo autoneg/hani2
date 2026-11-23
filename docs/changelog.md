@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Ollama cloud models through a local server are accepted.** Model names ending in `-cloud`
+  (for example `gpt-oss:120b-cloud`) now work through a local Ollama server (`ollama`), also with the
+  pi harness. They use the server's `ollama signin` account; check that the account's plan covers
+  your use. See [Models](guide/models.md).
 - **Files are read and written as UTF-8 on every system.** Settings, texts, scenarios, results CSV
   files and the metric reference no longer use the Windows code page, which failed on non-ASCII
   text (for example, the metric reference page in the admin console).
@@ -291,8 +295,7 @@ and many fixes. See [Features](features.md) for the full list with links.
   are removed (from the presets, the console, `hani2 connections login` and the API): their
   providers' terms do not clearly allow a third-party application to use them to serve others.
   Stored connections of that kind load disabled and say why; `chatgpt:` and `copilot:` entries are
-  skipped. Ollama cloud models through a signed-in local server (`-cloud`) are refused for the same
-  reason; use an Ollama Cloud API key. See
+  skipped. See
   [Subscription sign-ins](guide/models.md#subscription-sign-ins-are-not-offered).
 - **Model chains and connections.** Language models are now chosen from an ordered list of
   entries (`{connection, model, params, label}`) tried until one is available, so a session falls
