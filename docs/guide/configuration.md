@@ -138,6 +138,7 @@ The main deployment configuration.
 | `auth.mode` | `"password"` | `password`, `oauth`, `dual`, `none` or `auto`. |
 | `auth.cookie_secret` | `""` | Secret for signing login cookies. Generated and stored in `settings/.cookie_secret` when empty. |
 | `auth.enforce_consent` | `false` | Require logged-in users to sign the consent form before negotiating. |
+| `auth.participant_consent` | `false` | Show the consent form to Prolific and online / lab participants in the session, before their first negotiation. See [Study forms](study-forms.md#consent-for-study-participants). |
 | `auth.allow_registration` | `true` | Offer the registration form. |
 | `auth.default_password_login` | `"auto"` | Admin logins with the default password: `auto` (refused on a non-loopback bind), `refuse` or `allow`. See [Authentication](authentication.md#default-accounts). |
 | `oauth.redirect_uri` | `""` | Public base URL used to build `/api/oauth/<provider>/callback`. Empty: the request's base URL. |
@@ -301,7 +302,7 @@ placement:
 
 See [Library and groups](library.md#tool-groups).
 
-### `recording`, `evaluation`, `questionnaire` and `pre_questionnaire`
+### `recording`, `evaluation` and the questionnaires
 
 | Key | Meaning |
 | --- | --- |
@@ -312,6 +313,7 @@ See [Library and groups](library.md#tool-groups).
 | `evaluation.reliability.report` | The judge reliability report (`.json`) an official leaderboard (`--official`) uses to leave out the judged components that are not ready. Without one, an official board leaves out every judged component. |
 | `questionnaire` | The questionnaire after each negotiation, by name (`evaluation`) or path. |
 | `pre_questionnaire` | The questionnaire shown once before a participant's first negotiation, by name (`expertise`) or path; its answer sets the participant type. Off when unset. See [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types). |
+| `post_questionnaire` | The questionnaire shown once after a study participant's last counted negotiation, by name or path. Off when unset. See [Study forms](study-forms.md#the-post-session-questionnaire). |
 
 ## `llm_settings.json`
 
@@ -410,6 +412,8 @@ See [Autopilot](autopilot.md).
 | `HANI2_SCENARIO_SET` | none | The scenario set to use. Set by `--scenario-set`. |
 | `HANI2_SCENARIO_TYPES` | none | Python files or modules that register extra scenario types, comma separated. Set by `--scenario-types`. |
 | `HANI2_PER_NEG_YAML` | none | Path or name (`evaluation`) of the questionnaire file; takes precedence over the study, project and settings folders. |
+| `HANI2_PRE_YAML` | none | Path or name (`expertise`) of the pre-questionnaire; takes precedence over `env.json` and the folders. |
+| `HANI2_POST_YAML` | none | Path or name of the post-session questionnaire; takes precedence over `env.json` and the folders. See [Study forms](study-forms.md). |
 | `HANI2_EVENTS` | `1` | `0`, `false`, `no` or `off` disables the event log. |
 | `HANI2_RECORD` | `1` | `0`, `false`, `no` or `off` disables [recordings](recordings.md). |
 | `HANI2_REPLAY_DIRS` | none | Extra folders of recordings shown in the replay tool (`os.pathsep`-separated). Set by `hani2 replay open PATHS`. |

@@ -112,7 +112,7 @@ All Prolific settings are environment variables, read when a Prolific session is
 | `PROLIFIC_MAX_MINUTES` | `45` | Recorded in `prolific_session.json` and sent to the browser. HANI2 does not enforce it. |
 | `PROLIFIC_PRACTICE_OPPONENTS` | `:pan` | Comma-separated specs for the practice opponent. |
 | `PROLIFIC_FINALISTS` | the opponent pool | Comma-separated specs for the counted opponents. |
-| `PROLIFIC_PER_NEG_YAML` | none | A questionnaire file (used when `HANI2_PER_NEG_YAML` is not set). |
+| `PROLIFIC_PER_NEG_YAML` | none | A questionnaire file (used when `HANI2_PER_NEG_YAML` is not set). `HANI2_PRE_YAML` and `HANI2_POST_YAML` name the pre- and post-session questionnaires (see [Study forms](study-forms.md)). |
 | `PROLIFIC_COMPLETION_URL` | none | The completion URL. `{pid}` is replaced by the Prolific ID. |
 | `PROLIFIC_COMPLETION_CODE` | none | The `{{completion_code}}` variable of texts (wins over `completion_code` in `study.yaml`). |
 | `SCMLWEB_BASE_URL` | `https://anac.cs.brown.edu` | Base of the completion URL when `PROLIFIC_COMPLETION_URL` is not set. |

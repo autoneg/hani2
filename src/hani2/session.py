@@ -1220,6 +1220,7 @@ class NegotiationSession:
         except Exception:  # noqa: BLE001
             traceback.print_exc()
             return
+        self._check_confounded(choice, plan)
         cur = self.assistant_choice
         if cur is not None and choice.spec == cur.spec and choice.error == cur.error and \
                 (self.support_agent is not None or self.assistant_error):
@@ -1236,6 +1237,32 @@ class NegotiationSession:
                 traceback.print_exc()
         ev.log_event(self.sid, ev.EventType.SUPPORT_AGENT, user=self.user, component="assistant",
                      action="assistant_changed", value=self.assistant_attribution())
+
+    def _check_confounded(self, choice: Any, plan: dict | None) -> None:
+        """Warn (once per session) when the Assistant and the opponent of every negotiation come
+        from the same counterbalancing rule over pools of the same size: then each Assistant always
+        meets the same opponent, and their effects cannot be told apart."""
+        from hani2.scheduling import MISSING_SUFFIX
+
+        if self.__dict__.get("_confound_warned") or choice is None or choice.scheduling not in ("latin_square", "cyclic"):
+            return
+        opp = str((plan or {}).get("opponent_scheduling") or "").removesuffix(MISSING_SUFFIX)
+        if opp != choice.scheduling:
+            return
+        st = self.study
+        pool = st.finalists() if callable(getattr(st, "finalists", None)) else list(self.opponent_pool())
+        if len(pool) != len(choice.pool) or len(pool) < 2:
+            return
+        self._confound_warned = True
+        msg = (f"the study schedules both Assistants and opponents with '{opp}' over pools of {len(pool)}: "
+               "each Assistant always meets the same opponent, so their effects are confounded. Use one "
+               "opponent, pools of different sizes, or a different method for one of them")
+        print(f"[hani2] WARNING: {msg}")
+        try:
+            ev.log_event(self.sid, ev.EventType.ERROR, user=self.user, component="scheduling",
+                         action="scheduling_confounded", value={"error": msg})
+        except Exception:  # pragma: no cover
+            pass
 
     def ablation_condition(self) -> dict[str, Any]:
         """The experimental condition of this negotiation, as orthogonal axes (recorded in the

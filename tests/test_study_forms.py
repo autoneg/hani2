@@ -340,3 +340,34 @@ def test_docs_list_every_library_set(hani2_home):
     page = (Path(__file__).resolve().parents[1] / "docs" / "guide" / "study-forms.md").read_text(encoding="utf-8")
     for sid, s in questionnaires.library().items():
         assert f"| `{sid}` | {len(s['questions'])} |" in page, sid
+
+
+def test_consent_and_post_session_answers_are_in_the_recording(study, hani2_home, monkeypatch):
+    from hani2.recording import Recording
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    write_settings(hani2_home, "env.json", {"auth": {"participant_consent": True}})
+    _set_study(study, practice=False)
+    _put(projects.study_dir(study), "post_session", POST)
+    s = prolific("R1", study)
+    try:
+        assert s.study.submit_questionnaire({"consent": "agree"})["ok"]
+        _play(s)
+        assert s.questionnaire["stage"] == "post"
+        assert s.study.submit_questionnaire({"overall": 7})["ok"]
+        rec = Recording.load(s.recorder.finalize())
+        kinds = [e["k"] for e in rec.events]
+        assert "consent" in kinds and "post_session" in kinds
+        assert next(e for e in rec.events if e["k"] == "post_session")["answers"] == {"overall": 7}
+    finally:
+        s.close()
+
+
+@pytest.mark.parametrize("layer, source", [("project:HI", "project:HI"), ("settings", "settings")])
+def test_admin_reads_forms_at_project_and_settings_layers(admin, study, hani2_home, layer, source):
+    folder = projects.project_dir("HI") if layer.startswith("project") else hani2_home / "settings"
+    _put(folder, "pre_questionnaire", FORM)
+    r = admin.get(f"/api/admin/settings/pre_questionnaire?layer={layer}").json()
+    assert r["exists"] and r["active"] and r["source"] == source and r["n_questions"] == 1
+    r = admin.get("/api/admin/settings/pre_questionnaire?layer=study:HI/s1").json()
+    assert not r["exists"] and r["active"] and r["source"] == source  # inherited by the study

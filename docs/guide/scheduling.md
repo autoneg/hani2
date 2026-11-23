@@ -489,7 +489,8 @@ $$
   not removed).
 - With the opponents also on `latin_square` and a pool of the same size, the
   Assistant and the opponent of a negotiation are confounded; use a single
-  opponent, or a different method for one of the two.
+  opponent, or a different method for one of the two. HANI2 warns about this
+  (a `scheduling_confounded` event), for `cyclic` too.
 
 ### Cyclic rotation (each negotiation) (`cyclic`) {#assistants-cyclic}
 

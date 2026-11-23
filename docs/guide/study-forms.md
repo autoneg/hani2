@@ -95,7 +95,7 @@ It is off by default. Turn it off when another system already shows the consent 
 
 ## The post-session questionnaire
 
-When the last counted negotiation (and its questionnaire) is done, a participant of a Prolific or online / lab study gets the post-session questionnaire, if one is set up, and only then the end page with *Finish and submit*. It is asked once: the answers go to `post_session.json` (`answers`, timestamps, `version`, project and study) and to the recording (a `post_session` record). A participant who closes the page before answering gets it again when they open their link. Use it for questions about the whole session: usability of the interface, comparisons between negotiations, demographics, free comments.
+When the last counted negotiation (and its questionnaire) is done, a participant of a Prolific or online / lab study gets the post-session questionnaire, if one is set up, and only then the end page with *Finish and submit*. It is asked once: the answers go to `post_session.json` (`answers`, timestamps, `version`, project and study) and, when the form follows the last negotiation directly, to that negotiation's recording (a `post_session` record). A participant who closes the page before answering gets it again when they open their link; then `post_session.json` is the only record. Consent is recorded the same way (a `consent` record in the first negotiation's recording). Use it for questions about the whole session: usability of the interface, comparisons between negotiations, demographics, free comments.
 
 ## Predefined questionnaires
 
@@ -154,5 +154,7 @@ hani2 questionnaire check projects/HI2027/questionnaires/*.yaml
 - Consent and the post-session questionnaire: Prolific and online / lab participants only (logged-in users have the consent page and no end of session).
 - The pre-questionnaire and the questionnaire after each negotiation: every participant, logged in or not.
 - Never: administrators, playground guests and [simulated participants](simulation.md).
+
+A participant who declines consent, or drops out, keeps their participant index, so their row of a [counterbalanced order](scheduling.md#assistants) stays unfilled; recruit until every row has completed participants.
 
 While a form is open the participant cannot start or load a negotiation, and the automatic start and load timers of [Prolific](prolific.md#automatic-timers) wait for it.

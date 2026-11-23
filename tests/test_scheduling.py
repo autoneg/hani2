@@ -592,3 +592,18 @@ def test_cli_study_create_and_scheduling_list(run, hani2_home):
     assert r.exit_code == 0 and all(k in r.output for ks in REQUIRED.values() for k in ks)
     r = run("scheduling", "list", "--details", "--dimension", "assistants")
     assert "**Advantages**" in r.output and "fixed_order" not in r.output  # opponents only
+
+
+def test_assistant_and_opponent_latin_squares_of_one_size_warn(study, monkeypatch, capsys):
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=[HELLO, RULES, COACH], opponents=POOL, practice=False,
+               scheduling={"assistants": "latin_square", "opponents": "latin_square"})
+    s = prolific("CF", study)
+    assert "confounded" in capsys.readouterr().out
+    db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
+    assert db.execute("SELECT COUNT(*) FROM events WHERE action='scheduling_confounded'").fetchone()[0] == 1
+    s.close()
+    _set_study(study, scheduling={"assistants": "latin_square", "opponents": "random"})
+    s = prolific("CG", study)
+    assert "confounded" not in capsys.readouterr().out
+    s.close()
