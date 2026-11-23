@@ -78,7 +78,7 @@ def _rows(s):
 # --------------------------------------------------------------------------- #
 REQUIRED = {
     "opponents": {"latin_square", "random", "cyclic", "fixed_order", "external"},
-    "assistants": {"balanced", "random_fixed", "random_each", "round_robin", "external"},
+    "assistants": {"balanced", "random_fixed", "random_each", "latin_square", "cyclic", "round_robin", "external"},
     "scenarios": {"by_participant", "set_order", "random", "latin_square", "external"},
 }
 
@@ -201,6 +201,49 @@ def test_random_each_assistant_changes_between_negotiations(study, monkeypatch):
     assert "assistant" not in assignment.read_assignments(study)["humans"].get("prolific_E", {})
     assert {r["assistant_scheduling"] for r in _rows(s)} == {"random_each"}
     assert [r["assistant"] for r in _rows(s)] == seen
+
+
+@pytest.mark.parametrize("method", ["cyclic", "latin_square"])
+def test_counterbalanced_assistants_give_every_human_every_assistant(study, monkeypatch, method):
+    """Within-subjects comparison of finalists: each human works with each Assistant once, one per
+    counted negotiation, and over a block of humans every Assistant takes every position."""
+    pool = [HELLO, RULES, COACH]
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=pool, scheduling={"assistants": method}, practice=True)
+    orders = []
+    for pid in ("A", "B", "C"):
+        s = prolific(pid, study)
+        assert s.round_plan["practice"] is True
+        idx = s.study.participant_index()
+        first = scheduling.pick_assistant_slot(method, pool, idx, 0)
+        assert s.assistant_choice.spec == first  # the practice round: the first counted slot's Assistant
+        _play(s)
+        s.load()
+        seen = []
+        for k in range(3):
+            assert s.round_plan["practice"] is False
+            assert s.assistant_choice.scheduling == method
+            s.refresh_assistant(s.round_plan)  # a reconnect keeps it
+            seen.append(s.assistant_choice.spec)
+            assert seen[-1] == scheduling.pick_assistant_slot(method, pool, idx, k)
+            _play(s)
+            s.load()
+        assert sorted(seen) == sorted(pool), seen  # every Assistant once
+        assert "assistant" not in assignment.read_assignments(study)["humans"].get(f"prolific_{pid}", {})
+        orders.append(seen)
+    for k in range(3):  # every Assistant in every position over the block
+        assert sorted(o[k] for o in orders) == sorted(pool)
+    if method == "cyclic":
+        assert orders[1] == orders[0][1:] + orders[0][:1]  # a 1-step rotation
+
+
+def test_pick_assistant_slot_rules():
+    pool = ["A", "B", "C", "D", "E"]
+    assert [scheduling.pick_assistant_slot("cyclic", pool, 2, k) for k in range(5)] == ["C", "D", "E", "A", "B"]
+    rows = [[scheduling.pick_assistant_slot("latin_square", pool, i, k) for k in range(5)] for i in range(10)]
+    assert all(sorted(r) == pool for r in rows)
+    follows = Counter((r[k], r[k + 1]) for r in rows for k in range(4))
+    assert len(follows) == 20 and set(follows.values()) == {2}  # carry-over balanced over 2n rows (odd n)
 
 
 def test_external_with_a_practice_round(study, monkeypatch):
@@ -548,4 +591,4 @@ def test_cli_study_create_and_scheduling_list(run, hani2_home):
     r = run("scheduling", "list")
     assert r.exit_code == 0 and all(k in r.output for ks in REQUIRED.values() for k in ks)
     r = run("scheduling", "list", "--details", "--dimension", "assistants")
-    assert "**Advantages**" in r.output and "latin_square" not in r.output
+    assert "**Advantages**" in r.output and "fixed_order" not in r.output  # opponents only

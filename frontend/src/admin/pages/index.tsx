@@ -1,10 +1,11 @@
-import { Activity, Bot, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
+import { Activity, Bot, ClipboardList, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
 import type { PageDef } from "../types";
 import { entriesOf } from "../schema";
 import { Analytics, Overview, Results } from "./Activity";
 import { Users } from "./Users";
 import { ASSISTANT_GROUPS, AUTOPILOT, AssistantSettings, Autopilot, GENERAL, General, INTERFACE, Interface, LLM, LLM_GROUPS, NEGOTIATION, Negotiation, TOOLS_BASE, Tools, abilityEntries, interfaceEntries, toolEntries } from "./SettingsPages";
 import { Texts, TEXT_KINDS } from "./Texts";
+import { StudyForms, FORMS } from "./StudyForms";
 import { PROJECT_ENTRIES, Projects } from "./Projects";
 import { CONNECTION_ENTRIES, Connections } from "./Connections";
 import { MODEL_ENTRIES, Models } from "./Models";
@@ -30,6 +31,7 @@ export const PAGES: PageDef[] = [
   { id: "projects", title: "Projects & Studies", icon: FolderKanban, color: "bg-you", group: "Studies", subtitle: "Projects, their studies, participant links and assignments.", entries: PROJECT_ENTRIES, aliases: ["studies"] },
   { id: "texts", title: "Texts", icon: FileText, color: "bg-[#8b5cf6]", group: "Studies", subtitle: "Welcome text, consent form, scenario sets and the custom order, per layer, with a live preview.", entries: [...TEXT_KINDS.map(([k, l, h]) => ({ id: "text-editor", label: l, hint: h, keywords: k })), { id: "text-preview", label: "Text preview", hint: "Rendered with the template variables" }, { id: "text-variables", label: "Template variables", hint: "{{project_name}}, {{study_title}}, …", keywords: "variables placeholders" }, { id: "texts-in-effect", label: "Texts in effect for a study", hint: "Which layer each text comes from" }] },
 
+  { id: "forms", title: "Study forms", icon: ClipboardList, color: "bg-[#0ea5e9]", group: "Studies", subtitle: "Consent for study participants and the pre, per-negotiation and post-session questionnaires, per layer, with predefined questionnaires (UEQ, TAM, SVI, SUS, NASA-TLX, …).", aliases: ["questionnaires"], entries: [{ id: "participant-consent", label: "Ask study participants for consent", hint: "Prolific and online participants see the consent form", keywords: "consent prolific auth.participant_consent" }, ...FORMS.map(([k, l, h]) => ({ id: "form-editor", label: l, hint: h, keywords: `${k} questionnaire` })), { id: "form-library", label: "Predefined questionnaires", hint: "UEQ, UEQ-S, TAM, SVI, trust in automation, NASA-TLX, SUS, demographics, …", keywords: "library template ueq tam svi sus tlx trust demographics attention" }, { id: "form-preview", label: "Questionnaire preview" }, { id: "form-source", label: "Which layer a form comes from", keywords: "switch off disable enabled" }] },
   { id: "scenarios", title: "Scenarios", icon: MapIcon, color: "bg-good", group: "Library", subtitle: "Scenario types, their sets, and new ones by upload or link.", entries: [...explorerEntries("scenarios", "scenario type", "Scenario set"), { id: "scenario-default-set", label: "Default scenario set" }], aliases: ["sets"] },
   { id: "opponents", title: "Opponents", icon: Swords, color: "bg-opponent", group: "Library", subtitle: "The negotiators participants face: groups, members, and your own classes.", entries: [...explorerEntries("opponents", "opponent", "Opponent group"), { id: "opponent-pool", label: "Opponents participants face", hint: "The opponent pool", keywords: "pool opponents agents" }] },
   { id: "assistants", title: "Assistants", icon: Bot, color: "bg-you", group: "Library", subtitle: "The AI helpers on the human's side: groups, your own classes, the pool and its balance.", entries: [...explorerEntries("assistants", "Assistant", "Assistant group"), { id: "assistant-pool", label: "Assistants participants get", hint: "The Assistant pool", keywords: "pool" }, { id: "study-balance", label: "Assistant balance", hint: "Per study" }] },
@@ -55,6 +57,7 @@ set("results", Results);
 set("analytics", Analytics);
 set("projects", Projects);
 set("texts", Texts);
+set("forms", StudyForms);
 set("scenarios", () => <Explorer adapter={scenariosAdapter} />);
 set("opponents", () => <Explorer adapter={opponents} />);
 set("assistants", () => <Explorer adapter={assistants} />);

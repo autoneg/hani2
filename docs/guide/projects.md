@@ -180,7 +180,7 @@ A placeholder HANI2 does not know is left as written, so a typo shows up in the 
 
 With `auth.enforce_consent` on, a logged-in participant consents once per study. HANI2 records, in the user's metadata, which study, when, and a hash of the consent text they accepted. A new study, or a changed consent text, asks again. Consent given before projects existed still counts for the server's default study, so existing users are not asked again there.
 
-Participants who arrive with a Prolific ID, an online participant ID or a session code do not pass through the consent page.
+Participants who arrive with a Prolific ID, an online participant ID or a session code do not pass through the consent page. To ask them for consent in the session itself, switch on `auth.participant_consent` for the project or study (see [Study forms](study-forms.md#consent-for-study-participants)).
 
 ## Results
 

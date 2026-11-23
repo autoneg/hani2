@@ -206,7 +206,8 @@ Which pool member a human gets is the study's `assistants` [scheduling method](s
 (`scheduling: {assistants: ...}` in study.yaml or project.yaml). The default, `balanced`, is
 described here; the others are `random_fixed` (kept per human, drawn at random),
 `round_robin` (kept per human, member `index mod size`), `random_each` (a new draw every
-negotiation) and `external` (only `schedule.json` names the Assistant; without one the session
+negotiation), `latin_square` and `cyclic` (every human works with every Assistant, one per counted
+negotiation, in a counterbalanced order: a balanced Latin square or a cyclic rotation) and `external` (only `schedule.json` names the Assistant; without one the session
 fails loudly). The method used is recorded in the `assistant_scheduling` column.
 
 With a pool of more than one Assistant and the default method:

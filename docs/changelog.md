@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Study forms per project and study.** Consent, a pre-questionnaire, a questionnaire after each
+  negotiation and a new post-session questionnaire (after the last counted negotiation, before the
+  completion link) can each be set up per project and overridden or switched off (`enabled: false`)
+  per study. Prolific and online participants can be asked for consent in the session
+  (`auth.participant_consent`). The admin console's new **Study forms** page edits, checks and
+  previews them. See [Study forms](guide/study-forms.md).
+- **Predefined questionnaires.** Complete question sets for UEQ, UEQ-S, TAM, trust in automation, the
+  Subjective Value Inventory, NASA-TLX, SUS, demographics and more can be added to any form, in the
+  admin console or with `hani2 questionnaire compose`. See
+  [Study forms](guide/study-forms.md#predefined-questionnaires).
+- **Counterbalanced Assistants.** The `latin_square` and `cyclic` Assistant scheduling methods have
+  every participant work with every Assistant once, one per counted negotiation, in a balanced order.
+  See [Scheduling methods](guide/scheduling.md#assistants).
+- **The pre-questionnaire reaches Prolific and online participants.** It was skipped for them before.
+
 - **Ollama cloud models through a local server are accepted.** Model names ending in `-cloud`
   (for example `gpt-oss:120b-cloud`) now work through a local Ollama server (`ollama`), also with the
   pi harness. They use the server's `ollama signin` account; check that the account's plan covers

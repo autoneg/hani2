@@ -1,0 +1,12 @@
+id: nasa_tlx
+title: "NASA-TLX workload (raw, 7-point)"
+description: "The six NASA Task Load Index dimensions as 7-point items (raw TLX, no pairwise weighting). Performance runs from perfect to failure, so it is reversed."
+reference: "Hart & Staveland (1988). Development of NASA-TLX: results of empirical and theoretical research. Advances in Psychology 52."
+forms: [per_negotiation, post_session]
+questions:
+  - {id: tlx_mental, text: "**Mental demand**: how mentally demanding was the task?", type: likert7, required: true, scale: workload, labels: {1: "Very low", 7: "Very high"}}
+  - {id: tlx_physical, text: "**Physical demand**: how physically demanding was the task?", type: likert7, required: false, scale: workload, labels: {1: "Very low", 7: "Very high"}}
+  - {id: tlx_temporal, text: "**Temporal demand**: how hurried or rushed was the pace of the task?", type: likert7, required: true, scale: workload, labels: {1: "Very low", 7: "Very high"}}
+  - {id: tlx_performance, text: "**Performance**: how successful were you in accomplishing what you were asked to do?", type: likert7, required: true, scale: workload, reverse: true, labels: {1: "Perfect", 7: "Failure"}}
+  - {id: tlx_effort, text: "**Effort**: how hard did you have to work to accomplish your level of performance?", type: likert7, required: true, scale: workload, labels: {1: "Very low", 7: "Very high"}}
+  - {id: tlx_frustration, text: "**Frustration**: how insecure, discouraged, irritated, stressed or annoyed were you?", type: likert7, required: true, scale: workload, labels: {1: "Very low", 7: "Very high"}}

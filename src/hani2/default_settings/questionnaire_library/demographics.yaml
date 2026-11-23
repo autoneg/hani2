@@ -1,0 +1,10 @@
+id: demographics
+title: "Demographics"
+description: "Age range, gender, education and English level. Prolific already holds most of these; ask only what you need."
+reference: "Common demographic items."
+forms: [pre_questionnaire, post_session]
+questions:
+  - {id: age_range, text: "What is your age?", type: select, required: true, options: ["18–24", "25–34", "35–44", "45–54", "55–64", "65 or older", "Prefer not to say"]}
+  - {id: gender, text: "What is your gender?", type: select, required: true, options: ["Woman", "Man", "Non-binary", "Prefer to self-describe", "Prefer not to say"]}
+  - {id: education, text: "What is the highest level of education you have completed?", type: select, required: false, options: ["Secondary school", "Vocational training", "Bachelor's degree", "Master's degree", "Doctorate", "Other", "Prefer not to say"]}
+  - {id: english_level, text: "How would you rate your English?", type: select, required: false, options: ["Basic", "Intermediate", "Fluent", "Native"]}

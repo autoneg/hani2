@@ -1,0 +1,12 @@
+id: tam_ease
+title: "TAM perceived ease of use, 6 items"
+description: "Davis' six perceived-ease-of-use items, worded for a negotiation assistant, 7-point agreement."
+reference: "Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3)."
+forms: [per_negotiation, post_session]
+questions:
+  - {id: tam_easy_learn, text: "Learning to work with this assistant was easy for me.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_controllable, text: "I found it easy to get the assistant to do what I wanted.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_clear, text: "My interaction with the assistant was clear and understandable.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_flexible, text: "I found the assistant flexible to interact with.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_skillful, text: "It would be easy for me to become skillful at using this assistant.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_easy_use, text: "I found the assistant easy to use.", type: likert7, required: true, requires: support_agent, scale: tam_ease, labels: {1: "Strongly disagree", 7: "Strongly agree"}}

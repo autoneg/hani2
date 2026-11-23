@@ -41,6 +41,11 @@ SETTINGS_KINDS["models"] = ("models.json",
 SETTINGS_KINDS["support_agent"] = SETTINGS_KINDS["assistant"]  # old name of the kind
 TEXT_FILES = {"consent": "consent.md", "announcements": "announcements.md", "scenario_order": "scenario_order.txt",
               "scenario_sets": "scenario_sets.yaml"}
+#: the study forms (see hani2.questionnaires), edited like texts
+QUESTIONNAIRE_FILES = {"pre_questionnaire": "questionnaires/pre_questionnaire.yaml",
+                       "per_negotiation": "questionnaires/per_negotiation.yaml",
+                       "post_session": "questionnaires/post_session.yaml"}
+TEXT_FILES.update(QUESTIONNAIRE_FILES)
 
 
 class LayerError(Exception):

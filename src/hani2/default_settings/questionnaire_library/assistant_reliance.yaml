@@ -1,0 +1,10 @@
+id: assistant_reliance
+title: "Use of and reliance on the Assistant"
+description: "How much the participant used and followed the Assistant, how much they trusted it and who gets the credit for the result."
+reference: "HANI2 items for human-Assistant teams."
+forms: [per_negotiation]
+questions:
+  - {id: reliance_use, text: "How much did you use the assistant in this negotiation?", type: select, required: true, options: ["I did not use it", "A little", "Moderately", "A lot", "For almost every move"]}
+  - {id: reliance_follow, text: "How often did you follow the assistant's suggestions?", type: likert7, required: true, requires: support_agent, scale: reliance, labels: {1: "Never", 7: "Always"}}
+  - {id: reliance_trust, text: "I trusted the assistant's suggestions in this negotiation.", type: likert7, required: true, requires: support_agent, scale: reliance, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: reliance_credit, text: "Who deserves the credit for the result of this negotiation?", type: select, required: true, requires: support_agent, options: ["Mostly me", "More me than the assistant", "Equally", "More the assistant than me", "Mostly the assistant"]}

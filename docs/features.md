@@ -15,6 +15,7 @@ details are.
 | Your preferences in view | When a negotiation starts, your Preferences tool comes to the front (and the tools tray or tab opens on tablets and phones). | [Your preferences when the negotiation starts](guide/interface.md#your-preferences-when-the-negotiation-starts) |
 | Clear names | With an assistant present, scenarios that call the sides `human` and `agent` show **You** and **Opponent** instead. | [`names`](guide/configuration.md#names) |
 | Questionnaires and consent | Optional questions after each negotiation and a consent form before the first. | [Studies](guide/studies.md#per-negotiation-questionnaires) |
+| Study forms | Consent, a pre-questionnaire, a questionnaire after each negotiation and a post-session questionnaire, set up per project and overridden or switched off per study, with complete predefined questionnaires (UEQ, TAM, SVI, trust in automation, NASA-TLX, SUS, …) to start from. | [Study forms](guide/study-forms.md) |
 
 ### Layout
 

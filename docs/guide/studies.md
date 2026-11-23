@@ -112,7 +112,7 @@ Question types:
 
 ### Where the questionnaire is looked up
 
-HANI2 uses the first of these files that exists and has questions:
+HANI2 uses the first of these files that exists and has questions (a file with `enabled: false` switches the questionnaire off and ends the search; see [Study forms](study-forms.md#switching-a-form-off)):
 
 1. The file in the `HANI2_PER_NEG_YAML` environment variable.
 2. The file in the `PROLIFIC_PER_NEG_YAML` environment variable.
@@ -132,6 +132,8 @@ Two optional keys per question feed the [subjective metrics](evaluation.md#subje
 `requires: support_agent` (ask only when an assistant took part).
 
 `hani2 setup` writes an example to `settings/questionnaires/per_negotiation.example.yaml`. Copy or rename it to `per_negotiation.yaml` to turn the questionnaire on.
+
+The admin console edits the questionnaire of every layer on the **Study forms** page, which also adds complete predefined questionnaires (UEQ, TAM, the Subjective Value Inventory, NASA-TLX, SUS, …) to a form. A post-session questionnaire and consent for Prolific participants are described in [Study forms](study-forms.md).
 
 ### When it is shown
 
@@ -168,7 +170,8 @@ It is off unless you configure one. HANI2 uses the first of:
 1. the file (or bundled name) in `HANI2_PRE_YAML`;
 2. the questionnaire named by `"pre_questionnaire"` in `env.json` (`expertise` is bundled);
 3. `<study>/questionnaires/pre_questionnaire.yaml`, then the project's, then
-   `settings/questionnaires/pre_questionnaire.yaml`.
+   `settings/questionnaires/pre_questionnaire.yaml` (`enabled: false` in one of them switches it
+   off, see [Study forms](study-forms.md#switching-a-form-off)).
 
 It has the same format as the per-negotiation questionnaire, plus a `participant_type` block that
 names the question and maps answers to types (an unmapped answer is used as it is):

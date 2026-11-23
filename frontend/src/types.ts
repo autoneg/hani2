@@ -89,6 +89,10 @@ export interface SupportState {
 export interface Questionnaire {
   title?: string;
   intro?: string;
+  /** pre | post | consent; absent for the per-negotiation questionnaire */
+  stage?: "pre" | "post" | "consent";
+  /** the consent text (Markdown) of the consent stage */
+  body?: string;
   questions: {
     id: string;
     text: string;
@@ -180,6 +184,8 @@ export interface SessionState {
   questionnaire: Questionnaire | null;
   finish_url: string | null;
   finish_text?: string | null;
+  /** the participant did not agree to the consent form */
+  finish_declined?: boolean;
   project?: string;
   study_name?: string | null;
   study: { kind: string; pid?: string; required?: number; counted?: number; practice_next?: boolean; auto_deadline?: number | null; auto_kind?: string | null; max_minutes?: number };

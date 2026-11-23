@@ -28,10 +28,12 @@ What changes for a URL with a Prolific ID:
 
 ## The study flow
 
-1. **Practice round.** The first negotiation is a practice round. It does not count. The opponent comes from `PROLIFIC_PRACTICE_OPPONENTS` and cannot end the negotiation itself (see [Opponents](opponents.md)). The time limit is `PROLIFIC_PRACTICE_TIME_LIMIT`.
-2. **Counted rounds.** Then come `PROLIFIC_N_REQUIRED` counted negotiations, each with the time limit `PROLIFIC_COUNTED_TIME_LIMIT`.
-3. **Questionnaire.** If a per-negotiation questionnaire is configured, it follows each round (see below).
-4. **Completion.** When the last counted round is done, the participant sees *You're all done* and a *Finish and submit* button that opens the completion URL in the top window.
+1. **Consent and pre-questionnaire.** If the study asks participants for consent in the session, the consent form comes first; then the pre-questionnaire, if one is configured (see [Study forms](study-forms.md)). Both are off by default.
+2. **Practice round.** The first negotiation is a practice round. It does not count. The opponent comes from `PROLIFIC_PRACTICE_OPPONENTS` and cannot end the negotiation itself (see [Opponents](opponents.md)). The time limit is `PROLIFIC_PRACTICE_TIME_LIMIT`.
+3. **Counted rounds.** Then come `PROLIFIC_N_REQUIRED` counted negotiations, each with the time limit `PROLIFIC_COUNTED_TIME_LIMIT`.
+4. **Questionnaire.** If a per-negotiation questionnaire is configured, it follows each round (see below).
+5. **Post-session questionnaire.** If one is configured, it follows the last counted round (see [Study forms](study-forms.md#the-post-session-questionnaire)).
+6. **Completion.** Then the participant sees *You're all done* and a *Finish and submit* button that opens the completion URL in the top window.
 
 After every round, HANI2 shows a notice and a toast with the progress, for example "2 of 5 counted negotiations complete — 3 to go."
 
@@ -43,7 +45,7 @@ The practice round is complete only when the participant took at least one actio
 
 ### Questionnaires
 
-The questionnaire configured for the study (see [Studies and results](studies.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
+The questionnaire configured for the study (see [Studies and results](studies.md) and [Study forms](study-forms.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
 
 ### Scenarios and opponents
 
@@ -51,7 +53,7 @@ The questionnaire configured for the study (see [Studies and results](studies.md
 - **Scenario slot.** Each round uses the next slot of that type's pool (the participant's counter in `last_scenario.txt`). Prolific rounds always use the saved pools.
 - **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_OPPONENTS` (default `:pan`; the old name `PROLIFIC_PRACTICE_AGENTS` also works). If that list resolves to no agents, HANI2 uses the normal opponent pool.
 - **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset. In a study, participants face them in the order of a balanced Latin square (see [Latin squares](opponents.md#latin-squares)). Without a study, or for a participant who already has a `fallback_rotation.txt`, HANI2 rotates through them: round *k* uses agent `(offset + k) mod n`, and each new participant gets the next offset.
-- **Assistant.** With an Assistant pool, each participant keeps one Assistant for the whole study, balanced across participants (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)).
+- **Assistant.** With an Assistant pool, each participant keeps one Assistant for the whole study, balanced across participants (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)). To have every participant work with every Assistant once, in a counterbalanced order, set the study's `assistants` scheduling method to `latin_square` or `cyclic` (see [Scheduling methods](scheduling.md#assistants)).
 
 ### Schedules
 
@@ -133,6 +135,8 @@ Prolific participants have the usual result files (see [Studies and results](stu
 | `prolific_session.json` | `started_at`, the assigned `scenario_type`, `max_minutes` and `max_negs` (`PROLIFIC_N_REQUIRED + 1`). Written on the first visit. |
 | `fallback_rotation.txt` | The participant's offset in the opponent rotation (sessions outside a study, and older participants). |
 | `schedule.json` | Only if you write one. |
+| `consent.json` | Only when the study asks for consent in the session (see [Study forms](study-forms.md#consent-for-study-participants)). |
+| `pre_questionnaire.json`, `post_session.json` | The answers to the pre- and post-session questionnaires, when configured. |
 
 The shared counter for the rotation offsets is `<results>/_prolific_fallback_counter.txt`. In a study, `<results>/assignments.json` holds every participant's index (for the Latin square and the scenario type) and Assistant.
 

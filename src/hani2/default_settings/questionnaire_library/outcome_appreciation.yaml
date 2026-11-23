@@ -1,0 +1,8 @@
+id: outcome_appreciation
+title: "Outcome satisfaction and enjoyment"
+description: "Satisfaction with the outcome and enjoyment of the negotiation, 7-point."
+reference: "Items of the HANI2 evaluation questionnaire."
+forms: [per_negotiation]
+questions:
+  - {id: satisfaction_outcome, text: "How satisfied are you with the **outcome** of this negotiation?", type: likert7, required: true, scale: satisfaction, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: fun, text: "How much did you **enjoy** this negotiation?", type: likert7, required: true, scale: appreciation, labels: {1: "Not at all", 7: "Very much"}}

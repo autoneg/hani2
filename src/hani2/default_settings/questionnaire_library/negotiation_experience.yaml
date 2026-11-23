@@ -1,0 +1,8 @@
+id: negotiation_experience
+title: "Negotiation experience (participant type)"
+description: "How often the participant negotiates and whether they had training. Add the participant_type block shown in the docs to stratify the leaderboard by experience."
+reference: "HANI2 expertise questionnaire."
+forms: [pre_questionnaire]
+questions:
+  - {id: expertise, text: "How often do you negotiate (prices, contracts, salaries, …)?", type: select, required: true, options: ["Never", "A few times", "Regularly", "It is part of my job"]}
+  - {id: negotiation_training, text: "Have you ever had training in negotiation?", type: yes_no, required: false}

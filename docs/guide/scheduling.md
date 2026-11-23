@@ -332,6 +332,8 @@ Default: `balanced`.
 | [`balanced`](#assistants-balanced) | Each human keeps one Assistant; a new human gets the one with the fewest humans so far. |
 | [`random_fixed`](#assistants-random-fixed) | Each human keeps one Assistant drawn at random when they first arrive. |
 | [`random_each`](#assistants-random-each) | Every negotiation draws a new Assistant at random (within-subjects). |
+| [`latin_square`](#assistants-latin-square) | Every human works with every Assistant, in an order from a balanced (Williams) Latin square (within-subjects). |
+| [`cyclic`](#assistants-cyclic) | Human i starts with Assistant i and goes round the pool, one Assistant per negotiation (within-subjects). |
 | [`round_robin`](#assistants-round-robin) | Human i keeps Assistant i modulo the pool size. |
 | [`external`](#assistants-external) | Only an outside system decides: the participant's schedule.json names the Assistant. |
 
@@ -442,6 +444,87 @@ $$
 
 - Carry-over: what one Assistant taught can help in the next negotiation.
 - No balance in small samples; the human sees the Assistant change.
+
+### Balanced Latin square (each negotiation) (`latin_square`) {#assistants-latin-square}
+
+*Every human works with every Assistant, in an order from a balanced (Williams) Latin square (within-subjects).*
+
+Every human works with the Assistants of the pool **one after another**, one per
+counted negotiation, in the order of one row of a **balanced Latin square** (a
+Williams design), exactly as opponents are scheduled by the opponents'
+`latin_square` method. Over a full set of rows every Assistant appears equally
+often in every position and directly follows every other Assistant equally often,
+so neither the position of an Assistant nor the Assistant just before it can
+explain a result. This is the counterbalanced *within-subjects* design for
+comparing finalists: with 5 Assistants and 5 counted negotiations, each human
+works with each Assistant once.
+
+Example: 3 Assistants A, B, C and 4 participants.
+
+| Participant | Negotiation 1 | Negotiation 2 | Negotiation 3 |
+|---|---|---|---|
+| 0 | A | B | C |
+| 1 | B | C | A |
+| 2 | C | A | B |
+| 3 | C | B | A |
+
+**Rule.** Participant $i$ (their index in the study) takes row $i \bmod R$ of the
+square $W$ (see the opponents' `latin_square`); $k$ counts the counted
+negotiations (a practice round uses the Assistant of $k = 0$):
+
+$$
+a(i, k) = A\left[\, W_{i \bmod R,\; k \bmod m} \,\right], \quad m = |A|
+$$
+
+**Advantages**
+
+- Balances position and carry-over effects; deterministic and reproducible.
+- Each human compares the Assistants, so fewer humans are needed.
+
+**Disadvantages**
+
+- Exact balance needs a multiple of $R$ humans ($m$ or $2m$); drop-outs leave
+  rows under-filled.
+- What one Assistant taught can still help in the next negotiation (balanced,
+  not removed).
+- With the opponents also on `latin_square` and a pool of the same size, the
+  Assistant and the opponent of a negotiation are confounded; use a single
+  opponent, or a different method for one of the two.
+
+### Cyclic rotation (each negotiation) (`cyclic`) {#assistants-cyclic}
+
+*Human i starts with Assistant i and goes round the pool, one Assistant per negotiation (within-subjects).*
+
+Every human works with the Assistants **one after another**: human $i$ starts with
+Assistant $i$ (modulo the pool size) and takes the next Assistant of the pool in
+each counted negotiation. With $m$ Assistants, $m$ consecutive humans use every
+Assistant in every position once (a cyclic Latin square). To randomise which
+Assistant comes after which, shuffle the pool once when you set up the study.
+
+Example: 3 Assistants A, B, C and 4 participants.
+
+| Participant | Negotiation 1 | Negotiation 2 | Negotiation 3 |
+|---|---|---|---|
+| 0 | A | B | C |
+| 1 | B | C | A |
+| 2 | C | A | B |
+| 3 | A | B | C |
+
+**Rule.** With $k$ the counted negotiation (a practice round uses $k = 0$):
+
+$$
+a(i, k) = A\left[(i + k) \bmod m\right], \quad m = |A|
+$$
+
+**Advantages**
+
+- Every Assistant in every position equally often after each block of $m$ humans.
+- Simple to explain and to audit.
+
+**Disadvantages**
+
+- Carry-over is not balanced: each Assistant always follows the same one
+  (`latin_square` balances it too).
 
 ### Fixed per human, round robin (`round_robin`) {#assistants-round-robin}
 

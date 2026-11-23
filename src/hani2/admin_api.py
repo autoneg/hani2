@@ -18,7 +18,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from hani2 import groups, projects
 from hani2.admin_common import admin_dep, get_layer, guard, need_layer
 from hani2.config import _deep_merge, get_settings_file
-from hani2.layers import (SETTINGS, SETTINGS_KINDS, TEXT_FILES, Layer, LayerError, binding, layer_of_path,
+from hani2.layers import (QUESTIONNAIRE_FILES, SETTINGS, SETTINGS_KINDS, TEXT_FILES, Layer, LayerError, binding, layer_of_path,
                           list_layers, read_json_own, remove_dotted, write_json_own)
 
 
@@ -69,11 +69,30 @@ def settings_get(kind: str, layer: Layer) -> dict:
         return {"layer": layer.id, "own": own, "effective": eff, "inherited": inh}
     fname = TEXT_FILES[kind]
     f = layer.dir / fname
+    if kind in QUESTIONNAIRE_FILES:
+        return _questionnaire_get(kind, layer, f)
     with binding(layer):
         src = get_settings_file(fname)
     return {"layer": layer.id, "text": f.read_text(encoding="utf-8") if f.exists() else "", "exists": f.exists(),
             "effective": src.read_text(encoding="utf-8") if src.exists() else "",
             "source": layer_of_path(src) if src.exists() else "bundled", "source_path": str(src)}
+
+
+def _questionnaire_get(kind: str, layer: Layer, f: Path) -> dict:
+    """A study form at a layer: the layer's own file and the form in effect there (the same
+    lookup the sessions use, environment variables and env.json names included)."""
+    from hani2 import questionnaires
+
+    with binding(layer):
+        r = questionnaires.resolve(kind)
+        info = questionnaires.describe(kind)
+    eff = r.path.read_text(encoding="utf-8") if r.path is not None and r.path.is_file() else ""
+    text = f.read_text(encoding="utf-8") if f.exists() else ""
+    return {"layer": layer.id, "text": text, "exists": f.exists(), "effective": eff,
+            "source": info["source"], "source_path": info["source_path"], "active": info["active"],
+            "disabled": info["disabled"], "n_questions": info["n_questions"],
+            "problems": questionnaires.validate(text) if f.exists() else [],
+            "overridden": info["source"].startswith("env")}
 
 
 def _read_own(kind: str, path: Path) -> dict:
@@ -98,6 +117,12 @@ def settings_put(kind: str, layer: Layer, body: dict) -> dict:
         write_json_own(layer.dir / SETTINGS_KINDS[kind][0], body)
         return {"ok": True}
     p = layer.dir / TEXT_FILES[kind]
+    if kind in QUESTIONNAIRE_FILES:
+        from hani2 import questionnaires
+
+        problems = questionnaires.validate(str(body.get("text", "")))
+        if problems:
+            raise HTTPException(422, "; ".join(problems))
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(str(body.get("text", "")), encoding="utf-8")
     return {"ok": True}
@@ -340,3 +365,51 @@ router.include_router(admin_scenarios.router)
 from hani2 import admin_models  # noqa: E402
 
 router.include_router(admin_models.router)
+
+
+# --------------------------------------------------------------------------- #
+# Study forms: the predefined question sets                                    #
+# --------------------------------------------------------------------------- #
+@router.get("/api/admin/questionnaires/library")
+def admin_questionnaire_library():
+    """The predefined question sets (``hani2.questionnaires.library``) and the forms."""
+    from hani2 import questionnaires
+
+    return {"sets": list(questionnaires.library().values()),
+            "forms": [{"key": f.key, "title": f.title, "file": f"questionnaires/{f.file}"} for f in questionnaires.FORMS.values()],
+            "types": list(questionnaires.QUESTION_TYPES)}
+
+
+@router.post("/api/admin/questionnaires/compose")
+def admin_questionnaire_compose(body: dict = Body(...)):
+    """Add predefined sets to a form's text: ``{"text", "sets": [ids], "form"}`` →
+    ``{"text", "added", "skipped", "problems"}`` (nothing is saved)."""
+    from hani2 import questionnaires
+
+    form = str(body.get("form") or "per_negotiation")
+    if form not in questionnaires.FORMS:
+        raise HTTPException(400, f"unknown form {form!r}")
+    try:
+        text, added, skipped = questionnaires.compose(str(body.get("text") or ""), [str(s) for s in body.get("sets") or []], form)
+    except KeyError as e:
+        raise HTTPException(404, str(e.args[0])) from None
+    except (ValueError, yaml.YAMLError) as e:
+        raise HTTPException(422, f"the current text is not a valid form: {e}") from None
+    return {"text": text, "added": added, "skipped": skipped, "problems": questionnaires.validate(text)}
+
+
+@router.post("/api/admin/questionnaires/check")
+def admin_questionnaire_check(body: dict = Body(...)):
+    """Check a form's text: ``{"text"}`` → ``{"problems", "form"}`` (``form``: the parsed questions, for a preview)."""
+    from hani2 import questionnaires
+
+    text = str(body.get("text") or "")
+    problems = questionnaires.validate(text)
+    form = None
+    if not problems and text.strip():
+        data = yaml.safe_load(text) or {}
+        if data.get("enabled") is not False:
+            from hani2.templates import render_data
+
+            form = render_data({k: data.get(k) for k in ("title", "intro", "questions")})
+    return {"problems": problems, "form": form}

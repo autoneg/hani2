@@ -1,0 +1,7 @@
+id: attention_check
+title: "Attention check"
+description: "One instructed-response item. Follow Prolific's attention-check policy (the instruction must be in the question itself, and failing it is not by itself a reason to reject)."
+reference: "Instructed-response item; see Prolific's attention and comprehension check policy."
+forms: [per_negotiation, post_session]
+questions:
+  - {id: attention_check, text: "To show that you are reading the questions, please choose **Strongly disagree** here.", type: select, required: true, options: ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"]}

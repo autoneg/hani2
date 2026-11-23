@@ -32,6 +32,7 @@ app.add_typer(scenario_app, name="scenario")
 groups_app = typer.Typer(help="List opponent and Assistant groups (named pools).")
 app.add_typer(groups_app, name="groups")
 app.add_typer(__import__("hani2.cli_library", fromlist=["library_app"]).library_app, name="library")
+app.add_typer(__import__("hani2.cli_questionnaires", fromlist=["x"]).questionnaire_app, name="questionnaire")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, name="connections")
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
 app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
@@ -1252,7 +1253,7 @@ def project_create(
     organizer: Annotated[Optional[str], typer.Option(help="Who runs it.")] = None,
     contact: Annotated[Optional[str], typer.Option(help="Contact for participants (e-mail).")] = None,
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
-    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, round_robin, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
 ):
     """Create a project (or update its project.yaml)."""
@@ -1311,7 +1312,7 @@ def study_create(
     end_text: Annotated[Optional[str], typer.Option("--end-text", help="Text of the end page (may use {{variables}}).")] = None,
     base_url: Annotated[Optional[str], typer.Option("--base-url", help="Public address of this server for the printed links (default: HANI2_PUBLIC_URL).")] = None,
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
-    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, round_robin, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
 ):
     """Create a study (or update its study.yaml) and print the links to give participants."""

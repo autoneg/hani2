@@ -1,0 +1,12 @@
+id: tam_usefulness
+title: "TAM perceived usefulness, 6 items"
+description: "Davis' six perceived-usefulness items, worded for a negotiation assistant, 7-point agreement."
+reference: "Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3)."
+forms: [per_negotiation, post_session]
+questions:
+  - {id: tam_quicker, text: "Using this assistant would let me negotiate more quickly.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_performance, text: "Using this assistant would improve my negotiation results.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_productivity, text: "Using this assistant would make me more productive when negotiating.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_effectiveness, text: "Using this assistant would enhance my effectiveness in negotiation.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_easier, text: "Using this assistant would make negotiating easier.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
+  - {id: tam_useful, text: "I would find this assistant useful in negotiations.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}

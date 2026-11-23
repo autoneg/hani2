@@ -539,7 +539,44 @@ function ResultCard({ st }: { st: SessionState }) {
   );
 }
 
+function ConsentForm({ q }: { q: Questionnaire }) {
+  const [busy, setBusy] = useState(false);
+  const answer = (consent: "agree" | "decline") => {
+    if (consent === "decline" && !confirm("You did not agree, so you cannot take part in this study. Continue?")) return;
+    setBusy(true);
+    send({ type: "questionnaire", answers: { consent } });
+    window.setTimeout(() => setBusy(false), 1500);
+  };
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-you/10 text-you">
+          <FileText size={22} />
+        </div>
+        <div className="text-lg font-semibold">{q.title ?? "Consent"}</div>
+      </div>
+      <div className="scroll-thin max-h-[40vh] overflow-y-auto rounded-xl bg-sunken/60 px-4 py-3">
+        <Markdown text={q.body ?? ""} size="sm" />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-primary px-5 py-2" disabled={busy} onClick={() => answer("agree")}>
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} I agree to take part
+        </button>
+        <button className="btn-ghost px-4 py-2" disabled={busy} onClick={() => answer("decline")}>
+          <X size={15} /> I do not agree
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function QuestionnaireForm({ q }: { q: Questionnaire }) {
+  if (q.stage === "consent") return <ConsentForm q={q} />;
+  return <QuestionnaireFields q={q} onSubmit={(answers) => send({ type: "questionnaire", answers })} />;
+}
+
+/** The questions of a form; also the admin console's preview (with its own ``onSubmit``). */
+export function QuestionnaireFields({ q, onSubmit, submitLabel = "Submit answers" }: { q: Questionnaire; onSubmit: (answers: Record<string, any>) => void; submitLabel?: string }) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
   const set = (id: string, v: any) => setAnswers((a) => ({ ...a, [id]: v }));
@@ -549,7 +586,7 @@ function QuestionnaireForm({ q }: { q: Questionnaire }) {
       onSubmit={(e) => {
         e.preventDefault();
         setBusy(true);
-        send({ type: "questionnaire", answers });
+        onSubmit(answers);
         window.setTimeout(() => setBusy(false), 1500);
       }}
     >
@@ -608,13 +645,23 @@ function QuestionnaireForm({ q }: { q: Questionnaire }) {
         );
       })}
       <button className="btn-primary w-fit px-5 py-2" disabled={busy}>
-        {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Submit answers
+        {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} {submitLabel}
       </button>
     </form>
   );
 }
 
 function Finished({ st }: { st: SessionState }) {
+  if (st.finish_declined)
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sunken text-muted">
+          <CircleX size={22} />
+        </div>
+        <div className="text-lg font-semibold">Thank you for your time</div>
+        <p className="max-w-prose whitespace-pre-line text-sm">{st.finish_text}</p>
+      </div>
+    );
   return (
     <div className="flex flex-col items-start gap-3">
       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-good/10 text-good">

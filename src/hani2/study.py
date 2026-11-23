@@ -54,49 +54,18 @@ def _env_int(name: str, default: int) -> int:
 
 
 def questionnaire_spec() -> dict | None:
-    """The per-negotiation questionnaire, if one is configured.
+    """The per-negotiation questionnaire, if one is configured (see :mod:`hani2.questionnaires`)."""
+    from hani2 import questionnaires
 
-    Lookup: ``$HANI2_PER_NEG_YAML`` / ``$PROLIFIC_PER_NEG_YAML`` →
-    ``<experiment>/questionnaires/per_negotiation.yaml`` →
-    ``settings/questionnaires/per_negotiation.yaml``.
-    """
-    import yaml
-
-    from hani2.config import DEFAULT_SETTINGS_DIR, get_env, settings_dir
-
-    def named(v: str) -> list[Path]:
-        # a bare name ("evaluation") is a questionnaire in the settings or bundled with HANI2
-        if "/" in v or v.endswith((".yaml", ".yml")):
-            return [Path(v).expanduser()]
-        return [*(d / "questionnaires" / f"{v}.yaml" for d in settings_layers()),
-                settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
-
-    cands: list[Path] = []
-    for var in ("HANI2_PER_NEG_YAML", "PROLIFIC_PER_NEG_YAML"):
-        if os.environ.get(var):
-            cands.extend(named(os.environ[var]))
-    if get_env("questionnaire", None):
-        cands.extend(named(str(get_env("questionnaire"))))
-    for layer in settings_layers():  # the study, then its project
-        cands.append(layer / "questionnaires" / "per_negotiation.yaml")
-    cands.append(settings_dir() / "questionnaires" / "per_negotiation.yaml")
-    for p in cands:
-        if p.is_file():
-            try:
-                spec = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-                if not spec.get("questions"):
-                    continue
-            except Exception as e:  # pragma: no cover
-                print(f"[hani2] questionnaire {p} failed to parse: {e}")
-                continue
-            from hani2.templates import render_data
-
-            return render_data(spec)
-    return None
+    return questionnaires.spec("per_negotiation")
 
 
 #: where a participant's pre-questionnaire answers are kept (in their results folder)
 PRE_FILE = "pre_questionnaire.json"
+#: where a participant's post-session answers are kept
+POST_FILE = "post_session.json"
+#: where an anonymous participant's consent is kept (Prolific and online / lab participants)
+CONSENT_FILE = "consent.json"
 
 
 def pre_questionnaire_spec() -> dict | None:
@@ -105,36 +74,31 @@ def pre_questionnaire_spec() -> dict | None:
     is bundled), ``$HANI2_PRE_YAML``, or ``questionnaires/pre_questionnaire.yaml`` in the study,
     its project or the settings folder. Its ``participant_type`` block names the question whose
     answer is the participant's type (see :func:`participant_type_of`)."""
-    import yaml
+    from hani2 import questionnaires
 
-    from hani2.config import DEFAULT_SETTINGS_DIR, get_env, settings_dir
+    return questionnaires.spec("pre_questionnaire")
 
-    def named(v: str) -> list[Path]:
-        if "/" in v or v.endswith((".yaml", ".yml")):
-            return [Path(v).expanduser()]
-        return [*(d / "questionnaires" / f"{v}.yaml" for d in settings_layers()),
-                settings_dir() / "questionnaires" / f"{v}.yaml", DEFAULT_SETTINGS_DIR / "questionnaires" / f"{v}.yaml"]
 
-    cands: list[Path] = []
-    if os.environ.get("HANI2_PRE_YAML"):
-        cands.extend(named(os.environ["HANI2_PRE_YAML"]))
-    if get_env("pre_questionnaire", None):
-        cands.extend(named(str(get_env("pre_questionnaire"))))
-    for layer in settings_layers():
-        cands.append(layer / "questionnaires" / "pre_questionnaire.yaml")
-    cands.append(settings_dir() / "questionnaires" / "pre_questionnaire.yaml")
-    for p in cands:
-        if p.is_file():
-            try:
-                spec = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-            except Exception as e:  # pragma: no cover
-                print(f"[hani2] pre-questionnaire {p} failed to parse: {e}")
-                continue
-            if spec.get("questions"):
-                from hani2.templates import render_data
+def post_session_spec() -> dict | None:
+    """The post-session questionnaire (shown once, after a study participant's last counted
+    negotiation and before the completion link), if one is configured: ``$HANI2_POST_YAML``,
+    ``"post_questionnaire"`` in env.json, or ``questionnaires/post_session.yaml`` in the study,
+    its project or the settings folder."""
+    from hani2 import questionnaires
 
-                return render_data(spec)
-    return None
+    return questionnaires.spec("post_session")
+
+
+def _read_json(path: Path) -> dict | None:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+    except Exception:
+        return None
+
+
+def _write_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=1, default=str), encoding="utf-8")
 
 
 def participant_type_of(spec: dict | None, answers: dict[str, Any]) -> str:
@@ -152,11 +116,15 @@ def participant_type_of(spec: dict | None, answers: dict[str, Any]) -> str:
 
 
 def read_pre_questionnaire(user_path: Path) -> dict | None:
-    f = Path(user_path) / PRE_FILE
-    try:
-        return json.loads(f.read_text(encoding="utf-8")) if f.is_file() else None
-    except Exception:
-        return None
+    return _read_json(Path(user_path) / PRE_FILE)
+
+
+def read_post_session(user_path: Path) -> dict | None:
+    return _read_json(Path(user_path) / POST_FILE)
+
+
+def read_consent(user_path: Path) -> dict | None:
+    return _read_json(Path(user_path) / CONSENT_FILE)
 
 
 def questionnaire_for(session: "NegotiationSession", spec: dict | None) -> dict | None:
@@ -317,6 +285,13 @@ class Study:
     def finished(self) -> bool:
         return False
 
+    def finish(self) -> None:
+        """Show the end page: the completion link or the end text."""
+        s = self.session
+        s.phase = "finished"
+        s.finish_url = self.completion_url()
+        s.finish_text = self.finish_text()
+
     def completion_url(self) -> str | None:
         return None
 
@@ -353,13 +328,81 @@ class Study:
         from hani2 import assignment
 
         s = self.session
-        return s.mode not in ("guest", "simulated") and assignment.counts_as_human(s)
+        # playground guests (guest_*), simulated participants and admins never get it; Prolific and
+        # online participants do (their sessions run in guest mode, so the mode alone cannot tell)
+        return s.mode != "simulated" and assignment.counts_as_human(s)
 
-    def maybe_pre_questionnaire(self) -> bool:
-        """Open the pre-questionnaire if this participant has not answered it yet (after a scenario
-        loaded, before the negotiation starts). Also sets ``participant_type`` from earlier answers.
+    # -- consent (anonymous study participants) ------------------------------
+    def wants_consent(self) -> bool:
+        """Whether this session asks for consent itself (Prolific and online / lab participants
+        with ``auth.participant_consent`` on). Logged-in users consent on the consent page."""
+        return False
+
+    def consent_text(self) -> str:
+        from hani2.config import read_settings_text
+        from hani2.templates import render
+
+        return render(read_settings_text("consent.md", ""))
+
+    def has_consent(self) -> bool:
+        from hani2 import auth
+
+        done = read_consent(self.session.ss["user_path"])
+        return bool(done and done.get("agreed") and done.get("hash") == auth.consent_hash(self.consent_text()))
+
+    def maybe_consent(self) -> bool:
+        """Open the consent form if this participant has not agreed to the current text yet.
         Returns whether it opened."""
         s = self.session
+        if s.phase != "ready" or not self.wants_consent() or self.has_consent():
+            return False
+        text = self.consent_text()
+        if not text.strip():
+            return False
+        s.questionnaire = {"stage": "consent", "title": "Consent", "body": text, "questions": []}
+        s.phase = "questionnaire"
+        self._shown_at = datetime.now().isoformat()
+        s.push_state()
+        return True
+
+    def _submit_consent(self, answers: dict[str, Any]) -> dict:
+        from hani2 import auth
+
+        s = self.session
+        choice = str((answers or {}).get("consent") or "").lower()
+        if choice not in ("agree", "decline"):
+            return {"ok": False, "error": "Please choose whether you agree to take part."}
+        text = self.consent_text()
+        agreed = choice == "agree"
+        _write_json(Path(s.ss["user_path"]) / CONSENT_FILE,
+                    dict(agreed=agreed, hash=auth.consent_hash(text), shown_at=self._shown_at or "",
+                         submitted_at=datetime.now().isoformat(), **projects.stamp(s.study_ref)))
+        if getattr(s, "recorder", None) is not None:
+            s.recorder.mark("consent", agreed=agreed)
+        s.questionnaire = None
+        s.ss["consent_declined"] = not agreed
+        if not agreed:
+            s.phase = "finished"
+            s.finish_url = None
+            s.finish_text = self.declined_text()
+            s.push_state()
+            return {"ok": True}
+        s.phase = "ready"
+        s.push_state()
+        if not self.maybe_pre_questionnaire():
+            self.after_load()
+        return {"ok": True}
+
+    def declined_text(self) -> str:
+        return "You did not agree to take part, so the study ends here. You can close this page."
+
+    def maybe_pre_questionnaire(self) -> bool:
+        """Open the consent form (if this session asks for consent) or the pre-questionnaire if
+        this participant has not answered it yet (after a scenario loaded, before the negotiation
+        starts). Also sets ``participant_type`` from earlier answers. Returns whether a form opened."""
+        s = self.session
+        if self.maybe_consent():
+            return True
         done = read_pre_questionnaire(s.ss["user_path"])
         if done is not None:
             s.ss["participant_type"] = str(done.get("participant_type") or "")
@@ -395,10 +438,16 @@ class Study:
         return {"ok": True}
 
     def submit_questionnaire(self, answers: dict[str, Any]) -> dict:
+        with projects.use_study(self.session.study_ref):  # direct callers (tests, headless runs) too
+            return self._submit_questionnaire(answers)
+
+    def _submit_questionnaire(self, answers: dict[str, Any]) -> dict:
         s = self.session
         if s.phase != "questionnaire" or not s.questionnaire:
             return {"ok": False, "error": "No questionnaire is open."}
         spec = s.questionnaire
+        if spec.get("stage") == "consent":
+            return self._submit_consent(answers)
         allowed = {q.get("id") for q in spec.get("questions", [])}
         answers = {k: v for k, v in (answers or {}).items() if k in allowed}  # never the row's own metadata
         missing = [q.get("text", q.get("id")) for q in spec.get("questions", [])
@@ -407,6 +456,8 @@ class Study:
             return {"ok": False, "error": "Please answer every required question.", "missing": missing}
         if spec.get("stage") == "pre":
             return self._submit_pre(answers)
+        if spec.get("stage") == "post":
+            return self._submit_post(answers)
         m = s.mechanism
         shown = self._shown_at
         dur = None
@@ -434,6 +485,19 @@ class Study:
 
     def after_questionnaire(self) -> None:
         pass
+
+    def _submit_post(self, answers: dict[str, Any]) -> dict:
+        s = self.session
+        spec = s.questionnaire or {}
+        _write_json(Path(s.ss["user_path"]) / POST_FILE,
+                    dict(answers=answers, shown_at=self._shown_at or "", submitted_at=datetime.now().isoformat(),
+                         version=str(spec.get("version") or ""), **projects.stamp(s.study_ref)))
+        if getattr(s, "recorder", None) is not None:
+            s.recorder.mark("post_session", answers=answers)
+        s.questionnaire = None
+        Study.finish(self)
+        s.push_state()
+        return {"ok": True}
 
 
 class ProlificStudy(Study):
@@ -699,6 +763,28 @@ class ProlificStudy(Study):
     def finished(self) -> bool:
         return self.counted() >= self.n_required
 
+    def wants_consent(self) -> bool:
+        from hani2.config import get_env
+
+        return self.wants_pre_questionnaire() and bool(get_env("auth.participant_consent", False))
+
+    def declined_text(self) -> str:
+        return ("You did not agree to take part, so the study ends here. Please return this study on "
+                "Prolific (do not submit it). You can close this page.")
+
+    def finish(self) -> None:
+        """The post-session questionnaire (once, if configured), then the end page."""
+        s = self.session
+        self._cancel()
+        if self.wants_pre_questionnaire() and read_post_session(self.user_path) is None:
+            spec = questionnaire_for(s, post_session_spec())
+            if spec:
+                s.questionnaire = {**spec, "stage": "post"}
+                s.phase = "questionnaire"
+                self._shown_at = datetime.now().isoformat()
+                return
+        super().finish()
+
     def round_label(self) -> str:
         if self.session.ss.get("is_practice_round"):
             return "Practice negotiation"
@@ -837,11 +923,8 @@ class ProlificStudy(Study):
         self.after_questionnaire()
 
     def after_questionnaire(self) -> None:
-        s = self.session
         if self.finished():
-            s.phase = "finished"
-            s.finish_url = self.completion_url()
-            s.finish_text = self.finish_text()
+            self.finish()
             return
         self._arm(self.auto_load_practice if self.is_practice_next() else self.auto_load, "load")
 
@@ -853,6 +936,9 @@ class ParticipantStudy(ProlificStudy):
 
     PREFIX = PARTICIPANT_PREFIX
     KIND = "participant"
+
+    def declined_text(self) -> str:
+        return Study.declined_text(self)
 
     def completion_url(self) -> str | None:  # type: ignore[override]
         return self._study_completion_url()

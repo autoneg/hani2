@@ -32,6 +32,8 @@
   - ``random_fixed``: kept per human, drawn at random on arrival;
   - ``round_robin``: kept per human, member ``index mod size``;
   - ``random_each``: drawn again for every negotiation (not recorded as fixed);
+  - ``latin_square`` / ``cyclic``: one Assistant per counted negotiation, counterbalanced over
+    participants (balanced Williams square / cyclic rotation; not recorded as fixed);
   - ``external``: only ``schedule.json`` names the Assistant (else an error).
 
   This holds for pools from a group file (with more than one Assistant),
@@ -334,6 +336,17 @@ def _negotiations_done(session: Any) -> int:
         return int(getattr(session, "round_number", 0) or 0)
 
 
+def _assistant_slot(session: Any) -> int:
+    """The counted negotiation the next Assistant is for: a study participant's counted rounds
+    (a practice round counts as slot 0), else the human's finished negotiations."""
+    st = getattr(session, "study", None)
+    counted = getattr(st, "counted", None)
+    if callable(counted):
+        practice = getattr(st, "is_practice_next", None)
+        return 0 if callable(practice) and practice() else int(counted())
+    return _negotiations_done(session)
+
+
 def _missing() -> str:
     from hani2.scheduling import MISSING_SUFFIX
 
@@ -429,9 +442,10 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
         return c
     method = _assistant_method(session)
     c.scheduling = method
-    if method == "random_each":
-        slot = _negotiations_done(session)
-        c.spec = c.pool[0] if len(c.pool) == 1 else scheduling.pick_assistant_each(c.pool, slot, _seed(session))
+    if method in scheduling.PER_NEGOTIATION_ASSISTANTS:
+        slot = _assistant_slot(session) if method != "random_each" else _negotiations_done(session)
+        idx = (participant_index(session) or 0) if method != "random_each" else 0
+        c.spec = c.pool[0] if len(c.pool) == 1 else scheduling.pick_assistant_slot(method, c.pool, idx, slot, _seed(session))
         return c
     c.spec = assign_assistant(session, c.pool, c.group, method)
     return c

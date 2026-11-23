@@ -26,6 +26,7 @@ See [Authentication](authentication.md). The `?admin=1` query parameter does not
 | | Replay | Opens [Replay](recordings.md). |
 | Studies | Projects & Studies | Projects, their studies, `project.yaml` and `study.yaml`, the links to give participants, results counts and the Assistant balance. |
 | | Texts | The welcome text, the consent form, the scenario sets and the custom order, per layer, with a live preview. |
+| | Study forms | Consent for study participants, and the pre, per-negotiation and post-session questionnaires, per layer, with predefined questionnaires and a live preview. |
 | Library | Scenarios | Every scenario type, its details, new ones by upload or link, and the scenario sets. |
 | | Opponents | Opponent groups and their members, your own opponent classes, and the pool participants face. |
 | | Assistants | Assistant groups, your own Assistant classes, the pool participants get, and the balance per study. |
@@ -129,6 +130,18 @@ Pick the layer and one of **Welcome text** (`announcements.md`), **Consent form*
 - **In effect for a study** shows, for any study, which layer each of the four texts comes from.
 
 Consent is recorded per study (see [Consent per study](projects.md#consent-per-study)).
+
+## Study forms
+
+Pick the layer, then:
+
+- **Consent.** *Ask study participants for consent* (`auth.participant_consent` in the layer's `env.json`) shows the consent form to Prolific and online / lab participants before their first negotiation. The reset button removes the layer's own value.
+- **Form.** One of **Pre-questionnaire**, **After each negotiation** and **Post-session**.
+- **In effect here** says whether the form is on (and how many questions it has), switched off or not set up, and where it comes from: this layer, a layer above, or an environment variable or `env.json` name that wins over every file (shown as a warning). **Copy the inherited form** starts this layer's own file from the inherited one, **Switch off here** writes `enabled: false`, and **Remove this layer's file** goes back to the inherited form.
+- **Add predefined questionnaires** lists the predefined question sets for the form (UEQ, UEQ-S, TAM, trust in automation, the Subjective Value Inventory, NASA-TLX, SUS, demographics, …) with their description, source and items; tick sets and **Add** them to the editor.
+- The editor holds the layer's YAML file. **Preview** shows the form as participants see it, and lists any problems; **Save** refuses a file with problems.
+
+See [Study forms](study-forms.md).
 
 ## The library pages: Scenarios, Opponents, Assistants and Tools
 

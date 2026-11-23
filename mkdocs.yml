@@ -105,6 +105,7 @@ nav:
       - Projects and studies: guide/projects.md
       - Scheduling methods: guide/scheduling.md
       - Studies and results: guide/studies.md
+      - Study forms: guide/study-forms.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md
       - Simulated participants: guide/simulation.md

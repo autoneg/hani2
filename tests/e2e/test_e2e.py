@@ -149,7 +149,7 @@ def test_participants_cannot_open_the_admin_api(user_page):
     assert user_page.request.get("/api/admin/users").status == 403
 
 
-ADMIN_PAGES = ("overview results analytics replay projects texts scenarios opponents assistants tool-library "
+ADMIN_PAGES = ("overview results analytics replay projects texts forms scenarios opponents assistants tool-library "
                "general negotiation interface tools connections models llm assistant autopilot users").split()
 
 
@@ -218,3 +218,43 @@ def test_signed_in_playground_records_under_the_account(new_page):
     guest_sid = guest.request.post("/api/session", data=json.dumps({"mode": "guest", "query": {}}),
                                    headers={"content-type": "application/json"}).json()["sid"]
     assert guest_sid.startswith("guest:")
+
+
+def test_a_prolific_participant_goes_through_every_study_form(new_page):
+    """Consent, pre-questionnaire, one counted negotiation and its questionnaire, the post-session
+    questionnaire, then the completion link, all set up for one study through the admin API."""
+    import uuid
+
+    admin = new_page()
+    assert admin.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    study = "f" + uuid.uuid4().hex[:6]
+    r = admin.request.put(f"/api/admin/projects/E2E/studies/{study}",
+                          data={"data": {"type": "prolific", "n_required": 1, "practice": False,
+                                         "completion_code": "DONE42"}})
+    assert r.ok, r.text()
+    layer = f"?layer=study:E2E/{study}"
+    q = lambda qid, text: f"title: Form {qid}\nquestions:\n  - {{id: {qid}, text: '{text}', type: likert5, required: true}}\n"
+    for form, qid, text in (("pre_questionnaire", "pre_q", "Pre question?"), ("per_negotiation", "neg_q", "Round question?"),
+                            ("post_session", "post_q", "Session question?")):
+        r = admin.request.put(f"/api/admin/settings/{form}{layer}", data={"text": q(qid, text)})
+        assert r.ok, r.text()
+    assert admin.request.patch(f"/api/admin/settings/env{layer}", data={"auth": {"participant_consent": True}}).ok
+
+    p = new_page()
+    pid = "e2e" + uuid.uuid4().hex[:6]
+    p.goto(f"/s/E2E/{study}/play?PROLIFIC_PID={pid}&noautostart=1")
+    p.get_by_role("button", name="I agree to take part").click()
+    expect(p.get_by_text("Pre question?")).to_be_visible()
+    p.get_by_role("button", name="3", exact=True).click()
+    p.get_by_role("button", name="Submit answers").click()
+    start(p)
+    wait_for_my_turn_with_an_offer(p).click()  # accepting counts as an action
+    p.get_by_role("button", name="Accept offer").click()
+    expect(p.get_by_text("Round question?")).to_be_visible()
+    p.get_by_role("button", name="4", exact=True).click()
+    p.get_by_role("button", name="Submit answers").click()
+    expect(p.get_by_text("Session question?")).to_be_visible()
+    p.get_by_role("button", name="5", exact=True).click()
+    p.get_by_role("button", name="Submit answers").click()
+    link = p.get_by_role("link", name=re.compile("Finish and submit"))
+    expect(link).to_have_attribute("href", re.compile("cc=DONE42"))

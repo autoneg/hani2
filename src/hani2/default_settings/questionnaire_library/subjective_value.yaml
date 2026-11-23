@@ -1,0 +1,22 @@
+id: subjective_value
+title: "Subjective Value Inventory (SVI), 16 items"
+description: "How the participant feels about the instrumental outcome, themselves, the process and the relationship with the opponent, 7-point. Items 3 and 5 are reversed. Check the wording against the official inventory before a study."
+reference: "Curhan, Elfenbein & Xu (2006). What do people value when they negotiate? Mapping the domain of subjective value in negotiation. JPSP 91(3). https://www.subjectivevalue.com"
+forms: [per_negotiation, post_session]
+questions:
+  - {id: svi_own_outcome, text: "How satisfied are you with your own outcome, i.e. the extent to which the terms of your agreement (or lack of agreement) benefit you?", type: likert7, required: true, scale: svi_instrumental, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_balance, text: "How satisfied are you with the balance between your own outcome and your opponent's outcome?", type: likert7, required: true, scale: svi_instrumental, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_lost, text: "Did you feel like you forfeited or \"lost\" in this negotiation?", type: likert7, required: true, scale: svi_instrumental, reverse: true, labels: {1: "Not at all", 7: "A great deal"}}
+  - {id: svi_legitimate, text: "Do you think the terms of your agreement are consistent with principles of legitimacy or objective criteria (common standards of fairness, precedent, practice)?", type: likert7, required: true, scale: svi_instrumental, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_lose_face, text: "Did you \"lose face\" (damage your sense of pride) in the negotiation?", type: likert7, required: true, scale: svi_self, reverse: true, labels: {1: "Not at all", 7: "A great deal"}}
+  - {id: svi_competent, text: "Did this negotiation make you feel more or less competent as a negotiator?", type: likert7, required: true, scale: svi_self, labels: {1: "Much less competent", 7: "Much more competent"}}
+  - {id: svi_principles, text: "Did you behave according to your own principles and values?", type: likert7, required: true, scale: svi_self, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_self_image, text: "Did this negotiation positively or negatively affect your self-image or your impression of yourself?", type: likert7, required: true, scale: svi_self, labels: {1: "Very negatively", 7: "Very positively"}}
+  - {id: svi_listened, text: "Do you feel your opponent listened to your concerns?", type: likert7, required: true, scale: svi_process, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_fair, text: "Would you characterize the negotiation process as fair?", type: likert7, required: true, scale: svi_process, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_ease, text: "How satisfied are you with the ease (or difficulty) of reaching an agreement?", type: likert7, required: true, scale: svi_process, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_considered, text: "Did your opponent consider your wishes, opinions or needs?", type: likert7, required: true, scale: svi_process, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_impression, text: "What kind of overall impression did your opponent make on you?", type: likert7, required: true, scale: svi_relationship, labels: {1: "Extremely negative", 7: "Extremely positive"}}
+  - {id: svi_relationship, text: "How satisfied are you with your relationship with your opponent as a result of this negotiation?", type: likert7, required: true, scale: svi_relationship, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_trust, text: "Did the negotiation make you trust your opponent?", type: likert7, required: true, scale: svi_relationship, labels: {1: "Not at all", 7: "Perfectly"}}
+  - {id: svi_foundation, text: "Did the negotiation build a good foundation for a future relationship with your opponent?", type: likert7, required: true, scale: svi_relationship, labels: {1: "Not at all", 7: "Perfectly"}}

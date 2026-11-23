@@ -1113,9 +1113,7 @@ class NegotiationSession:
             if self.phase in ("running", "starting", "questionnaire"):
                 return
             if self.study.finished():
-                self.phase = "finished"
-                self.finish_url = self.study.completion_url()
-                self.finish_text = self.study.finish_text()
+                self.study.finish()  # the post-session questionnaire (if any), then the end page
                 self.push_state()
                 return
             plan = self.study.plan_round(scenario_type if self.can_choose_scenario() else None, name)
@@ -2563,6 +2561,7 @@ class NegotiationSession:
                 "questionnaire": self.questionnaire,
                 "finish_url": self.finish_url,
                 "finish_text": self.finish_text,
+                "finish_declined": bool(self.ss.get("consent_declined")),
                 "project": self.study_ref.project if self.study_ref else projects.DEFAULT_PROJECT,
                 "study_name": self.study_ref.study if self.study_ref else None,
                 "study": self.study.client_state(),

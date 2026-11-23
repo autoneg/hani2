@@ -6,7 +6,7 @@ studies) chooses one method per *dimension*::
 
     scheduling:
       opponents: latin_square   # random, cyclic, fixed_order, external
-      assistants: balanced      # random_fixed, random_each, round_robin, external
+      assistants: balanced      # random_fixed, random_each, latin_square, cyclic, round_robin, external
       scenarios: by_participant # set_order, random, latin_square, external
 
 Each dimension is merged on its own: study, then project, then :data:`DEFAULTS`.
@@ -273,6 +273,21 @@ def pick_assistant_each(pool: Sequence[str], slot: int, seed: str = "") -> str:
     return rng(seed, "assistants", slot).choice(list(pool))
 
 
+#: Assistant methods that choose again for every negotiation (within-subjects)
+PER_NEGOTIATION_ASSISTANTS = ("random_each", "latin_square", "cyclic")
+
+
+def pick_assistant_slot(method: str, pool: Sequence[str], index: int, slot: int, seed: str = "") -> str:
+    """The Assistant of participant ``index`` in counted negotiation ``slot`` for the
+    per-negotiation methods (``random_each``, ``latin_square``, ``cyclic``)."""
+    n = len(pool)
+    if method == "latin_square":
+        return pool[latin_index(n, index, slot)]
+    if method == "cyclic":
+        return pool[(index + slot) % n]
+    return pick_assistant_each(pool, slot, seed)
+
+
 # --------------------------------------------------------------------------- #
 # Example tables (built from the rules above, so they never disagree)          #
 # --------------------------------------------------------------------------- #
@@ -301,8 +316,8 @@ def _scen_table(method: str) -> str:
 
 
 def _assistant_table(method: str, n: int = 6) -> str:
-    if method == "random_each":
-        return _slots_table(lambda i, k: pick_assistant_each(_OPP, k, seed=f"example|P{i}"))
+    if method in PER_NEGOTIATION_ASSISTANTS:
+        return _slots_table(lambda i, k: pick_assistant_slot(method, _OPP, i, k, seed=f"example|P{i}"))
     counts: dict[str, int] = {}
     rows = []
     for i in range(n):
@@ -594,6 +609,77 @@ $$
 
 - Carry-over: what one Assistant taught can help in the next negotiation.
 - No balance in small samples; the human sees the Assistant change.
+""")
+
+register("assistants", "latin_square", "Balanced Latin square (each negotiation)",
+         "Every human works with every Assistant, in an order from a balanced (Williams) Latin square (within-subjects).",
+         r"""
+Every human works with the Assistants of the pool **one after another**, one per
+counted negotiation, in the order of one row of a **balanced Latin square** (a
+Williams design), exactly as opponents are scheduled by the opponents'
+`latin_square` method. Over a full set of rows every Assistant appears equally
+often in every position and directly follows every other Assistant equally often,
+so neither the position of an Assistant nor the Assistant just before it can
+explain a result. This is the counterbalanced *within-subjects* design for
+comparing finalists: with 5 Assistants and 5 counted negotiations, each human
+works with each Assistant once.
+
+Example: 3 Assistants A, B, C and 4 participants.
+
+<<asst:latin_square>>
+
+**Rule.** Participant $i$ (their index in the study) takes row $i \bmod R$ of the
+square $W$ (see the opponents' `latin_square`); $k$ counts the counted
+negotiations (a practice round uses the Assistant of $k = 0$):
+
+$$
+a(i, k) = A\left[\, W_{i \bmod R,\; k \bmod m} \,\right], \quad m = |A|
+$$
+
+**Advantages**
+
+- Balances position and carry-over effects; deterministic and reproducible.
+- Each human compares the Assistants, so fewer humans are needed.
+
+**Disadvantages**
+
+- Exact balance needs a multiple of $R$ humans ($m$ or $2m$); drop-outs leave
+  rows under-filled.
+- What one Assistant taught can still help in the next negotiation (balanced,
+  not removed).
+- With the opponents also on `latin_square` and a pool of the same size, the
+  Assistant and the opponent of a negotiation are confounded; use a single
+  opponent, or a different method for one of the two.
+""")
+
+register("assistants", "cyclic", "Cyclic rotation (each negotiation)",
+         "Human i starts with Assistant i and goes round the pool, one Assistant per negotiation (within-subjects).",
+         r"""
+Every human works with the Assistants **one after another**: human $i$ starts with
+Assistant $i$ (modulo the pool size) and takes the next Assistant of the pool in
+each counted negotiation. With $m$ Assistants, $m$ consecutive humans use every
+Assistant in every position once (a cyclic Latin square). To randomise which
+Assistant comes after which, shuffle the pool once when you set up the study.
+
+Example: 3 Assistants A, B, C and 4 participants.
+
+<<asst:cyclic>>
+
+**Rule.** With $k$ the counted negotiation (a practice round uses $k = 0$):
+
+$$
+a(i, k) = A\left[(i + k) \bmod m\right], \quad m = |A|
+$$
+
+**Advantages**
+
+- Every Assistant in every position equally often after each block of $m$ humans.
+- Simple to explain and to audit.
+
+**Disadvantages**
+
+- Carry-over is not balanced: each Assistant always follows the same one
+  (`latin_square` balances it too).
 """)
 
 register("assistants", "round_robin", "Fixed per human, round robin",
