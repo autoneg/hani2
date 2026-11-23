@@ -1,1 +1,0 @@
-import{c}from"./index-D96V0EnF.js";const e={name:"circle-chevron-left",size:24,node:[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"m14 16-4-4 4-4",key:"ojs7w8"}]],aliases:["chevron-left-circle"]};e.node;const r=c(e);export{e as __iconData,r as default};
