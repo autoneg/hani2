@@ -929,7 +929,6 @@ class UtilitySelectorTool(OutcomeSelector):
         key = OPP_COLUMN if by_opp else "Utility"
         rows.sort(key=lambda r: -r[key])
         sel = self.values.get("selected")
-        whose = "the opponent's estimated" if by_opp else ""
         out = []
         if est is not None:
             out += [
@@ -943,7 +942,7 @@ class UtilitySelectorTool(OutcomeSelector):
             ]
         out += [
             ui.slider("min_util", 0, 100, self.values.get("min_util", 70),
-                      label=f"Minimum {whose} utility".replace("  ", " "), suffix="%"),
+                      label="Minimum utility for the opponent (estimate)" if by_opp else "Minimum utility", suffix="%"),
             ui.slider("width", 1, 100, self.values.get("width", 100), label="Range width", suffix="%"),
             ui.table(rows, on_select="pick", formats={"Utility": "percent"} | ({OPP_COLUMN: "percent"} if show_opp else {}),
                      page_size=15,
