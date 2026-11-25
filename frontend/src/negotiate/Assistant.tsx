@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Eraser, Send, SlidersHorizontal, X } from "lucide-react";
+import { Bot, Eraser, Send, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { send, sendOrWarn, useStore, useUiState } from "../store";
 import type { AgentPanel, SessionState } from "../types";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
 import { mayAdjust } from "./SettingsDrawer";
+import { useDevice } from "../device";
 
 // one shared empty list: a fresh [] per call makes zustand re-render forever
 const NO_PANELS: never[] = [];
@@ -108,6 +109,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
   const [text, setText] = useUiState("assistant.text", "");
   const [settings, setSettings] = useUiState("assistant.settings", false);
   const ref = useRef<HTMLDivElement>(null);
+  const { device } = useDevice();
   const n = st?.chat.length ?? 0;
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
@@ -120,6 +122,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
     if (!t) return;
     if (sendOrWarn({ type: asking ? "answer" : "chat", text: t })) setText("");
   };
+  const showCharacter = device !== "phone" && !!st?.interface?.assistant?.may_show;
   return (
     <aside className={`flex h-full w-full flex-col bg-surface ${fill ? "" : "border-l border-line lg:w-[360px]"}`} aria-label="Assistant">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
@@ -135,6 +138,11 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
           <span className="relative h-4 w-7 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-surface after:transition-transform peer-checked:bg-good peer-checked:after:translate-x-3" />
           <span className="sr-only">Assistant on</span>
         </label>}
+        {showCharacter && (
+          <button className="btn-ghost px-1.5" aria-label="Show the character" title="Show the Assistant as a character again" onClick={() => send({ type: "pref", key: "persona_hidden", value: false })}>
+            <UserRound size={16} />
+          </button>
+        )}
         <button className="btn-ghost px-1.5" aria-label="Assistant settings" onClick={() => setSettings(true)}>
           <SlidersHorizontal size={16} />
         </button>

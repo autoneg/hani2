@@ -61,6 +61,8 @@ USER_PREFS: dict[str, Any] = {
     "font_scale": 1.0,
     # how the Assistant appears when the admin lets the participant choose: panel | persona | both
     "assistant_presentation": None,
+    # the participant hid the Assistant's character (the header's Assistant button then shows)
+    "persona_hidden": False,
     # the Scenario Info tool: the scenario's picture, and the full description opened when a scenario loads
     "show_scenario_picture": True,
     "open_scenario_description": False,
@@ -547,8 +549,15 @@ class NegotiationSession:
         return bool(pol["participant_settings"].get(key, key not in PARTICIPANT_SETTINGS))
 
     def assistant_presentation(self) -> dict[str, Any]:
-        """How the Assistant appears: ``style`` (panel | persona | both), whether the participant
-        chooses (assistant_settings.json → ``presentation``) and whether the persona can be moved."""
+        """How the Assistant appears.
+
+        ``style`` is what the page shows (panel | persona | both; a hidden character makes it
+        ``panel``, so the header's Assistant button shows), ``chosen`` the style before hiding,
+        ``choice`` whether the participant picks the style (assistant_settings.json →
+        ``presentation``), ``movable`` whether the character can be dragged, ``persona_hidden``
+        whether the participant hid it, and ``may_hide`` / ``may_show`` whether they may hide it or
+        bring it back. The Assistant can fix the style and the two permissions
+        (:meth:`set_assistant_presentation`)."""
         sa = getattr(self, "support_agent", None)
         try:
             from hani2.support_agent.settings import load_assistant_settings
@@ -564,9 +573,48 @@ class NegotiationSession:
         choice = style == "choice"
         if choice:
             style = str(self.prefs.get("assistant_presentation") or pres.get("choice_default") or "panel")
+        ov = (self.ss.get("assistant_presentation_override") or {}) if sa is not None else {}
+        if ov.get("style") in ("panel", "persona", "both"):
+            style, choice = ov["style"], False  # the Assistant decided
         if style not in ("panel", "persona", "both"):
             style = "panel"
-        return {"style": style, "choice": choice, "movable": bool(pres.get("persona_movable", True))}
+        has_persona = style != "panel"
+        hidden = has_persona and bool(self.prefs.get("persona_hidden"))
+        return {"style": "panel" if hidden else style, "chosen": style, "choice": choice,
+                "movable": bool(pres.get("persona_movable", True)), "persona_hidden": hidden,
+                "may_hide": has_persona and not hidden and ov.get("may_hide", True) is not False,
+                "may_show": hidden and ov.get("may_show", True) is not False}
+
+    def set_assistant_presentation(self, style: str | None = None, *, may_hide: bool | None = None,
+                                   may_show: bool | None = None, clear: bool = False) -> dict:
+        """The Assistant's say in how it appears: ``style`` (panel | persona | both; ``None`` keeps
+        the current one) and whether the participant may hide the character (``may_hide``) or bring
+        it back once hidden (``may_show``). Choosing persona or both shows the character again, and
+        ``may_hide=False`` brings a hidden character back. ``clear=True`` drops everything the
+        Assistant set (the admin's settings and the participant's choice apply again)."""
+        if style is not None and style not in ("panel", "persona", "both"):
+            return {"ok": False, "error": "style must be panel, persona or both"}
+        with self.lock:
+            ov = {} if clear else dict(self.ss.get("assistant_presentation_override") or {})
+            if style is not None:
+                ov["style"] = style
+                if style != "panel":
+                    self.prefs["persona_hidden"] = False
+            if may_hide is not None:
+                ov["may_hide"] = bool(may_hide)
+                if not may_hide:
+                    self.prefs["persona_hidden"] = False
+            if may_show is not None:
+                ov["may_show"] = bool(may_show)
+            self.ss["assistant_presentation_override"] = ov
+        self.push_state()
+        return {"ok": True, "presentation": self.assistant_presentation()}
+
+    def _may_show_persona(self) -> bool:
+        """Whether the Assistant lets the participant make its character appear."""
+        sa = getattr(self, "support_agent", None)
+        ov = (self.ss.get("assistant_presentation_override") or {}) if sa is not None else {}
+        return ov.get("may_show", True) is not False
 
     # ------------------------------------------------------------------ #
     # Who knows what (hani2.information)                                  #
@@ -1081,7 +1129,17 @@ class NegotiationSession:
     def set_pref(self, key: str, value: Any) -> bool:
         key = PREF_ALIASES.get(key, key)
         if key == "assistant_presentation":
-            if not (self.assistant_presentation()["choice"] or self.is_admin) or value not in ("panel", "persona", "both"):
+            pres = self.assistant_presentation()
+            if not (pres["choice"] or self.is_admin) or value not in ("panel", "persona", "both"):
+                return False
+            # the Assistant's locks: picking a style must not hide or bring back the character
+            shown, shows = pres["style"] != "panel", value != "panel" and not pres["persona_hidden"]
+            if shown and not shows and not pres["may_hide"] or not shown and shows and not self._may_show_persona():
+                return False
+        elif key == "persona_hidden":
+            pres = self.assistant_presentation()
+            if not isinstance(value, bool) or (value and not pres["may_hide"]) or (not value and pres["persona_hidden"]
+                                                                                   and not pres["may_show"]):
                 return False
         elif key in USER_PREFS and not self.may_adjust(key):
             return False
@@ -1090,6 +1148,8 @@ class NegotiationSession:
         with self.lock:
             if key in USER_PREFS:
                 self.prefs[key] = value
+                if key == "assistant_presentation" and value != "panel":
+                    self.prefs["persona_hidden"] = False  # picking the character shows it
             elif key in ADMIN_PREFS and self.is_admin:
                 self.admin_prefs[key] = value
             else:

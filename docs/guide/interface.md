@@ -213,9 +213,16 @@ The administrator decides, per project or study, which of these the participant 
 `assistant_settings.json → presentation.style` (the **Assistant settings** page, per layer) chooses how the Assistant appears:
 
 - `panel` (the default): the **Assistant** button in the header opens the dock;
-- `persona`: a round character in the bottom-right corner, with the same status dot. Clicking it opens the conversation in a card next to it. The header has no Assistant button;
+- `persona`: a round character in the bottom-right corner, with the same status dot. Clicking it opens the conversation in a card next to it. The header has no Assistant button while the character is shown;
 - `both`: the character and the header button. Clicking the character opens the dock;
 - `choice`: the participant picks Panel, Character or Both in **My settings** (`presentation.choice_default` is the first choice).
+
+The participant can hide the character with the small eye button on its top-right corner, or
+with **Show the character** under *Assistant* in **My settings**. While it is hidden, the header
+shows the **Assistant** button, even with `persona`, and the Assistant's notifications appear at
+the top right. The person button in the Assistant panel's header, or the same setting, brings the
+character back. The Assistant itself can choose how it appears and lock these controls (see
+[How the Assistant appears](assistant.md#how-the-assistant-appears)); a control it locks is not shown.
 
 While the character is shown, the Assistant's notifications come out of it as speech bubbles instead of the top-right corner; clicking a bubble opens the conversation. The participant can drag the character anywhere (unless `presentation.persona_movable` is off); where it was put is kept with the session's layout (`persona_x`, `persona_y`). It keeps clear of the offer area and of buttons and fields, moving up until it no longer covers them. Phones always show the Assistant tab instead.
 

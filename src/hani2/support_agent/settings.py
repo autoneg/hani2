@@ -84,6 +84,7 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "highlight": True,
     "annotate": True,
     "layout": True,
+    "presentation": True,
     "panels": True,
     "tool_add": True,
     "tool_use": True,

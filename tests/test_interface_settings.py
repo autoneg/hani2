@@ -175,17 +175,82 @@ def test_toast_duration_comes_from_the_layer(hani2_home):
     assert ui["toast_ms"] == 2500 and ui["notification_center"] is False
 
 
+def _pres(s):
+    return s.snapshot()["interface"]["assistant"]
+
+
 def test_assistant_presentation_panel_persona_or_choice():
     s = make_session()
-    assert s.snapshot()["interface"]["assistant"] == {"style": "panel", "choice": False, "movable": True}
+    assert _pres(s) == {"style": "panel", "chosen": "panel", "choice": False, "movable": True,
+                        "persona_hidden": False, "may_hide": False, "may_show": False}
     assert not s.set_pref("assistant_presentation", "persona")  # the admin did not offer a choice
     p = make_session(assistant_settings={"presentation": {"style": "persona", "persona_movable": False}})
-    assert p.snapshot()["interface"]["assistant"] == {"style": "persona", "choice": False, "movable": False}
+    assert _pres(p) == {"style": "persona", "chosen": "persona", "choice": False, "movable": False,
+                        "persona_hidden": False, "may_hide": True, "may_show": False}
     c = make_session(assistant_settings={"presentation": {"style": "choice", "choice_default": "both"}})
-    assert c.snapshot()["interface"]["assistant"]["style"] == "both"
+    assert _pres(c)["style"] == "both"
     assert c.set_pref("assistant_presentation", "persona")
-    assert c.snapshot()["interface"]["assistant"] == {"style": "persona", "choice": True, "movable": True}
+    assert _pres(c)["style"] == "persona" and _pres(c)["choice"] is True
     assert not c.set_pref("assistant_presentation", "sideways")
+
+
+def test_participant_hides_the_character_and_the_header_button_shows():
+    s = make_session(assistant_settings={"presentation": {"style": "persona"}})
+    assert s.set_pref("persona_hidden", True)
+    pres = _pres(s)
+    # a hidden character reads as "panel": the page shows the header's Assistant button instead
+    assert pres["style"] == "panel" and pres["chosen"] == "persona" and pres["persona_hidden"]
+    assert pres["may_show"] and not pres["may_hide"]
+    assert not s.set_pref("persona_hidden", "yes")
+    assert s.set_pref("persona_hidden", False)
+    assert _pres(s)["style"] == "persona"
+    # with only a panel there is no character to hide
+    assert not make_session().set_pref("persona_hidden", True)
+
+
+def test_assistant_locks_hiding_and_showing_the_character():
+    s = make_session(assistant_settings={"presentation": {"style": "choice", "choice_default": "both"}})
+    agent = s.support_agent
+    assert agent.set_presentation(may_hide=False)["ok"]
+    assert not s.set_pref("persona_hidden", True)
+    assert not s.set_pref("assistant_presentation", "panel")  # picking the panel would hide it too
+    assert _pres(s)["style"] == "both"
+    # hidden and not allowed back: neither the switch nor picking a style brings it back
+    agent.set_presentation(may_hide=True, may_show=False)
+    assert s.set_pref("persona_hidden", True)
+    assert not s.set_pref("persona_hidden", False)
+    assert _pres(s)["style"] == "panel" and not _pres(s)["may_show"]
+    # may_hide=False brings a hidden character back
+    agent.set_presentation(may_hide=False)
+    assert _pres(s)["style"] == "both" and not _pres(s)["persona_hidden"]
+
+
+def test_assistant_decides_its_style_and_can_hand_it_back():
+    s = make_session(assistant_settings={"presentation": {"style": "choice", "choice_default": "panel"}})
+    agent = s.support_agent
+    assert agent.set_presentation("persona")["ok"]
+    assert _pres(s)["style"] == "persona" and _pres(s)["choice"] is False
+    assert not s.set_pref("assistant_presentation", "panel")  # the Assistant decided
+    assert not agent.set_presentation("sideways")["ok"]
+    agent.set_presentation(clear=True)
+    assert _pres(s)["style"] == "panel" and _pres(s)["choice"] is True
+    # the language model's function does the same
+    agent.dispatcher.execute("set_presentation", {"style": "both", "may_hide": False})
+    assert _pres(s)["style"] == "both" and not _pres(s)["may_hide"]
+
+
+def test_presentation_class_attribute_applies_before_the_first_render():
+    s = make_session(agent_class=f"{__file__}:CharacterOnly")
+    assert _pres(s)["style"] == "persona" and not _pres(s)["may_hide"]
+
+
+def test_presentation_needs_its_capability():
+    s = make_session(assistant_settings={"capabilities": {"presentation": False}},
+                     agent_class=f"{__file__}:CharacterOnly")
+    assert _pres(s)["style"] == "panel"  # the class attribute is ignored without the capability
+    assert not s.support_agent.set_presentation("persona")["ok"]
+    assert _pres(s)["style"] == "panel"
+    assert "set_presentation" not in {f["function"]["name"] for f in s.support_agent.dispatcher.schemas()}
 
 
 def test_admin_console_shows_interface_defaults_and_the_overrides_file(layered):
@@ -217,3 +282,12 @@ def test_a_study_env_json_beats_its_project_yaml(hani2_home):
     assert a.admin_prefs["role_rule"] == "index"  # the study's env.json beats project.yaml
     b = make_session(study="Q/b", load=False)
     assert b.admin_prefs["role_rule"] == "random"  # project.yaml beats the settings' defaults
+
+
+from hani2.assistant import Assistant  # noqa: E402
+
+
+class CharacterOnly(Assistant):
+    """Shows itself only as a character the participant cannot hide."""
+
+    presentation = {"style": "persona", "may_hide": False}

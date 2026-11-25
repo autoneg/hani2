@@ -81,6 +81,7 @@ class ToolDispatcher:
             "clear_highlights": (Capability.HIGHLIGHT, self._clear_highlights, self._schema_clear_highlights),
             "annotate": (Capability.ANNOTATE, self._annotate, self._schema_annotate),
             "set_layout": (Capability.LAYOUT, self._set_layout, self._schema_set_layout),
+            "set_presentation": (Capability.PRESENTATION, self._set_presentation, self._schema_set_presentation),
             "show_panel": (Capability.PANELS, self._show_panel, self._schema_show_panel),
             "close_panel": (Capability.PANELS, self._close_panel, self._schema_close_panel),
             "read_tool": (Capability.TOOL_USE, self._read_tool, self._schema_read_tool),
@@ -858,6 +859,30 @@ class ToolDispatcher:
                 "view": {"type": "string", "enum": ["full", "simple", "focus"]},
                 "collapsed": {"type": "array", "items": {"type": "string"}},
                 "sizes": {"type": "object"},
+            },
+            [],
+        )
+
+    def _set_presentation(self, args: dict) -> dict:
+        style = args.get("style")
+        kw = {k: bool(args[k]) for k in ("may_hide", "may_show") if isinstance(args.get(k), bool)}
+        res = self._session().set_assistant_presentation(style if style else None, **kw,
+                                                         clear=bool(args.get("reset")))
+        _log_agent_action(self.ss, "set_presentation", str({**({"style": style} if style else {}), **kw})[:120])
+        return res
+
+    def _schema_set_presentation(self) -> dict:
+        return _fn(
+            "set_presentation",
+            "Choose how you appear: style 'panel' (only the Assistant button in the header opens "
+            "your chat), 'persona' (only a character in a corner of the screen) or 'both'. "
+            "may_hide: whether the participant may hide the character; may_show: whether they may "
+            "bring it back after hiding it. reset: true hands the choice back to the default.",
+            {
+                "style": {"type": "string", "enum": ["panel", "persona", "both"]},
+                "may_hide": {"type": "boolean"},
+                "may_show": {"type": "boolean"},
+                "reset": {"type": "boolean"},
             },
             [],
         )

@@ -305,6 +305,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `highlight` | Highlight | Spotlight parts of the interface with a short note | `highlight`, `clear_highlights` |
 | `annotate` | Annotate | Attach notes to issues, offers and other elements | `annotate` |
 | `layout` | Change the layout | Switch views and resize or collapse regions | `set_layout` |
+| `presentation` | Choose how it appears | Appear as a panel, a character or both, and decide whether the participant can hide the character | `set_presentation` |
 | `panels` | Custom panels | Show interactive panels (cards, tables, buttons) | `show_panel`, `close_panel` |
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
@@ -321,7 +322,7 @@ not to let the opponent know.
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
-Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, `pin_message()` and `unpin_message()` need `pin`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
+Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `set_presentation()` and the `presentation` class attribute need `presentation`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, `pin_message()` and `unpin_message()` need `pin`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
 ## Autonomy
 
@@ -382,7 +383,36 @@ Every notification (`toast`, `send_toast`, and the server's own) is also kept fo
 
 ## How the Assistant appears
 
-`presentation.style` in `assistant_settings.json` (per layer) shows the Assistant as a panel opened from the header (`panel`), as a movable character in a corner of the screen that its notifications come out of (`persona`), as both, or lets the participant choose (`choice`). The agent's code does not change; see [The Assistant as a character](interface.md#the-assistant-as-a-character).
+`presentation.style` in `assistant_settings.json` (per layer) shows the Assistant as a panel opened from the header (`panel`), as a movable character in a corner of the screen that its notifications come out of (`persona`), as both, or lets the participant choose (`choice`). The participant can hide the character; the header's **Assistant** button then shows instead. See [The Assistant as a character](interface.md#the-assistant-as-a-character).
+
+With the `presentation` capability the agent decides for itself. It can do this from the start with a class attribute, applied when the agent is created and so before the page first shows it:
+
+```python
+from hani2.assistant import Assistant
+
+
+class Mascot(Assistant):
+    # only the character, and the participant cannot hide it
+    presentation = {"style": "persona", "may_hide": False}
+```
+
+It can also change it at any time with `set_presentation`, or the model with the function of the same name:
+
+```python
+self.set_presentation("both")                  # the character and the header button
+self.set_presentation("panel")                 # only the header button
+self.set_presentation(may_hide=False)          # the character cannot be hidden (a hidden one comes back)
+self.set_presentation(may_show=False)          # once hidden, it cannot be brought back
+self.set_presentation(clear=True)              # back to the admin's settings and the participant's choice
+```
+
+| Key | Meaning |
+| --- | --- |
+| `style` | `panel`, `persona` or `both`. Overrides `presentation.style` and the participant's choice, which is no longer offered. Choosing `persona` or `both` shows a hidden character again. |
+| `may_hide` | Whether the participant may hide the character (default `true`). `false` also brings a hidden character back. |
+| `may_show` | Whether the participant may bring a hidden character back (default `true`). |
+
+The locks also apply to the participant's style choice: when hiding is locked, they cannot pick **Panel**, and when showing is locked, they cannot pick **Character** or **Both** for a hidden character. A new Assistant (for example, the next round's Assistant in a counterbalanced study) starts from the admin's settings again. The snapshot's `interface.assistant` holds the result: `style` (what the page shows; `panel` while the character is hidden), `chosen` (the style before hiding), `choice`, `movable`, `persona_hidden`, `may_hide` and `may_show`.
 
 ## Proactive messages
 
@@ -479,6 +509,7 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 |-----------|---------|---------|
 | `name` | `"Assistant"` | The name shown in the dock header and on chat messages. |
 | `dispatcher_class` | `ToolDispatcher` | The dispatcher class. Set it to your subclass to add functions. |
+| `presentation` | `None` | How the agent appears from the start: `{"style": ..., "may_hide": ..., "may_show": ...}` (see [How the Assistant appears](#how-the-assistant-appears)). Needs `presentation`. |
 
 ### Helpers you can call
 
@@ -495,6 +526,7 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `clear_highlights(target=None)` | Remove one highlight or all of them. |
 | `annotate(target, text, kind="info")` | Attach a note to an element. `text=None` removes it. |
 | `set_layout(view=..., sizes=..., collapsed=...)` | Change the layout (see [Layout](#layout)). |
+| `set_presentation(style=None, may_hide=None, may_show=None, clear=False)` | Choose how the agent appears and whether the participant may hide or show the character (see [How the Assistant appears](#how-the-assistant-appears)). |
 | `focus_tool(name)` | Bring a tool's tab to the front, showing and enabling it. |
 | `show_panel(panel_id, title, components, placement="assistant")` | Show or replace a panel made of `hani2.tools.ui` components. |
 | `close_panel(panel_id=None)` | Close one panel, or all of them. |
@@ -607,6 +639,7 @@ class MyAgent(Assistant):
 | `clear_highlights` | `target` | `highlight` |
 | `annotate` | `target`, `text`, `kind` (`info`, `success`, `warning`, `tip`) | `annotate` |
 | `set_layout` | `view` (`full`, `simple`, `focus`), `collapsed`, `sizes` | `layout` |
+| `set_presentation` | `style` (`panel`, `persona`, `both`), `may_hide`, `may_show`, `reset` | `presentation` |
 | `show_panel` | `panel_id`, `title`, `markdown`, `table` (list of row objects), `buttons` (`label`, `action`), `placement` (`assistant`, `side`, `modal`) | `panels` |
 | `close_panel` | `panel_id` | `panels` |
 | `read_tool` | `name` | `tool_use` |

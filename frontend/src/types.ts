@@ -235,6 +235,15 @@ export interface InterfaceState {
   hidden_from_participants: string[];
   toast_ms: number;
   notification_center: boolean;
-  assistant: { style: "panel" | "persona" | "both"; choice: boolean; movable: boolean };
+  /** style: what the page shows (a hidden character reads as "panel"); chosen: the style before hiding */
+  assistant: {
+    style: "panel" | "persona" | "both";
+    chosen?: "panel" | "persona" | "both";
+    choice: boolean;
+    movable: boolean;
+    persona_hidden?: boolean;
+    may_hide?: boolean;
+    may_show?: boolean;
+  };
   move_tools: boolean;
 }

@@ -35,6 +35,7 @@ class Capability(str, Enum):
     HIGHLIGHT = "highlight"
     ANNOTATE = "annotate"
     LAYOUT = "layout"
+    PRESENTATION = "presentation"
     PANELS = "panels"
     TOOL_ADD = "tool_add"
     TOOL_USE = "tool_use"
@@ -58,6 +59,7 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "highlight": ("Highlight", "Spotlight parts of the interface with a short note"),
     "annotate": ("Annotate", "Attach notes to issues, offers and other elements"),
     "layout": ("Change the layout", "Switch views and resize or collapse regions"),
+    "presentation": ("Choose how it appears", "Appear as a panel, a character or both, and decide whether you can hide the character"),
     "panels": ("Custom panels", "Show interactive panels it builds (cards, tables, buttons)"),
     "tool_add": ("Add tools", "Add new tools to your screen while you negotiate, and remove the ones it added"),
     "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),

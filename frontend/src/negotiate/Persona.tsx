@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { Bot, X } from "lucide-react";
+import { Bot, EyeOff, X } from "lucide-react";
 import { send, useStore } from "../store";
 import type { SessionState } from "../types";
 import type { Device } from "../device";
@@ -174,6 +174,21 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         >
           <Assistant fill />
         </div>
+      )}
+      {st.interface?.assistant?.may_hide && (
+        <button
+          data-persona-ui
+          className="fixed z-[48] flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-muted shadow-lift hover:text-ink"
+          style={{ left: x + SIZE / 2 - 18, top: y - SIZE / 2 - 6 }}
+          onClick={() => {
+            setOpen(false);
+            send({ type: "pref", key: "persona_hidden", value: true });
+          }}
+          aria-label={`Hide ${sup.name}`}
+          title={`Hide the character (the Assistant button in the header opens ${sup.name})`}
+        >
+          <EyeOff size={12} />
+        </button>
       )}
       <button
         className={`fixed z-[47] flex touch-none select-none items-center justify-center rounded-full shadow-pop transition-transform ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${open ? "ring-4 ring-you/30" : "hover:scale-105"}`}

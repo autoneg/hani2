@@ -1,0 +1,1 @@
+import{c as t}from"./index-bwLTO2HV.js";const e={name:"line-dot-bottom-vertical",size:24,node:[["path",{d:"M12 3v12",key:"1x0j5s"}],["circle",{cx:"12",cy:"18",r:"3",key:"1mpf1b"}]]};e.node;const c=t(e);export{e as __iconData,c as default};

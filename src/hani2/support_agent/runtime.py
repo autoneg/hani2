@@ -116,6 +116,11 @@ class SupportAgent:
     tools: list = []
     #: The name shown in the chat.
     name: str = AGENT_NAME
+    #: How this Assistant appears from the start, applied when it is created (before the page
+    #: shows it): any of ``style`` (panel | persona | both), ``may_hide`` and ``may_show`` (may the
+    #: participant hide the character, or bring it back). ``None`` leaves it to the admin's
+    #: settings. Needs the ``presentation`` capability; see :meth:`set_presentation`.
+    presentation: dict[str, Any] | None = None
 
     def __init__(self, session_state: dict[str, Any], settings: dict):
         self.session_state = session_state
@@ -139,6 +144,12 @@ class SupportAgent:
         self.user_proactive_delivery = str(session_state.get("support_proactive_delivery", "toast"))
         self._pending_question: dict[str, Any] | None = None
         self._below_reserved_warned = False
+        if self.presentation and self.capabilities.has(Capability.PRESENTATION):
+            p = self.presentation
+            ov = {k: p[k] for k in ("style", "may_hide", "may_show") if p.get(k) is not None}
+            if ov.get("style") not in (None, "panel", "persona", "both"):
+                ov.pop("style")
+            session_state["assistant_presentation_override"] = ov
 
     # ------------------------------------------------------------------ #
     # Session helpers                                                      #
@@ -306,6 +317,15 @@ class SupportAgent:
     def set_layout(self, **changes: Any) -> dict:
         """``view`` (full | simple | focus), ``collapsed``, ``sizes``. Needs ``layout``."""
         return self._denied(Capability.LAYOUT) or self.session.set_layout(**changes)
+
+    def set_presentation(self, style: str | None = None, *, may_hide: bool | None = None,
+                         may_show: bool | None = None, clear: bool = False) -> dict:
+        """Decide how the Assistant appears: ``style`` panel (the header's Assistant button only),
+        persona (the character only) or both; ``may_hide`` / ``may_show``: whether the participant
+        may hide the character or bring it back once hidden. ``clear=True`` hands the decision back
+        to the admin's settings. Needs ``presentation``."""
+        return self._denied(Capability.PRESENTATION) or self.session.set_assistant_presentation(
+            style, may_hide=may_hide, may_show=may_show, clear=clear)
 
     def focus_tool(self, name: str) -> dict:
         """Bring a tool to the front. Needs ``tool_visibility``."""
@@ -1131,6 +1151,7 @@ def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
     if choice.source == "group":
         # a group file naming an Assistant is there to try that Assistant: start it switched on
         session.ss["support_agent_default_enabled"] = True
+    session.ss.pop("assistant_presentation_override", None)  # a new Assistant decides afresh
     try:
         klass = load_assistant_class(choice.spec)
         agent = klass(session.ss, settings)

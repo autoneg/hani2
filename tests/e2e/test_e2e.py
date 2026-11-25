@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 
 import pytest
 
@@ -258,3 +259,30 @@ def test_a_prolific_participant_goes_through_every_study_form(new_page):
     p.get_by_role("button", name="Submit answers").click()
     link = p.get_by_role("link", name=re.compile("Finish and submit"))
     expect(link).to_have_attribute("href", re.compile("cc=DONE42"))
+
+
+def test_participant_hides_the_character_and_gets_the_header_button(e2e_browser, character_server):
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, character_server)
+    p = Page(ctx.new_page(), character_server)
+    try:
+        name = "e2e" + uuid.uuid4().hex[:8]
+        r = p.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                       "consent": True})
+        assert r.ok, r.text()
+        p.goto("/app")
+        character = p.locator("[data-persona]")
+        header_button = p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True)
+        expect(character).to_be_visible()
+        expect(header_button).to_have_count(0)
+        p.get_by_role("button", name=re.compile(r"^Hide ")).click()
+        expect(character).to_have_count(0)
+        expect(header_button).to_be_visible()
+        header_button.click()
+        p.get_by_role("button", name="Show the character").click()
+        expect(character).to_be_visible()
+        expect(header_button).to_have_count(0)
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()

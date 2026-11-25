@@ -52,20 +52,18 @@ def e2e_browser():
         b.close()
 
 
-@pytest.fixture(scope="session")
-def server(tmp_path_factory):
-    """The base URL of a fresh server: its own home, a fixed non-LLM opponent, no Assistant."""
-    home = tmp_path_factory.mktemp("e2e_home")
+def _start(home: Path, args: list[str], env_extra: dict | None = None, setup_home=None):
+    """Start ``hani2`` on a free port with its own ``home``; returns (url, process, log)."""
     port = _free_port()
     env = {k: v for k, v in os.environ.items() if not k.startswith(("HANI2_", "PROLIFIC_", "SCMLWEB_"))}
-    env.update(HANI2_HOME=str(home), HANI2_MODEL_PROBE="off", PYTHONUNBUFFERED="1")
+    env.update(HANI2_HOME=str(home), HANI2_MODEL_PROBE="off", PYTHONUNBUFFERED="1", **(env_extra or {}))
     cli = [sys.executable, "-m", "hani2.cli"]
     subprocess.run([*cli, "setup"], env=env, check=True, capture_output=True)
-    env["HANI2_SSO_SCMLWEB_SECRET"] = SSO_SECRET  # a hand-off provider for the sign-in-from-a-website test
-    _add_sso_provider(home)
+    if setup_home:
+        setup_home(home)
     log = (home / "server.log").open("w")
-    proc = subprocess.Popen([*cli, "--no-browser", "--port", str(port), "--opponents", "BoulwareTBNegotiator",
-                             "--no-assistant"], env=env, stdout=log, stderr=subprocess.STDOUT)
+    proc = subprocess.Popen([*cli, "--no-browser", "--port", str(port), *args], env=env, stdout=log,
+                            stderr=subprocess.STDOUT)
     url = f"http://127.0.0.1:{port}"
     for _ in range(120):
         if proc.poll() is not None:
@@ -79,13 +77,47 @@ def server(tmp_path_factory):
         proc.kill()
     if proc.poll() is not None:
         pytest.fail("the server did not start:\n" + Path(log.name).read_text(encoding="utf-8")[-3000:])
-    yield url
+    return url, proc, log
+
+
+def _stop(proc, log) -> None:
     proc.terminate()
     try:
         proc.wait(10)
     except subprocess.TimeoutExpired:
         proc.kill()
     log.close()
+
+
+@pytest.fixture(scope="session")
+def server(tmp_path_factory):
+    """The base URL of a fresh server: its own home, a fixed non-LLM opponent, no Assistant."""
+    home = tmp_path_factory.mktemp("e2e_home")
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--no-assistant"],
+                            {"HANI2_SSO_SCMLWEB_SECRET": SSO_SECRET},  # a hand-off provider for the sign-in-from-a-website test
+                            _add_sso_provider)
+    yield url
+    _stop(proc, log)
+
+
+def _character_settings(home: Path) -> None:
+    import json
+
+    p = home / "settings" / "assistant_settings.json"
+    s = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    s["presentation"] = {"style": "persona", "choice_default": "panel", "persona_movable": True}
+    p.write_text(json.dumps(s), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def character_server(tmp_path_factory):
+    """A server whose Assistant (the rule-based level 1 agent, no model needed) is a character."""
+    home = tmp_path_factory.mktemp("e2e_character_home")
+    hello = Path(__file__).resolve().parents[2] / "examples" / "support_agent_tutorial" / "level1_hello.py"
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--assistant", f"{hello}:HelloAgent"],
+                            setup_home=_character_settings)
+    yield url
+    _stop(proc, log)
 
 
 class Page:

@@ -15,7 +15,7 @@ const DRAWER_KEYS = ["show_history", "show_human_offers", "last_offer_on_top", "
 
 /** Whether the drawer has anything for this user (the header hides the settings button otherwise). */
 export const drawerHasControls = (st: SessionState | null | undefined) =>
-  !!st && (st.is_admin || DRAWER_KEYS.some((k) => mayAdjust(st, k)) || (!!st.support && !!st.interface?.assistant?.choice));
+  !!st && (st.is_admin || DRAWER_KEYS.some((k) => mayAdjust(st, k)) || (!!st.support && !!(st.interface?.assistant?.choice || st.interface?.assistant?.may_hide || st.interface?.assistant?.may_show)));
 
 function Hidden({ st, k }: { st: SessionState; k: string }) {
   if (!st.is_admin || !(st.interface?.hidden_from_participants ?? []).includes(k)) return null;
@@ -135,15 +135,25 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
             )}
           </Section>
         )}
-        {st.support && pres?.choice && (
+        {st.support && pres && (pres.choice || pres.may_hide || pres.may_show) && (
           <Section title="Assistant">
-            <Choice
-              label="The Assistant appears as"
-              hint="A panel opened from the header, a character in the corner, or both"
-              value={pres.style}
-              onChange={(v) => setP("assistant_presentation", v)}
-              options={[["panel", "Panel"], ["persona", "Character"], ["both", "Both"]]}
-            />
+            {pres.choice && (
+              <Choice
+                label="The Assistant appears as"
+                hint="A panel opened from the header, a character in the corner, or both"
+                value={pres.chosen ?? pres.style}
+                onChange={(v) => setP("assistant_presentation", v)}
+                options={[["panel", "Panel"], ["persona", "Character"], ["both", "Both"]]}
+              />
+            )}
+            {(pres.may_hide || pres.may_show) && (
+              <Toggle
+                label="Show the character"
+                hint="Off: the Assistant button in the header opens the conversation"
+                value={!pres.persona_hidden}
+                onChange={(v) => setP("persona_hidden", !v)}
+              />
+            )}
           </Section>
         )}
         {st.is_admin && (

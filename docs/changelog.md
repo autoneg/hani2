@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The participant can hide the Assistant's character.** An eye button on the character (or
+  **Show the character** in My settings) hides it, and the header's **Assistant** button then
+  appears, even when the Assistant is shown only as a character. The button in the Assistant panel
+  brings the character back. With the new `presentation` capability an Assistant chooses how it
+  appears (panel, character or both), from the start with the `presentation` class attribute or
+  later with `set_presentation`, and can stop the participant from hiding the character
+  (`may_hide=False`) or from bringing it back (`may_show=False`). See
+  [How the Assistant appears](guide/assistant.md#how-the-assistant-appears).
 - **The Assistant answers even when it runs out of tool calls.** A model that kept calling functions
   until `max_tool_iterations` showed "(Stopped after too many tool calls without finishing.)"; it is now
   asked once more, with functions switched off, to answer from what it found, and the human sees that
