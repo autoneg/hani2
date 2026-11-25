@@ -23,7 +23,7 @@ def _flipped_spec(s) -> dict:
     for issue in s.scenario.outcome_space.issues:
         try:
             opts = list(issue.all)
-        except Exception:  # continuous
+        except Exception:  # noqa: BLE001 - continuous
             values[issue.name] = "increasing"
             continue
         if all(isinstance(o, (int, float)) for o in opts) and len(opts) > 20:
