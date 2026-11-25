@@ -66,6 +66,9 @@ def test_assistant_estimate_unlocks_the_plot_with_the_estimate_only():
     raw = [float(est(o)) for o in outcomes]
     lo, hi = min(raw), max(raw)
     assert max(abs(y - (r - lo) / (hi - lo)) for y, r in zip(ys, raw)) < 1e-9
+    # the frontier and the Nash / Kalai points are computed from the estimate too
+    sp = plot._space()
+    assert sp["frontier"] and sp["nash"] and sp["kalai"]
     # a participant's copy never switches to the real preferences
     plot.on_input("opponent", "real")
     assert plot.opponent()[1] == "estimate"

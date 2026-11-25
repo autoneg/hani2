@@ -353,6 +353,9 @@ class _Normalized:
     def __call__(self, o) -> float:
         return self._scale(float(self.ufun(o)))
 
+    def minmax(self, *a, **kw) -> tuple[float, float]:
+        return 0.0, 1.0
+
 
 def opponent_estimate(tool: Tool):
     """The session's estimate of the opponent's utility function, or ``None``."""
@@ -437,10 +440,13 @@ class NegotiationPlotTool(Tool):
             try:
                 frontier, idx = pareto_frontier(ufuns, outcomes=outcomes, sort_by_welfare=True)
                 frontier = sorted((float(a), float(b)) for a, b in frontier)
+            except Exception:  # pragma: no cover - continuous / odd spaces
+                frontier = []
+            try:
                 nash = [(float(p[0][0]), float(p[0][1])) for p in nash_points(ufuns, frontier=frontier, outcome_space=s.outcome_space)]
                 kalai = [(float(p[0][0]), float(p[0][1])) for p in kalai_points(ufuns, frontier=frontier, outcome_space=s.outcome_space)]
-            except Exception:  # pragma: no cover - continuous / odd spaces
-                frontier, nash, kalai = [], [], []
+            except Exception:  # pragma: no cover
+                nash, kalai = [], []
             self._cache = dict(points=pts, outcomes=outcomes, frontier=frontier, nash=nash, kalai=kalai, opp=opp,
                                kind=kind)
             self._cache_key = key
