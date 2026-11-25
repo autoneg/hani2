@@ -1133,7 +1133,7 @@ class NegotiationSession:
             if not (pres["choice"] or self.is_admin) or value not in ("panel", "persona", "both"):
                 return False
             # the Assistant's locks: picking a style must not hide or bring back the character
-            shown, shows = pres["style"] != "panel", value != "panel" and not pres["persona_hidden"]
+            shown, shows = pres["style"] != "panel", value != "panel"
             if shown and not shows and not pres["may_hide"] or not shown and shows and not self._may_show_persona():
                 return False
         elif key == "persona_hidden":

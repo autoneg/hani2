@@ -220,6 +220,8 @@ def test_assistant_locks_hiding_and_showing_the_character():
     assert s.set_pref("persona_hidden", True)
     assert not s.set_pref("persona_hidden", False)
     assert _pres(s)["style"] == "panel" and not _pres(s)["may_show"]
+    assert not s.set_pref("assistant_presentation", "persona")  # nor does picking the character
+    assert _pres(s)["persona_hidden"]
     # may_hide=False brings a hidden character back
     agent.set_presentation(may_hide=False)
     assert _pres(s)["style"] == "both" and not _pres(s)["persona_hidden"]
@@ -242,6 +244,12 @@ def test_assistant_decides_its_style_and_can_hand_it_back():
 def test_presentation_class_attribute_applies_before_the_first_render():
     s = make_session(agent_class=f"{__file__}:CharacterOnly")
     assert _pres(s)["style"] == "persona" and not _pres(s)["may_hide"]
+    # a character that cannot be hidden starts visible, even if the participant hid an earlier one
+    from hani2.support_agent.runtime import create_support_agent_for
+
+    s.prefs["persona_hidden"] = True
+    s.support_agent = create_support_agent_for(s, choice=s.assistant_choice)
+    assert _pres(s)["style"] == "persona" and not _pres(s)["persona_hidden"]
 
 
 def test_presentation_needs_its_capability():

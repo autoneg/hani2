@@ -150,6 +150,9 @@ class SupportAgent:
             if ov.get("style") not in (None, "panel", "persona", "both"):
                 ov.pop("style")
             session_state["assistant_presentation_override"] = ov
+            sess = session_state.get("_session")
+            if sess is not None and (ov.get("style") in ("persona", "both") or ov.get("may_hide") is False):
+                sess.prefs["persona_hidden"] = False  # as set_presentation: this Assistant wants to be seen
 
     # ------------------------------------------------------------------ #
     # Session helpers                                                      #
