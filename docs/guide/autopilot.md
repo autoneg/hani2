@@ -15,6 +15,8 @@ The agent that plays is called the *driver*. There are two kinds.
 
 The negotiators offered are `AspirationNegotiator`, `NaiveTitForTatNegotiator`, `BoulwareTBNegotiator`, `ConcederTBNegotiator` and `LinearTBNegotiator`, followed by the text-producing negotiators from negmas-llm when that package provides them (`HybridWithTextNegotiator`, `BoulwareWithTextNegotiator`, `ConcederWithTextNegotiator`, `LinearWithTextNegotiator`, `LLMHybridNegotiator`, `LLMBoulwareTBNegotiator`, `LLMConcederTBNegotiator`, `LLMLinearTBNegotiator`). See [Opponents](opponents.md) for what these negotiators do.
 
+To offer fewer drivers, list the ones you want in `allowed_drivers` (see [Settings](#settings)), or tick them under *Drivers offered* on the admin console's **Autopilot** page. No setting adds a driver: the negotiators come from the Python list `AUTOPILOT_NEGOTIATORS` in `hani2.support_agent.autopilot`, and code that appends a negmas negotiator name to it (for example `"MiCRONegotiator"`) before the server starts adds that driver.
+
 ## Settings
 
 Autopilot reads `autopilot_settings.json` from the settings folder, merged over the bundled defaults. You can also edit it in the admin console under **Autopilot**. Changes apply immediately; the file is read on every autopilot request.

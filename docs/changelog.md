@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Documentation.** Every tool has its own section with a screenshot, the admin-only ones and the
+  example tools included ([Tools](guide/tools.md#the-tools-one-by-one)). A new
+  [Offer generators](guide/offer-generators.md) page covers the Utility-based Selector, the LLM tool
+  and Random, and how to write your own. [Language models](guide/llms.md) explains installing,
+  choosing and testing local Ollama models. Every level of the [Assistant tutorial](tutorials/assistant.md)
+  has a screenshot, and an [Assistant template](downloads/hani2-assistant-template.zip) can be
+  downloaded. The screenshots come from `scripts/screenshots/make_screenshots.py`.
 - **An estimate of the opponent's preferences.** The Assistant (new `opponent_model` capability,
   `set_opponent_estimate`), Python code (`session.set_opponent_estimate`) or anything that sets the
   human negotiator's negmas `opponent_ufun` can provide one. While it is set, participants get the

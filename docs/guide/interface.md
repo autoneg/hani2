@@ -217,11 +217,17 @@ The administrator decides, per project or study, which of these the participant 
 - `both`: the character and the header button. Clicking the character opens the dock;
 - `choice`: the participant picks Panel, Character or Both in **My settings** (`presentation.choice_default` is the first choice).
 
+![The Assistant as a character, with its hide button](../assets/screens/assistant-character.png)
+
 The participant can hide the character with the small eye button on its top-right corner, or
 with **Show the character** under *Assistant* in **My settings**. While it is hidden, the header
 shows the **Assistant** button, even with `persona`, and the Assistant's notifications appear at
 the top right. The person button in the Assistant panel's header, or the same setting, brings the
-character back. The Assistant itself can choose how it appears and lock these controls (see
+character back.
+
+![The character hidden: the header button opens the Assistant, whose header has the button that brings the character back](../assets/screens/assistant-character-hidden.png)
+
+The Assistant itself can choose how it appears and lock these controls (see
 [How the Assistant appears](assistant.md#how-the-assistant-appears)); a control it locks is not shown.
 
 While the character is shown, the Assistant's notifications come out of it as speech bubbles instead of the top-right corner; clicking a bubble opens the conversation. The participant can drag the character anywhere (unless `presentation.persona_movable` is off); where it was put is kept with the session's layout (`persona_x`, `persona_y`). It keeps clear of the offer area and of buttons and fields, moving up until it no longer covers them. Phones always show the Assistant tab instead.

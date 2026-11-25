@@ -91,6 +91,248 @@ The Utility-based Selector needs the inverse of your utility function. When the 
 
 The LLM tool uses the language model configured in `llm_settings.json` (see [Language models](llms.md)). When the model is not configured it shows a warning instead of failing.
 
+## The tools one by one
+
+Every screenshot below shows a tool enlarged (its **Enlarge** button), during a negotiation in the
+Apartment Lease scenario. In the pane a tool looks the same, only narrower. The screenshots are
+made by `scripts/screenshots/make_screenshots.py` in the source repository.
+
+![The desk with its three tool panes during a negotiation](../assets/screens/tools-overview.png)
+
+### Preferences
+
+**Everyone, always (permanent).** Your preferences in the current scenario: a donut chart of the
+issue weights (how much each issue matters to you), a bar chart of what every option of the issue
+picked in **Issue** is worth to you, your value on disagreement (what you get if there is no deal)
+and a collapsible explanation of how a deal's value is computed from the two. The value of a deal is
+the weighted sum of its options' values, so it is what the history, the offer panel and the other
+tools show as "worth to you".
+
+![The Preferences tool](../assets/screens/tool-preferences.png)
+
+In a study that splits information ([Who knows what](information.md)) the tool shows only the part
+of the preferences you know: the weights, the values or neither.
+
+### Scenario Info
+
+**Everyone, always (permanent).** The scenario: its title, a **You act as ...** badge with your
+role, the short description and the scenario's picture, a table of the issues with their options
+and descriptions, the hints for your role (your most and least important issue, your ideal deal) and
+the long description in a collapsible card. **Picture** switches the picture off and the drop-down
+next to it shows it small, large or as a watermark.
+
+![The Scenario Info tool](../assets/screens/tool-scenario-info.png)
+
+### Briefing
+
+**The participant, when they have a private briefing or decisions only they make.** Private
+instructions for your side, such as a limit someone you negotiate for has set, and the issues and
+actions (accept, send, end) only you may decide. The line under the briefing says whether your
+Assistant knows it. See [Private briefings](information.md#private-briefings-and-hidden-constraints).
+
+![The Briefing tool](../assets/screens/tool-briefing.png)
+
+### Past Negotiations
+
+**The participant, when they hold past negotiations in this scenario.** A table of the earlier
+negotiations you hold (result, rounds, the styles both sides played, what your side got) and, for
+the one picked under **Show negotiation**, its result, a chart of how both sides' offers moved
+(worth to your side) and every offer in a collapsible table. It says how many more your Assistant
+holds. See [Past negotiations](information.md#past-negotiations).
+
+![The Past Negotiations tool](../assets/screens/tool-past-negotiations.png)
+
+### Market Research
+
+**The participant, when market research is given to them.** What parties like your opponent
+usually want, from a number of comparable profiles: the typical weight of every issue and its
+spread, the option most often liked best and how often, their most likely best deal and their usual
+value on disagreement. See [Market research](information.md#market-research).
+
+![The Market Research tool](../assets/screens/tool-market-research.png)
+
+### My Results
+
+**Logged-in users (not guests and Prolific participants).** Your score (the average of your best
+result in each scenario), the number of negotiations and agreements, a table of scores per scenario
+and a searchable table of every negotiation you finished. **Columns** picks the columns of the last
+table (the [results columns](studies.md)). Practice rounds appear in the table but not in the score
+or the counts.
+
+![The My Results tool](../assets/screens/tool-my-results.png)
+
+### Value Histogram
+
+**Everyone, from the start of the negotiation.** How often each option of the selected issues was
+offered by you and by the opponent. Issues with up to 25 options get a bar per option, others a
+histogram. **Issues** picks the issues, **Your offers** includes or leaves out your own offers and
+**Two columns** puts the charts side by side.
+
+![The Value Histogram tool](../assets/screens/tool-value-histogram.png)
+
+### Utility Plot
+
+**Everyone, from the start; off by default.** What every offer so far is worth to you, one line for
+each side, with a dotted **No deal** line at your value on disagreement. **X axis** is the round,
+the relative time or seconds, and **Y axis** your utility. **Show opponent utility** adds the
+opponent's utility; only admins see it, unless an admin opened opponent utilities to participants
+(see [below](#opening-admin-only-tools-to-participants)).
+
+![The Utility Plot tool](../assets/screens/tool-utility-plot.png)
+
+### Outcome Plot
+
+**Everyone, from the start; off by default.** The offers placed by their options: any two issues
+(or the round or relative time) on the axes, one trajectory per side. **Show your offers** hides
+your own trajectory.
+
+![The Outcome Plot tool](../assets/screens/tool-outcome-plot.png)
+
+### Trace
+
+**Everyone, from the start; off by default.** Every offer in a table: the round, the relative time,
+who made it, the offer, its message and what it is worth to you. **Show opponent utility** adds the
+opponent's utility, with the same rule as the Utility Plot.
+
+![The Trace tool](../assets/screens/tool-trace.png)
+
+### Utility-based Selector
+
+**Everyone, from the start.** The deals whose value for you lies in a range you choose, best first.
+**Minimum utility** and **Range width** set the range in percent of the span from your worst to your
+best deal (70% and 10% list every deal worth 70-80% to you); the width starts at 100%, so the range
+runs from the minimum up to your best deal. Click a row to copy that deal into your counter-offer,
+or press **Set Offer** to have one picked from the range. The offer is only filled in; you still
+send it.
+
+![The Utility-based Selector](../assets/screens/tool-utility-selector.png)
+
+With an [estimate of the opponent](#an-estimate-of-the-opponents-preferences), the selector also
+shows the opponent's estimated utility of every deal and can choose deals by it (below). See also
+[Offer generators](offer-generators.md).
+
+### Negotiation Plot
+
+**Admins; everyone while an estimate of the opponent is set.** The negotiation in utility space:
+every possible deal as a grey dot placed by its value for you (x) and for the opponent (y), the
+Pareto frontier (green: deals where neither side can gain without the other losing), the Nash and
+Kalai points (two standard fair compromises), both sides' offers so far, the agreement (a red ring)
+and both sides' values on disagreement (dotted lines). **All outcomes**, **Pareto frontier** and
+**Nash / Kalai** show or hide those layers. A banner above the chart says whether the opponent's
+side uses its **real** preferences or an **estimate**.
+
+![The Negotiation Plot with the opponent's real preferences](../assets/screens/tool-negotiation-plot.png)
+
+### Opponent Preferences
+
+**Admins only.** The opponent's private preferences, in the same layout as Preferences: issue
+weights, option values and the opponent's value on disagreement.
+
+![The Opponent Preferences tool](../assets/screens/tool-opponent-preferences.png)
+
+### All Results
+
+**Admins only.** Everyone's results: the score, the negotiations and agreements, the scores per
+scenario, a leaderboard of the human participants and the full results table with a column picker
+(with a `user` column). Practice rounds are neither scored nor ranked.
+
+![The All Results tool](../assets/screens/tool-all-results.png)
+
+### LLM
+
+**Admins only.** Write an instruction in plain words ("propose a fair middle ground on the rent"),
+choose **Text & offer**, **Text only** or **Offer only**, and press **Generate**: the configured
+language model suggests an offer and a message, shown with what the offer is worth to you. **Apply
+to my offer** copies them into your counter-offer. Without a configured model the tool shows a
+warning. See [Offer generators](offer-generators.md#llm) and [Language models](llms.md).
+
+![The LLM tool after generating a suggestion](../assets/screens/tool-llm.png)
+
+### Random
+
+**Admins only.** **Set Offer** fills your counter-offer with a random deal. Useful to explore the
+outcome space or to test an opponent.
+
+![The Random tool](../assets/screens/tool-random.png)
+
+### An estimate of the opponent: what changes
+
+With an estimate set (see [An estimate of the opponent's
+preferences](#an-estimate-of-the-opponents-preferences)), a participant gets the Negotiation Plot
+drawn with the estimate. The yellow **Estimate** banner, the axis title *Opponent utility
+(estimate)* and the dashed frontier mark it as a guess:
+
+![The Negotiation Plot of a participant, drawn with the Assistant's estimate](../assets/screens/tool-negotiation-plot-estimate.png)
+
+An admin sees the same by default and switches with **Opponent's side** between the estimate and
+the real preferences:
+
+![An admin's Negotiation Plot with the switch between the estimate and the real preferences](../assets/screens/tool-negotiation-plot-estimate-admin.png)
+
+The Utility-based Selector gets a banner, an *Opponent (estimate)* column and **Choose deals by**:
+
+![The Utility-based Selector with the opponent's estimated utility](../assets/screens/tool-utility-selector-estimate.png)
+
+![The Utility-based Selector choosing deals by the opponent's estimated utility](../assets/screens/tool-utility-selector-by-opponent.png)
+
+### Using admin-only tools
+
+Admin-only tools are created only for a logged-in admin account: the `admin` user, an account with
+the admin role (`hani2 users add NAME --admin`, or the admin console) or an account whose email is
+in `admin.emails` (see [Admins](authentication.md#admins)). Log in as an admin and they appear in
+their panes like any other tool. `?admin=1` in the URL does not make anyone an admin. To give an
+admin-only tool to participants, see [Opening admin-only tools to
+participants](#opening-admin-only-tools-to-participants).
+
+## Example tools
+
+The `examples/tools` folder of the source repository holds five tools that show how tools are
+written; the [tools tutorial](../tutorials/tools.md) builds them step by step. Copy a file into the
+tools folder (or start the server with `hani2 --tools examples/tools`) to use them.
+
+### Offer Counter
+
+How many offers each side has made: the smallest possible tool (`offer_counter.py`).
+
+![The Offer Counter example tool](../assets/screens/tool-offer-counter.png)
+
+### What If
+
+Pick an option for every issue and see what that deal is worth to you, then **Use as my offer**
+(`what_if.py`): an interactive tool with inputs and a button.
+
+![The What If example tool](../assets/screens/tool-what-if.png)
+
+### Concession Tracker
+
+What the opponent's offers are worth to you over time, how fast it concedes and where its offers are
+heading (`concession_tracker.py`): a live chart.
+
+![The Concession Tracker example tool](../assets/screens/tool-concession-tracker.png)
+
+### Summary
+
+**Summarise** asks the language model for a short summary of the negotiation so far
+(`negotiation_summary.py`): a tool built on `LLMTool`.
+
+![The Summary example tool](../assets/screens/tool-summary.png)
+
+### Ask the AI
+
+Type any question about the negotiation and press **Ask** (`ask_ai.py`): an `LLMTool` with its own
+input.
+
+![The Ask the AI example tool](../assets/screens/tool-ask-ai.png)
+
+### Deal Compass
+
+What the opponent's offer is worth to you, issue by issue. It belongs to the level 10 Assistant of
+the [Assistant tutorial](../tutorials/assistant.md#level-10-bring-and-use-tools), which adds it to
+the screen when the negotiation starts (`timing = "agent"`); the small mark on its tab says an
+Assistant added it.
+
+![The Deal Compass, added by the level 10 Assistant](../assets/screens/tool-deal-compass.png)
+
 ## Adding tools
 
 Save a tool's Python file in the **tools folder**, `$HANI2_HOME/tools` (by default `~/negmas/hani2/tools`), and every new session gets the tools it defines. No restart is needed: changed files are read again when the next session starts. `hani2 tools new "My Tool"` creates a file there to start from, `hani2 tools list` shows every tool and where it comes from, and `hani2 tools path` shows the folders searched. More folders can be added with `hani2 --tools DIR` or `tools.paths` in `env.json`. The [tools tutorial](../tutorials/tools.md) explains how to write the file, and the `examples/tools` folder of the repository holds five examples, including two that use a language model.

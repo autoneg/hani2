@@ -110,6 +110,8 @@ Question types:
 | `select` | A drop-down list of `options` | The chosen option |
 | `text` | A text area | The text |
 
+Likert and yes/no questions start with nothing selected, so the participant must pick an answer to a required one.
+
 ### Where the questionnaire is looked up
 
 HANI2 uses the first of these files that exists and has questions (a file with `enabled: false` switches the questionnaire off and ends the search; see [Study forms](study-forms.md#switching-a-form-off)):

@@ -35,7 +35,7 @@ Set the mode in `env.json`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `cookie_secret` | `""` | Secret used to sign the login cookie. When empty, HANI2 generates one and keeps it in `settings/.cookie_secret`, so logins survive restarts. Set it explicitly when several installations must accept the same cookies. |
+| `cookie_secret` | `""` | Secret used to sign the login cookie. When empty, HANI2 generates one and keeps it in `settings/.cookie_secret`, so logins survive restarts. Set it explicitly when several installations must accept the same cookies; generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. |
 | `enforce_consent` | `false` | When `true`, a logged-in user who has not consented sees the consent form (the content of `consent.md`) and must agree and sign with their full name before negotiating. The server does not block admins who have not consented, but the login page still sends them to the consent form. |
 | `allow_registration` | `true` | Shows the registration form. Registration is always off in `oauth` and `none` modes. |
 | `default_password_login` | `"auto"` | Whether an admin may log in with the well-known default password: `auto` refuses it when the server listens on a non-loopback interface, `refuse` always refuses it, `allow` never does. See [Default accounts](#default-accounts). |
@@ -228,3 +228,17 @@ To let a user of a trusted website (for example an organiser on the ANAC site) u
 ## Logging
 
 Logins, failed logins and logouts are written to the event log (`login`, `login_failed`, `logout`). See [Studies and results](studies.md).
+
+## Production checklist
+
+Before you open a server to other people:
+
+1. **Change the default passwords** with `hani2 users passwd admin` and `hani2 users passwd user`. Every server start warns while either account still has its default password. Only the `admin` login is refused, and only when the server listens on a non-loopback interface (see [Default accounts](#default-accounts)).
+2. **Serve over HTTPS behind a reverse proxy** that forwards WebSocket upgrades for `/api/ws/` (see [Troubleshooting](../getting-started/installation.md#troubleshooting) and [Serving under a sub-path](../getting-started/installation.md#serving-under-a-sub-path)). The server then usually listens on `127.0.0.1`, so set `auth.default_password_login` to `"refuse"` to keep refusing the default `admin` password.
+3. **Set an explicit `auth.cookie_secret`** when several installations must accept the same login cookies. Generate one with:
+
+    ```bash
+    python -c "import secrets; print(secrets.token_urlsafe(32))"
+    ```
+
+4. **Keep `admin.emails` short.** Every account whose email is in the list is an admin, so list only the people who need the admin console.

@@ -187,6 +187,30 @@ values:
 weights: [0.25, 0.75]
 ```
 
+The issue types used by the bundled scenarios:
+
+| `type` | Values | `values` in the YAML |
+|--------|--------|----------------------|
+| `ContiguousIssue` | Every integer in a range | `[min, max]`, for example `[1, 10]` |
+| `DiscreteCardinalIssue` | A list of numbers | The numbers, for example `[100, 110, 120, 200]` |
+| `DiscreteOrdinalIssue` | A list of ordered values | The values, in order |
+| `CategoricalIssue` | A list of unordered options | The options, for example `[Cash, Card]` |
+
+Each entry of `values` in a utility function maps the matching issue's value to a utility. The common types:
+
+- `TableFun` with `mapping`: one utility per value. It works for every issue type.
+- `LinearFun` with `slope`: `slope × value`.
+- `AffineFun` with `slope` and `bias`: `slope × value + bias`, for example `slope: -0.25, bias: 1.0` for "less is better" on 0–4.
+- `IdentityFun` (no keys): the value itself.
+
+The last three need numeric values.
+
+!!! tip "Tips for writing a scenario"
+    - Make the preferences conflict without being exact opposites, so that win-win deals exist.
+    - Give the issues different weights for the two sides, so that trading one issue for another pays off.
+    - Pick a `reserved_value` that some deals beat, so that an agreement is worth reaching.
+    - Run `hani2 scenario check` on the folder: it prints the number of outcomes and the opposition level.
+
 Any outcome space and utility function type that negmas can load works. HANI2 renders each issue in the counter-offer editor according to its type:
 
 - Integer ranges with at most 31 values and discrete issues become a choice of values.

@@ -26,11 +26,28 @@ Both files live in the settings folder and can be edited in the admin console, u
 
 Out of the box both configurations point to Ollama on the same machine, with the model `qwen3:4b-instruct`.
 
-1. Install Ollama from [ollama.com/download](https://ollama.com/download) (or `brew install ollama` on macOS) and start it:
+1. Install Ollama and start it:
 
-    ```bash
-    ollama serve
-    ```
+    === "macOS"
+
+        ```bash
+        brew install ollama      # or the app from ollama.com/download
+        ollama serve
+        ```
+
+    === "Linux"
+
+        ```bash
+        curl -fsSL https://ollama.com/install.sh | sh
+        ollama serve             # the installer usually starts it as a service already
+        ```
+
+    === "Windows"
+
+        Run the installer from [ollama.com/download](https://ollama.com/download). Ollama then runs
+        in the background.
+
+    The server listens on `http://localhost:11434`.
 
 2. Pull the model:
 
@@ -64,6 +81,43 @@ Out of the box both configurations point to Ollama on the same machine, with the
     ```
 
 Small models answer quickly but follow instructions less reliably. If the assistant calls the wrong functions or LLM opponents produce invalid offers, try a larger model, for example `ollama pull qwen3:8b` and set `"model": "qwen3:8b"` in both files.
+
+### Choosing a local model
+
+| Model | Size | Speed | Notes |
+|-------|------|-------|-------|
+| `qwen3:4b-instruct` | 4B | fast | The default. Fine for testing and for the message helpers; follows long instructions less reliably. |
+| `qwen3:8b` | 8B | medium | A good step up for the Assistant and LLM opponents. |
+| `qwen3:30b-a3b` | 30B (3B active) | medium | Better reasoning, needs about 20 GB of memory. |
+| `gpt-oss:20b` | 20B | slower | Strong function calling; needs about 16 GB of memory. |
+
+The Assistant needs a model that supports function calling (tools); all of the above do. Pull a
+model with `ollama pull NAME`, then set `"model": "NAME"` in both files (or in the model chain,
+see [Models and connections](models.md)).
+
+### Testing the setup
+
+1. Check that Ollama answers and has the model:
+
+    ```bash
+    curl http://localhost:11434/api/tags      # lists the models you pulled
+    ollama run qwen3:4b-instruct "Say hello"
+    ```
+
+2. Start HANI2 and log in as an admin. The **Language model** page of the admin console says
+   whether the configuration is usable, and **Test chains** on the **Models** page tries every
+   entry (see [Models and connections](models.md)). `hani2 models resolve` does the same from the
+   command line.
+3. Start a negotiation and open the **LLM** tool (admins have it). Type "Propose a fair middle
+   ground" and press **Generate**: a suggested offer and message should appear within a few
+   seconds. Then open the **Assistant** and ask "What do you think of this offer?".
+
+### Editing the settings in the admin console
+
+Admins edit both files in the admin console instead of by hand: **Language model** for
+`llm_settings.json` (provider, model, address, key variable, temperature and the prompt templates)
+and **Assistant settings** for `assistant_settings.json`, for the whole server, a project or a
+study. Changes apply to sessions started after saving.
 
 To use an Ollama server on another machine, set `ollama_base_url` in `llm_settings.json` (for the message helpers) and `api_base` in `assistant_settings.json` (for the assistant), for example `"api_base": "http://gpu-box:11434"`.
 
@@ -223,6 +277,18 @@ Each negotiation gets one JSON-lines file, `<results>/<user>/llm_logs/<mechanism
 Only calls made while the negotiation is being stepped are logged, so concurrent participants never write to each other's files. Logging errors are ignored and never interrupt a negotiation.
 
 ## Troubleshooting
+
+**Connection refused.** Ollama is not running or listens elsewhere. Start it with `ollama serve`
+and check `curl http://localhost:11434/api/tags`. For a server on another machine, set
+`ollama_base_url` and `api_base` as above, and start Ollama there with `OLLAMA_HOST=0.0.0.0` so it
+accepts connections from other machines.
+
+**Model not found.** The model was not pulled on the machine Ollama runs on. `ollama list` shows
+what is there; `ollama pull NAME` fetches it. The name must match exactly, including the tag after
+the colon.
+
+**Slow answers.** Use a smaller model, close other programs that use the GPU or memory, and keep
+`max_tokens` low. The first request after starting Ollama also loads the model, which takes longer.
 
 **The assistant replies with an error about the model.** Check that the model exists (`ollama list`) and that the key variable named in `api_key_env` is exported in the shell that runs `hani2`.
 

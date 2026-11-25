@@ -4,7 +4,7 @@ The Assistant is the AI helper that sits next to the participant while they nego
 
 Every session gets its own agent. The default agent is driven by a language model that calls functions (send a toast, fill the offer, highlight a button, and so on). You can replace it with your own Python class, with or without a language model. The [Assistant tutorial](../tutorials/assistant.md) builds nine such agents step by step.
 
-![The assistant dock with a question and answer buttons](../assets/screens/assistant.png)
+![The assistant dock with a question and answer buttons](../assets/screens/tutorial-level7.png)
 
 ## What the agent can do
 
@@ -528,7 +528,10 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `proactive_note(event_name) -> str \| None` | Before a proactive turn | A short instruction per event. Return `None` to stay silent. |
 | `on_draft_changed(draft)` | The participant edits the counter-offer | The reserved-value warning. |
 | `on_panel_action(panel_id, action, payload)` | A button in one of the agent's panels is clicked | Sends `(panel <id>) clicked <action>` to the model. |
-| `_complete(tools, force_action=False) -> dict` | Each model call | One `litellm.completion`. Replace it to use another backend; return `{"role": "assistant", "content": ..., "tool_calls": [...]}`. |
+| `_complete(tools, force_action=False, no_tools=False) -> dict` | Each model call | One `litellm.completion` (`no_tools=True`: the last call after the tool rounds run out, with functions switched off). Replace it to use another backend; return `{"role": "assistant", "content": ..., "tool_calls": [...]}`. |
+| `_context_snapshot() -> str \| None` | Before a chat, proactive, panel or autopilot turn | `context()` as indented JSON under `[Current negotiation state]`, put before the turn's message; `None` when `context()` fails. |
+| `_run_turn(user_text=None, system_note=None, context_note=None, force_action=False, output_channel="chat") -> set[str]` | For every model turn | Appends the message, then (unless a harness connection answers the turn) calls `_complete` and runs the returned tool calls until the model answers without tools, at most `max_tool_iterations` (10) rounds. Returns the names of the functions run. |
+| `_execute_tool_call(tc) -> str` | For each tool call returned by `_complete` | Parses the arguments, runs `dispatcher.execute(name, args)`, appends the result as a `tool` message and returns the function name (`<name>:failed` when the result has `ok: false`). |
 
 `on_event` receives the participant's negotiator interface (`nmi`) when a negotiation exists, or `None`.
 

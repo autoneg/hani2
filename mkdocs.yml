@@ -90,6 +90,7 @@ nav:
   - User guide:
       - The interface: guide/interface.md
       - Tools: guide/tools.md
+      - Offer generators: guide/offer-generators.md
       - Showing other preferences: guide/preferences.md
       - Assistant: guide/assistant.md
       - Who knows what: guide/information.md

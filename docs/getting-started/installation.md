@@ -164,6 +164,9 @@ mkdocs serve
 **The page says the web interface has not been built.**
 You are running from a source checkout. Build the frontend as shown above.
 
+**`pip install` fails with a permission error.**
+pip is installing into the system Python. Create and activate a virtual environment first, as shown in [Install the package](#install-the-package), or install for your user only with `pip install --user hani2`.
+
 **`Address already in use`.**
 Another process holds port 5006. Pick another one with `hani2 --port 8080`.
 

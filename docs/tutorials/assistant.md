@@ -1,6 +1,6 @@
 # Build an Assistant
 
-This tutorial builds a negotiation Assistant in ten small steps. You start with an agent that echoes what the participant types and finish with one that points at the interface, rearranges it and builds its own interactive panels. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
+This tutorial builds a negotiation Assistant in eleven small steps. You start with an agent that echoes what the participant types and finish with one that points at the interface, rearranges it and builds its own interactive panels. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
 
 | Level | You build | Needs an LLM |
 |-------|-----------|--------------|
@@ -14,8 +14,12 @@ This tutorial builds a negotiation Assistant in ten small steps. You start with 
 | 7 | An agent that asks the participant a question | yes, for the coaching |
 | 8 | Highlights and notes on the interface | no |
 | 9 | Layout changes and a custom interactive panel | no |
+| 10 | An agent that brings its own tool and uses yours | no |
 
-Every level is a real file in `examples/support_agent_tutorial` in the source repository, and every one is covered by the test suite. The [Assistant guide](../guide/assistant.md) is the reference for everything used here.
+Every level is a real file in `examples/support_agent_tutorial` in the source repository, and every one is covered by the test suite. The screenshots come from running each level against the default model; your scenario, numbers and the model's words will differ. The [Assistant guide](../guide/assistant.md) is the reference for everything used here.
+
+!!! tip "Start from a template"
+    To write your own Assistant without the tutorial, download the [Assistant template](../downloads/hani2-assistant-template.zip): an agent with three marked places to edit, a settings file that loads it and an offline test. Its README says how to run it.
 
 ## Level 0: set up
 
@@ -49,7 +53,10 @@ The default agent needs a language model. Out of the box it uses `qwen3:4b-instr
 ollama pull qwen3:4b-instruct
 ```
 
-With Ollama running, ask the assistant "What do you think of this offer?". It answers with the live negotiation state in front of it. Without a model you see a "Assistant error" message in the chat; that is fine for levels 1, 2, 6, 8 and 9. To use a hosted model instead, see [Language models](../guide/llms.md).
+With Ollama running, ask the assistant "What do you think of this offer?". It answers with the live negotiation state in front of it.
+
+![The default Assistant answering in the dock, with its summary on the status board](../assets/screens/tutorial-level0.png)
+ Without a model you see a "Assistant error" message in the chat; that is fine for levels 1, 2, 6, 8 and 9. To use a hosted model instead, see [Language models](../guide/llms.md).
 
 ### How to run each level
 
@@ -87,6 +94,8 @@ The smallest possible agent overrides one method. `handle_user_message` runs eve
 
 Run it with `"agent_class": "level1_hello:HelloAgent"`, open the assistant and type "hi". The agent answers "Hello! You said: hi".
 
+![The level 1 echo agent](../assets/screens/tutorial-level1.png)
+
 `handle_user_message` replaces the whole chat turn, so this agent never calls a language model. It runs in a worker thread, so it may take as long as it needs without freezing the page.
 
 **Try this:** add `name = "Echo"` as a class attribute and watch the dock header and the chat change. Then switch the assistant off with the switch in the dock header: the message box is disabled, and the session never calls your method while the agent is off.
@@ -100,6 +109,8 @@ Now the agent looks at the negotiation. `session_state["actions"]["context"]` re
 ```
 
 Run it with `"agent_class": "level2_rules:RulesAgent"`. Start a negotiation, wait for the opponent's first offer and ask anything. The agent replies with the offer, what it is worth to you and a one-line verdict.
+
+![The level 2 rules judging the opponent's offer](../assets/screens/tutorial-level2.png)
 
 Two things to note:
 
@@ -128,6 +139,8 @@ Set the model in the same settings file:
 
 For a hosted model, set `provider`, `model` and `api_key_env` (the name of the environment variable that holds your key), for example `"provider": "openai", "model": "gpt-4o-mini", "api_key_env": "OPENAI_API_KEY"`.
 
+![The level 3 coach answering in its own persona](../assets/screens/tutorial-level3.png)
+
 Each chat message reaches the model with the current negotiation state attached as JSON, so the prompt does not have to ask for it. The model can also call every function the admin granted: fill the offer, highlight a button, show a panel and so on.
 
 **Try this:** ask "Fill in a counter-offer for me". The coach calls `set_offer` and the fields change. Then set `"autonomy": "suggest"` and ask it to accept: instead of accepting, it highlights the Accept button. Set `"capabilities": {"accept": false}` and the model no longer sees the accept function at all.
@@ -141,6 +154,8 @@ Language models are poor at arithmetic. Do the numbers in code and let the model
 ```
 
 Run it with `"agent_class": "level4_tools:ToolCoachAgent"`. Ask "Should I accept?" The model calls `assess_partner_offer`, receives a verdict with the offer's utility, the reserved value and a target that relaxes over time, and explains it.
+
+![The level 4 coach explaining the verdict of its own function](../assets/screens/tutorial-level4.png)
 
 `register` takes the function name, a handler that receives the argument dictionary and returns a JSON-serialisable dictionary, a callable returning the schema (`make_function_schema` builds it) and a capability. `capability=None` makes the function always available; pass a `Capability` to tie it to one the admin can grant or the participant can switch off.
 
@@ -163,7 +178,11 @@ Proactive turns are off by default. Turn on the event in the settings:
 }
 ```
 
-Now, on every one of your turns, the coach assesses the opponent's offer and gives a one-sentence recommendation. By default it arrives as a notification. In the assistant settings (the sliders icon in the dock header), **Unprompted messages appear as** switches it to the status board or the chat.
+Now, on every one of your turns, the coach assesses the opponent's offer and gives a one-sentence recommendation. By default it arrives as a notification:
+
+![A proactive recommendation from the level 5 deal coach](../assets/screens/tutorial-level5.png)
+
+ In the assistant settings (the sliders icon in the dock header), **Unprompted messages appear as** switches it to the status board or the chat.
 
 **Try this:** also enable `on_negotiation_ended` and return a debrief instruction for `negotiation_ended`. Then set `"autonomy": "suggest"` and watch the coach fill the offer and highlight Send without sending.
 
@@ -175,7 +194,13 @@ Agents can rearrange the participant's analysis tools. This one starts simple, h
 --8<-- "examples/support_agent_tutorial/level6_guided.py"
 ```
 
-Run it with `"agent_class": "level6_guided:GuidedAgent"`. When you press Start, the Value Histogram, Utility Plot, Outcome Plot and Trace tabs disappear and the agent explains why in the chat. On your second turn the Utility Plot returns with a notification and a plan on the status board; on the third, everything is back.
+Run it with `"agent_class": "level6_guided:GuidedAgent"`. When you press Start, the Value Histogram, Utility Plot, Outcome Plot and Trace tabs disappear and the agent explains why in the chat:
+
+![The level 6 agent hid the advanced plots](../assets/screens/tutorial-level6.png)
+
+On your second turn the Utility Plot returns with a notification and a plan on the status board; on the third, everything is back:
+
+![The tools are back, with the plan on the status board](../assets/screens/tutorial-level6-back.png)
 
 `on_event` receives `negotiation_started`, `action_requested` and `negotiation_ended`. Overriding it replaces the default behaviour (proactive turns and autopilot), which is what this agent wants. `message_user(text, channel=...)` sends to `chat`, `toast` or `board`.
 
@@ -191,7 +216,11 @@ Run it with `"agent_class": "level6_guided:GuidedAgent"`. When you press Start, 
 
 Run it with `"agent_class": "level7_asking:AskingCoach"` and keep `"proactive": {"on_action_requested": true}`. When you press Start, the assistant dock opens with the question "How should I help you in this negotiation?" and three buttons. The answer sets the coaching style and is added to the model conversation, so later advice follows it. Every other event goes to the level 5 coach through `super().on_event(...)`.
 
-![The level 7 agent asks a question with answer buttons](../assets/screens/assistant.png)
+![The level 7 agent asks a question with answer buttons](../assets/screens/tutorial-level7.png)
+
+After the answer, the coach's advice follows the chosen style:
+
+![Advice in the chosen style](../assets/screens/tutorial-level7-advice.png)
 
 `ask_user` returns `None` when the participant does not answer within the timeout (180 seconds by default), under autopilot, or while another question is pending. Always handle `None`.
 
@@ -255,6 +284,8 @@ When you press Start:
    notification. It shows what the opponent's offer is worth to you, issue by issue.
 2. On each of your turns, the Utility-based Selector's slider moves, its best row is selected and
    your counter-offer fields fill in. The status board says what it did.
+
+![The Deal Compass added by the level 10 agent, and the offer it filled in](../assets/screens/tutorial-level10.png)
 
 The agent never looks inside the selector. `use_tool` works from what the tool shows: input names,
 button actions and selectable tables, the same things `read_tool` reports. That is why a tool
@@ -346,7 +377,7 @@ def test_coach_fills_the_offer(monkeypatch):
         }]},
         {"role": "assistant", "content": "I filled in an offer for you."},
     ]
-    monkeypatch.setattr(Assistant, "_complete", lambda self, tools, force_action=False: replies.pop(0))
+    monkeypatch.setattr(Assistant, "_complete", lambda self, tools, force_action=False, no_tools=False: replies.pop(0))
     s.user_chat("help me")
     assert s.draft[issue.name] == value
     assert s.chat[-1]["text"] == "I filled in an offer for you."
