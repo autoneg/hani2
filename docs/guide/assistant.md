@@ -310,6 +310,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
 | `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
+| `opponent_model` | Estimate the opponent | Share its estimate of what the opponent wants; the participant's Negotiation Plot and Utility-based Selector then show it, marked as an estimate (see [Estimating the opponent](#estimating-the-opponent)) | `set_opponent_estimate` |
 | `opponent_utility` | Know the opponent's preferences (oracle) | See the opponent's utility function and the opponent's utility of every offer (off by default; admin-only) | `get_opponent_utility` |
 
 `opponent_utility` is an [ablation](ablations.md): it gives the Assistant the information a real
@@ -413,6 +414,37 @@ self.set_presentation(clear=True)              # back to the admin's settings an
 | `may_show` | Whether the participant may bring a hidden character back (default `true`). |
 
 The locks also apply to the participant's style choice: when hiding is locked, they cannot pick **Panel**, and when showing is locked, they cannot pick **Character** or **Both** for a hidden character. A new Assistant (for example, the next round's Assistant in a counterbalanced study) starts from the admin's settings again. The snapshot's `interface.assistant` holds the result: `style` (what the page shows; `panel` while the character is hidden), `chosen` (the style before hiding), `choice`, `movable`, `persona_hidden`, `may_hide` and `may_show`.
+
+## Estimating the opponent
+
+The Assistant never sees the opponent's preferences (unless an admin grants the
+`opponent_utility` oracle), but it can estimate them, for example from the opponent's offers, and
+share the estimate with the participant. With `opponent_model` it calls `set_opponent_estimate`.
+The estimate becomes the human negotiator's `opponent_ufun` (negmas keeps it in the negotiator's
+`private_info["opponent_ufun"]`), and the participant's tools show it, always marked as an estimate:
+the Negotiation Plot appears for a participant who does not have it, and the Utility-based Selector
+can show the opponent's estimated utility and choose deals by it. See
+[An estimate of the opponent's preferences](tools.md#an-estimate-of-the-opponents-preferences).
+
+From Python, pass a negmas utility function over the scenario's outcome space, or plain data:
+
+```python
+self.set_opponent_estimate({
+    "weights": {"Price": 3, "Delivery": 1},          # any positive numbers; equal when left out
+    "values": {
+        "Price": "increasing",                      # numeric issues: increasing or decreasing
+        "Delivery": {"1 week": 1.0, "2 weeks": 0.6, "1 month": 0.0},
+    },
+    "reserved_value": 0.3,
+})
+self.set_opponent_estimate(None)                    # remove it
+```
+
+Options not listed are worth 0; an unknown issue or option is an error (`{"ok": False, "error":
+...}`), and so is a value table for a continuous issue. The language model has the same function,
+with the same arguments and `clear: true` to remove the estimate. Call it again whenever the
+estimate improves: the tools redraw. An estimate is for one scenario and is dropped when the next
+one loads.
 
 ## Proactive messages
 
@@ -548,6 +580,8 @@ Tool helpers (each checks the capability shown):
 | `use_tool(name, inputs=None, action=None, payload=None, row=None)` | `tool_use` | Operates the tool; returns what it shows afterwards. |
 | `private_information()` | `private_info` | What only the Assistant knows this round and who holds what (see [Who knows what](information.md)). |
 | `past_negotiation(id)` | `private_info` | `{"ok", "negotiation"}`: every offer of one past negotiation the Assistant holds. |
+| `set_opponent_estimate(estimate=None)` | `opponent_model` | Sets (or with `None` clears) the estimate of the opponent's utility function: a negmas utility function or a mapping (see [Estimating the opponent](#estimating-the-opponent)). |
+| `opponent_estimate()` | none | The estimate now set, by anyone, or `None`. |
 | `opponent_view(offer=None)` | `opponent_utility` | The opponent's preferences and utilities (the oracle); with `offer` (`{issue: value}`) also both sides' utility of it. |
 
 While the human and the Assistant know different things, `read_tool` and `use_tool` refuse the
@@ -640,6 +674,7 @@ class MyAgent(Assistant):
 | `annotate` | `target`, `text`, `kind` (`info`, `success`, `warning`, `tip`) | `annotate` |
 | `set_layout` | `view` (`full`, `simple`, `focus`), `collapsed`, `sizes` | `layout` |
 | `set_presentation` | `style` (`panel`, `persona`, `both`), `may_hide`, `may_show`, `reset` | `presentation` |
+| `set_opponent_estimate` | `weights` (issue → number), `values` (issue → {option: 0..1}, or `increasing` / `decreasing`), `reserved_value`, `clear` | `opponent_model` |
 | `show_panel` | `panel_id`, `title`, `markdown`, `table` (list of row objects), `buttons` (`label`, `action`), `placement` (`assistant`, `side`, `modal`) | `panels` |
 | `close_panel` | `panel_id` | `panels` |
 | `read_tool` | `name` | `tool_use` |

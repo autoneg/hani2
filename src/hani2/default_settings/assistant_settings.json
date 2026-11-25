@@ -29,6 +29,7 @@
     "tool_add": true,
     "tool_use": true,
     "private_info": true,
+    "opponent_model": true,
     "opponent_utility": false
   },
   "proactive": {

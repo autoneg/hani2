@@ -337,11 +337,42 @@ class UtilityPlotTool(Tool):
         return [ui.row(*controls, align="end"), ui.plot(fig)]
 
 
+class _Normalized:
+    """A utility function scaled to 0..1 over the outcome space (for drawing an estimate, which
+    may come in any scale), with its reserved value scaled the same way."""
+
+    def __init__(self, ufun, outcomes):
+        self.ufun = ufun
+        vals = [float(ufun(o)) for o in outcomes] or [0.0, 1.0]
+        self.lo, self.hi = min(vals), max(vals)
+        self.reserved_value = self._scale(float(getattr(ufun, "reserved_value", 0.0) or 0.0))
+
+    def _scale(self, u: float) -> float:
+        return (u - self.lo) / (self.hi - self.lo) if self.hi - self.lo > 1e-12 else 1.0
+
+    def __call__(self, o) -> float:
+        return self._scale(float(self.ufun(o)))
+
+
+def opponent_estimate(tool: Tool):
+    """The session's estimate of the opponent's utility function, or ``None``."""
+    try:
+        return tool.session.opponent_ufun_estimate
+    except Exception:  # noqa: BLE001
+        return None
+
+
 class NegotiationPlotTool(Tool):
     needs_totals = True
     """The negotiation in utility space: every outcome placed by its utility for
     you (x) and for the opponent (y), with the Pareto frontier, Nash and Kalai
-    points, both no-deal values, the offer trajectories and the agreement."""
+    points, both no-deal values, the offer trajectories and the agreement.
+
+    The opponent's side is an *estimate* whenever one is set (the human negotiator's
+    ``opponent_ufun``, see :meth:`NegotiationSession.set_opponent_estimate`); those who get this
+    tool as configured (admins, or everyone when an admin opened it) can switch to the real one.
+    A participant without the tool gets it, limited to the estimate (``estimate_only``), while an
+    estimate is set."""
 
     name = "Negotiation Plot"
     groups = ("visualization",)
@@ -353,8 +384,13 @@ class NegotiationPlotTool(Tool):
     compromises); both sides' offers so far; the agreement (red ring); and both sides'
     values on disagreement (dotted lines).
 
-    **How to use it.** Tick the boxes to show or hide layers and hover a dot to see the
-    deal. Only administrators get this tool, because it reveals the opponent's preferences.
+    **Estimate or real.** The banner above the chart says whose numbers the opponent's side
+    uses. When an **estimate** of the opponent's preferences is set (for example by your
+    Assistant), the chart uses it, and it can be wrong. Otherwise the tool shows the
+    opponent's **real** preferences, which only administrators see unless an administrator
+    opened the tool to participants; they can switch between the two.
+
+    **How to use it.** Tick the boxes to show or hide layers and hover a dot to see the deal.
     """
     icon = "chart-scatter"
     pane = "lower"
@@ -362,23 +398,41 @@ class NegotiationPlotTool(Tool):
     admin_only = True
     order = 9
     max_points = 4000
+    #: True for the copy a participant gets only while an estimate is set: never the real ufun
+    estimate_only = False
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
-        self.values.update(show_outcomes=True, show_pareto=True, show_points=True)
+        self.values.update(show_outcomes=True, show_pareto=True, show_points=True, opponent="estimate")
         self._cache_key = None
         self._cache: dict = {}
+
+    def opponent(self) -> tuple[Any, str | None]:
+        """The opponent's utility function this plot draws and which one it is: ``"estimate"``,
+        ``"real"`` or ``None`` (nothing to show)."""
+        est = opponent_estimate(self)
+        if est is not None and (self.estimate_only or self.values.get("opponent", "estimate") != "real"):
+            return est, "estimate"
+        if self.estimate_only:
+            return None, None
+        return self.agent_ufun, "real"
 
     def _space(self):
         s = self.scenario
         if s is None:
             return None
-        key = id(s)
+        opp, kind = self.opponent()
+        if opp is None:
+            return None
+        version = getattr(self.session, "opponent_estimate_version", 0)
+        key = (id(s), id(opp), kind, version)
         if self._cache_key != key:
             from negmas.preferences.ops import kalai_points, nash_points, pareto_frontier
 
-            ufuns = (self.human_ufun, self.agent_ufun)
             outcomes = list(s.outcome_space.enumerate_or_sample(max_cardinality=self.max_points))
+            if kind == "estimate":
+                opp = _Normalized(opp, outcomes)
+            ufuns = (self.human_ufun, opp)
             pts = [(float(ufuns[0](o)), float(ufuns[1](o))) for o in outcomes]
             try:
                 frontier, idx = pareto_frontier(ufuns, outcomes=outcomes, sort_by_welfare=True)
@@ -387,25 +441,32 @@ class NegotiationPlotTool(Tool):
                 kalai = [(float(p[0][0]), float(p[0][1])) for p in kalai_points(ufuns, frontier=frontier, outcome_space=s.outcome_space)]
             except Exception:  # pragma: no cover - continuous / odd spaces
                 frontier, nash, kalai = [], [], []
-            self._cache = dict(points=pts, outcomes=outcomes, frontier=frontier, nash=nash, kalai=kalai)
+            self._cache = dict(points=pts, outcomes=outcomes, frontier=frontier, nash=nash, kalai=kalai, opp=opp,
+                               kind=kind)
             self._cache_key = key
         return self._cache
 
     def view(self):
+        if self.scenario is None:
+            return [ui.text_block("Load a scenario first.", muted=True)]
         sp = self._space()
         if sp is None:
-            return [ui.text_block("Load a scenario first.", muted=True)]
-        hu, au = self.human_ufun, self.agent_ufun
+            return [ui.alert("There is no estimate of the opponent's preferences any more.", "neutral")]
+        hu, au, kind = self.human_ufun, sp["opp"], sp["kind"]
+        opp_label = "Opponent utility (estimate)" if kind == "estimate" else "Opponent utility (real)"
+        short = "opponent (est.)" if kind == "estimate" else "opponent"
         human_id = self.session_state.get("human_id")
         fig = go.Figure()
         if self.values.get("show_outcomes", True):
             labels = [self.session.outcome_str(o) for o in sp["outcomes"]]
             fig.add_trace(go.Scattergl(x=[p[0] for p in sp["points"]], y=[p[1] for p in sp["points"]], mode="markers",
                                        name="Outcomes", marker=dict(size=5, color="rgba(100,116,139,0.35)"),
-                                       text=labels, hovertemplate="%{text}<br>you %{x:.0%} · opponent %{y:.0%}<extra></extra>"))
+                                       text=labels, hovertemplate=f"%{{text}}<br>you %{{x:.0%}} · {short} %{{y:.0%}}<extra></extra>"))
         if self.values.get("show_pareto", True) and sp["frontier"]:
             fig.add_trace(go.Scatter(x=[p[0] for p in sp["frontier"]], y=[p[1] for p in sp["frontier"]], mode="lines+markers",
-                                     name="Pareto frontier", line=dict(color="#10b981", width=2), marker=dict(size=6)))
+                                     name="Pareto frontier" + (" (estimate)" if kind == "estimate" else ""),
+                                     line=dict(color="#10b981", width=2, dash="dash" if kind == "estimate" else "solid"),
+                                     marker=dict(size=6)))
         if self.values.get("show_points", True):
             for pts, label, symbol in ((sp["nash"], "Nash", "star"), (sp["kalai"], "Kalai", "diamond")):
                 if pts:
@@ -418,7 +479,7 @@ class NegotiationPlotTool(Tool):
                     x=[float(hu(r[4])) for r in rows], y=[float(au(r[4])) for r in rows], mode="lines+markers", name=label,
                     line=dict(color=color, width=2), marker=dict(size=8, color=color),
                     text=[f"round {r[2] + 1}: {self.session.outcome_str(r[4])}" for r in rows],
-                    hovertemplate="%{text}<br>you %{x:.0%} · opponent %{y:.0%}<extra></extra>"))
+                    hovertemplate=f"%{{text}}<br>you %{{x:.0%}} · {short} %{{y:.0%}}<extra></extra>"))
         m = self.mechanism
         agreement = getattr(getattr(m, "state", None), "agreement", None) if m is not None else None
         if agreement is not None:
@@ -427,14 +488,28 @@ class NegotiationPlotTool(Tool):
         for v, axis in ((float(hu.reserved_value or 0), "x"), (float(au.reserved_value or 0), "y")):
             (fig.add_vline if axis == "x" else fig.add_hline)(v, line_dash="dot", line_color="#ef4444", opacity=0.6)
         fig.update_layout(**base_layout(380, xaxis=dict(title="Your utility", range=[0, 1.02], tickformat=".0%"),
-                                        yaxis=dict(title="Opponent utility", range=[0, 1.02], tickformat=".0%")))
-        return [
+                                        yaxis=dict(title=opp_label, range=[0, 1.02], tickformat=".0%")))
+        by = getattr(self.session, "opponent_estimate_by", None)
+        who = {"assistant": " by your Assistant", "agent": " by your Assistant"}.get(str(by or ""), "")
+        if kind == "estimate":
+            banner = ui.alert(f"The opponent's side shows an **estimate** of its preferences (set{who}), "
+                              "not its real preferences. It may be wrong.", "warning", title="Estimate")
+        else:
+            banner = ui.alert("The opponent's side shows the opponent's **real** preferences.", "info",
+                              title="Real preferences")
+        out = [banner]
+        if not self.estimate_only and opponent_estimate(self) is not None:
+            out.append(ui.select("opponent", {"The estimate": "estimate", "The real preferences": "real"},
+                                 kind, label="Opponent's side"))
+        out += [
             ui.row(ui.checkbox("show_outcomes", self.values.get("show_outcomes", True), label="All outcomes"),
                    ui.checkbox("show_pareto", self.values.get("show_pareto", True), label="Pareto frontier"),
                    ui.checkbox("show_points", self.values.get("show_points", True), label="Nash / Kalai")),
             ui.plot(fig),
-            ui.text_block("Dotted lines: each side's value on disagreement.", muted=True),
+            ui.text_block("Dotted lines: each side's value on disagreement"
+                          + (" (the opponent's as estimated)." if kind == "estimate" else "."), muted=True),
         ]
+        return out
 
 
 class OutcomePlotTool(Tool):
@@ -702,6 +777,9 @@ class AllResultsTool(Tool):
 # --------------------------------------------------------------------------- #
 # Outcome selectors                                                            #
 # --------------------------------------------------------------------------- #
+OPP_COLUMN = "Opponent (estimate)"
+
+
 class UtilitySelectorTool(OutcomeSelector):
     needs_totals = True
     name = "Utility-based Selector"
@@ -715,6 +793,12 @@ class UtilitySelectorTool(OutcomeSelector):
     lists every deal worth 70–80% to you). Click a row to copy that deal into your
     counter-offer, or press **Set Offer** to have one picked from the range. The offer is
     only filled in: you still send it yourself.
+
+    **With an estimate of the opponent.** When an estimate of the opponent's preferences is
+    set (for example by your Assistant), the table can also show what each deal is worth to the
+    opponent *by that estimate*, and *Choose deals by* can switch the sliders to the opponent's
+    estimated utility, so you can look for deals the opponent likely accepts while still seeing
+    their value for you. Estimates can be wrong.
     """
     icon = "list-filter"
     pane = "side"
@@ -726,8 +810,11 @@ class UtilitySelectorTool(OutcomeSelector):
         self._inverter = None
         self._minmax = None
         self._cache_ufun = None  # the ufun the two caches above were built for
+        self._opp_inverter = None
+        self._opp_minmax = None
+        self._opp_key = None  # (id of the estimate, the session's estimate version) the two above are for
         # width 100% by default: the range runs from the minimum slider up to the best outcome.
-        self.values.update(min_util=70, width=100)
+        self.values.update(min_util=70, width=100, show_opponent=True, rank_by="me")
 
     def negotiation_started(self, session_state, nmi):
         self._inverter = None
@@ -741,7 +828,38 @@ class UtilitySelectorTool(OutcomeSelector):
             self._minmax = None
             self._cache_ufun = self.human_ufun
 
+    # -- the opponent estimate (only while one is set) ---------------------------------
+    def _estimate(self):
+        est = opponent_estimate(self)
+        key = (id(est), getattr(self.session, "opponent_estimate_version", 0)) if est is not None else None
+        if key != self._opp_key:
+            self._opp_inverter = None
+            self._opp_minmax = None
+            self._opp_key = key
+        return est
+
+    def _by_opponent(self) -> bool:
+        return self.values.get("rank_by") == "opponent" and self._estimate() is not None
+
+    def _ranking_ufun(self):
+        return self._estimate() if self._by_opponent() else self.human_ufun
+
+    def _opp_normalized(self, u: float) -> float:
+        est = self._estimate()
+        if self._opp_minmax is None:
+            try:
+                mn, mx = est.minmax()
+                self._opp_minmax = (float(mn), float(mx))
+            except Exception:
+                self._opp_minmax = (0.0, 1.0)
+        mn, mx = self._opp_minmax
+        return (u - mn) / (mx - mn) if mx - mn > 1e-12 else 1.0
+
     def _get_inverter(self):
+        if self._by_opponent():
+            if self._opp_inverter is None:
+                self._opp_inverter = self._estimate().invert()
+            return self._opp_inverter
         self._check_cache()
         if self._inverter is None:
             ufun = self.human_ufun
@@ -784,7 +902,7 @@ class UtilitySelectorTool(OutcomeSelector):
         return (u - mn) / (mx - mn) if mx - mn > 1e-12 else 1.0
 
     def _outcomes(self) -> list:
-        if self.human_ufun is None:
+        if self._ranking_ufun() is None:
             return []
         try:
             return list(self._get_inverter().some(self._range(), normalized=True))
@@ -792,21 +910,42 @@ class UtilitySelectorTool(OutcomeSelector):
             return []
 
     def selector_view(self):
+        est = self._estimate()
+        by_opp = self._by_opponent()
+        show_opp = est is not None and (by_opp or bool(self.values.get("show_opponent", True)))
         rows = []
         for o in self._outcomes()[:500]:
             d = self.outcome_dict(o) or {}
             d["Utility"] = self._normalized(float(self.human_ufun(o)))
+            if show_opp:
+                d[OPP_COLUMN] = self._opp_normalized(float(est(o)))
             rows.append(d)
-        rows.sort(key=lambda r: -r["Utility"])
+        key = OPP_COLUMN if by_opp else "Utility"
+        rows.sort(key=lambda r: -r[key])
         sel = self.values.get("selected")
-        return [
-            ui.slider("min_util", 0, 100, self.values.get("min_util", 70), label="Minimum utility", suffix="%"),
+        whose = "the opponent's estimated" if by_opp else ""
+        out = []
+        if est is not None:
+            out += [
+                ui.alert("An **estimate** of the opponent's preferences is set: the opponent's numbers here come "
+                         "from it, not from the opponent's real preferences.", "warning"),
+                ui.row(
+                    ui.select("rank_by", {"My utility": "me", "The opponent's estimated utility": "opponent"},
+                              "opponent" if by_opp else "me", label="Choose deals by"),
+                    *([] if by_opp else [ui.checkbox("show_opponent", show_opp, label="Show the opponent's estimate")]),
+                    align="end"),
+            ]
+        out += [
+            ui.slider("min_util", 0, 100, self.values.get("min_util", 70),
+                      label=f"Minimum {whose} utility".replace("  ", " "), suffix="%"),
             ui.slider("width", 1, 100, self.values.get("width", 100), label="Range width", suffix="%"),
-            ui.table(rows, on_select="pick", formats={"Utility": "percent"}, page_size=15, selected=sel,
-                     max_height=320)
+            ui.table(rows, on_select="pick", formats={"Utility": "percent"} | ({OPP_COLUMN: "percent"} if show_opp else {}),
+                     page_size=15,
+                     selected=sel, max_height=320)
             if rows
             else ui.alert("No outcome in this utility range.", "neutral"),
         ]
+        return out
 
     def on_input(self, name, value):
         self.values["selected"] = None
@@ -816,7 +955,7 @@ class UtilitySelectorTool(OutcomeSelector):
         if action == "pick":
             row = payload.get("row") or {}
             self.values["selected"] = payload.get("index")
-            self.set_offer({k: v for k, v in row.items() if k != "Utility"})
+            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", OPP_COLUMN)})
             self.refresh()
             return
         super().on_action(action, payload)

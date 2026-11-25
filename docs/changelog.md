@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **An estimate of the opponent's preferences.** The Assistant (new `opponent_model` capability,
+  `set_opponent_estimate`), Python code (`session.set_opponent_estimate`) or anything that sets the
+  human negotiator's negmas `opponent_ufun` can provide one. While it is set, participants get the
+  Negotiation Plot drawn with the estimate, and the Utility-based Selector can show the opponent's
+  estimated utility and choose deals by it. Both say clearly that it is an estimate; admins switch
+  the plot between the estimate and the real preferences, and a banner says which one it shows.
+  See [An estimate of the opponent's preferences](guide/tools.md#an-estimate-of-the-opponents-preferences).
 - **The participant can hide the Assistant's character.** An eye button on the character (or
   **Show the character** in My settings) hides it, and the header's **Assistant** button then
   appears, even when the Assistant is shown only as a character. The button in the Assistant panel

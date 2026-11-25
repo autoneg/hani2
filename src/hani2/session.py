@@ -311,6 +311,13 @@ class NegotiationSession:
         self.human_action: SAOResponse = SAOResponse(ResponseType.REJECT_OFFER, None)
         self.human_last_offer: Outcome | None = None
         self._trace_seen = 0
+        # an estimate of the opponent's utility function (the Assistant's or anyone's; see
+        # set_opponent_estimate): kept here until the negotiation starts, then in the human
+        # negotiator's private_info["opponent_ufun"], where negmas looks for it
+        self._opponent_estimate = None
+        self._opponent_estimate_by: str | None = None
+        self._opponent_estimate_seen: int | None = None
+        self.opponent_estimate_version = 0
         self._timer: threading.Timer | None = None
         #: set by close(); late timer callbacks check it and do nothing
         self.closed = False
@@ -753,6 +760,208 @@ class NegotiationSession:
         except Exception:  # noqa: BLE001
             return None
 
+    # ------------------------------------------------------------------ #
+    # An estimate of the opponent's utility (negmas' Negotiator.opponent_ufun) #
+    # ------------------------------------------------------------------ #
+    def _human_negotiator(self):
+        m = self.mechanism
+        if m is None:
+            return None
+        try:
+            return m.negotiators[self.human_index]
+        except Exception:  # noqa: BLE001
+            return None
+
+    @property
+    def opponent_ufun_estimate(self):
+        """The estimate of the opponent's utility function, or ``None``: the human negotiator's
+        ``opponent_ufun`` (its ``private_info["opponent_ufun"]``, as in negmas) once the negotiation
+        has started, else the one set for the coming negotiation. Never the real one."""
+        neg = self._human_negotiator()
+        if neg is not None:
+            try:
+                return (getattr(neg, "private_info", None) or {}).get("opponent_ufun")
+            except Exception:  # noqa: BLE001
+                return None
+        return self._opponent_estimate
+
+    @property
+    def opponent_estimate_by(self) -> str | None:
+        """Who set the estimate (``assistant``, ``code``, ...), when it was set through
+        :meth:`set_opponent_estimate`."""
+        return self._opponent_estimate_by if self.opponent_ufun_estimate is not None else None
+
+    def set_opponent_estimate(self, ufun, *, by: str = "code") -> dict:
+        """Set (or, with ``None``, clear) the estimate of the opponent's utility function for this
+        scenario. It goes into the human negotiator's ``private_info["opponent_ufun"]`` (now, or
+        when the negotiation starts), and while it is set the Negotiation Plot (with the estimate,
+        clearly marked) and the Utility-based Selector's opponent options appear. ``ufun`` is a
+        negmas utility function over this scenario's outcome space, or a mapping for
+        :meth:`opponent_estimate_from_spec`."""
+        if self.scenario is None:
+            return {"ok": False, "error": "no scenario is loaded"}
+        if ufun is not None and isinstance(ufun, dict):
+            try:
+                ufun = self.opponent_estimate_from_spec(ufun)
+            except ValueError as e:
+                return {"ok": False, "error": str(e)}
+        if ufun is not None and not callable(ufun):
+            return {"ok": False, "error": "the estimate must be a utility function or a mapping"}
+        with self.lock:
+            self._opponent_estimate = ufun
+            self._opponent_estimate_by = by if ufun is not None else None
+            neg = self._human_negotiator()
+            if neg is not None:
+                pi = neg.private_info
+                if ufun is None:
+                    pi.pop("opponent_ufun", None)
+                else:
+                    pi["opponent_ufun"] = ufun
+        ev.log_event(self.sid, "opponent_estimate", user=self.user, component=by,
+                     action="clear" if ufun is None else "set")
+        self._sync_opponent_estimate(force=True)
+        return {"ok": True, "estimate": self.opponent_estimate_summary()}
+
+    def opponent_estimate_from_spec(self, spec: dict):
+        """A linear additive utility function from plain data: ``weights`` (issue → number; equal
+        when missing), ``values`` (issue → {option: number}, or ``"increasing"`` /
+        ``"decreasing"`` for numeric issues) and ``reserved_value`` (default 0). Raises
+        ``ValueError`` for unknown issues or options."""
+        from negmas.preferences import LinearAdditiveUtilityFunction
+        from negmas.preferences.value_fun import AffineFun, TableFun
+
+        sc = self.scenario
+        if sc is None:
+            raise ValueError("no scenario is loaded")
+        issues = list(sc.outcome_space.issues)
+        by_name = {i.name.lower(): i for i in issues}
+        if self.labels:
+            from hani2.naming import unlabel_value
+
+            def find(n):
+                return by_name.get(str(n).lower()) or by_name.get(str(unlabel_value(str(n), self.labels)).lower())
+        else:
+            def find(n):
+                return by_name.get(str(n).lower())
+        weights_in = spec.get("weights") or {}
+        values_in = spec.get("values") or {}
+        if not isinstance(weights_in, dict) or not isinstance(values_in, dict):
+            raise ValueError("weights and values must map issue names to numbers / option values")
+        for n in list(weights_in) + list(values_in):
+            if find(n) is None:
+                raise ValueError(f"unknown issue {n!r}; the issues are {', '.join(i.name for i in issues)}")
+        weights = {i.name: 1.0 for i in issues} if not weights_in else {i.name: 0.0 for i in issues}
+        for n, w in weights_in.items():
+            try:
+                weights[find(n).name] = max(0.0, float(w))
+            except (TypeError, ValueError):
+                raise ValueError(f"the weight of {n!r} must be a number") from None
+        total = sum(weights.values())
+        if total <= 0:
+            raise ValueError("at least one weight must be positive")
+        given = {find(n).name: v for n, v in values_in.items()}
+        funs = []
+        for issue in issues:
+            v = given.get(issue.name)
+            kind = _issue_kind(issue)
+            numeric = kind in ("int", "float", "number")
+            lo = hi = None
+            if numeric:
+                try:
+                    lo, hi = float(issue.min_value), float(issue.max_value)
+                except Exception:  # noqa: BLE001
+                    lo = hi = None
+            if isinstance(v, str) and v.lower() in ("increasing", "decreasing", "higher", "lower"):
+                if lo is None or hi is None or hi - lo <= 0:
+                    raise ValueError(f"{issue.name!r} is not numeric: give a value per option")
+                up = v.lower() in ("increasing", "higher")
+                funs.append(AffineFun(slope=(1 if up else -1) / (hi - lo), bias=(-lo if up else hi) / (hi - lo)))
+                continue
+            if v is None:
+                v = {}
+            if not isinstance(v, dict):
+                raise ValueError(f"the values of {issue.name!r} must map options to numbers")
+            if kind == "float":
+                raise ValueError(f"{issue.name!r} is continuous: use \"increasing\" or \"decreasing\"")
+            options = list(issue.all)
+            table = {o: 0.0 for o in options}
+            for opt, val in v.items():
+                o = self._coerce(issue, opt)
+                if o not in table:
+                    raise ValueError(f"{opt!r} is not an option of {issue.name!r}")
+                try:
+                    table[o] = float(val)
+                except (TypeError, ValueError):
+                    raise ValueError(f"the value of {opt!r} in {issue.name!r} must be a number") from None
+            funs.append(TableFun(table))
+        try:
+            rv = float(spec.get("reserved_value", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            raise ValueError("reserved_value must be a number") from None
+        return LinearAdditiveUtilityFunction(
+            values=funs, weights=[weights[i.name] / total for i in issues], outcome_space=sc.outcome_space,
+            reserved_value=rv, name="opponent (estimate)")
+
+    def opponent_estimate_summary(self) -> dict[str, Any] | None:
+        """The estimate as plain data (its reserved value and best outcome), or ``None``."""
+        u = self.opponent_ufun_estimate
+        if u is None:
+            return None
+        out: dict[str, Any] = {"by": self.opponent_estimate_by,
+                               "reserved_value": float(getattr(u, "reserved_value", 0.0) or 0.0)}
+        try:
+            best = max(self.scenario.outcome_space.enumerate_or_sample(max_cardinality=2000), key=lambda o: float(u(o)))
+            out["best_outcome"] = self.outcome_str(best)
+        except Exception:  # noqa: BLE001
+            pass
+        return out
+
+    def _sync_opponent_estimate(self, force: bool = False) -> None:
+        """Notice a new, changed or removed estimate (also one set straight on the negotiator's
+        ``private_info``): bump :attr:`opponent_estimate_version`, add the Negotiation Plot for a
+        participant who does not have it, remove that plot again when the estimate goes, and
+        redraw the tools that show it."""
+        u = self.opponent_ufun_estimate
+        key = id(u) if u is not None else None
+        if not force and key == self._opponent_estimate_seen:
+            return
+        self._opponent_estimate_seen = key
+        self.opponent_estimate_version += 1
+        from hani2.tools.builtin import NegotiationPlotTool, UtilitySelectorTool
+
+        plot = next((t for t in self.tools if isinstance(t, NegotiationPlotTool)), None)
+        if u is not None and plot is None:
+            self._add_estimate_plot()
+        elif u is None and plot is not None and getattr(plot, "estimate_only", False):
+            self.remove_tool(plot.name, by="system")
+        for t in list(self.tools):
+            if isinstance(t, (NegotiationPlotTool, UtilitySelectorTool)):
+                t.refresh()
+
+    def _add_estimate_plot(self) -> None:
+        """Give this participant the Negotiation Plot, limited to the estimate, unless the tool is
+        disabled or not offered here, or the participant may not see what deals are worth."""
+        from hani2.tools import registry
+        from hani2.tools.builtin import NegotiationPlotTool
+
+        try:
+            with projects.use_study(self.study_ref):
+                spec = next((sp for sp in registry.tool_specs() if sp.cls is NegotiationPlotTool), None)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            return
+        if spec is None:
+            return
+        if not spec.guest and getattr(self, "anonymous_guest", self.mode == "guest"):
+            return
+        if not self.sees_totals("human"):
+            return
+        inst = NegotiationPlotTool(self.ss, enabled=True)
+        inst.name = spec.name
+        inst.estimate_only = True
+        self.add_tool(inst, pane=spec.pane, at_front=False, focus=False,
+                      by=self._opponent_estimate_by or "system")
+
     def opponent_utility(self, outcome) -> float | None:
         u = self.opponent_ufun
         if outcome is None or u is None or any(v is None for v in outcome):
@@ -1038,6 +1247,7 @@ class NegotiationSession:
         self.push_state()
 
     def _tools_hook(self, hook: str, *args) -> None:
+        self._sync_opponent_estimate()
         nmi = None
         m = self.mechanism
         if m is not None:
@@ -1206,6 +1416,7 @@ class NegotiationSession:
             if criteria is not None:
                 scenario.info = {k: v for k, v in (scenario.info or {}).items() if k != "evaluation"}
             self.ss["scenario_evaluation"] = criteria
+            self._opponent_estimate, self._opponent_estimate_by = None, None  # it was for the last scenario
             self.ss["scenario"] = scenario
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir
@@ -1571,7 +1782,9 @@ class NegotiationSession:
         from hani2.support_agent import autopilot as ap
 
         driver = ap.make_negotiator_driver(self)
-        human = HumanPlaceholder(name=human_name, id=human_name, session=self, driver=driver)
+        est = self._opponent_estimate
+        human = HumanPlaceholder(name=human_name, id=human_name, session=self, driver=driver,
+                                 private_info={"opponent_ufun": est} if est is not None else None)
         negotiators = [None, None]
         negotiators[hi] = human
         negotiators[1 - hi] = agent

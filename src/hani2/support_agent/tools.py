@@ -82,6 +82,8 @@ class ToolDispatcher:
             "annotate": (Capability.ANNOTATE, self._annotate, self._schema_annotate),
             "set_layout": (Capability.LAYOUT, self._set_layout, self._schema_set_layout),
             "set_presentation": (Capability.PRESENTATION, self._set_presentation, self._schema_set_presentation),
+            "set_opponent_estimate": (Capability.OPPONENT_MODEL, self._set_opponent_estimate,
+                                      self._schema_set_opponent_estimate),
             "show_panel": (Capability.PANELS, self._show_panel, self._schema_show_panel),
             "close_panel": (Capability.PANELS, self._close_panel, self._schema_close_panel),
             "read_tool": (Capability.TOOL_USE, self._read_tool, self._schema_read_tool),
@@ -883,6 +885,37 @@ class ToolDispatcher:
                 "may_hide": {"type": "boolean"},
                 "may_show": {"type": "boolean"},
                 "reset": {"type": "boolean"},
+            },
+            [],
+        )
+
+    def _set_opponent_estimate(self, args: dict) -> dict:
+        if args.get("clear"):
+            res = self._session().set_opponent_estimate(None, by="assistant")
+        else:
+            spec = {k: args[k] for k in ("weights", "values", "reserved_value") if k in args}
+            if not spec.get("weights") and not spec.get("values"):
+                return {"ok": False, "error": "give weights and/or values (or clear: true)"}
+            res = self._session().set_opponent_estimate(spec, by="assistant")
+        _log_agent_action(self.ss, "set_opponent_estimate", "clear" if args.get("clear") else
+                          str({k: args.get(k) for k in ("weights", "reserved_value")})[:120])
+        return res
+
+    def _schema_set_opponent_estimate(self) -> dict:
+        return _fn(
+            "set_opponent_estimate",
+            "Share your estimate of the opponent's preferences, for example from its offers. The "
+            "participant's Negotiation Plot then shows every deal by their utility and the opponent's "
+            "estimated utility, and the Utility-based Selector can show and choose deals by it; both "
+            "say clearly it is an estimate. weights: issue name -> importance (any positive numbers; "
+            "equal if omitted). values: issue name -> {option: value from 0 to 1}, or 'increasing' / "
+            "'decreasing' for numeric issues. reserved_value: the opponent's estimated value of no "
+            "deal (0 to 1). Call again to update it, or with clear: true to remove it.",
+            {
+                "weights": {"type": "object", "additionalProperties": {"type": "number"}},
+                "values": {"type": "object"},
+                "reserved_value": {"type": "number"},
+                "clear": {"type": "boolean"},
             },
             [],
         )

@@ -330,6 +330,19 @@ class SupportAgent:
         return self._denied(Capability.PRESENTATION) or self.session.set_assistant_presentation(
             style, may_hide=may_hide, may_show=may_show, clear=clear)
 
+    def set_opponent_estimate(self, estimate: Any = None) -> dict:
+        """Share an estimate of the opponent's utility function: a negmas utility function over
+        the scenario's outcome space, or a mapping with ``weights`` (issue → number), ``values``
+        (issue → {option: number}, or ``"increasing"`` / ``"decreasing"``) and ``reserved_value``.
+        ``None`` clears it. It goes into the human negotiator's ``opponent_ufun``, and while it is
+        set the participant's Negotiation Plot and Utility-based Selector show it, marked as an
+        estimate. It lasts until the next scenario. Needs ``opponent_model``."""
+        return self._denied(Capability.OPPONENT_MODEL) or self.session.set_opponent_estimate(estimate, by="assistant")
+
+    def opponent_estimate(self) -> Any:
+        """The estimate of the opponent's utility function now set (by anyone), or ``None``."""
+        return self.session.opponent_ufun_estimate
+
     def focus_tool(self, name: str) -> dict:
         """Bring a tool to the front. Needs ``tool_visibility``."""
         return self._denied(Capability.TOOL_VISIBILITY) or self.session.tool_controller.focus_tool(name)

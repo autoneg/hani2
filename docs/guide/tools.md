@@ -41,10 +41,10 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | My Results | upper | always | yes (permanent) | logged-in users (not guests) | Your score (the average of your best result per scenario), the number of negotiations and agreements, a per-scenario score table and a searchable table of every negotiation you finished, with a column picker. Practice rounds appear in the table but not in the score or counts. |
 | Value Histogram | lower | start | yes | everyone | How often each value of the selected issues was offered by you and by the opponent. Bar charts for discrete issues with at most 25 values, histograms otherwise. Options: which issues, include your offers, two columns. |
 | Utility Plot | lower | start | no | everyone | The utility (for you) of every offer over time, one line per party, with a dotted line labelled *No deal* at your value on disagreement. You can choose the X axis (relative time, step, time) and Y axis. Admins (or everyone, see below) can also plot the opponent's utility. |
-| Negotiation Plot | lower | load | yes | admins only | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
+| Negotiation Plot | lower | load | yes | admins only; everyone while an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
 | Outcome Plot | lower | start | no | everyone | The offers placed in the outcome space: any two issues, relative time or step on the axes, with an option to hide your own offers. |
 | Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins (or everyone, see below) can add an "Opponent utility" column. |
-| Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer. A **Set Offer** button picks one outcome from the range. |
+| Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer. A **Set Offer** button picks one outcome from the range. While an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set, it can also show the opponent's estimated utility and choose deals by it. |
 | LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
 | Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table (practice rounds are not scored or ranked). |
@@ -59,6 +59,33 @@ Every tool has a help text that says what it does and how it works. Participants
 ### Opening admin-only tools to participants
 
 Every admin-only tool can be given to all participants: in the admin console under **Tools**, untick **Admins only** next to the tool (this writes `tools.overrides.<name>.admin_only = false` in `env.json`). Tick **Participants see opponent utilities** (`tools.show_opponent_utility`) to let everyone show the opponent's utility in the Utility Plot and Trace. Both apply to sessions started after saving. Keep in mind that Opponent Preferences, Negotiation Plot and the opponent-utility options reveal the opponent's private preferences, and All Results shows other participants' results.
+
+### An estimate of the opponent's preferences
+
+An estimate of the opponent's utility function can be set for a negotiation: by the Assistant
+(`set_opponent_estimate`, see [Estimating the opponent](assistant.md#estimating-the-opponent)), by
+Python code with `session.set_opponent_estimate(ufun)`, or straight on the human's negmas negotiator
+(`private_info["opponent_ufun"]`, which negmas exposes as `Negotiator.opponent_ufun`). It lasts
+until the next scenario loads. While one is set:
+
+- **Negotiation Plot.** A participant who does not have the tool gets it, beside the other plots
+  (marked as added by the Assistant when the Assistant set the estimate). It places every deal by
+  its value for the participant and by the opponent's *estimated* value, scaled from 0% to 100%,
+  with the Pareto frontier (dashed), Nash and Kalai points and both sides' offers computed from
+  the estimate. A yellow **Estimate** banner says so, and the y axis reads *Opponent utility
+  (estimate)*. This copy never shows the real preferences and goes away when the estimate is
+  cleared. Those who have the tool anyway (admins, or everyone when an admin opened it) see the
+  estimate by default too, and switch to the real preferences with **Opponent's side**; the
+  banner then reads **Real preferences**, as it does whenever no estimate is set.
+- **Utility-based Selector.** A banner says an estimate is set. The table gets an *Opponent
+  (estimate)* column (**Show the opponent's estimate**), and **Choose deals by** switches the
+  sliders, the order of the table and **Set Offer** to the opponent's estimated utility, while the
+  *Utility* column keeps showing what each deal is worth to the participant. Picking a row fills
+  only the issues.
+
+None of this appears while no estimate is set. A participant who may not see what deals are worth
+to them ([Who knows what](information.md)) does not get the plot, and `tools.disabled` or a study's
+`offer` list that leaves out the Negotiation Plot keeps it away as well.
 
 The Utility-based Selector needs the inverse of your utility function. When the scenario folder contains a cached inverter (`inverter_h<index>.pkl`, created by `hani2 generate`; see [Scenarios](scenarios.md)) and it matches the utility function, the tool uses it; otherwise it computes one when the negotiation starts.
 
