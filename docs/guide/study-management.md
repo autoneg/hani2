@@ -392,7 +392,7 @@ The counts are kept in `<study results>/match_cells.json`:
 - **Only completed matches fill a cell.** A match is completed when both rows were written, neither
   is abandoned and the status is not `erred` (a deal, no deal in time and a refusal all count).
 - A match that is **being played** is *in flight*: it counts when the next match is chosen, so two
-  people arriving at the same moment do not both take the emptiest cell. A match whose partners were
+  people arriving at the same moment do not both take the emptiest cell. A match whose two people were
   separated before the start, an abandoned match and an erred one release their entry and fill
   nothing. An entry older than the time limit plus 10 minutes is dropped.
 - AI games (the fallback below) never fill a cell.
@@ -493,7 +493,7 @@ counted negotiations (for example after abandoned matches).
 | Cell balance | Best effort, greedy | The same reason |
 | Position balance | Best effort | The joiner's pick depends on whom it meets |
 | Order and carry-over balance | **Not guaranteed** | Pairing reorders each person's set |
-| Every person completes all K with people | **Not guaranteed** | Arrivals: the last person waiting can be left without a partner |
+| Every person completes all K with people | **Not guaranteed** | Arrivals: the last person waiting can be left with nobody to meet |
 
 `hani2 study balance` shows how far the balance got (see [Monitoring](#monitoring)).
 
@@ -638,7 +638,7 @@ type: lab
 title: People against people
 overrides:
   study_mode: paired                  # opponents: [human] and assistants: [none] are filled in
-  pairing: {fallback: wait}           # a supervised session: keep waiting for a partner
+  pairing: {fallback: wait}           # a supervised session: keep waiting for a person
 ```
 
 ## Forms and questionnaires
@@ -809,7 +809,7 @@ See [Project management: scores](project-management.md#scores) and run
   the spread over the planned cells), the matches in flight, the completed matches per Assistant,
   Assistant × position, the pairs of Assistants used by the same person, the same-Assistant matches,
   the AI fallbacks, the Assistants skipped because nobody could be paired (`fallback: end`) and the
-  people with fewer than K counted negotiations (still playing, or left without a partner).
+  people with fewer than K counted negotiations (still playing, or left with nobody to meet).
 - `GET /api/admin/projects/{project}/studies/{study}/balance` and `.../assignments` return the same as JSON (see [Admin API](#admin-api)); the Paired part is under `paired` (`null` for a Solo study).
 
 ## Results
