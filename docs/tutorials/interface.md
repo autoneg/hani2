@@ -43,7 +43,7 @@ in the no-tools one:
 {"interface": {"view": "full"}}
 ```
 
-`view` is where every session starts. `view_locked` keeps it there: the layout menu disappears,
+`view` is where every session starts (the simple view when it is not set; `simple_tools_side: left` puts its tools on the left). `view_locked` keeps it there: the layout menu disappears,
 the server refuses view changes from the participant, and the Assistant's `set_layout` returns
 *the study fixes the view*. Administrators are never locked, so you can still open a tool while you
 check the study.

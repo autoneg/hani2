@@ -641,3 +641,28 @@ def fresh_admin(p) -> str:
     assert p.request.post("/api/auth/logout").ok
     assert p.request.post("/api/auth/login", data={"username": name, "password": "secret1"}).ok
     return name
+
+
+def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
+    """Sessions open in the simple view (tools on the right). The Preferences tool's In short card,
+    on top, holds the hints with an arrow per issue, folds away and stays folded when the tool
+    re-renders (another issue picked)."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    expect(p.locator("[data-region=tools]")).to_have_attribute("data-side", "right")
+    p.get_by_role("tab", name="Preferences").first.click()
+    summary = p.get_by_role("button", name="In short")
+    expect(summary).to_have_attribute("aria-expanded", "true")
+    expect(p.get_by_text("What you want on each issue")).to_be_visible()
+    # one arrow per directional sentence ("the higher, the better", "best at 5", ...); unordered
+    # options ("From best to worst: ...") get none
+    dds = p.locator("[data-region=tools] dd").filter(has_text=re.compile(r"^(The (higher|lower|more|fewer)|Best at)"))
+    assert p.locator("[data-region=tools] [data-mark]").count() == dds.count()
+    summary.click()
+    expect(summary).to_have_attribute("aria-expanded", "false")
+    expect(p.get_by_text("What you want on each issue")).to_have_count(0)
+    issue = p.locator("[data-region=tools] select").first
+    options = issue.locator("option").all_inner_texts()
+    issue.select_option(options[-1])
+    p.wait_for_timeout(800)  # the tool re-renders with the other issue
+    expect(summary).to_have_attribute("aria-expanded", "false")

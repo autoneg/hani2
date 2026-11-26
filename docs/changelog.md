@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
+  the bottom into the *In short* card on top, which now folds away with a click (and stays folded
+  while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow
+  up (the more, the better), a red arrow down (the less, the better) or two blue arrows meeting
+  (best at one value). Administrators can draw the issue weights as one thin horizontal bar instead
+  of the donut (`tools.weights_chart: bar`, *Issue weights shown as* on the **Tools** page). For
+  tool authors: `ui.kv(..., marks=[...])` puts such an icon after a value, `ui.legend(...)` is a colour key that wraps, and
+  `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a donut
+  or a bar](guide/preferences.md#weights-as-a-donut-or-a-bar).
+- **Tools on either side in the simple view.** `interface.simple_tools_side` (`right`, the
+  default, or `left`) puts the simple view's tools column on either side of the negotiation. The
+  console's **Participant interface** page gets a *Layout* group with the starting view, the view
+  lock and the tools side. See [Layout views](guide/interface.md#layout-views).
+- **Forced value on disagreement.** The project and study setting `force_reserved_value` gives
+  the participant the same value on disagreement in every negotiation (for example `0`), whatever
+  the scenario says; the opponent keeps the scenario's value. Unset, scenarios keep their own values. In the console: *Forced value on
+  disagreement* under *Projects*. See [Forcing the value on
+  disagreement](guide/project-management.md#forcing-the-value-on-disagreement).
 - **The simple view is the default.** Sessions start in the simple view (the thread, the offer area
   and one tools column) instead of the full view, unless `?view=`, a study or a project
   (`env.json` → `interface.view`) chooses another. Set `interface.view: full` to keep the old start.

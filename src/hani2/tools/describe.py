@@ -84,6 +84,9 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
             out.append(pad + f"{k}: {_fmt(v)}")
     elif t == "progress":
         out.append(pad + f"{c.get('label') or 'progress'}: {_fmt(c.get('value'))}")
+    elif t == "legend":
+        out.append(pad + "Key: " + ", ".join(f"{i.get('label')}" + (f" {_fmt(i['value'])}" if "value" in i else "")
+                                              for i in c.get("items") or []))
     elif t == "outcome":
         vals = ", ".join(f"{k}={_fmt(v)}" for k, v in (c.get("values") or {}).items())
         out.append(pad + (f"{c['label']}: " if c.get("label") else "Offer: ") + vals

@@ -141,6 +141,8 @@ def relabel_components(obj: Any, m: dict[str, str]) -> Any:
         out["value"] = relabel_value(obj.get("value"), m)
     elif t == "kv":
         out["items"] = [[k, relabel_value(v, m)] for k, v in obj.get("items") or []]
+    elif t == "legend":
+        out["items"] = [dict(i, label=relabel_value(i.get("label"), m)) for i in obj.get("items") or []]
     elif t == "outcome":
         out["values"] = {k: relabel_value(v, m) for k, v in (obj.get("values") or {}).items()}
     if isinstance(obj.get("children"), list):

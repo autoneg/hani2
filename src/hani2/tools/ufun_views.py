@@ -45,6 +45,7 @@ __all__ = [
     "reserved_sentence",
     "describe_issue",
     "issue_explanations",
+    "explain_issue",
     "preference_summary",
     "MAX_DEPTH",
     "MAX_OUTCOMES",
@@ -70,7 +71,7 @@ quantity or a delivery time). Each issue contributes in two steps:
 - **Issue value** — within one issue, each option is worth a percentage to you
   (the bar chart). 100% is your favourite option for that issue, 0% your least
   favourite.
-- **Issue weight** — issues are not equally important. The donut chart shows
+- **Issue weight** — issues are not equally important. The weights chart shows
   how much each issue *weighs*; the weights add up to 100%.
 
 Your total score for a deal is the **weighted sum** of the issue values:
@@ -439,8 +440,45 @@ def _fun_plot(issue: Any, fn: Any) -> ui.Component:
     return _bars(labels, vals)
 
 
-def _weights_plot(names: list[str], weights: list[float]) -> ui.Component:
-    """A donut when all weights are non-negative, signed bars otherwise."""
+#: how the Preferences tool draws non-negative issue weights (env.json → ``tools.weights_chart``)
+WEIGHTS_CHARTS = ("donut", "bar")
+
+
+def weights_chart() -> str:
+    """``donut`` (a ring) or ``bar`` (one thin stacked bar, saves space): env.json → ``tools.weights_chart``."""
+    from hani2.config import get_env
+
+    v = str(get_env("tools.weights_chart", "donut") or "donut").lower()
+    return v if v in WEIGHTS_CHARTS else "donut"
+
+
+def _weights_bar(names: list[str], weights: list[float]) -> ui.Component:
+    """One thin horizontal bar split into the issues' shares (the share inside a segment when it
+    fits), with a key under it that wraps to the pane's width and names every issue."""
+    tot = sum(weights)
+    shares = [100 * w / tot for w in weights]
+    colors = SEQUENCE * (len(names) // len(SEQUENCE) + 1)
+    data = [go.Bar(y=[""], x=[sh], orientation="h", name=str(n), marker_color=colors[i],
+                   text=[f"{sh:.0f}%"], textposition="inside", insidetextanchor="middle",
+                   textangle=0, customdata=[str(n)],
+                   hovertemplate="%{customdata}: %{x:.0f}%<extra></extra>")
+            for i, (n, sh) in enumerate(zip(names, shares))]
+    fig = go.Figure(data=data)
+    fig.update_layout(**base_layout(
+        34, legend=False, barmode="stack", bargap=0,
+        xaxis=dict(range=[0, 100], visible=False, fixedrange=True),
+        yaxis=dict(visible=False, fixedrange=True),
+        uniformtext=dict(mode="hide", minsize=9),
+        margin=dict(l=2, r=2, t=2, b=2)))
+    key = ui.legend([(n, colors[i], f"{sh:.0f}%") for i, (n, sh) in enumerate(zip(names, shares))])
+    return ui.column(ui.plot(fig), key, gap=2)
+
+
+def _weights_plot(names: list[str], weights: list[float], style: str | None = None) -> ui.Component:
+    """A donut (or, with ``style="bar"``, one stacked bar) when all weights are
+    non-negative, signed bars otherwise."""
+    if all(w >= 0 for w in weights) and sum(weights) > 0 and (style or weights_chart()) == "bar":
+        return _weights_bar([str(n) for n in names], weights)
     if all(w >= 0 for w in weights) and sum(weights) > 0:
         fig = go.Figure(
             data=[go.Pie(labels=names, values=weights, hole=0.55, textinfo="label+percent",
@@ -475,15 +513,15 @@ def _bias_stat(ufun: Any) -> ui.Component | None:
 
 
 #: the short texts under the chart titles (``(you, opponent)``)
-WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal: a bigger slice is a more important "
-                   "issue. The slices add up to 100%.",
-                   "How much each issue counts in the opponent's total for a deal: a bigger slice is a more "
-                   "important issue. The slices add up to 100%.")
+WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal: a bigger share is a more important "
+                   "issue. The shares add up to 100%.",
+                   "How much each issue counts in the opponent's total for a deal: a bigger share is a more "
+                   "important issue. The shares add up to 100%.")
 SIGNED_WEIGHTS_CAPTION = ("How much your total changes for every extra unit of each issue (red: it goes down).",
                           "How much the opponent's total changes for every extra unit of each issue (red: it "
                           "goes down).")
-PARTS_CAPTION = ("How much each set of preferences counts in your total. The slices add up to 100%.",
-                 "How much each set of preferences counts in the opponent's total. The slices add up to 100%.")
+PARTS_CAPTION = ("How much each set of preferences counts in your total. The shares add up to 100%.",
+                 "How much each set of preferences counts in the opponent's total. The shares add up to 100%.")
 VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: 100% is your favourite option "
                   "of that issue, 0% your least favourite.",
                   "Pick an issue to see what each of its options is worth to the opponent: 100% is its "
@@ -860,7 +898,7 @@ def _nested_cards(ctx: UfunViewContext, parts: list) -> list[ui.Component]:
 
 WEIGHTED_HELP_MD = """
 Your total for a deal combines **several sets of preferences**. Each part
-gives the deal its own value, and each part has a **weight** (the donut chart)
+gives the deal its own value, and each part has a **weight** (the weights chart)
 saying how much it counts.
 
 > total = weight₁ × part₁ + weight₂ × part₂ + …
@@ -1093,17 +1131,30 @@ def describe_issue(issue: Any, fn: Any, *, fmt: str = "{}", unit: tuple[str, str
     5 days; the further away from it, the worse.", "Best: Red, then Blue; worst:
     Green." ``unit`` (an item split): the issue counts items, ``own`` maps an
     issue value to how many items the owner gets. ``None`` when nothing can be said."""
+    return explain_issue(issue, fn, fmt=fmt, unit=unit, own=own, opponent=opponent)[0]
+
+
+#: the direction of an issue (see :func:`explain_issue`): more is better, less is better, a best value
+DIRECTIONS = ("up", "down", "target")
+
+
+def explain_issue(issue: Any, fn: Any, *, fmt: str = "{}", unit: tuple[str, str] | None = None,
+                  own: Callable[[Any], Any] | None = None,
+                  opponent: bool = False) -> tuple[str | None, str | None]:
+    """``(sentence, direction)``: the sentence of :func:`describe_issue` and the
+    direction it states: ``"up"`` (the more, the better), ``"down"`` (the less,
+    the better), ``"target"`` (best at one value) or ``None`` (anything else)."""
     try:
         labels = _issue_labels(issue, n_cont=21)
         vals = [_apply(fn, v) for v in labels]
     except Exception:  # noqa: BLE001
-        return None
+        return None, None
     if not labels or not all(_finite(v) for v in vals):
-        return None
+        return None, None
     you = "the opponent" if opponent else "you"
     kind, at = _shape(vals)
     if kind == "flat":
-        return f"It does not matter to {you}: every option is worth the same."
+        return f"It does not matter to {you}: every option is worth the same.", None
     numeric = all(_is_number(v) for v in labels)
     if unit is not None and numeric:
         many = unit[1] if len(unit) > 1 else str(issue.name)
@@ -1112,9 +1163,9 @@ def describe_issue(issue: Any, fn: Any, *, fmt: str = "{}", unit: tuple[str, str
         k, _ = _shape([v for _, v in pairs])
         who = "the opponent gets" if opponent else "you get"
         if k == "up":
-            return f"The more {many} {who}, the better."
+            return f"The more {many} {who}, the better.", "up"
         if k == "down":
-            return f"The fewer {many} {who}, the better."
+            return f"The fewer {many} {who}, the better.", "down"
     if numeric and len(labels) > 2:
         # how the value grows on the way from the worst option to the best one
         pace = _pace(vals if kind == "up" else vals[::-1]) if kind in ("up", "down") else ""
@@ -1122,21 +1173,21 @@ def describe_issue(issue: Any, fn: Any, *, fmt: str = "{}", unit: tuple[str, str
                "early": " (the first steps away from the worst option matter most)",
                "late": " (only the steps close to the best option really count)"}.get(pace, "")
         if kind == "up":
-            return f"The higher, the better{how}."
+            return f"The higher, the better{how}.", "up"
         if kind == "down":
-            return f"The lower, the better{how}."
+            return f"The lower, the better{how}.", "down"
         best = _fmt_option(labels[at], fmt)
         if kind == "peak":
-            return f"Best at {best}; the further away from it, the worse."
+            return f"Best at {best}; the further away from it, the worse.", "target"
         if kind == "valley":
-            return f"Worst at {_fmt_option(labels[at], fmt)}; the further away from it, the better."
+            return f"Worst at {_fmt_option(labels[at], fmt)}; the further away from it, the better.", None
     order = sorted(range(len(labels)), key=lambda i: -vals[i])
     names = [_fmt_option(labels[i], fmt) for i in order]
     if len(names) == 2:
-        return f"Best: {names[0]}; worst: {names[1]}."
+        return f"Best: {names[0]}; worst: {names[1]}.", None
     if len(names) <= 5:
-        return f"From best to worst: {', '.join(names)}."
-    return f"Best: {names[0]}, then {names[1]}; worst: {names[-1]}."
+        return f"From best to worst: {', '.join(names)}.", None
+    return f"Best: {names[0]}, then {names[1]}; worst: {names[-1]}.", None
 
 
 def _issue_funs(ufun: Any) -> list | None:
@@ -1151,12 +1202,13 @@ def _issue_funs(ufun: Any) -> list | None:
 
 
 def issue_explanations(ufun: Any, info: dict | None = None, *, roles: Sequence[str] = (),
-                       opponent: bool = False) -> list[tuple[str, str]]:
+                       opponent: bool = False, directions: bool = False) -> list[tuple]:
     """``[(issue, sentence)]``: what the owner of ``ufun`` wants on every issue
     (see :func:`describe_issue`), using the formats and item units of the
     scenario ``info``. ``roles`` are the scenario's role names (in an item split
     the issues count the items of the role ``human``). Empty for utility
-    functions without one value function per issue."""
+    functions without one value function per issue. ``directions``: triples
+    ``(issue, sentence, direction)`` (see :func:`explain_issue`)."""
     funs = _issue_funs(ufun)
     if not funs:
         return []
@@ -1174,10 +1226,10 @@ def issue_explanations(ufun: Any, info: dict | None = None, *, roles: Sequence[s
         if unit is not None and flipped:
             total = totals.get(name, issue.max_value)
             own = (lambda v, t=total: t - v)
-        text = describe_issue(issue, fn, fmt=fmts.get(name, "{}"), unit=unit, own=own,  # type: ignore[arg-type]
-                              opponent=opponent)
+        text, way = explain_issue(issue, fn, fmt=fmts.get(name, "{}"), unit=unit, own=own,  # type: ignore[arg-type]
+                                  opponent=opponent)
         if text:
-            out.append((name, text))
+            out.append((name, text, way) if directions else (name, text))
     return out
 
 

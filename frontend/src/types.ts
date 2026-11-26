@@ -182,7 +182,7 @@ export interface SessionState {
   settings: Record<string, Json>;
   highlights: Highlight[];
   annotations: Record<string, { text: string; kind: string }>;
-  layout: { view: "full" | "simple" | "focus" | "bare"; sizes?: Record<string, number>; collapsed?: string[]; locked?: boolean };
+  layout: { view: "full" | "simple" | "focus" | "bare"; sizes?: Record<string, number>; collapsed?: string[]; locked?: boolean; tools_side?: "right" | "left" };
   /** a style sheet the Assistant added to the page (see CustomStyle) */
   custom_css?: string | null;
   /** the session's overrides of the scenario's display keys */

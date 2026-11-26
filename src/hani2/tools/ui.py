@@ -72,6 +72,7 @@ __all__ = [
     "grid",
     "card",
     "divider",
+    "legend",
     "progress",
     "html",
     "image",
@@ -151,9 +152,22 @@ def stats(*items: Component) -> Component:
     return _c("stats", children=list(items))
 
 
-def kv(data: dict[str, Any] | Sequence[tuple[str, Any]], title: str | None = None) -> Component:
+#: the marks :func:`kv` can put after a value: an arrow up (green), down (red) or two arrows
+#: meeting at a point (blue)
+KV_MARKS = ("up", "down", "target")
+
+
+def kv(data: dict[str, Any] | Sequence[tuple[str, Any]], title: str | None = None, *,
+       marks: Sequence[str | None] | dict[str, str | None] | None = None) -> Component:
+    """Key–value rows. ``marks`` (one per row, or by key): a :data:`KV_MARKS` icon after the value."""
     items = list(data.items()) if isinstance(data, dict) else list(data)
-    return _c("kv", title=title, items=[[str(k), jsonable(v)] for k, v in items])
+    out = _c("kv", title=title, items=[[str(k), jsonable(v)] for k, v in items])
+    if marks is not None:
+        ms = [marks.get(k) for k, _ in items] if isinstance(marks, dict) else list(marks)
+        ms = [m if m in KV_MARKS else None for m in ms[:len(items)]] + [None] * max(0, len(items) - len(ms))
+        if any(ms):
+            out["marks"] = ms
+    return out
 
 
 def html(content: str) -> Component:
@@ -178,6 +192,16 @@ def figure(picture: Component, *children: Component | None, placement: str = "si
 
 def divider() -> Component:
     return _c("divider")
+
+
+def legend(items: Sequence[tuple[str, str] | tuple[str, str, Any]]) -> Component:
+    """A colour key that wraps to the pane's width: ``(label, colour)`` or ``(label, colour, value)``
+    per entry (the value, such as ``"30%"``, is shown after the label)."""
+    out = []
+    for it in items:
+        label, color, *rest = it
+        out.append({"label": str(label), "color": str(color), **({"value": jsonable(rest[0])} if rest else {})})
+    return _c("legend", items=out)
 
 
 def progress(value: float, label: str | None = None, kind: str | None = None) -> Component:

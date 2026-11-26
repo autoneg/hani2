@@ -34,7 +34,7 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Name | Pane | Timing | On by default | Who gets it | What it shows |
 |------|------|--------|---------------|-------------|---------------|
 | Scenario Info | upper | load | yes (permanent) | everyone | The scenario title, a "You act as ..." badge, the short description, a table of issues with their options and per-role descriptions, the hints for your role, and the long description in a collapsible card. |
-| Preferences | upper | load | yes (permanent) | everyone | A donut chart of your issue weights, a bar chart of the value of every option of the selected issue, your value on disagreement, and a collapsible explanation of how a deal's value is computed. |
+| Preferences | upper | load | yes (permanent) | everyone | A summary with your hints (collapsible, on top), a donut chart (or one bar) of your issue weights, a bar chart of the value of every option of the selected issue, your value on disagreement, and a collapsible explanation of how a deal's value is computed. |
 | Briefing | upper | load | yes | when the participant has a private briefing or decisions only they make ([Who knows what](information.md)) | The participant's private instructions and limits, and which issues and actions only they decide. |
 | Past Negotiations | upper | load | yes | when the participant holds past negotiations ([Who knows what](information.md)) | The past negotiations in this scenario that the participant holds: a table of them, and for the one picked its offers in a chart and a table. It says how many more the Assistant holds. |
 | Market Research | upper | load | yes | when the participant gets market research ([Who knows what](information.md)) | What parties like the opponent usually want: typical issue weights, the option of each issue most often liked best, the most likely best deal and the usual value on disagreement. |
@@ -104,8 +104,10 @@ made by `scripts/screenshots/make_screenshots.py` in the source repository.
 
 ### Preferences
 
-**Everyone, always (permanent).** Your preferences in the current scenario: a donut chart of the
-issue weights (how much each issue matters to you), a bar chart of what every option of the issue
+**Everyone, always (permanent).** Your preferences in the current scenario: on top, a collapsible
+*In short* card with a summary, your role's hints and an arrow per issue (up: the more, the better;
+down: the less, the better; meeting arrows: best at one value); then a donut chart (or, with
+`tools.weights_chart: bar`, one thin bar) of the issue weights (how much each issue matters to you), a bar chart of what every option of the issue
 picked in **Issue** is worth to you, your value on disagreement (what you get if there is no deal)
 and a collapsible explanation of how a deal's value is computed from the two. The value of a deal is
 the weighted sum of its options' values, so it is what the history, the offer panel and the other

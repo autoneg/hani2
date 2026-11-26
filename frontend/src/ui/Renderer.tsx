@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiState } from "../store";
-import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { Component } from "../types";
 import { Anchor } from "./Anchor";
 import { Icon } from "./Icon";
@@ -145,7 +145,10 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
             {(c.items || []).map(([k, val]: [string, any], i: number) => (
               <div key={i} className="contents">
                 <dt className="text-muted">{k}</dt>
-                <dd className="tnum font-medium">{fmtValue(val)}</dd>
+                <dd className="tnum font-medium">
+                  {fmtValue(val)}
+                  <KvMark mark={c.marks?.[i]} />
+                </dd>
               </div>
             ))}
           </dl>
@@ -185,6 +188,18 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
     }
     case "divider":
       return <hr className="border-line" />;
+    case "legend":
+      return (
+        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          {(c.items || []).map((x: any, i: number) => (
+            <li key={i} className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: x.color }} />
+              <span className="text-muted">{x.label}</span>
+              {x.value !== undefined && <span className="tnum font-medium">{fmtValue(x.value)}</span>}
+            </li>
+          ))}
+        </ul>
+      );
     case "progress":
       return (
         <div>
@@ -564,6 +579,33 @@ function RangeBar({ c, v, ctx }: { c: Component; v: any; ctx: RenderCtx }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** Two arrows meeting at a dot: "best at one value" (lucide style: 24×24, round strokes). */
+function ArrowsToDot(props: React.SVGProps<SVGSVGElement> & { strokeWidth?: number }) {
+  const { strokeWidth = 2, ...rest } = props;
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...rest}>
+      <path d="M1 12h7M5 8.5 8.5 12 5 15.5" />
+      <path d="M23 12h-7M19 8.5 15.5 12l3.5 3.5" />
+      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** The icon after a kv value: up (green, the more the better), down (red, the less the
+ *  better) or two arrows meeting at a point (blue, best at one value); as tall as the text. */
+const KV_MARKS: Record<string, { Icon: React.ElementType; cls: string; label: string }> = {
+  up: { Icon: ArrowUp, cls: "text-emerald-600 dark:text-emerald-400", label: "the more, the better" },
+  down: { Icon: ArrowDown, cls: "text-red-600 dark:text-red-400", label: "the less, the better" },
+  target: { Icon: ArrowsToDot, cls: "text-blue-600 dark:text-blue-400", label: "best at one value" },
+};
+function KvMark({ mark }: { mark?: string | null }) {
+  const m = mark ? KV_MARKS[mark] : undefined;
+  if (!m) return null;
+  return (
+    <m.Icon data-mark={mark} aria-label={m.label} role="img" strokeWidth={2.5} className={`ml-1 inline-block h-[1em] w-[1em] align-[-0.125em] ${m.cls}`} />
   );
 }
 

@@ -174,6 +174,14 @@ function Desktop() {
       label="Resize the tools"
     />
   );
+  // the simple view's one tool column: right of the negotiation, or left (interface.simple_tools_side)
+  const simpleLeft = st.layout.tools_side === "left";
+  const simpleTools = (
+    <div data-region="tools" data-side={simpleLeft ? "left" : "right"} className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+      {overTools && <Assistant fill />}
+      <ToolPane panes={["upper", "lower", "side"]} className={`flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />
+    </div>
+  );
   return (
     <div ref={rowRef} className="flex min-h-0 flex-1">
       {toolsCol && (
@@ -187,14 +195,17 @@ function Desktop() {
           {toolsSplitter(false)}
         </>
       )}
+      {simpleCol && simpleLeft && (
+        <>
+          {simpleTools}
+          {toolsSplitter(false)}
+        </>
+      )}
       <Center withSide={sideCol} />
-      {simpleCol && (
+      {simpleCol && !simpleLeft && (
         <>
           {toolsSplitter(true)}
-          <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
-            {overTools && <Assistant fill />}
-            <ToolPane panes={["upper", "lower", "side"]} className={`flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />
-          </div>
+          {simpleTools}
         </>
       )}
       {assistantOpen &&

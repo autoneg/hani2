@@ -44,6 +44,7 @@ DEFAULT_KEYS = (
     "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
     "scores", "scores_enabled", "normalisation",
+    "force_reserved_value",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",

@@ -210,6 +210,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
 | `view` | `simple` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
 | `view_locked` | `false` | `true`: participants and the Assistant cannot leave that view (administrators still can). Use it with `view: bare` for a no-tools condition. |
+| `simple_tools_side` | `right` | Where the tools column goes in the simple view: `right` or `left` of the negotiation. |
 
 The `participant_settings` keys:
 
@@ -322,6 +323,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.extra` | Extra tool classes, as `"module:Class"`, `"module.Class"` or `"path/to/file.py:Class"`. |
 | `tools.paths` | Extra folders (or `.py` files) to load tools from, besides `$HANI2_HOME/tools`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
+| `tools.weights_chart` | How the Preferences tool draws issue weights: `donut` (default) or `bar` (one thin horizontal bar, saves space). See [Weights as a donut or a bar](preferences.md#weights-as-a-donut-or-a-bar). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |

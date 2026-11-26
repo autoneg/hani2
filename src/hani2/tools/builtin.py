@@ -88,13 +88,15 @@ class PreferencesTool(Tool):
     help = """
     **What it shows.** How much every possible deal is worth to *you*, from 0% (worst) to 100% (best).
 
-    - **In short**: your preferences in two or three sentences (always shown).
-    - **Issue weights** (donut): how important each issue is; the weights add up to 100%.
+    - **In short** (on top; click its title to fold it away): your preferences in two or three
+      sentences, the hints of your role and, for every issue, what you want in plain words
+      ("the lower, the better", "best at 5 days") with an arrow: green up (the more, the better),
+      red down (the less, the better) or blue arrows meeting (best at one value).
+    - **Issue weights** (a donut, or one thin bar when the administrator chooses it): how
+      important each issue is; the weights add up to 100%.
     - **Value of each option** (bars): pick an issue to see what each of its options is worth to you.
     - **Value on disagreement**: one sentence under the charts, e.g. "If you do not reach agreement
       you get 10% (your best option gives you 100%)".
-    - **Hints**: the hints of your role and, for every issue, what you want in plain words
-      ("the lower, the better", "best at 5 days").
 
     **How it works.** A deal's value is the weighted sum of its options' values:
     weight₁ × value₁ + weight₂ × value₂ + … A deal worth less than your value on
@@ -129,34 +131,42 @@ class PreferencesTool(Tool):
 
 
     def _full_view(self, rv_hint: str | None) -> list[ui.Component]:
-        from hani2.tools.ufun_views import issue_explanations, preference_summary
-
         ufun = self.human_ufun
         comps = render_ufun_view(self, ufun, reserved_hint=rv_hint)
         if ufun is None:
             return comps
         body, help_ = _help_split(comps)
-        out: list[ui.Component] = []
-        summary = _safe(lambda: preference_summary(ufun))
-        if summary:
-            out.append(ui.card(ui.markdown(summary, size="sm"), title="In short"))
-        out += body
-        hints = role_hints(self)
-        s = self.scenario
+        top = summary_card(self, ufun)
+        return ([top] if top else []) + body + help_
+
+
+def summary_card(tool: Tool, ufun) -> ui.Component | None:
+    """The card on top of the Preferences tool: the preferences in short, the role's hints and
+    what the participant wants on each issue (an arrow per issue: up, down or a best value).
+    Collapsible; ``None`` when there is nothing to say."""
+    from hani2.tools.ufun_views import issue_explanations, preference_summary
+
+    parts: list[ui.Component] = []
+    summary = _safe(lambda: preference_summary(ufun))
+    if summary:
+        parts.append(ui.markdown(summary, size="sm"))
+    if _may_see_hints(tool):
+        hints = role_hints(tool)
+        s = tool.scenario
         lines = _safe(lambda: issue_explanations(
             ufun, (s.info if s is not None else None) or {},
-            roles=[str(u.name) for u in (s.ufuns if s is not None else ())])) or []
-        if not _may_see_hints(self):
-            lines = []
-        shown = getattr(self.session, "relabel_text", lambda t: t)
-        if hints or lines:
-            parts = []
-            if hints:
-                parts.append(ui.kv(hints))
-            if lines:
-                parts.append(ui.kv([(shown(n), shown(t)) for n, t in lines], title="What you want on each issue"))
-            out.append(ui.card(*parts, title="Hints"))
-        return out + help_
+            roles=[str(u.name) for u in (s.ufuns if s is not None else ())], directions=True)) or []
+        shown = getattr(tool.session, "relabel_text", lambda t: t)
+        if hints:
+            parts.append(ui.kv(hints, title="Hints"))
+        if lines:
+            parts.append(ui.kv([(shown(n), shown(t)) for n, t, _ in lines], title="What you want on each issue",
+                               marks=[w for _, _, w in lines]))
+    if not parts:
+        return None
+    card = ui.card(*parts, title="In short", collapsible=True)
+    card["id"] = "preferences-in-short"  # keeps it open or closed while the tool re-renders
+    return card
 
 
 def _safe(fn):

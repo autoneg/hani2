@@ -35,13 +35,13 @@ The layout menu offers four views. A session starts in the **simple** view unles
 | View | Desktop layout |
 | --- | --- |
 | `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility Bar and the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
-| `simple` (default) | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
+| `simple` (default) | The thread and action dock, plus one tools column with the tools from all three panes: on the right, or on the left with `interface.simple_tools_side: left`. |
 | `focus` | The thread and action dock only. The action dock's **Tools** menu (and its button for the first offer generator) opens any tool in a [popup](#open-in-a-popup); when a negotiation starts, the participant's preferences open there, and the view stays the focus view. |
 | `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
 
 ![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
 
-Add `?view=full`, `?view=simple`, `?view=focus` or `?view=bare` to the URL to choose the starting view. A study (or project) sets it with `env.json` → `interface.view`, and `interface.view_locked: true` fixes it: the layout menu disappears and the Assistant's `set_layout` is refused, so a *no tools* condition stays a no-tools condition (see [`interface`](configuration.md#interface)). A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the Assistant's layout control sets it.
+Sessions start in the simple view. Add `?view=full`, `?view=simple`, `?view=focus` or `?view=bare` to the URL to choose the starting view. A study (or project) sets it with `env.json` → `interface.view` (the console: **Participant interface** → *Layout*), and `interface.view_locked: true` fixes it: the layout menu disappears and the Assistant's `set_layout` is refused, so a *no tools* condition stays a no-tools condition (see [`interface`](configuration.md#interface)). A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the Assistant's layout control sets it.
 
 The [Shape the interface](../tutorials/interface.md) tutorial walks through the views, a no-tools study, and what the Assistant can change on the fly.
 

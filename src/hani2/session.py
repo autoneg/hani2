@@ -110,7 +110,12 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     "view": "simple",
     # true: nobody but an admin may leave that view (not the participant, not the Assistant)
     "view_locked": False,
+    # where the tools go in the simple view: right or left of the negotiation
+    "simple_tools_side": "right",
 }
+
+#: The sides the tools can take in the simple view (env.json → interface.simple_tools_side).
+TOOLS_SIDES = ("right", "left")
 
 #: Where the open Assistant goes: ``beside`` the page (a dock or a slide-over) or over the
 #: ``tools`` area, in the open tool's place (assistant_settings.json → ``presentation.place``).
@@ -635,6 +640,11 @@ class NegotiationSession:
             if v in LAYOUT_VIEWS:
                 return str(v)
         return str(DEFAULT_INTERFACE["view"])
+
+    def simple_tools_side(self) -> str:
+        """Where the tools go in the simple view: ``right`` or ``left`` (env.json → interface.simple_tools_side)."""
+        side = str(self.interface_policy().get("simple_tools_side") or "right").lower()
+        return side if side in TOOLS_SIDES else "right"
 
     def view_locked(self) -> bool:
         """Whether the study fixes the view (env.json → interface.view_locked); admins are never locked."""
@@ -1754,6 +1764,15 @@ class NegotiationSession:
                     counter=self.round_number,
                 )
             self.ss["human_index"] = hi
+            # a project's or study's forced value on disagreement: this participant's side only (an AI
+            # opponent keeps the scenario's; in a match each participant forces their own side)
+            rv = store.forced_reserved_value(self.study_ref)
+            if "forced_reserved_value" in info:  # the host's, copied with the shared scenario
+                info = {k: v for k, v in info.items() if k != "forced_reserved_value"}
+                self.ss["scenario_info"] = info
+            if store.force_reserved_value(scenario, rv, indices=(hi,)):
+                info = {**info, "forced_reserved_value": rv}
+                self.ss["scenario_info"] = info
             self.ss["human_ufun"] = scenario.ufuns[hi]
             self.ss["human_id"] = f"{scenario.ufuns[hi].name} (You)"
             self._build_information(scenario, hi, sdir, info)
@@ -3786,7 +3805,8 @@ class NegotiationSession:
                     "text_only_mode", "allow_scenario_selection")},
                 "highlights": list(self.highlights),
                 "annotations": dict(self.annotations),
-                "layout": {**self.layout, **({"locked": True} if self.view_locked() else {})},
+                "layout": {**self.layout, **({"locked": True} if self.view_locked() else {}),
+                           "tools_side": self.simple_tools_side()},
                 "custom_css": self.custom_css or None,
                 "display_overrides": dict(self.display_overrides) or None,
                 "agent_panels": list(self.agent_panels),
