@@ -957,6 +957,36 @@ def admin_scheduling_methods(_: str = Depends(require_admin)):
     return scheduling.api_payload()
 
 
+@app.get("/api/admin/criteria")
+def admin_criteria(project: str | None = None, study: str | None = None, coverage: bool = False,
+                   _: str = Depends(require_admin)):
+    """The evaluation criteria a score can use (metric columns, the questionnaire answers of the forms of
+    ``project`` or of ``study`` = ``project/study``, scores), each with its source, level, direction, default
+    normaliser and cost, and the project's reference. ``coverage=true`` evaluates the games (no judge) and
+    adds each criterion's coverage."""
+    from hani2.evaluation import criteria
+
+    try:
+        ref = projects.parse_ref(study) if study else None
+        if project:
+            projects.check_name(project, "project")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if ref is not None and project and ref.project != project:
+        raise HTTPException(400, f"study {ref} is not in project {project!r}")
+    project = ref.project if ref is not None else project
+    if coverage and not project:
+        raise HTTPException(400, "coverage needs a project or a study")
+    if project and not projects.project_exists(project):
+        raise HTTPException(404, f"no project {project!r}")
+    if ref is not None and not projects.study_exists(ref):
+        raise HTTPException(404, f"no study {ref}")
+    name = ref.study if ref is not None else None
+    rows = criteria.reference_rows(project, [name] if name else None, include_simulated=True)[0] \
+        if coverage and project else None
+    return jsonable(criteria.api_payload(project, name, rows))
+
+
 def _ref_or_404(project: str, study: str) -> "projects.StudyRef":
     try:
         ref = projects.StudyRef(projects.check_name(project, "project"), projects.check_name(study, "study"))

@@ -37,6 +37,7 @@ app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, na
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
 app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
+app.add_typer(__import__("hani2.cli_scores", fromlist=["x"]).scores_app, name="scores")
 
 
 def _open_when_ready(url: str) -> None:
