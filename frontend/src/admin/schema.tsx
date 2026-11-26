@@ -8,6 +8,7 @@ import { TextArea, TextField } from "./controls/TextField";
 import { Tags } from "./controls/Tags";
 import { Checks } from "./controls/Checks";
 import type { SearchEntry } from "./types";
+import type { HelpText } from "./helpKeys";
 
 /** A declarative setting: the same list drives the rows and the search index. */
 export interface Field {
@@ -15,6 +16,8 @@ export interface Field {
   path?: string;
   label: string;
   hint?: string;
+  /** the `?`: a key of the help texts (``GET /api/admin/help``) or a text of its own; else the entry of ``id`` */
+  help?: string | HelpText;
   keywords?: string;
   type: "toggle" | "select" | "stepper" | "text" | "password" | "textarea" | "tags" | "checks" | "custom";
   options?: Option[] | { value: string; label: string; hint?: string }[];
@@ -76,7 +79,7 @@ export function FieldRows({ fields, s }: { fields: Field[]; s: Settings }) {
   return (
     <>
       {fields.filter((f) => !f.showIf || f.showIf(s)).map((f) => (
-        <Row key={f.id} id={f.id} label={f.label} hint={f.hint} wide={f.wide ?? (f.type === "textarea" || f.type === "checks")} overridden={!!f.path && s.overridden(f.path)} onReset={f.path ? () => s.reset(f.path!) : undefined}>
+        <Row key={f.id} id={f.id} label={f.label} hint={f.hint} help={f.help} wide={f.wide ?? (f.type === "textarea" || f.type === "checks")} overridden={!!f.path && s.overridden(f.path)} onReset={f.path ? () => s.reset(f.path!) : undefined}>
           <Control f={f} s={s} />
         </Row>
       ))}

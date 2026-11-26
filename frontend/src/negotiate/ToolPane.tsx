@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bot, CircleHelp, EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
+import { Bot, EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
 import { flushDraftText, send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Icon } from "../ui/Icon";
 import { Markdown } from "../ui/Markdown";
-import { Modal } from "../ui/Modal";
+import { HelpButton } from "../ui/HelpDialog";
 import { Renderer } from "../ui/Renderer";
 import { useDevice } from "../device";
 import { Assistant } from "./Assistant";
@@ -59,7 +59,6 @@ function ToolMenu({ tool, allowMove }: { tool: ToolInfo; allowMove: boolean }) {
 /** The small "?" next to a pane's tabs: opens the active tool's help text.
  * The dialog is portalled to <body> so the pane's overflow cannot clip it. */
 export function ToolHelp({ tool }: { tool: ToolInfo }) {
-  const [open, setOpen] = useState(false);
   const text = tool.help || tool.description;
   if (!text) return null;
   const title = (
@@ -68,19 +67,17 @@ export function ToolHelp({ tool }: { tool: ToolInfo }) {
     </span>
   );
   return (
-    <>
-      <button className="btn-ghost px-1.5 py-1" onClick={() => setOpen(true)} aria-label={`About ${tool.name}`} title={`About ${tool.name}`}>
-        <CircleHelp size={15} />
-      </button>
-      {open &&
-        createPortal(
-          <Modal open onClose={() => setOpen(false)} title={title}>
-            {tool.description && tool.help && <p className="mb-3 text-sm text-muted">{tool.description}</p>}
-            <Markdown text={text} size="sm" />
-          </Modal>,
-          document.body,
-        )}
-    </>
+    <HelpButton
+      label={`About ${tool.name}`}
+      title={title}
+      wide={false}
+      render={() => (
+        <>
+          {tool.description && tool.help && <p className="mb-3 text-sm text-muted">{tool.description}</p>}
+          <Markdown text={text} size="sm" />
+        </>
+      )}
+    />
   );
 }
 

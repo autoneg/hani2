@@ -1,11 +1,17 @@
 import { RotateCcw } from "lucide-react";
+import { RowHelpButton, useRowHelp } from "./help";
+import type { HelpText } from "./helpKeys";
 
 /** One row of a group: label and hint on the left, the control on the right.
  *  ``wide`` puts the control under the label (text areas, long lists).
- *  ``overridden`` marks a value set in the chosen layer, with a reset button. */
-export function Row({ id, label, hint, children, wide, icon, overridden, onReset }: {
-  id?: string; label: React.ReactNode; hint?: React.ReactNode; children?: React.ReactNode; wide?: boolean; icon?: React.ReactNode; overridden?: boolean; onReset?: () => void;
+ *  ``overridden`` marks a value set in the chosen layer, with a reset button.
+ *  ``help`` (a key of ``GET /api/admin/help`` or a text of its own; else the entry of ``id``) adds a
+ *  `?` after the label, and its summary is the hint when the row gives none. */
+export function Row({ id, label, hint, children, wide, icon, overridden, onReset, help }: {
+  id?: string; label: React.ReactNode; hint?: React.ReactNode; children?: React.ReactNode; wide?: boolean; icon?: React.ReactNode; overridden?: boolean; onReset?: () => void; help?: string | HelpText;
 }) {
+  const h = useRowHelp(help, id);
+  hint ??= h?.summary;
   return (
     <div id={id ? `setting-${id}` : undefined} data-setting={id} className={`scroll-mt-24 px-4 py-2.5 ${wide ? "" : "flex flex-wrap items-center gap-x-6 gap-y-2 sm:flex-nowrap"}`}>
       <div className={`flex min-w-0 items-start gap-3 ${wide ? "mb-2" : "min-w-[min(100%,11rem)] flex-1"}`}>
@@ -13,6 +19,7 @@ export function Row({ id, label, hint, children, wide, icon, overridden, onReset
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-sm text-ink">
             <span>{label}</span>
+            {h && <RowHelpButton h={h} />}
             {overridden && (
               <span className="inline-flex items-center gap-1 rounded bg-you/10 px-1.5 text-[0.68rem] font-medium text-you" title="Set in this layer">
                 set here
@@ -33,9 +40,9 @@ export function Row({ id, label, hint, children, wide, icon, overridden, onReset
 }
 
 /** A read-only row (label and value). */
-export function InfoRow({ id, label, value, hint, mono }: { id?: string; label: React.ReactNode; value: React.ReactNode; hint?: React.ReactNode; mono?: boolean }) {
+export function InfoRow({ id, label, value, hint, mono, help }: { id?: string; label: React.ReactNode; value: React.ReactNode; hint?: React.ReactNode; mono?: boolean; help?: string | HelpText }) {
   return (
-    <Row id={id} label={label} hint={hint}>
+    <Row id={id} label={label} hint={hint} help={help}>
       <span className={`min-w-0 break-all text-right text-sm text-muted ${mono ? "font-mono text-xs" : ""}`}>{value}</span>
     </Row>
   );
