@@ -70,7 +70,8 @@ All messages are JSON objects with a `type`. On connect the server sends a full 
 | `type` | Fields | Effect |
 | --- | --- | --- |
 | `ping` | | Server answers `{"type": "pong"}`. |
-| `load` | `scenario_type?`, `name?` | Load the next scenario. The type and name are honoured only when the user may choose scenarios (admins, or `allow_scenario_selection`). |
+| `load` | `scenario_type?`, `name?` | Load the next scenario. The type and name are honoured only when the user may choose scenarios (admins, or [`choices.scenario`](../guide/configuration.md#what-participants-may-choose)); a participant's pick outside the allowed types is refused. |
+| `choose` | `kind` (`opponent` or `assistant`), `value` | The participant's pick for the next negotiation from the allowed set; an empty `value` goes back to HANI2's own pick. Refused unless the admin allows it, and during a negotiation. |
 | `start` | | Start the negotiation on the loaded scenario. |
 | `draft` | `values` | Update the counter-offer fields (issue → value). |
 | `draft_text` | `text` | Update the message to the opponent. |

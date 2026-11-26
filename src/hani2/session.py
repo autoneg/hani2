@@ -324,6 +324,10 @@ class NegotiationSession:
         self.autopilot_active = False
         self.autopilot_driver_name: str | None = None
         self.next_opponent: str = ""
+        #: the human's own picks for the next negotiation (see hani2.choices); None: HANI2 picks
+        self.chosen_opponent: Any = None
+        self.chosen_assistant: str | None = None
+        self._choices_state: dict[str, Any] | None = None
         #: who knows what this round (see hani2.information); the default splits nothing
         self.information = information.InformationState()
         #: the opponent group of the current pool / negotiation ("" when not from a group)
@@ -1382,11 +1386,30 @@ class NegotiationSession:
         with self.lock:
             if self.phase in ("running", "starting", "questionnaire"):
                 return
+            self._reset_choices_if_due()
             if self.study.finished():
                 self.study.finish()  # the post-session questionnaire (if any), then the end page
                 self.push_state()
                 return
-            plan = self.study.plan_round(scenario_type if self.can_choose_scenario() else None, name)
+            if not self.can_choose_scenario():
+                scenario_type = name = None
+            user_pick = False
+            if self.is_admin or not (scenario_type or name):
+                pass
+            else:
+                from hani2 import choices
+
+                pol = choices.configured_policy(self)["scenario"]
+                if pol is not False:  # (the old allow_scenario_selection switch allows any type, unchecked)
+                    allowed = choices.scenario_options(self, pol)
+                    if scenario_type not in allowed or (name and name not in store.list_scenarios(scenario_type)):
+                        self.toast("That scenario is not one you may choose.", "warning")
+                        return
+                    user_pick = True
+            plan = self.study.plan_round(scenario_type, name)
+            if user_pick:  # the human chose it (see hani2.choices); a study's own schedule may not take it
+                plan["type"], plan["name"] = scenario_type, name
+                plan["scenario_scheduling"] = "user"
             idx = plan.get("index")
             if idx is None and self.ss.get("fixed_scenario_index") is not None:
                 idx = int(self.ss["fixed_scenario_index"])  # simulated trials replay the same task
@@ -1408,6 +1431,7 @@ class NegotiationSession:
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
             self.round_plan = plan
+            self.ss["scenario_type"] = stype
             self.refresh_assistant(plan)  # a schedule slot or a new ?group= may name another Assistant
             self.ss["is_practice_round"] = bool(plan.get("practice", False))
             # the scenario's evaluation criteria are for evaluation only: keep them out of what the
@@ -1455,6 +1479,7 @@ class NegotiationSession:
             self.board = ""
             self.pins = []
             self.phase = "ready"
+        self._update_choices()
         if self.recorder is not None:
             self.recorder.begin()
             self.recorder.scenario()
@@ -1587,7 +1612,59 @@ class NegotiationSession:
         )
 
     def can_choose_scenario(self) -> bool:
-        return self.is_admin or bool(self.admin_prefs.get("allow_scenario_selection", False))
+        if self.is_admin:
+            return True
+        from hani2 import choices
+
+        return choices.policy(self)["scenario"] is not False
+
+    # ------------------------------------------------------------------ #
+    # The human's own choices (see hani2.choices)                         #
+    # ------------------------------------------------------------------ #
+    def _update_choices(self) -> None:
+        """Recompute what the browser offers the human to choose (after a load, a choice, an end)."""
+        from hani2 import choices
+
+        self._choices_state = None if self.is_admin else choices.client_state(self)
+
+    def _reset_choices_if_due(self) -> None:
+        """A choice holds for one negotiation: the first load after it ends goes back to HANI2's picks
+        (not at the end itself, so a reload before the next load keeps that negotiation's Assistant)."""
+        if self.__dict__.get("_choices_reset_due"):
+            self._choices_reset_due = False
+            self.chosen_opponent = None
+            self.chosen_assistant = None
+
+    @_in_own_study
+    def choose(self, kind: str, value: Any) -> dict:
+        """The human picks the ``opponent`` or the ``assistant`` of the next negotiation from the
+        allowed set (``value`` empty: back to HANI2's own pick). Only between negotiations."""
+        from hani2 import choices
+
+        if kind not in ("opponent", "assistant"):
+            return {"ok": False, "error": f"cannot choose {kind!r}"}
+        if self.phase in ("running", "starting", "questionnaire", "finished"):
+            return {"ok": False, "error": "You can choose only before a negotiation starts."}
+        value = str(value).strip() if value not in (None, "") else None
+        pol = choices.policy(self)[kind]
+        self._reset_choices_if_due()  # a pick after a negotiation is for the next one
+        if kind == "opponent":
+            pick = None
+            if value is not None:
+                opts = choices.opponent_options(self, pol)
+                pick = next((o for o in opts if choices.spec_key(o) == value), None)
+                if pick is None:
+                    return {"ok": False, "error": "That opponent is not one you may choose."}
+            self.chosen_opponent = pick
+        else:
+            if value is not None and value not in choices.assistant_options(self, pol):
+                return {"ok": False, "error": "That Assistant is not one you may choose."}
+            self.chosen_assistant = value
+            self.refresh_assistant(getattr(self, "round_plan", None))
+        ev.log_event(self.sid, ev.EventType.BUTTON_CLICKED, user=self.user, component="choices", action=f"choose_{kind}", value={"choice": value})
+        self._update_choices()
+        self.push_state()
+        return {"ok": True}
 
     # ------------------------------------------------------------------ #
     # Opponents                                                           #
@@ -1631,6 +1708,9 @@ class NegotiationSession:
 
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}
+        if self.chosen_opponent is not None:  # the human's own pick wins over the schedule
+            self.opponent_group = ""
+            return self.chosen_opponent
         if plan.get("partner"):
             if plan.get("opponent_group") is not None:
                 self.opponent_group = plan["opponent_group"]
@@ -1751,7 +1831,8 @@ class NegotiationSession:
         self.ss["assistant_attribution"] = self.assistant_attribution()
         # the scheduling methods that chose this negotiation's opponent and scenario type ("" when
         # HANI2 did not schedule it: outside a study, admins, guests, test links, an admin's choice)
-        self.ss["opponent_scheduling"] = str(plan.get("opponent_scheduling") or "") if plan.get("partner") else ""
+        self.ss["opponent_scheduling"] = ("user" if self.chosen_opponent is not None else
+                                          str(plan.get("opponent_scheduling") or "") if plan.get("partner") else "")
         self.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
         time_limit = plan.get("time_limit", p.get("time_limit"))
         mech_params = dict(
@@ -2273,6 +2354,7 @@ class NegotiationSession:
                 return
             self._finishing = True
             self.thinking = False
+            self._choices_reset_due = True  # the next load starts from HANI2's own picks again
             self.ss["negotiation_running"] = False
             if self._timer is not None:
                 self._timer.cancel()
@@ -2866,6 +2948,7 @@ class NegotiationSession:
                 "study_name": self.study_ref.study if self.study_ref else None,
                 "study": self.study.client_state(),
                 "can_choose_scenario": self.can_choose_scenario(),
+                "choices": self._choices_state if self.phase in ("idle", "ready") else None,
                 "webmcp": self.webmcp_policy(),
                 "tool_maximize": self.tool_maximize_mode(),
                 "next_opponent": self.next_opponent if self.admin_mode else None,

@@ -55,7 +55,7 @@ The type is chosen by the counter too:
 - With *Follow the scenario order* on (the default), the counter walks through the active scenario set: the first load uses its first type, the second load the second type, and so on, wrapping around.
 - With it off, every load picks a random type from the active scenario set.
 
-Admins, and participants when an admin turns on *Participants may choose the scenario*, can pick a type and a named scenario on the start screen instead.
+Admins, and participants when the admin allows it ([What participants may choose](configuration.md#what-participants-may-choose)), can pick a type and a named scenario on the start screen instead.
 
 With *Use saved scenario pools* off, HANI2 ignores the pool and generates a fresh scenario on every load (for types that have a generator). The guest playground (`/play` without a Prolific ID) works this way by default: it generates a fresh scenario of a random type each time. Add `?load_existing=1` to the playground URL to use the pools instead.
 

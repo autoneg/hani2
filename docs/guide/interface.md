@@ -150,10 +150,19 @@ The dock shows the round label, the scenario title and your role. On the first r
 
 Buttons: **Start negotiation** and, outside Prolific, **Different scenario** (loads another scenario).
 
-Two pickers appear in a dashed box when they apply:
+Admins see two pickers in a dashed box:
 
-- **Scenario**: a scenario type ("Next in order" or a type) and, after choosing a type, a scenario name, with a **Load** button. Shown to admins, or to everyone when the admin setting `allow_scenario_selection` is on.
-- **Opponent for the next negotiation**: a text field with suggestions from the opponent groups (suggestions load only for admins). Empty means a random opponent from the pool. Shown in admin mode. See [Opponents](opponents.md).
+- **Scenario**: a scenario type ("Next in order" or a type) and, after choosing a type, a scenario name, with a **Load** button.
+- **Opponent for the next negotiation**: a text field with suggestions from the opponent groups. Empty means a random opponent from the pool. See [Opponents](opponents.md).
+
+Participants see pickers only for what the admin lets them choose
+([What participants may choose](configuration.md#what-participants-may-choose); never in a Prolific study):
+
+- **Scenario**: one of the allowed scenario types and, optionally, a named scenario of that type, with a **Load** button.
+- **Opponent**: *Assigned automatically* (HANI2's own pick, as without the picker) or one of the allowed opponents.
+- **Assistant**: *Assigned automatically* (naming the Assistant HANI2 picked) or one of the allowed Assistants, or *No Assistant* when the admin offers it. The new Assistant replaces the old one at once.
+
+A pick holds for this negotiation only; the next one starts from HANI2's own pick again.
 
 ### During the negotiation
 
