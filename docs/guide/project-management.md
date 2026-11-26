@@ -44,6 +44,12 @@ A project can be created and edited in three ways, which all write the same `pro
 
 `create` on an existing project updates the given fields. `hani2 study create` also creates the project when it is missing.
 
+In the admin console, every choice that is not self-explanatory has a **?** after its name, which
+opens an explanation of the choice and its values. The [Settings reference](settings-reference.md)
+collects the same texts, with the key each choice writes.
+
+![The ? dialog of the Mode row in the project editor](../assets/screens/editor-help.png)
+
 ### `project.yaml`
 
 ```yaml title="projects/HI2027/project.yaml"
@@ -137,6 +143,12 @@ study_mode is 'paired' but opponents is [human, :pan]; a Paired HI study (kind: 
 needs opponents: [human+assistant]
 ```
 
+In the admin console the **Mode** row offers Solo, Paired and Mixed, and its empty choice shows
+the derived mode ("Derived from the opponents (Solo)"). When the mode and the pool disagree, a red
+note under the row says why, and **Save** is refused with the same message.
+
+![The Mode and HAN agents rows of a project's defaults](../assets/screens/editor-mode.png)
+
 A file edited by hand that disagrees is reported in the server log, in `hani2 study show` and in
 the study's `errors` on the admin console, and **`opponents` wins**: the study runs with the
 derived mode. The session's events record that mode, with `study_mode_error: true`. How a study
@@ -201,6 +213,12 @@ Where a year's agents come from:
 - a year that neither covers has no agents: a file naming it is refused when saved ("no agents
   for 2025"), and a hand-edited one is reported, the group expanding to nothing.
 
+In the admin console the **HAN agents** row of the defaults does this for you: choose a year and a
+set, and **Add** writes `:han<year>-<set>` into the layer's opponent pool. The years offered are
+those the two sources cover, plus the project's year and the year before; "this year" and "last
+year" are labels computed from the project's **Year**, and a year that no source covers is greyed
+out.
+
 When a year's agents have been packaged into `han-agents`, raise `han.current_year` to the next
 year: from then on the earlier year comes from the package. Games already played keep the source
 and version they recorded (`opponent_han_year`, `opponent_han_source`, `opponent_han_version`, see
@@ -257,6 +275,12 @@ most once" refuses a file where K is larger than the number of Assistants, unles
 `scheduling.assistant_repeats: true`. When the Assistants change every negotiation and the opponents
 use `latin_square` or `cyclic`, `scheduling.cross: shift` (the default) **crosses** them, so that
 every Assistant meets every opponent equally often instead of always the same one.
+
+In the admin console, the Scheduling group has a row for each of these. **K of N** compares the
+counted negotiations ($K$, `n_required`) with the number of Assistants in the pool ($N$, after the
+groups are expanded), and turns orange when $K > N$ under a method that promises each Assistant at
+most once while **Repeats** is off: saving is then refused. **Repeats** sets `assistant_repeats` and
+**Crossing** sets `cross`.
 
 What these defaults do within a study is described in
 [Assigning Assistants, opponents and scenarios](study-management.md#assigning-assistants-opponents-and-scenarios),
@@ -491,6 +515,25 @@ scores and redefine the project's scores, key by key (see
 [Study management](study-management.md#the-studys-scores)).
 
 ### Checking and editing scores
+
+In the admin console, the **Scores** group of a project lists every score. Built-in scores are
+read-only and have **Duplicate**; your own have **Edit** and **Remove**. **New score** opens the
+score builder:
+
+![The score builder](../assets/screens/editor-score-builder.png)
+
+- pick criteria from the searchable catalogue, grouped by source; each shows its direction, its
+  default normaliser, its cost and, on request, its coverage in the current games, and criteria
+  that cannot be used are greyed out with the reason;
+- give each component a weight in %; the running sum turns green at 100 %, **Save score** works only
+  then, and **Normalise** rescales the weights to 100 % keeping their proportions;
+- the direction and the normaliser of each component start from the criterion's own (*Preset*);
+  a criterion without a direction must be given one.
+
+The builder saves the score at once, through the admin API, with the same checks as
+`hani2 scores set`. **Scores enabled** below it is saved with the page.
+
+From the command line:
 
 ```bash
 hani2 scores list HI2027                 # every score: * enabled, where it is defined, its track

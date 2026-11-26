@@ -102,11 +102,21 @@ The server removes sessions that have no open tab, are not negotiating, and have
 
 ## Projects & Studies
 
-The list shows every project with its full name, kind, year and number of studies, and **New project** creates one. Open a project to edit `project.yaml`:
+The list shows every project with its full name, kind, year and number of studies, and **New project** creates one. Open a project to edit `project.yaml`.
+
+Every choice whose meaning is not plain has a **?** after its name. It opens a dialog that explains the choice, with tables and formulas where they help; the same texts are collected in the [Settings reference](settings-reference.md). Rows whose meaning is plain (full name, link, start and end, year, organizer, contact, the time limits) have none.
+
+![The project editor: the ? dialog of the Mode row](../assets/screens/editor-help.png)
 
 - **Project**: full name, short description, link, year, kind (research, opponents evaluated, Assistants evaluated), organizer and contact. The hint of each row names the [text variable](study-management.md#texts-with-variables) it fills.
-- **Defaults for its studies**: scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles. An empty field keeps the default.
-- **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
+- **Defaults for its studies**:
+    - **Mode** (Solo, Paired, Mixed, or derived from the opponents when unset). When the mode and the opponent pool disagree, a red note under the row says why, and **Save** is refused until they agree. In a HAN project, Paired shows the note "tests no HAN agent; its results are not ranked".
+    - **HAN agents** (not shown for Paired): pick a year and a set (all, qualified, finalists, winners) and **Add** writes `:han<year>-<set>` into the layer's opponent pool. "This year" and "last year" are labels computed from the project's **Year**; a year that no source covers is greyed out ("no agents for 2025").
+    - the scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles, and what the participant and the Assistant each know. An empty field keeps the default.
+- **Pairing** (only for Paired and Mixed): where people meet, how a match is formed, the slack, the scenario in a cell, same-Assistant matches, what happens when nobody fits and the fallback opponents. Each empty field shows the value in effect.
+- **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. The `?` of each dimension lists its methods. **K of N** compares the counted negotiations ($K$) with the number of Assistants in the pool ($N$), and turns orange when $K > N$ under a method that gives a new Assistant each negotiation, since a person then meets some Assistant twice. **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
+- **Scores**: every score of the project. Built-in scores are read-only, and **Duplicate** copies one into the file; your own scores have **Edit** and **Remove**. **New score** opens the score builder (below). Score changes are saved at once.
+- **Scores enabled**: which scores the boards, results views and exports compute and show. **Choose here** starts from the scores in effect; the reset button goes back to the default. This one is saved with the page.
 - **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for.
 - **Studies**, with **New study** (a name and a type).
 
@@ -116,9 +126,20 @@ Open a study to see and edit:
 - **Results**: the number of participants and of recorded negotiations, and **Open in this study**.
 - **Assistant balance**: how many counted humans each Assistant of the pool has, and every assignment.
 - **Study**: type, title, link, year, start and end dates, organizer, contact; **Completion**: Prolific study id, completion code, completion URL and the end text.
-- **Overrides of the project's defaults**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default) and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
+- **Overrides of the project's defaults** (the same rows as the project's, Mode and HAN agents included; empty: the project's value), **Pairing**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default), **Scores** (the project's and the study's: a project score can be **redefined here**), **Scores enabled** and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
 
-**Save** writes `project.yaml` or `study.yaml`. See [Project management](project-management.md) and [Study management](study-management.md).
+**Save** writes `project.yaml` or `study.yaml`. A file the checks refuse (for example a mode that contradicts the pool) is not written, and the message names what to fix. See [Project management](project-management.md) and [Study management](study-management.md).
+
+### The score builder
+
+![The score builder: three components, their weights summing to 100 %, and the criteria picker](../assets/screens/editor-score-builder.png)
+
+- **Key**, title, description, **Track** (`hi`, `han`, `any`), **Missing values** and **Minimum coverage**.
+- **Components**: one row per criterion, with its weight in %, its direction and its normaliser. Both start from the criterion's own (*Preset*); a criterion that has no direction says **Direction: choose**, and the score cannot be saved until one is chosen. A normaliser can be replaced, with its bounds or scale.
+- The **running sum** of the weights is green at 100 %. **Save score** works only then; **Normalise** rescales the weights to 100 % keeping their proportions.
+- **Add criteria**: a searchable list of every criterion of the catalogue, grouped by source (measured, judged, questionnaire scales, the items and scales of the project's own forms, scores). Each shows its direction, its default normaliser and its cost; **Show coverage in the current games** adds the share of the games that have a value. Criteria that cannot be used are greyed out with the reason, for example a post-session answer in an HI score when participants used several Assistants.
+
+Saving sends the weights as fractions summing to 1 (`PUT /api/admin/projects/{project}/scores/{key}`, or `.../studies/{study}/scores/{key}`); the server checks the definition again. After a save, the weights in effect are listed with the score.
 
 ## Texts
 

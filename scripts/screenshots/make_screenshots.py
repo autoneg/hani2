@@ -14,7 +14,8 @@ Run it from the repository root after ``uv pip install -e ".[e2e]"`` and
 
 Groups: ``tools`` (every tool), ``popup``, ``character``, ``app`` (login, the negotiation page in
 each view and device, the admin console, the example tools), ``han`` and ``hi`` (the walkthrough
-tutorials: against an AI opponent, and with the Assistant and against people) and ``tutorial``.
+tutorials: against an AI opponent, and with the Assistant and against people), ``tutorial`` and
+``editor`` (the project editor: a `?` dialog and the score builder).
 
 The tools need no language model except the LLM tool and the two LLM example tools (Summary,
 Ask the AI); tutorial levels 0, 3, 4, 5 and 7 chat with the model. They use the default model,
@@ -878,7 +879,67 @@ def take_walk_hi(browser, use_llm: bool) -> None:
             cb.close()
 
 
-GROUPS = ("tools", "popup", "character", "app", "han", "hi", "tutorial")
+def take_editor(browser) -> None:
+    """The project editor (Admin → Projects & Studies): a `?` dialog, the Mode and HAN rows, and the
+    score builder."""
+    with server([]) as url:
+        ctx, page = new_page(browser, url, viewport={"width": 1440, "height": 1000})
+        login(page, "admin", "adminpass")
+        r = page.request.put("/api/admin/projects/HI2027", data={"data": {
+            "kind": "assistant", "year": 2027, "full_name": "Human-AI negotiation 2027",
+            "defaults": {"n_required": 5, "opponents": [":pan"]}}})
+        assert r.ok, r.text()
+        page.goto("/admin#projects")
+        page.get_by_text("HI2027", exact=False).first.click()
+        expect(page.get_by_text("Defaults for its studies")).to_be_visible()
+        settle(page, 800)
+        page.get_by_role("button", name="About Mode").click()
+        expect(page.get_by_role("dialog")).to_be_visible()
+        settle(page, 800)
+        save(page, "editor-help")
+        page.keyboard.press("Escape")
+        page.get_by_role("button", name="New score").click()
+        b = page.locator("[data-score-builder]")
+        b.get_by_label("Score key").fill("hi_score")
+        b.get_by_label("Score title").fill("HI-score")
+        b.get_by_role("combobox", name="Track").select_option("hi")
+        for crit, w in (("human_advantage", "50"), ("welfare_optimality", "20"), ("n_offers", "30")):
+            b.get_by_label("Search criteria").fill(crit)
+            b.get_by_role("option").filter(has_text=crit).first.click()
+            f = b.get_by_label(f"Weight of {crit} (%)")
+            f.fill(w)
+            f.blur()
+        b.get_by_role("combobox", name="Direction of n_offers").select_option("lower")
+        b.get_by_label("Search criteria").fill("utility")
+        page.mouse.move(0, 0)
+        settle(page, 800)
+        save_tall(page, b, "editor-score-builder")
+        # the Mode and HAN rows at the top of the defaults
+        page.get_by_role("button", name="Close").first.click()
+        page.get_by_role("combobox", name="Mode").select_option("solo")
+        settle(page, 600)
+        save_tall(page, page.locator("section").filter(has_text="Defaults for its studies").first, "editor-mode", height=520)
+        ctx.close()
+
+
+def save_tall(page, locator, name: str, height: int | None = None) -> None:
+    """A screenshot of ``locator`` with the window as tall as the page, so that the sticky header and
+    save bar sit where they belong instead of over the element (``height``: only its top part)."""
+    full = page.evaluate("Math.max(...[...document.querySelectorAll('*')].map((e) => e.scrollHeight))")
+    page.set_viewport_size({"width": VIEWPORT["width"], "height": max(VIEWPORT["height"], full + 200)})
+    settle(page, 500)
+    page.evaluate("document.querySelectorAll('*').forEach((e) => { if (e.scrollTop) e.scrollTop = 0; }); window.scrollTo(0, 0)")
+    settle(page, 300)
+    box = locator.bounding_box()
+    path = OUT / f"{name}.png"
+    page.screenshot(path=str(path), animations="disabled", clip={"x": box["x"] - 12, "y": box["y"] - 12,
+                    "width": box["width"] + 24, "height": (height or box["height"]) + 24})
+    compress(path)
+    log("wrote", path.relative_to(ROOT))
+    page.set_viewport_size({"width": VIEWPORT["width"], "height": 1000})
+
+
+GROUPS = ("tools", "popup", "character", "app", "han", "hi", "tutorial", "editor")
 
 
 def main() -> None:
@@ -909,6 +970,8 @@ def main() -> None:
                 take_walk_han(browser)
             if "hi" in a.what:
                 take_walk_hi(browser, use_llm)
+            if "editor" in a.what:
+                take_editor(browser)
             if "tutorial" in a.what:
                 for level in a.level or sorted(LEVELS):
                     if LEVELS[level].get("llm") and not use_llm:

@@ -187,8 +187,10 @@ overrides are merged, so a study cannot contradict its project's mode silently:
 | `pairing.fallback is 'wait' but human_opponent_fallback is true` | Keep one of the two settings |
 | `opponents: :han2025-all: no agents for 2025 (...)` | Name a year that `han-agents` covers, or the current year (`han.current_year`), see [HAN agents by year](project-management.md#han-agents-by-year) |
 
-On save (`hani2 study create`, the admin API's `PUT`) such a file is refused (a 400 from the
-API). A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
+On save (`hani2 study create`, the admin API's `PUT`, **Save** in the admin console) such a file
+is refused (a 400 from the API). The study page of the admin console shows the problem under its
+**Mode** row before you save, from the study's overrides and the project's
+defaults. A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
 `errors`, and `opponents` wins: the study runs with the derived mode.
 
 ### Checks for each session
@@ -883,8 +885,12 @@ show the enabled scores.
 The same checks apply as for a project: weights that sum to 1, known criteria (including the answers
 of the study's own questionnaires), a direction where the criterion has none, no cycles, and the rule
 for post-session answers: when some participant of the study used more than one Assistant, an HI
-score cannot use a post-session answer (run `hani2 scores check <project>/<study> --coverage`). Check
-and edit a study's scores with the same commands, giving `<project>/<study>`:
+score cannot use a post-session answer (run `hani2 scores check <project>/<study> --coverage`). On the
+study page of the admin console, the **Scores** group lists the project's scores and the study's
+own; **Redefine here** opens a project score in the score builder and saves it to `study.yaml` (see
+[Checking and editing scores](project-management.md#checking-and-editing-scores)), and **Scores
+enabled** chooses the study's list. Check and edit a study's scores with the same commands, giving
+`<project>/<study>`:
 
 ```bash
 hani2 scores list HI2027/play
