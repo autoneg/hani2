@@ -73,9 +73,14 @@ existing ones:
 
 | Column | Values |
 |---|---|
-| `opponent_scheduling` | a method key; `external` when `schedule.json` named the opponent; `practice` for a practice round; `external:missing` when `external` found no input; empty when HANI2 did not schedule the opponent |
-| `assistant_scheduling` | a method key; `external` for an Assistant from `schedule.json`; empty for an admin's or a test link's explicit choice |
-| `scenario_scheduling` | a method key; `external` / `external:missing` as above; empty for an admin's choice or outside a study |
+| `opponent_scheduling` | a method key; `external` when `schedule.json` named the opponent; `practice` for a practice round; `external:missing` when `external` found no input; `user` when the participant chose it; empty when HANI2 did not schedule the opponent |
+| `assistant_scheduling` | a method key; `external` for an Assistant from `schedule.json`; `user` when the participant chose it; empty for an admin's or a test link's explicit choice |
+| `scenario_scheduling` | a method key; `external` / `external:missing` as above; `user` when the participant chose it; empty for an admin's choice or outside a study |
+
+A participant may choose for themselves only where the admin allows it, and never in a Prolific
+study (see [What participants may choose](configuration.md#what-participants-may-choose)). Their
+choice holds for one negotiation and is not kept in `assignments.json`: the balancing counts are
+not affected by it.
 
 The same values are in the `scenario_started` events. A human's fixed Assistant
 (and the method that chose it) is also kept in `assignments.json`; a human keeps

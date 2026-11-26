@@ -182,7 +182,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `load_existing` | `true` | Load saved scenarios instead of generating new ones. Off in the playground unless the URL has `?load_existing=1`. |
 | `generate_on_failure` | `true` | Generate a scenario when none can be loaded. |
 | `predefined_order` | `true` | Present scenario types in the order of the active scenario set. Always off in the playground. |
-| `allow_scenario_selection` | `false` | Let non-admins pick the scenario. |
+| `allow_scenario_selection` | `false` | Let non-admins pick any scenario type (the older switch; it applies on every layer). Prefer [`choices`](#what-participants-may-choose). |
 | `show_opponent_type` | `false` | Show the opponent agent's type. Always on for admins. (Old name: `show_partner_type`.) |
 | `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
 
@@ -234,6 +234,50 @@ never see the scenario pictures, and cannot change either:
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `playground.enabled` | `true` | Allow the no-login playground at `/play`. Prolific links work even when it is off. |
+| `playground.choices` | nothing | What participants may choose outside any project or study (see below). |
+
+### What participants may choose
+
+Each negotiation starts with the scenario, opponent and Assistant that HANI2 picks as usual: the
+scenario order or the study's scheduling, the opponent pool, the Assistant pool. The admin can let
+participants pick another one from an allowed set before they press **Start negotiation** (see
+[The interface](interface.md#before-the-negotiation)). A choice holds for one negotiation; the next
+one starts from HANI2's own pick again.
+
+The setting is a mapping with the keys `scenario`, `opponent` and `assistant`. Each value is:
+
+| Value | Meaning |
+| --- | --- |
+| `false` or missing | Participants may not choose (the default). |
+| `true` | Any member of the session's own pool: the scenario types of its scenario set, its opponent pool, its Assistant pool. |
+| a list | Exactly these: scenario types; opponent specs or `:group` tokens; Assistant specs or `:group` tokens, with `none` for "no Assistant". |
+
+Where it is read:
+
+- **Outside any project or study** (the playground, and a signed-in user's sessions that belong to
+  no study): `playground.choices` in the settings folder's `env.json` (or the start-time settings
+  file).
+- **In a study**: `choices` in the study folder's own `env.json`, else in its project folder's own
+  `env.json`, key by key (the study wins). The settings folder never reaches a project or study,
+  so participants of a study may choose nothing unless its project or the study itself allows it.
+- **Prolific studies never allow it**, whatever the files say. Remember that a study's `type`
+  defaults to `prolific`: set `type: online` or `type: lab` in `study.yaml` first.
+
+The admin console edits both on **Negotiation → What participants may choose**: with
+*All projects (settings folder)* selected it edits the playground's setting, with a project or a
+study selected it edits that layer's own `choices`.
+
+```json title="settings/env.json — the playground offers two opponents and any scenario type"
+{"playground": {"choices": {"scenario": true, "opponent": ["BoulwareTBNegotiator", "ConcederTBNegotiator"]}}}
+```
+
+```json title="projects/HAN2027/env.json — participants of every study of the project pick their Assistant"
+{"choices": {"assistant": ["my_assistant:MyAssistant", "none"]}}
+```
+
+The results record the participant's pick: `user` in the `opponent_scheduling`,
+`assistant_scheduling` or `scenario_scheduling` column, and `assistant_source = user`. Their pick
+is not kept in `assignments.json`, so it does not change how the study balances its Assistants.
 
 ### `names`
 
