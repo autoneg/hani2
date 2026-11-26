@@ -8,7 +8,7 @@ import { Assistant, FloatingPanels, StatusBoard, useAutoOpenAssistant } from "./
 import { Header } from "./Header";
 import { SettingsDrawer } from "./SettingsDrawer";
 import { Thread } from "./Thread";
-import { MaximizedTool, ToolPane } from "./ToolPane";
+import { MaximizedTool, ToolPane, ToolPopup } from "./ToolPane";
 import { stopWebMCP, syncWebMCP } from "../webmcp";
 import { useDevice, type Device } from "../device";
 import * as telemetry from "../telemetry";
@@ -94,9 +94,9 @@ function Center({ withSide = false, dockMax, prefix = "" }: { withSide?: boolean
             </div>
           </div>
         ) : dock === undefined ? (
-          <ActionDock maxHeight={dockMax} />
+          <ActionDock maxHeight={dockMax} launcher />
         ) : (
-          <ActionDock embedded />
+          <ActionDock embedded launcher />
         )}
       </div>
     </div>
@@ -361,6 +361,7 @@ export function NegotiateBody({ device, landscape, live = true }: { device: Devi
       <StatusBoard />
       <Persona device={device} live={live} />
       <MaximizedTool />
+      <ToolPopup />
       <ConfirmDialog />
       <CustomStyle />
       <SettingsDrawer open={settings} onClose={() => setSettings(false)} />

@@ -13,7 +13,7 @@ from typing import Any
 
 __all__ = ["describe_components", "controls_of", "INPUT_TYPES"]
 
-INPUT_TYPES = ("select", "multiselect", "radio", "slider", "number", "checkbox", "switch", "textinput", "textarea")
+INPUT_TYPES = ("select", "multiselect", "radio", "slider", "range_bar", "number", "checkbox", "switch", "textinput", "textarea")
 
 
 def _fmt(v: Any) -> str:
@@ -112,7 +112,10 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
         desc = f"Input {c.get('name')!r}" + (f" ({c['label']})" if c.get("label") else "") + f" = {_fmt(c.get('value'))}"
         if c.get("options"):
             desc += "; options: " + ", ".join(_fmt(o.get("value")) for o in c["options"][:20])
-        if t in ("slider", "number") and (c.get("min") is not None or c.get("max") is not None):
+        if t == "range_bar":
+            desc += (f"; a range [low, high] from {_fmt(c.get('min'))} to {_fmt(c.get('max'))}: set it to a list "
+                     "of two numbers, or to one point [x, x] to pick the nearest")
+        elif t in ("slider", "number") and (c.get("min") is not None or c.get("max") is not None):
             desc += f"; range {_fmt(c.get('min'))}–{_fmt(c.get('max'))}"
         out.append(pad + desc)
     elif t == "button":

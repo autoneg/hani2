@@ -1,0 +1,1 @@
+import{c}from"./index-DIABVNUe.js";const e={name:"phi",size:24,node:[["path",{d:"M12 2v20",key:"t6zp3m"}],["circle",{cx:"12",cy:"12",r:"7",key:"fim9np"}]]};e.node;const t=c(e);export{e as __iconData,t as default};

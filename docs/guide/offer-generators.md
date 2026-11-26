@@ -2,16 +2,58 @@
 
 Offer generators are tools that fill your counter-offer for you. They never send it: the offer
 appears in the offer panel, and you check it, change it if you like and press **Send offer**
-yourself. HANI2 has three built in, in the side pane next to the offer panel by default:
+yourself. HANI2 has four built in, in the side pane next to the offer panel by default:
 
 | Generator | How it picks an offer | Who gets it | Best for |
 |-----------|-----------------------|-------------|----------|
+| [Utility Bar](#utility-bar) | Click or drag on a bar of what deals are worth to you: one deal, up to ten, all of them, or the best for the opponent | everyone | Seeing where your deals are and picking one by eye, quickly |
 | [Utility-based Selector](#utility-based-selector) | A deal from a range of values for you (or, with an estimate, for the opponent) | everyone | Making offers you can accept, conceding step by step |
 | [LLM](#llm) | A language model follows an instruction in plain words | admins (can be opened to participants) | Natural-language strategies, an offer together with a message |
 | [Random](#random) | Any deal, at random | admins (can be opened to participants) | Exploring the outcome space, testing opponents |
 
 An [Assistant](assistant.md) can use the same generators for you when it has the *Use tools*
 ability, and you can [write your own](#writing-your-own).
+
+## Utility Bar
+
+The first generator, and the side pane's open tab when a negotiation starts. It works like the
+Utility-based Selector below, the other way round from a utility function: you choose a value and
+get deals with it, but graphically.
+
+1. Open the **Utility Bar** tab in the side pane, or, outside the full view, press **Utility Bar**
+   in the offer area (see [Tools in a popup](#tools-in-a-popup)).
+2. Look at the bar: it runs from 0% (your worst deal) to 100% (your best). The grey columns show
+   how many deals there are at each value, the coloured marks your value on disagreement (*No
+   deal*), the opponent's offer on the table (*Their offer*) and your current offer (*Your offer*).
+3. **Drag** across a part of the bar (for example from 60% to 80%), or **click** a point to get the
+   deals *nearest* to that value.
+4. Choose what you want under **Give me**:
+
+   | Choice | Drag (a part of the bar) | Click (a point) |
+   |--------|--------------------------|-----------------|
+   | **Any offer** | one deal from the part, at random; **Another** draws again | the nearest deal |
+   | **Up to 10 offers** | up to ten deals spread from the best to the worst of the part | the ten nearest deals |
+   | **All offers** | every deal in the part, best for you first | every deal at the nearest value |
+   | **Best for the opponent** | the deal in the part worth most to the opponent | the best for the opponent among the ten nearest |
+   | **Top 10 for the opponent** | the ten deals in the part worth most to the opponent | the ten nearest, best for the opponent first |
+
+5. Click a row to copy that deal into your counter-offer, or press **Set Offer** for the selected (or
+   first) one.
+
+The two opponent choices appear only when the tool knows what deals are worth to the opponent: when
+an [estimate of the opponent's preferences](tools.md#an-estimate-of-the-opponents-preferences) is
+set (for example by your Assistant), or for those who may see the opponent's real preferences
+(administrators, or everyone when `tools.show_opponent_utility` is on). Then a line over the bar
+shows the best the opponent gets at each value, and a banner says whether the numbers are the
+estimate or the real ones; administrators with an estimate set can switch between them. With a
+human opponent only an estimate is ever used.
+
+The bar works with the keyboard too: **Tab** to it, move the selection with the arrow keys
+(**Page Up**/**Page Down** for bigger steps), widen or narrow it with **Shift** and an arrow.
+
+**When to use it.** You want to see at a glance where the good deals are, concede by moving the
+selection down the bar round by round, or, with an estimate, find the deal the opponent likes most
+among those still good for you.
 
 ## Utility-based Selector
 
@@ -81,6 +123,24 @@ Press **Set Offer** to fill your counter-offer with a random deal; press it agai
 
 **When to use it.** Early exploration of what is possible, breaking a deadlock with an unexpected
 offer, or checking how an opponent reacts to offers far from the usual path.
+
+## Tools in a popup
+
+Any tool can open in a **popup**: a small window that floats over the page without blocking it, so
+the offer area stays usable and you see at once what a generator puts into your counter-offer.
+
+- In a tool pane, press the popup button next to the tabs (or **Open in a popup** in the tool's
+  **⋯** menu). The pane shows **Bring it back here** while the tool is out.
+- Outside the full view (the simple and focus views, tablets and phones), where the generators are
+  not next to the offer area, the offer area has two more buttons next to **Counter-offer**: one
+  for the first offer generator (the **Utility Bar**), which also opens the counter-offer editor,
+  and **Tools**, a menu of every tool with the offer generators first. Before and after a
+  negotiation the **Tools** menu is there too, for example to read your Preferences.
+
+Drag the popup by its title bar and resize it from its corner; it opens where you left it. One tool
+is in the popup at a time: opening another takes its place. **Esc** or **×** closes it, **⤢**
+enlarges it. On a phone it is a sheet along the top of the screen, above the offer editor. The bare
+view has no tools at all, so it has no popup and no launcher.
 
 ## Giving the admin-only generators to participants
 

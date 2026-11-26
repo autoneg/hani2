@@ -109,6 +109,14 @@ DEFAULT_INTERFACE: dict[str, Any] = {
 #: The layout views. ``bare`` shows no tools at all: the history, the offer area and the Assistant.
 LAYOUT_VIEWS = ("full", "simple", "focus", "bare")
 
+
+def _is_generator(tool: Any) -> bool:
+    """Whether a tool makes offers (an offer generator): an ``OutcomeSelector`` or a tool in
+    the ``recommendation`` group. The page lists these first where it offers tools."""
+    from hani2.tools.base import OutcomeSelector
+
+    return isinstance(tool, OutcomeSelector) or "recommendation" in (getattr(tool, "groups", ()) or ())
+
 #: Keys of a scenario's ``_info.yaml`` that shape how offers read (see :mod:`hani2.display`); a
 #: session may override them on the fly (:meth:`NegotiationSession.set_offer_display`).
 DISPLAY_KEYS = ("offer_template", "issue_format", "value_labels", "issue_widget")
@@ -1382,6 +1390,7 @@ class NegotiationSession:
         with self.lock:
             present = {t.name.lower() for t in self.tools}
             new = [(spec, tool) for spec, tool in new if tool.name.lower() not in present]
+            front: dict[str, float] = {}
             for spec, tool in new:
                 shift = 0 if spec.at_front else 1000
                 # where the tool goes in each view (see hani2.tool_groups); the current view's applies now
@@ -1405,8 +1414,12 @@ class NegotiationSession:
                     tool.init(self.ss)
                 except Exception:
                     traceback.print_exc()
-                if here["visible"] and (spec.at_front or self.active_tabs.get(pane) is None):
+                # an at-front tool opens its pane; of several added together, the first by order
+                if here["visible"] and ((spec.at_front and here["order"] < front.get(pane, float("inf")))
+                                        or self.active_tabs.get(pane) is None):
                     self.active_tabs[pane] = tool.name
+                    if spec.at_front:
+                        front[pane] = here["order"]
                 if timing in ("load", "start", "end") and self.scenario is not None:
                     try:
                         tool.scenario_loaded(self.ss, self.scenario)
@@ -1445,8 +1458,8 @@ class NegotiationSession:
 
     def shown_tool_names(self) -> set[str]:
         """Tools the browser can be showing: the active (or first) tab of each
-        pane, the active tab of combined tab strips (``all``) and an enlarged
-        tool (``max``). Other tools are rendered when their tab is opened."""
+        pane, the active tab of combined tab strips (``all``), an enlarged
+        tool (``max``) and a tool open in a popup (``popup``). Other tools are rendered when their tab is opened."""
         with self.lock:
             names: set[str] = set()
             visible = [t for t in self.tools if self._tool_states[id(t)]["visible"] and self.tool_available(t)]
@@ -1457,7 +1470,7 @@ class NegotiationSession:
                     continue
                 active = self.active_tabs.get(pane)
                 names.add(active if any(t.name == active for t in in_pane) else in_pane[0].name)
-            for key in ("all", "max"):
+            for key in ("all", "max", "popup"):
                 if self.active_tabs.get(key):
                     names.add(str(self.active_tabs[key]))
             return names
@@ -3495,7 +3508,7 @@ class NegotiationSession:
                 tools.append(
                     dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, help=t.help_text(), pane=s["pane"],
                          order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
-                         added_by=s.get("added_by"))
+                         added_by=s.get("added_by"), generator=_is_generator(t))
                 )
             sa = self.support_agent
             snap = {

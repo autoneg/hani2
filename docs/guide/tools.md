@@ -44,6 +44,7 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Negotiation Plot | lower | load | yes | admins only; everyone while an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
 | Outcome Plot | lower | start | no | everyone | The offers placed in the outcome space: any two issues, relative time or step on the axes, with an option to hide your own offers. |
 | Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins (or everyone, see below) can add an "Opponent utility" column. |
+| Utility Bar | side | start | yes | everyone | The first offer generator. Click or drag on a bar of your utility (0-100%, with how many deals there are at each value and marks at your value on disagreement, the opponent's offer and your offer) and get one deal from that part, up to ten, all of them, or (with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences), or for admins) the best or the top ten for the opponent. A click gives the deals nearest to that value. See [Utility Bar](offer-generators.md#utility-bar). |
 | Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer. A **Set Offer** button picks one outcome from the range. While an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set, it can also show the opponent's estimated utility and choose deals by it. |
 | LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
 | Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
@@ -199,6 +200,15 @@ who made it, the offer, its message and what it is worth to you. **Show opponent
 opponent's utility, with the same rule as the Utility Plot.
 
 ![The Trace tool](../assets/screens/tool-trace.png)
+
+### Utility Bar
+
+**Everyone, from the start; the side pane's open tab.** A bar of what deals are worth to you, from
+0% to 100%: drag across a part of it, or click a point for the nearest deals, and choose **Any
+offer**, **Up to 10 offers**, **All offers**, **Best for the opponent** or **Top 10 for the
+opponent** (the last two only with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences),
+or for those who may see the real preferences). Click a row to copy it into your counter-offer, or
+press **Set Offer**. See [Utility Bar](offer-generators.md#utility-bar).
 
 ### Utility-based Selector
 

@@ -11,6 +11,8 @@ import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 import { NumberInput } from "../ui/NumberInput";
 import { Renderer, STATIC_CTX } from "../ui/Renderer";
+import { GeneratorButton, ToolsMenu } from "./Launcher";
+import { POPUP_KEY } from "./ToolPane";
 
 /* ------------------------------------------------------------------ */
 /* Issue field                                                          */
@@ -199,7 +201,7 @@ export function ConfirmDialog() {
 /* ------------------------------------------------------------------ */
 /* Running: offer on the table, decisions, counter-offer editor         */
 /* ------------------------------------------------------------------ */
-function Running({ st }: { st: SessionState }) {
+function Running({ st, launcher }: { st: SessionState; launcher: boolean }) {
   const setConfirm = useStore((s) => s.setConfirm);
   const draftVersion = useStore((s) => s.draftVersion);
   const myTurn = st.negotiation.is_my_turn && !st.negotiation.thinking;
@@ -214,6 +216,15 @@ function Running({ st }: { st: SessionState }) {
   useEffect(() => {
     if (!myTurn) setCountering(false);
   }, [myTurn]);
+  // a tool in a popup filled the offer: open the editor, so the filled-in offer is seen at once
+  const popupOpen = useStore((s) => !!s.ui[POPUP_KEY]);
+  const draftKey = JSON.stringify(st.draft.values);
+  const lastDraft = useRef(draftKey);
+  useEffect(() => {
+    if (popupOpen && myTurn && draftKey !== lastDraft.current) setCountering(true);
+    lastDraft.current = draftKey;
+  }, [draftKey]);
+  const openEditor = () => myTurn && setCountering(true);
   const highlightedReject = st.highlights.some((h) => h.target === "reject" || h.target === "send" || h.target === "offer");
   const showEditor = countering || !po || !!st.prefs.offer_panel_always_visible || highlightedReject;
   const allowText = st.settings.allow_text_human !== false;
@@ -287,6 +298,14 @@ function Running({ st }: { st: SessionState }) {
             <ArrowRight size={16} /> Counter-offer
           </button>
         </Anchor>
+        {launcher && (
+          <Anchor id="launcher">
+            <div className="flex flex-wrap items-center gap-2">
+              <GeneratorButton onOpen={openEditor} />
+              <ToolsMenu onOpenGenerator={openEditor} />
+            </div>
+          </Anchor>
+        )}
         <div className="flex-1" />
         <Anchor id="end">
           <button className="btn-danger px-3 py-2" disabled={!myTurn} onClick={() => setConfirm({ kind: "end" })}>
@@ -520,7 +539,7 @@ function ChoicePickers({ st }: { st: SessionState }) {
   );
 }
 
-function Intro({ st }: { st: SessionState }) {
+function Intro({ st, launcher }: { st: SessionState; launcher: boolean }) {
   const [md, setMd] = useState("");
   useEffect(() => {
     api("/api/announcements").then((r) => setMd(r.markdown)).catch(() => {});
@@ -571,6 +590,7 @@ function Intro({ st }: { st: SessionState }) {
             <RefreshCw size={15} /> Different scenario
           </button>
         )}
+        {launcher && <ToolsMenu />}
         <AutoCountdown st={st} />
       </div>
       )}
@@ -607,7 +627,7 @@ function AiInstead() {
 /* ------------------------------------------------------------------ */
 /* Result, questionnaire, completion                                    */
 /* ------------------------------------------------------------------ */
-function ResultCard({ st }: { st: SessionState }) {
+function ResultCard({ st, launcher }: { st: SessionState; launcher: boolean }) {
   const r = st.result;
   const ok = r?.status === "success";
   return (
@@ -630,6 +650,7 @@ function ResultCard({ st }: { st: SessionState }) {
         <button className="btn-primary px-5 py-2.5" onClick={() => send({ type: "load" })}>
           <ArrowRight size={16} /> Next negotiation
         </button>
+        {launcher && <ToolsMenu />}
         <AutoCountdown st={st} />
       </div>
     </div>
@@ -779,15 +800,18 @@ function Finished({ st }: { st: SessionState }) {
   );
 }
 
-export function ActionDock({ embedded = false, maxHeight = "max-h-[64vh]" }: { embedded?: boolean; maxHeight?: string }) {
+/** ``launcher``: show the buttons that open tools in a popup (views where the offer generators
+ *  are not next to the offer area). Never in the bare view, which has no tools at all. */
+export function ActionDock({ embedded = false, maxHeight = "max-h-[64vh]", launcher = false }: { embedded?: boolean; maxHeight?: string; launcher?: boolean }) {
   const st = useStore((s) => s.state);
   if (!st) return null;
+  const launch = launcher && st.layout.view !== "bare" && st.tools.length > 0;
   let body: React.ReactNode;
-  if (st.phase === "running" || st.phase === "starting") body = <Running st={st} />;
-  else if (st.phase === "ended") body = <ResultCard st={st} />;
+  if (st.phase === "running" || st.phase === "starting") body = <Running st={st} launcher={launch} />;
+  else if (st.phase === "ended") body = <ResultCard st={st} launcher={launch} />;
   else if (st.phase === "questionnaire" && st.questionnaire) body = <QuestionnaireForm q={st.questionnaire} />;
   else if (st.phase === "finished") body = <Finished st={st} />;
-  else body = <Intro st={st} />;
+  else body = <Intro st={st} launcher={launch} />;
   return (
     <div
       className={`scroll-thin overflow-y-auto bg-surface/80 px-3 py-3 backdrop-blur sm:px-5 sm:py-4 ${

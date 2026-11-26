@@ -33,6 +33,7 @@ __all__ = [
     "ValueHistogramTool",
     "UserResultsTool",
     "AllResultsTool",
+    "UtilityBarTool",
     "UtilitySelectorTool",
     "RandomOutcomeTool",
     "ResponseGeneratorTool",
@@ -974,6 +975,329 @@ class UtilitySelectorTool(OutcomeSelector):
             return self._get_inverter().one_in(self._range(), normalized=True)
         except Exception:
             return None
+
+
+BAR_MODES = {
+    "any": "Any offer",
+    "some": "Up to 10 offers",
+    "all": "All offers",
+    "opp_best": "Best for the opponent",
+    "opp_top": "Top 10 for the opponent",
+}
+OPP_MODES = ("opp_best", "opp_top")
+
+
+class UtilityBarTool(OutcomeSelector):
+    """The graphical utility inverter: click or drag on a 0-100% bar of *your* utility and get
+    offers from that part of it (one, up to ten, all, or the best for the opponent)."""
+
+    needs_totals = True
+    name = "Utility Bar"
+    groups = ("recommendation",)
+    description = "Click or drag on a bar of what deals are worth to you and get offers from that part."
+    help = """
+    **What it shows.** A bar of what deals are worth *to you*, from 0% (your worst deal) to
+    100% (your best). The grey columns show how many deals there are at each value; the
+    marks show your value on disagreement, the opponent's offer on the table and your current
+    offer.
+
+    **How to use it.** **Drag** across the bar to choose a part of it (for example 60-80%),
+    or **click** a point to get the deals *nearest* to that value. Then choose what you want:
+
+    * **Any offer**: one deal from that part (press **Another** for a different one);
+    * **Up to 10 offers**: up to ten deals spread across that part;
+    * **All offers**: every deal in that part, best for you first;
+    * **Best for the opponent** / **Top 10 for the opponent**: the deals in that part worth most
+      to the opponent (only when an estimate of the opponent's preferences is set, or for
+      administrators, who see the real ones).
+
+    Click a row to copy that deal into your counter-offer, or press **Set Offer** for the
+    selected (or first) one. The offer is only filled in: you still send it yourself. The
+    keyboard works too: the arrow keys move the selection, shift and an arrow widens it.
+
+    **The opponent's numbers** come from an *estimate* when one is set, and estimates can be
+    wrong; a banner says which you see.
+    """
+    agent_hint = ("Set the input 'area' to [low, high] in percent of the participant's utility (or [x, x] for the "
+                  "deals nearest x) and 'mode' to one of any, some, all, opp_best, opp_top; then select a row "
+                  "with action 'pick' or use 'set_offer'.")
+    icon = "ruler-dimension-line"
+    pane = "side"
+    timing = "start"
+    order = -10
+    #: outcomes considered at most (larger outcome spaces are sampled)
+    max_outcomes = 200_000
+    #: rows shown at most by "All offers"
+    max_rows = 1000
+    #: how many deals "Up to 10" and "Top 10" give, and how many nearest deals a click considers
+    k = 10
+    #: a selection narrower than this (in percent) is a click
+    click_width = 0.5
+    bins = 40
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.values.update(area=[70, 100], mode="any", opponent="estimate", draw=0, selected=None)
+        self._mine_key = None
+        self._mine = None  # (outcomes, normalized utilities as a numpy array)
+        self._opp_key = None
+        self._opp = None
+
+    # -- utilities --------------------------------------------------------------------
+    def _space(self):
+        """Every outcome (sampled above :attr:`max_outcomes`) and their normalized utility for the human."""
+        import numpy as np
+
+        uf, s = self.human_ufun, self.scenario
+        key = (id(uf), id(s))
+        if self._mine_key != key:
+            self._mine_key, self._mine, self._opp_key, self._opp = key, None, None, None
+        if self._mine is None:
+            if uf is None or s is None:
+                return [], np.zeros(0)
+            outs = list(s.outcome_space.enumerate_or_sample(max_cardinality=self.max_outcomes))
+            self._mine = (outs, self._normalize([float(uf(o)) for o in outs], uf))
+        return self._mine
+
+    @staticmethod
+    def _normalize(vals: list[float], ufun=None):
+        """Utilities on a 0..1 scale (0 = the worst deal, 1 = the best), from the ufun's own
+        ``minmax`` when it has one, so the numbers match the other tools."""
+        import numpy as np
+
+        a = np.asarray(vals, dtype=float)
+        a = np.nan_to_num(a, nan=0.0, posinf=0.0, neginf=0.0)
+        mn = mx = None
+        try:
+            if ufun is not None:
+                mn, mx = (float(x) for x in ufun.minmax())
+        except Exception:
+            mn = mx = None
+        if mn is None or mx is None or not (np.isfinite(mn) and np.isfinite(mx)):
+            mn, mx = (float(a.min()), float(a.max())) if len(a) else (0.0, 1.0)
+        return np.clip((a - mn) / (mx - mn), 0.0, 1.0) if mx - mn > 1e-12 else np.ones_like(a)
+
+    def opponent(self) -> tuple[Any, str | None]:
+        """The opponent's utility function the opponent modes use and which one it is:
+        ``"estimate"`` (an estimate is set), ``"real"`` (only for those who may see it:
+        administrators, or everyone when ``tools.show_opponent_utility`` is on) or ``None``."""
+        est = opponent_estimate(self)
+        real = self.agent_ufun if self.may_see_opponent else None
+        if est is not None and (real is None or self.values.get("opponent", "estimate") != "real"):
+            return est, "estimate"
+        if real is not None:
+            return real, "real"
+        return None, None
+
+    def _opp_utils(self):
+        import numpy as np
+
+        ufun, kind = self.opponent()
+        if ufun is None:
+            return None, None
+        outs, _ = self._space()
+        key = (id(ufun), kind, getattr(self.session, "opponent_estimate_version", 0), self._mine_key)
+        if self._opp_key != key:
+            try:
+                self._opp = self._normalize([float(ufun(o)) for o in outs], ufun if kind == "real" else None)
+            except Exception:
+                self._opp = np.zeros(len(outs))
+            self._opp_key = key
+        return self._opp, kind
+
+    # -- the selection ------------------------------------------------------------------
+    def area(self) -> tuple[float, float]:
+        """The chosen part of the bar in percent, ``(lo, hi)``; ``lo == hi`` for a click."""
+        v = self.values.get("area") or [70, 100]
+        if isinstance(v, (int, float)):
+            v = [v, v]
+        try:
+            lo, hi = sorted(max(0.0, min(100.0, float(x))) for x in list(v)[:2])
+        except Exception:
+            lo, hi = 70.0, 100.0
+        return lo, hi
+
+    def is_click(self) -> bool:
+        lo, hi = self.area()
+        return hi - lo < self.click_width
+
+    def mode(self) -> str:
+        m = self.values.get("mode", "any")
+        if m not in BAR_MODES or (m in OPP_MODES and self.opponent()[0] is None):
+            return "any"
+        return m
+
+    def _candidates(self):
+        """Indices of the deals the selection covers: those in the dragged range, or for a click
+        the nearest ones (the nearest deal and its ties; the :attr:`k` nearest for the modes that
+        give several or rank by the opponent)."""
+        import numpy as np
+
+        _, mine = self._space()
+        if not len(mine):
+            return np.zeros(0, dtype=int)
+        lo, hi = (x / 100 for x in self.area())
+        if not self.is_click():
+            return np.flatnonzero((mine >= lo - 1e-9) & (mine <= hi + 1e-9))
+        dist = np.abs(mine - (lo + hi) / 2)
+        if self.mode() in ("any", "all"):
+            return np.flatnonzero(dist <= dist.min() + 1e-9)
+        return np.argsort(dist, kind="stable")[: self.k]
+
+    def results(self) -> list[int]:
+        """The deals the current selection and mode give, as indices into the outcome list, in
+        the order they are listed."""
+        import numpy as np
+
+        cand = self._candidates()
+        if not len(cand):
+            return []
+        _, mine = self._space()
+        m = self.mode()
+        by_me = cand[np.argsort(-mine[cand], kind="stable")]
+        if m == "any":
+            rng = random.Random(hash((tuple(self.area()), int(self.values.get("draw", 0) or 0), len(cand))))
+            return [int(rng.choice(list(cand)))]
+        if m == "all":
+            return [int(i) for i in by_me]
+        if m == "some":
+            if len(by_me) <= self.k:
+                return [int(i) for i in by_me]
+            # spread across the part: from its best to its worst deal
+            picks = np.linspace(0, len(by_me) - 1, self.k).round().astype(int)
+            return [int(by_me[j]) for j in dict.fromkeys(picks.tolist())]
+        opp, _ = self._opp_utils()
+        if opp is None:
+            return [int(i) for i in by_me[:1]]
+        # best for the opponent first; between equals, better for the human first
+        order = sorted(cand.tolist(), key=lambda i: (-float(opp[i]), -float(mine[i])))
+        return [int(i) for i in order[: 1 if m == "opp_best" else self.k]]
+
+    # -- the view ----------------------------------------------------------------------
+    def _bar(self, opp):
+        import numpy as np
+
+        _, mine = self._space()
+        counts = np.histogram(mine, bins=self.bins, range=(0.0, 1.0))[0] if len(mine) else np.zeros(self.bins)
+        overlay = None
+        if opp is not None and len(mine):
+            idx = np.minimum((mine * self.bins).astype(int), self.bins - 1)
+            best = np.full(self.bins, np.nan)
+            np.fmax.at(best, idx, opp)
+            overlay = [None if np.isnan(x) else round(float(x), 4) for x in best]
+        marks = []
+        uf = self.human_ufun
+
+        def pct_of(u):
+            return float(self._normalize([float(u)], uf)[0]) * 100
+
+        rv = getattr(uf, "reserved_value", None)
+        if rv is not None and np.isfinite(float(rv)):
+            marks.append({"value": round(pct_of(rv), 2), "label": "No deal", "kind": "bad"})
+        sess = getattr(self, "session", None)
+        for fn, label, kind in (("partner_offer", "Their offer", "opponent"), ("draft_outcome", "Your offer", "you")):
+            try:
+                o = getattr(sess, fn)() if sess is not None else None
+                if o is not None and None not in o:
+                    marks.append({"value": round(pct_of(uf(o)), 2), "label": label, "kind": kind})
+            except Exception:
+                pass
+        return [int(c) for c in counts], overlay, marks
+
+    def _row(self, i: int, mine, opp, opp_col: str | None) -> dict[str, Any]:
+        outs, _ = self._space()
+        d = self.outcome_dict(outs[i]) or {}
+        d["Utility"] = float(mine[i])
+        if opp_col:
+            d[opp_col] = float(opp[i])
+        return d
+
+    def selector_view(self):
+        outs, mine = self._space()
+        if not outs:
+            return [ui.alert("No outcomes to choose from yet.", "neutral")]
+        ufun_opp, kind = self.opponent()
+        opp, _ = self._opp_utils()
+        m = self.mode()
+        lo, hi = self.area()
+        click = self.is_click()
+        counts, overlay, marks = self._bar(opp)
+        out: list[ui.Component] = []
+        modes = {v: k for k, v in BAR_MODES.items() if k not in OPP_MODES or ufun_opp is not None}
+        if kind == "estimate":
+            out.append(ui.alert("The opponent's numbers come from an **estimate** of their preferences, which can be "
+                                "wrong.", "warning"))
+        elif kind == "real":
+            out.append(ui.alert("You see the opponent's **real** preferences (administrators only).", "info"))
+        bar_hint = "Click a point for the nearest deals, or drag across a part of the bar."
+        out.append(ui.range_bar("area", [lo, hi], label="What the deal is worth to you", density=counts,
+                                overlay=overlay, overlay_label=("Best for the opponent here" if overlay else None),
+                                marks=marks, hint=bar_hint))
+        controls = [ui.select("mode", modes, m, label="Give me")]
+        if kind is not None and self.may_see_opponent and opponent_estimate(self) is not None:
+            controls.append(ui.select("opponent", {"The estimate": "estimate", "Their real preferences": "real"},
+                                      self.values.get("opponent", "estimate"), label="Opponent's numbers"))
+        out.append(ui.row(*controls, align="end"))
+        res = self.results()
+        where = f"nearest to {lo:.0f}%" if click else f"between {lo:.0f}% and {hi:.0f}%"
+        if not res:
+            out.append(ui.alert(f"No deal is worth {where} to you. Drag across a wider part of the bar.", "neutral"))
+            return out
+        opp_col = None
+        if opp is not None:
+            opp_col = "Opponent (estimate)" if kind == "estimate" else "Opponent"
+        shown = res[: self.max_rows]
+        rows = [self._row(i, mine, opp, opp_col) for i in shown]
+        n_cand = len(self._candidates())
+        summary = {
+            "any": f"One deal {where}" + (f" (of {n_cand})" if n_cand > 1 else "") + ".",
+            "some": f"{len(res)} deal{'s' if len(res) != 1 else ''} {where}, spread from the best to the worst for you.",
+            "all": f"All {len(res)} deal{'s' if len(res) != 1 else ''} {where}, best for you first.",
+            "opp_best": f"The deal {where} worth most to the opponent.",
+            "opp_top": f"The {len(res)} deal{'s' if len(res) != 1 else ''} {where} worth most to the opponent.",
+        }[m]
+        if len(res) > len(shown):
+            summary += f" The first {len(shown)} are listed."
+        out.append(ui.text_block(summary, muted=True))
+        sel = self.values.get("selected")
+        formats = {"Utility": "percent"} | ({opp_col: "percent"} if opp_col else {})
+        out.append(ui.table(rows, on_select="pick", formats=formats, page_size=10, selected=sel, max_height=300,
+                            sortable=len(rows) > 1))
+        if m == "any" and n_cand > 1:
+            out.append(ui.button("Another", "draw", icon="dices", variant="ghost"))
+        return out
+
+    def draft_changed(self, *_a) -> None:
+        self.refresh()
+
+    def on_input(self, name, value):
+        self.values["selected"] = None
+        if name == "area":
+            # a new part of the bar: a new random pick for "Any offer"
+            self.values["draw"] = 0
+        super().on_input(name, value)
+
+    def on_action(self, action, payload):
+        if action == "pick":
+            row = payload.get("row") or {}
+            self.values["selected"] = payload.get("index")
+            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", "Opponent", "Opponent (estimate)")})
+            self.refresh()
+            return
+        if action == "draw":
+            self.values["draw"] = int(self.values.get("draw", 0) or 0) + 1
+            self.values["selected"] = None
+            self.refresh()
+            return
+        super().on_action(action, payload)
+
+    def get_outcome(self) -> Outcome | None:
+        res = self.results()
+        if not res:
+            return None
+        sel = self.values.get("selected")
+        i = res[sel] if isinstance(sel, int) and 0 <= sel < len(res) else res[0]
+        return self._space()[0][i]
 
 
 class RandomOutcomeTool(OutcomeSelector):

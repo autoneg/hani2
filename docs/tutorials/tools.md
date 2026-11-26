@@ -517,6 +517,7 @@ Every input has a `name`. Changing it calls the tool's `on_input(name, value)`.
 | `multiselect(name, options, value=(), *, label=None)` | A set of toggle chips; the value is a list. |
 | `radio(name, options, value=None, *, label=None)` | A segmented control. |
 | `slider(name, min, max, value, *, step=1, label=None, suffix=None)` | A slider with the value shown next to the label, followed by `suffix` (for example `"%"`). Sends its value on release. |
+| `range_bar(name, value=None, *, min=0, max=100, step=1, label=None, suffix="%", density=None, overlay=None, overlay_label=None, marks=None, hint=None)` | A bar on which the user clicks a point or drags out a range; the value is `[lo, hi]` (`lo == hi` for a click), sent on release. `density`: column heights drawn across the bar (e.g. how many outcomes lie in each part); `overlay`: a line over it, values 0-1, named `overlay_label`; `marks`: points such as `{"value": 40, "label": "No deal", "kind": "bad"}` (`kind`: neutral, you, opponent, good, bad, warn). Arrow keys move the selection, Shift and an arrow widens it. The Utility Bar is built on it. |
 | `number(name, value, *, min=None, max=None, step=None, label=None)` | A number field. An empty field sends `None`. |
 | `checkbox(name, value, *, label=None)` | A checkbox. |
 | `switch(name, value, *, label=None)` | A toggle (rendered like a checkbox). |

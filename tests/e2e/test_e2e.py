@@ -360,3 +360,70 @@ def test_a_style_sheet_that_hides_accept_is_dropped(e2e_browser, css_server):
         assert not p.errors, p.errors
     finally:
         ctx.close()
+
+
+def _drag_across(p, locator, a: float, b: float):
+    """Drag across ``locator`` from fraction ``a`` to fraction ``b`` of its width."""
+    box = locator.bounding_box()
+    y = box["y"] + box["height"] / 2
+    p.mouse.move(box["x"] + box["width"] * a, y)
+    p.mouse.down()
+    p.mouse.move(box["x"] + box["width"] * (a + b) / 2, y, steps=4)
+    p.mouse.move(box["x"] + box["width"] * b, y, steps=4)
+    p.mouse.up()
+
+
+@pytest.mark.parametrize("view", ["simple", "focus"])
+def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
+    """Outside the full view the action panel opens offer generators (the Utility Bar first) and any
+    other tool in a popup; a drag on the bar lists offers and a picked one fills the counter-offer."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto(f"/play?view={view}")
+    start(p)
+    if view == "focus":  # starting shows the participant's preferences (in the full view): go back to focus
+        p.get_by_role("button", name="Layout").click()
+        p.get_by_role("menuitem", name=re.compile("^Focus")).or_(p.get_by_role("button", name=re.compile("^Focus"))).first.click()
+        expect(p.locator("[data-region=tools]")).to_have_count(0)
+    gen = p.get_by_test_id("launch-generator")
+    expect(gen).to_have_text(re.compile("Utility Bar"))
+    gen.click()
+    popup = p.get_by_test_id("tool-popup")
+    expect(popup).to_be_visible()
+    expect(gen).to_have_attribute("aria-pressed", "true")
+    bar = popup.get_by_test_id("range-bar-area")
+    expect(bar).to_be_visible()
+    popup.get_by_role("combobox").first.select_option(label="All offers")
+    _drag_across(p, bar, 0.05, 0.95)
+    expect(bar).to_have_attribute("aria-valuetext", re.compile(r"^\d+% – \d+%$"))
+    rows = popup.locator("tbody tr")
+    expect(rows.first).to_be_visible()
+    rows.first.click()
+    # the counter-offer editor opens with the deal; the popup does not cover the offer area
+    expect(p.get_by_role("button", name="Send offer")).to_be_visible()
+    # a click on the bar picks the nearest deal
+    box = bar.bounding_box()
+    p.mouse.click(box["x"] + box["width"] * 0.5, box["y"] + box["height"] / 2)
+    expect(bar).to_have_attribute("aria-valuetext", re.compile("^nearest to"))
+    expect(popup.locator("tbody tr").first).to_be_visible()
+    # Esc closes it; the Tools menu opens any other tool in its place
+    popup.press("Escape")
+    expect(popup).to_have_count(0)
+    p.get_by_test_id("launch-tools").click()
+    menu = p.get_by_role("menu", name="Open a tool")
+    expect(menu.get_by_text("Offer generators")).to_be_visible()
+    menu.get_by_role("menuitem", name=re.compile("^Preferences")).click()
+    expect(p.get_by_test_id("tool-popup")).to_have_attribute("aria-label", "Preferences (popup)")
+
+
+def test_full_view_opens_a_pane_tool_in_a_popup_and_back(new_page):
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    start(p)
+    expect(p.get_by_test_id("launch-generator")).to_have_count(0)  # the generators sit next to the offer
+    p.get_by_role("button", name="Open Utility Bar in a popup").click()
+    popup = p.get_by_test_id("tool-popup")
+    expect(popup.get_by_test_id("range-bar-area")).to_be_visible()
+    expect(p.get_by_text("Utility Bar is open in a popup.")).to_be_visible()
+    p.get_by_role("button", name="Bring it back here").click()
+    expect(popup).to_have_count(0)
+    expect(p.get_by_test_id("range-bar-area")).to_be_visible()

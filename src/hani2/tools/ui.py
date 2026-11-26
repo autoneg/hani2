@@ -6,8 +6,8 @@ a tool author only ever writes Python.
 
 Interactive components:
 
-* **Inputs** (``select``, ``multiselect``, ``slider``, ``number``, ``checkbox``,
-  ``switch``, ``radio``, ``text``, ``textarea``) carry a ``name``. When the user
+* **Inputs** (``select``, ``multiselect``, ``slider``, ``range_bar``, ``number``,
+  ``checkbox``, ``switch``, ``radio``, ``text``, ``textarea``) carry a ``name``. When the user
   changes one, the tool's :meth:`~hani2.tools.Tool.on_input` is called with
   ``(name, value)``. The default implementation stores the value in
   ``self.values[name]`` and re-renders.
@@ -59,6 +59,7 @@ __all__ = [
     "select",
     "multiselect",
     "slider",
+    "range_bar",
     "number",
     "checkbox",
     "switch",
@@ -319,6 +320,47 @@ def slider(
     suffix: str | None = None,
 ) -> Component:
     return _c("slider", name=name, min=min, max=max, value=jsonable(value), step=step, label=label, suffix=suffix)
+
+
+def range_bar(
+    name: str,
+    value: Sequence[float] | float | None = None,
+    *,
+    min: float = 0,
+    max: float = 100,
+    step: float = 1,
+    label: str | None = None,
+    suffix: str | None = "%",
+    density: Sequence[float] | None = None,
+    overlay: Sequence[float] | None = None,
+    overlay_label: str | None = None,
+    marks: Sequence[dict[str, Any]] | None = None,
+    hint: str | None = None,
+) -> Component:
+    """A bar from ``min`` to ``max`` on which the user clicks a point or drags out a range.
+
+    The value is ``[lo, hi]``; a click gives ``lo == hi`` (one point). ``on_input`` is called
+    once, when the pointer is released (or with the arrow keys: left/right move the selection,
+    shift+arrow widens it).
+
+    ``density``: optional bar heights (any scale, drawn left to right across the bar), e.g. how
+    many outcomes fall in each part. ``overlay``: an optional line over the bar, values in 0..1
+    (e.g. the best an opponent gets in each part), named ``overlay_label`` in the legend.
+    ``marks``: points to show on the bar, ``{"value": 40, "label": "No deal", "kind": "bad"}``
+    (``kind``: neutral | you | opponent | good | bad | warn)."""
+    if value is None:
+        v = [min, max]
+    elif isinstance(value, (int, float)):
+        v = [float(value), float(value)]
+    else:
+        a, b = (list(value) + [None, None])[:2]
+        a = min if a is None else float(a)
+        b = a if b is None else float(b)
+        v = sorted([a, b])
+    return _c("range_bar", name=name, value=jsonable(v), min=min, max=max, step=step, label=label, suffix=suffix,
+              density=jsonable(list(density)) if density is not None else None,
+              overlay=jsonable(list(overlay)) if overlay is not None else None, overlay_label=overlay_label,
+              marks=jsonable(list(marks)) if marks else None, hint=hint)
 
 
 def number(name: str, value: float | None, *, min: float | None = None, max: float | None = None,

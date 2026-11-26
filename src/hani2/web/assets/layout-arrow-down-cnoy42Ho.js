@@ -1,0 +1,1 @@
+import{c as o}from"./index-DIABVNUe.js";const e={name:"layout-arrow-down",size:24,node:[["rect",{width:"7",height:"7",x:"3",y:"3",rx:"1",key:"1g98yp"}],["rect",{width:"7",height:"7",x:"3",y:"14",rx:"1",key:"1bb6yr"}],["path",{d:"M18 3v18",key:"1kvono"}],["path",{d:"m21 18-3 3-3-3",key:"1df7ah"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

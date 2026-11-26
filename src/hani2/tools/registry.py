@@ -87,6 +87,7 @@ def builtin_tool_classes() -> list[type[Tool]]:
         b.NegotiationPlotTool,
         b.OutcomePlotTool,
         b.TraceTool,
+        b.UtilityBarTool,
         b.UtilitySelectorTool,
         b.ResponseGeneratorTool,
         b.RandomOutcomeTool,

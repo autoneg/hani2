@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bot, CircleHelp, EyeOff, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, Pin, Plus, X } from "lucide-react";
+import { Bot, CircleHelp, EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
 import { send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
@@ -8,6 +8,7 @@ import { Icon } from "../ui/Icon";
 import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
+import { useDevice } from "../device";
 
 type Pane = "upper" | "lower" | "side";
 const PANE_ICON = { upper: PanelTop, lower: PanelBottom, side: PanelRight };
@@ -39,6 +40,9 @@ function ToolMenu({ tool, allowMove }: { tool: ToolInfo; allowMove: boolean }) {
                   </button>
                 );
               })}
+          <button className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-sunken" onClick={() => openPopup(tool)}>
+            <PictureInPicture2 size={15} /> Open in a popup
+          </button>
           {!tool.permanent && (
             <button className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm hover:bg-sunken" onClick={() => send({ type: "tool_layout", op: "hide", name: tool.name })}>
               <EyeOff size={15} /> Hide this tool
@@ -110,6 +114,7 @@ export function ToolBody({ tool }: { tool: ToolInfo }) {
 export function ToolPane({ panes, className = "", label }: { panes: Pane[]; className?: string; label?: string }) {
   const st = useStore((s) => s.state);
   const maximized = useStore((s) => s.maximized);
+  const popup = useStore((s) => s.ui[POPUP_KEY] as string | undefined);
   const canMaximize = (st?.tool_maximize ?? "window") !== "off";
   if (!st) return null;
   const tools = st.tools.filter((t) => panes.includes(t.pane) && t.visible).sort((a, b) => (panes.indexOf(a.pane) - panes.indexOf(b.pane)) * 1000 + a.order - b.order);
@@ -188,6 +193,11 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
             <Maximize2 size={14} />
           </button>
         )}
+        {active && popup !== active.id && maximized !== active.id && (
+          <button className="btn-ghost px-1.5 py-1" onClick={() => openPopup(active!)} aria-label={`Open ${active.name} in a popup`} title="Open in a popup">
+            <PictureInPicture2 size={14} />
+          </button>
+        )}
         {active && <ToolMenu key={`menu-${active.id}`} tool={active} allowMove={allowMove} />}
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3" role="tabpanel">
@@ -197,6 +207,14 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
             <p className="max-w-xs text-sm text-muted">{active.name} is open in a larger view.</p>
             <button className="btn-secondary" onClick={() => putBack(active!)}>
               <Pin size={14} /> Put it back here
+            </button>
+          </div>
+        ) : active && popup === active.id ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <PictureInPicture2 size={20} className="text-muted" />
+            <p className="max-w-xs text-sm text-muted">{active.name} is open in a popup.</p>
+            <button className="btn-secondary" onClick={() => closePopup()}>
+              <Pin size={14} /> Bring it back here
             </button>
           </div>
         ) : active ? (
@@ -225,7 +243,8 @@ function putBack(t: ToolInfo) {
  *  `tools.maximize`). "Put back" returns it to the pane it came from. */
 export function MaximizedTool() {
   const id = useStore((s) => s.maximized);
-  const tool = useStore((s) => s.state?.tools.find((t) => t.id === id && t.visible));
+  // any tool, also one not shown in this view (opened from a popup or the action panel)
+  const tool = useStore((s) => s.state?.tools.find((t) => t.id === id));
   const mode = useStore((s) => s.state?.tool_maximize ?? "window");
   const bare = useStore((s) => s.state?.layout.view === "bare");
   useEffect(() => {
@@ -266,5 +285,148 @@ export function MaximizedTool() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* A tool in a popup                                                    */
+/* ------------------------------------------------------------------ */
+/** The store's UI key of the tool open in a popup (recorded and replayed like other UI state). */
+export const POPUP_KEY = "tool.popup";
+const POS_KEY = "hani.popup.pos";
+
+/** Opens a tool in the floating popup (one at a time: another tool takes its place). */
+export function openPopup(t: ToolInfo, from = "pane") {
+  const st = useStore.getState();
+  if (st.maximized === t.id) putBack(t);
+  st.setUi(POPUP_KEY, t.id);
+  send({ type: "active_tab", pane: "popup", name: t.name });
+  send({ type: "event", name: "tool_popup_opened", component: t.name, value: { from } });
+}
+
+export function closePopup() {
+  const st = useStore.getState();
+  const id = st.ui[POPUP_KEY];
+  if (!id) return;
+  const t = st.state?.tools.find((x) => x.id === id);
+  st.clearUi(POPUP_KEY);
+  send({ type: "active_tab", pane: "popup", name: null });
+  send({ type: "event", name: "tool_popup_closed", component: t?.name ?? String(id) });
+}
+
+function readPos(): { x: number; y: number; w: number } | null {
+  try {
+    const p = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+    return p && typeof p.x === "number" && typeof p.y === "number" ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A tool in a floating, non-blocking window: the offer area stays usable, so what a
+ *  generator puts in the offer is seen at once. Drag it by its title bar, resize it from its
+ *  corner; it remembers where it was. On phones it is a sheet along the top of the screen. */
+export function ToolPopup() {
+  const id = useStore((s) => s.ui[POPUP_KEY] as string | undefined);
+  const tool = useStore((s) => s.state?.tools.find((t) => t.id === id));
+  const bare = useStore((s) => s.state?.layout.view === "bare");
+  const maximized = useStore((s) => s.maximized);
+  const replay = useStore((s) => s.replay);
+  const canMaximize = useStore((s) => (s.state?.tool_maximize ?? "window") !== "off");
+  const { device } = useDevice();
+  const phone = device === "phone";
+  const [pos, setPos] = useState(readPos);
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+  useEffect(() => {
+    // the tool went away (another round, hidden by the study) or the view has no tools
+    if (id && !replay && (!tool || bare)) useStore.getState().clearUi(POPUP_KEY);
+  }, [id, tool, bare, replay]);
+  useEffect(() => {
+    if (tool) box.current?.focus({ preventScroll: true });
+  }, [tool?.id]);
+  if (!tool || bare || maximized === tool.id) return null;
+  const clamp = (x: number, y: number) => {
+    const w = box.current?.offsetWidth ?? 420;
+    return { x: Math.max(8 - w + 120, Math.min(window.innerWidth - 120, x)), y: Math.max(8, Math.min(window.innerHeight - 48, y)) };
+  };
+  const style: React.CSSProperties = phone
+    ? {}
+    : pos
+      ? { left: clamp(pos.x, pos.y).x, top: clamp(pos.x, pos.y).y, width: pos.w }
+      : { right: 16, top: 72 };
+  const save = () => {
+    const el = box.current;
+    if (!el || phone) return;
+    const r = el.getBoundingClientRect();
+    const p = { x: r.left, y: r.top, w: r.width };
+    setPos(p);
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify(p));
+    } catch {
+      /* private window */
+    }
+  };
+  return createPortal(
+    <div
+      ref={box}
+      role="dialog"
+      aria-modal={false}
+      aria-label={`${tool.name} (popup)`}
+      tabIndex={-1}
+      data-testid="tool-popup"
+      onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), closePopup())}
+      onPointerUp={save}
+      className={`enter fixed z-[55] flex flex-col border border-line bg-surface shadow-pop outline-none ${
+        phone ? "inset-x-0 top-14 max-h-[55dvh] rounded-b-xl border-t-0" : "max-h-[calc(100dvh-5rem)] min-h-[160px] w-[420px] min-w-[300px] max-w-[calc(100vw-1rem)] resize overflow-hidden rounded-xl"
+      }`}
+      style={style}
+    >
+      <div
+        className={`flex items-center gap-2 border-b border-line px-3 py-2 ${phone ? "" : "cursor-grab touch-none active:cursor-grabbing"}`}
+        onPointerDown={(e) => {
+          if (phone || (e.target as HTMLElement).closest("button")) return;
+          const r = box.current!.getBoundingClientRect();
+          drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d || !box.current) return;
+          const p = clamp(e.clientX - d.dx, e.clientY - d.dy);
+          box.current.style.left = `${p.x}px`;
+          box.current.style.top = `${p.y}px`;
+          box.current.style.right = "auto";
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+      >
+        {!phone && <GripHorizontal size={14} className="shrink-0 text-muted" aria-hidden />}
+        <Icon name={tool.icon} size={15} />
+        <div className="min-w-0 flex-1 truncate text-sm font-semibold">{tool.name}</div>
+        <ToolHelp tool={tool} />
+        {canMaximize && (
+          <button
+            className="btn-ghost px-1.5 py-1"
+            onClick={() => {
+              closePopup();
+              maximize(tool);
+            }}
+            aria-label={`Enlarge ${tool.name}`}
+            title="Enlarge"
+          >
+            <Maximize2 size={14} />
+          </button>
+        )}
+        <button className="btn-ghost px-1.5 py-1" onClick={() => closePopup()} aria-label={`Close ${tool.name}`} title="Close (Esc)">
+          <X size={16} />
+        </button>
+      </div>
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
+        <ToolBody key={tool.id} tool={tool} />
+      </div>
+    </div>,
+    document.body,
   );
 }

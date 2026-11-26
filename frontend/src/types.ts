@@ -46,6 +46,8 @@ export interface ToolInfo {
   permanent: boolean;
   /** who added the tool during the session (e.g. the Assistant's name) */
   added_by?: string | null;
+  /** an offer generator (fills the counter-offer): listed first where the page offers tools */
+  generator?: boolean;
 }
 
 export interface ChatMessage {

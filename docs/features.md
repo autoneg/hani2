@@ -31,7 +31,7 @@ details are.
 
 | Feature | What it does | Details |
 | --- | --- | --- |
-| Thirteen built-in tools | Preferences, Scenario Info, My Results, Value Histogram, Utility Plot, Negotiation Plot, Outcome Plot, Trace, Utility-based Selector, LLM, Random, All Results and Opponent Preferences. | [Built-in tools](guide/tools.md#built-in-tools) |
+| Fourteen built-in tools | Preferences, Scenario Info, My Results, Value Histogram, Utility Plot, Negotiation Plot, Outcome Plot, Trace, Utility Bar, Utility-based Selector, LLM, Random, All Results and Opponent Preferences. | [Built-in tools](guide/tools.md#built-in-tools) |
 | Negotiation Plot | The negotiation in utility space with the Pareto frontier, Nash and Kalai points and both offer trajectories (admins, or everyone if allowed). | [Built-in tools](guide/tools.md#built-in-tools) |
 | Any kind of preferences | The Preferences and Opponent Preferences tools show linear, affine, additive, generalized linear, polynomial, nonlinear, hyper-rectangle, weighted, discounted, rank-only, constant and probabilistic utility functions, and anything else as a ranked list. | [Showing other preferences](guide/preferences.md) |
 | Rearrange tools | Tabs, an enable switch, move between panes, hide and restore. | [Tool panes](guide/interface.md#tool-panes) |

@@ -34,7 +34,7 @@ The layout menu offers four views. The current view is part of the session state
 
 | View | Desktop layout |
 | --- | --- |
-| `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
+| `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility Bar and the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
 | `simple` | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
 | `focus` | The thread and action dock only. Opening a tool (or the start of a negotiation revealing the participant's preferences) brings the tools back. |
 | `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
@@ -115,6 +115,16 @@ While a tool is enlarged its pane shows a **Put it back here** button. **Put bac
 view, the close button, or **Esc** returns the tool to the pane it came from. Opening and returning
 a tool are logged as `tool_maximized` and `tool_restored` events.
 
+### Open in a popup
+
+The popup button next to the tabs (and **Open in a popup** in the **⋯** menu) opens the active
+tool in a small floating window that does not block the page: drag it by its title bar, resize it
+from its corner (it remembers where it was), close it with **×** or **Esc**, or enlarge it with
+**⤢**. One tool is in the popup at a time. While it is out, its pane shows **Bring it back here**.
+On a phone the popup is a sheet along the top of the screen. Opening and closing are logged as
+`tool_popup_opened` (with `from`: `pane`, `dock` or `menu`) and `tool_popup_closed` events. See
+[Tools in a popup](offer-generators.md#tools-in-a-popup).
+
 ### Your preferences when the negotiation starts
 
 When a negotiation starts, your **Preferences** tool comes into view: it becomes the active tab of
@@ -170,6 +180,8 @@ A pick holds for this negotiation only; the next one starts from HANI2's own pic
 ### During the negotiation
 
 The dock shows the **offer on the table** with its utility gauge, then the **Accept**, **Counter-offer** and **End** buttons, and the counter-offer editor when it is open. The buttons work only on your turn; otherwise "Waiting…" appears.
+
+Outside the full view (the simple and focus views, and on tablets and phones), where the offer generators are not next to the dock, two more buttons follow **Counter-offer**: the first offer generator (the **Utility Bar**), which opens in a [popup](#open-in-a-popup) and opens the counter-offer editor, and **Tools**, a menu of every tool, offer generators first, that opens the chosen one in the popup. When a tool in the popup fills the offer, the editor opens so the new offer is in view. The **Tools** menu is also in the dock before and after the negotiation. The bare view has neither.
 
 The utility gauge is a bar from 0% to 100% with a dark tick at your value on disagreement. The fill is blue for your offers and orange for your opponent's; it turns red when the value is below the tick.
 

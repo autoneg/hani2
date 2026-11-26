@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiState } from "../store";
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import type { Component } from "../types";
@@ -279,6 +279,8 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
       );
     case "slider":
       return <Slider c={c} v={v} ctx={ctx} />;
+    case "range_bar":
+      return <RangeBar c={c} v={v} ctx={ctx} />;
     case "number":
       return (
         <Field label={c.label}>
@@ -383,6 +385,184 @@ function Slider({ c, v, ctx }: { c: Component; v: any; ctx: RenderCtx }) {
         onPointerUp={() => ctx.onInput(c.name, local)}
         onKeyUp={() => ctx.onInput(c.name, local)}
       />
+    </div>
+  );
+}
+
+const MARK: Record<string, string> = {
+  you: "bg-you",
+  opponent: "bg-opponent",
+  good: "bg-good",
+  bad: "bg-bad",
+  warn: "bg-warn",
+  neutral: "bg-muted",
+};
+
+/** A bar on which the user clicks a point or drags out a range (``ui.range_bar``). The value is
+ *  ``[lo, hi]`` (``lo == hi`` for a click); it is sent once, on release (or after the keys). */
+function RangeBar({ c, v, ctx }: { c: Component; v: any; ctx: RenderCtx }) {
+  const min = Number(c.min ?? 0);
+  const max = Number(c.max ?? 100);
+  const step = Number(c.step ?? 1) || 1;
+  const span = Math.max(1e-9, max - min);
+  const norm = (x: any): [number, number] => {
+    const a = Array.isArray(x) ? x : x == null ? [min, max] : [x, x];
+    const lo = Number(a[0] ?? min), hi = Number(a[1] ?? lo);
+    return lo <= hi ? [lo, hi] : [hi, lo];
+  };
+  const [sel, setSel] = useState<[number, number]>(norm(v));
+  useEffect(() => setSel(norm(v)), [JSON.stringify(v)]);
+  const [hover, setHover] = useState<number | null>(null);
+  const track = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ start: number; x0: number; moved: boolean } | null>(null);
+  const keyTimer = useRef<number | undefined>(undefined);
+  const snap = (x: number) => Math.max(min, Math.min(max, Math.round((x - min) / step) * step + min));
+  const at = (clientX: number) => {
+    const r = track.current!.getBoundingClientRect();
+    return snap(min + ((clientX - r.left) / Math.max(1, r.width)) * span);
+  };
+  const commit = (s: [number, number]) => ctx.onInput(c.name, s);
+  const pctOf = (x: number) => `${((x - min) / span) * 100}%`;
+  const suffix = c.suffix ?? "";
+  const fmt = (x: number) => `${Number.isInteger(x) ? x : x.toFixed(1)}${suffix}`;
+  const point = sel[1] - sel[0] < step / 2;
+  const readout = point ? `nearest to ${fmt(sel[0])}` : `${fmt(sel[0])} – ${fmt(sel[1])}`;
+  const density: number[] = Array.isArray(c.density) ? c.density : [];
+  const dmax = Math.max(1, ...density.map((d) => Number(d) || 0));
+  const overlay: (number | null)[] = Array.isArray(c.overlay) ? c.overlay : [];
+  const marks: { value: number; label?: string; kind?: string }[] = Array.isArray(c.marks) ? c.marks : [];
+  const disabled = !!ctx.disabled;
+
+  const onKey = (e: React.KeyboardEvent) => {
+    const big = e.key === "PageUp" || e.key === "PageDown";
+    const dir = e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "PageUp" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowDown" || e.key === "PageDown" ? -1 : 0;
+    let next: [number, number] | null = null;
+    if (dir) {
+      const d = dir * step * (big ? 10 : 1);
+      if (e.shiftKey) next = dir > 0 ? [sel[0], snap(sel[1] + d)] : [sel[0], Math.max(sel[0], snap(sel[1] + d))];
+      else {
+        const w = sel[1] - sel[0];
+        const lo = Math.max(min, Math.min(max - w, sel[0] + d));
+        next = [snap(lo), snap(lo + w)];
+      }
+    } else if (e.key === "Home") next = [min, min + (sel[1] - sel[0])];
+    else if (e.key === "End") next = [max - (sel[1] - sel[0]), max];
+    if (!next) return;
+    e.preventDefault();
+    setSel(next);
+    window.clearTimeout(keyTimer.current);
+    const n = next;
+    keyTimer.current = window.setTimeout(() => commit(n), 350);
+  };
+
+  return (
+    <div className="min-w-[12rem] select-none">
+      <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+        {c.label && <span className="font-medium text-muted">{c.label}</span>}
+        <span className="tnum font-semibold" aria-live="polite">{readout}</span>
+      </div>
+      <div
+        ref={track}
+        role="slider"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={c.label || "Range"}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={sel[0]}
+        aria-valuetext={readout}
+        aria-disabled={disabled || undefined}
+        data-testid={`range-bar-${c.name}`}
+        className={`relative h-16 touch-none overflow-hidden rounded-lg border border-line bg-sunken/70 outline-none focus-visible:ring-2 focus-visible:ring-you ${disabled ? "opacity-60" : "cursor-crosshair"}`}
+        onKeyDown={disabled ? undefined : onKey}
+        onPointerDown={(e) => {
+          if (disabled || e.button !== 0) return;
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          (e.currentTarget as HTMLElement).focus();
+          const x = at(e.clientX);
+          drag.current = { start: x, x0: e.clientX, moved: false };
+          setSel([x, x]);
+        }}
+        onPointerMove={(e) => {
+          const x = at(e.clientX);
+          setHover(x);
+          const d = drag.current;
+          if (!d) return;
+          if (Math.abs(e.clientX - d.x0) > 4) d.moved = true;
+          if (d.moved) setSel(x < d.start ? [x, d.start] : [d.start, x]);
+        }}
+        onPointerUp={(e) => {
+          const d = drag.current;
+          drag.current = null;
+          if (!d) return;
+          const x = at(e.clientX);
+          const s: [number, number] = d.moved ? (x < d.start ? [x, d.start] : [d.start, x]) : [d.start, d.start];
+          setSel(s);
+          commit(s);
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          setSel(norm(v));
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        {density.length > 0 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-full items-end" aria-hidden>
+            {density.map((d, i) => (
+              <div key={i} className="flex h-full flex-1 items-end px-[0.5px]">
+                <div className="w-full rounded-t-sm bg-muted/35" style={{ height: `${(Math.max(0, Number(d) || 0) / dmax) * 85}%` }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {overlay.some((x) => x != null) && (
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${overlay.length} 1`} preserveAspectRatio="none" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="rgb(var(--opponent))"
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+              points={overlay.map((y, i) => (y == null ? null : `${i + 0.5},${1 - 0.1 - Number(y) * 0.8}`)).filter(Boolean).join(" ")}
+            />
+          </svg>
+        )}
+        {point ? (
+          <div className="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-you" style={{ left: pctOf(sel[0]) }} aria-hidden>
+            <div className="absolute left-1/2 top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-you ring-2 ring-surface" />
+          </div>
+        ) : (
+          <div className="pointer-events-none absolute inset-y-0 border-x-2 border-you bg-you/20" style={{ left: pctOf(sel[0]), width: `${((sel[1] - sel[0]) / span) * 100}%` }} aria-hidden />
+        )}
+        {marks.map((m, i) => (
+          <div key={i} title={m.label ? `${m.label}: ${fmt(Number(m.value))}` : undefined} className={`pointer-events-none absolute bottom-0 h-1/2 w-0.5 -translate-x-1/2 ${MARK[m.kind ?? "neutral"] ?? MARK.neutral}`} style={{ left: pctOf(Number(m.value)) }} aria-hidden />
+        ))}
+        {hover !== null && !drag.current && (
+          <div className="pointer-events-none absolute inset-y-0 w-px bg-ink/40" style={{ left: pctOf(hover) }} aria-hidden>
+            <span className="tnum absolute -translate-x-1/2 rounded bg-ink px-1 text-[10px] text-surface" style={{ top: 2 }}>{fmt(hover)}</span>
+          </div>
+        )}
+      </div>
+      <div className="tnum mt-0.5 flex justify-between text-[10px] text-muted" aria-hidden>
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+          <span key={f}>{fmt(Math.round(min + f * span))}</span>
+        ))}
+      </div>
+      {(c.hint || marks.length > 0 || c.overlay_label) && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+          {marks.map((m, i) => (
+            <span key={i} className="inline-flex items-center gap-1">
+              <span className={`inline-block h-2.5 w-0.5 ${MARK[m.kind ?? "neutral"] ?? MARK.neutral}`} />
+              {m.label} <span className="tnum">{fmt(Math.round(Number(m.value) * 10) / 10)}</span>
+            </span>
+          ))}
+          {c.overlay_label && overlay.some((x) => x != null) && (
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-0.5 w-3 bg-opponent" /> {c.overlay_label}
+            </span>
+          )}
+          {c.hint && <span className="basis-full">{c.hint}</span>}
+        </div>
+      )}
     </div>
   );
 }

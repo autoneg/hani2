@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **The Utility Bar, a graphical utility inverter.** The new first offer generator: click or drag on
+  a 0-100% bar of what deals are worth to you (with how many deals lie at each value and marks at
+  your value on disagreement, the opponent's offer and yours) and get one deal from that part, up to
+  ten, all of them, or, with an estimate of the opponent (or for admins), the best or the top ten
+  for the opponent. A click gives the nearest deals. See [Utility Bar](guide/offer-generators.md#utility-bar).
+- **Any tool in a popup.** Every tool pane can open its tool in a floating window that leaves the
+  page usable. Outside the full view the offer area gets a button for the first offer generator and
+  a **Tools** menu that opens any tool, generators first, in the popup. See
+  [Tools in a popup](guide/offer-generators.md#tools-in-a-popup).
+- **`ui.range_bar`**, a click-or-drag range input for tools, with optional density columns, an
+  overlay line and marks.
+
 - **Games: people play each other whenever they like.** `human_opponents_first` makes every
   negotiation look for a person first, of any human kind the pool lists, with the AI entries as the
   fallback. `human_opponent_choice` (or `?opponent_choice=1`) lets the participant choose *Play a
