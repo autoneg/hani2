@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
+  participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no
+  **Play an AI opponent instead** button, no person/AI choice screen, no AI entries in the opponent
+  picker (the file's own AI entries are dropped), and the server refuses any request for an AI
+  opponent. The default (`true`) changes nothing. While a participant waits with no AI on offer, the
+  page now says *Waiting for another participant. The negotiation starts as soon as they are ready.*
+  (before, it showed no waiting line under the offer area; this also applies to studies with
+  `human_opponent_fallback: false`). See [People-only invitations](guide/human-opponents.md#people-only-invitations).
 - **Scenario explorer.** A scenario type's page in the console (Library → Scenarios) shows its
   picture, short and long descriptions, every role's preference summary, its issues, the 2D utility
   plot and the Preferences tool as each role sees it, in sections that fold away. Generators draw

@@ -1,1 +1,0 @@
-import{c as o}from"./index-6RLio46Q.js";const e={name:"chevrons-down",size:24,node:[["path",{d:"m7 6 5 5 5-5",key:"1lc07p"}],["path",{d:"m7 13 5 5 5-5",key:"1d48rs"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

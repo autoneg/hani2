@@ -25,6 +25,9 @@ def _game_home(home: Path) -> None:
         "full_name: A game\nkind: none\ndefaults:\n  opponents: [human+assistant, human, BoulwareTBNegotiator]\n"
         "  questionnaires: false\n  counted_time_limit: 600\n")
     (study / "study.yaml").write_text("type: online\ntitle: The game\n")
+    (study / "results" / "groups").mkdir(parents=True, exist_ok=True)
+    (study / "results" / "groups" / "inv_people.json").write_text(json.dumps(
+        {"agents": ["human+assistant", "human"], "ai_fallback": False}))  # a people-only invitation
     (study / "env.json").write_text(json.dumps({"negotiation": {
         "human_opponents_first": True, "human_opponent_choice": True, "human_opponent_codes": False,
         "human_opponent_wait": 300}}))
@@ -98,6 +101,23 @@ def test_an_invited_guest_signs_in_and_plays_an_ai_now(e2e_browser, game_server)
         # the guest opens nothing but the game
         assert p.request.post("/api/session", data={"mode": "main"}).status == 403
         assert p.request.get("/api/admin/results").status in (401, 403)
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()
+
+
+def test_a_people_only_invitation_offers_no_ai(e2e_browser, game_server):
+    ctx, p = _player(e2e_browser, game_server)
+    try:
+        p.goto(f"/app?study={STUDY}&group=inv_people&opponent_choice=1")
+        start = p.get_by_role("button", name="Start negotiation")
+        expect(start).to_be_visible()
+        expect(p.get_by_test_id("opponent-choice")).to_have_count(0)  # no person / AI screen
+        expect(p.get_by_test_id("ai-instead")).to_have_count(0)
+        start.click()
+        expect(p.get_by_test_id("waiting-for-person")).to_contain_text("starts as soon as they are ready")
+        expect(p.get_by_test_id("ai-instead")).to_have_count(0)
+        expect(p.get_by_text("Play an AI opponent", exact=False)).to_have_count(0)
         assert not p.errors, p.errors
     finally:
         ctx.close()

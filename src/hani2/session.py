@@ -1657,8 +1657,10 @@ class NegotiationSession:
             decision, self._opponent_decision = getattr(self, "_opponent_decision", None), None
             self._choice_kinds = None
             matches.LOBBY.watch_choice(self, False)
-            if decision == "ai":
+            if decision == "ai" and not self.people_only():
                 self._plan_ai(plan)
+            elif decision == "ai":
+                decision = None
             if decision != "ai" and self._plans_human(plan):
                 # a human opponent: join a participant waiting for one (and take their scenario). Who
                 # has an Assistant decides who fits whom, so settle this round's Assistant first.
@@ -1976,6 +1978,8 @@ class NegotiationSession:
             q = self.query
             raw = (q.get("opponents") or q.get("agents")) if admin else None
             self.opponent_group = _group_name(raw) if raw else str(q.get("group") or "").strip().lstrip(":")
+            if not raw:
+                override = self._people_only_pool(override)
             return override
         cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
         if cmdline:
@@ -1993,6 +1997,50 @@ class NegotiationSession:
         return pool or list(DEFAULT_POOL)
 
     partner_pool = opponent_pool  # old name
+
+    def _people_only_pool(self, pool: list) -> list:
+        """The pool of a ``?group=`` page: with ``"ai_fallback": false`` in its group file only the
+        human entries stay (the file's AI entries are dropped). A file with no human entry keeps its
+        pool, and its switch does nothing (a warning says so)."""
+        from hani2 import assignment
+
+        try:
+            strict = assignment.group_people_only(self)
+        except Exception:  # noqa: BLE001
+            strict = False
+        if not strict:
+            return pool
+        people = [x for x in pool if matches.is_human(x)]
+        dropped = [x for x in pool if not matches.is_human(x)]
+        warn = None
+        if not people:
+            warn = (f"group file {self.opponent_group!r} says ai_fallback: false but lists no human entry: "
+                    f"the switch is ignored and its AI opponents play")
+        elif dropped:
+            warn = (f"group file {self.opponent_group!r} says ai_fallback: false: its AI entries "
+                    f"{', '.join(map(str, dropped))} are dropped (people only)")
+        if warn and not self.__dict__.get("_people_only_warned"):
+            self._people_only_warned = True
+            print(f"[hani2] WARNING: {warn}")
+            try:
+                ev.log_event(self.sid, ev.EventType.ERROR, user=self.user, component="matches",
+                             action="people_only_group", value={"error": warn})
+            except Exception:  # noqa: BLE001
+                pass
+        return people or pool
+
+    def people_only(self) -> bool:
+        """This session's round comes from a group file with ``"ai_fallback": false`` (and human
+        entries): never an AI opponent — no wait-time fallback, no "Play an AI opponent" button,
+        no person / AI choice screen, no AI pick; the server refuses any request for one."""
+        from hani2 import assignment
+
+        try:
+            if not assignment.group_people_only(self):
+                return False
+        except Exception:  # noqa: BLE001
+            return False
+        return any(matches.is_human(x) for x in self.opponent_pool())
 
     #: whether ``?opponents=`` in :attr:`query` is honoured for a non-admin (set for sessions made in code)
     trust_url_opponents = False
@@ -2037,6 +2085,18 @@ class NegotiationSession:
         self._start_with_agent()
 
     def _start_with_agent(self) -> None:
+        if self.people_only():
+            # a people-only invitation never plays an AI: back to the waiting room instead
+            print(f"[hani2] WARNING: {self.user}: an AI opponent was about to start in a people-only group "
+                  f"({self.opponent_group!r}); waiting for a person instead")
+            with self.lock:
+                self.phase = "ready"
+                self.thinking = False
+                self._choice_kinds = None
+                self.round_plan = {k: v for k, v in (getattr(self, "round_plan", {}) or {}).items()
+                                   if k not in ("partner", "human_kinds")}
+            self.load()
+            return
         try:
             self._make_mechanism()
         except Exception as e:  # noqa: BLE001
@@ -2118,7 +2178,7 @@ class NegotiationSession:
 
     def _can_play_ai_instead(self) -> bool:
         m = self.match
-        if m is None or m.paired or m.began or self.phase not in ("ready", "starting"):
+        if m is None or m.paired or m.began or self.phase not in ("ready", "starting") or self.people_only():
             return False
         return self.opponent_choice_enabled() or self._pref_on("human_opponent_fallback", True)
 
@@ -2166,7 +2226,10 @@ class NegotiationSession:
 
     def opponent_choice_enabled(self) -> bool:
         """Whether the participant chooses between a person and an AI before pairing:
-        ``human_opponent_choice`` (a study / admin setting) or ``?opponent_choice=1`` on the page."""
+        ``human_opponent_choice`` (a study / admin setting) or ``?opponent_choice=1`` on the page;
+        never in a people-only group (``"ai_fallback": false``)."""
+        if self.people_only():
+            return False
         q = (self.query or {}).get("opponent_choice")
         if isinstance(q, (list, tuple)):
             q = q[0] if q else None
@@ -2187,6 +2250,8 @@ class NegotiationSession:
         kind = str(kind or "").strip().lower()
         if kind not in ("person", "ai"):
             return {"ok": False, "error": "choose 'person' or 'ai'"}
+        if kind == "ai" and self.people_only():
+            return {"ok": False, "error": "This game is with another person only: please wait for them to join."}
         with self.lock:
             m = self.match
             waiting = m is not None and not m.paired and not m.began and self.phase in ("ready", "starting")
@@ -2277,10 +2342,11 @@ class NegotiationSession:
 
     def _no_human_opponent(self, match) -> None:
         """Nobody joined in time: an AI opponent from the rest of the pool (unless the admin
-        setting ``human_opponent_fallback`` is off: then keep waiting)."""
+        setting ``human_opponent_fallback`` is off, or the page's group file says
+        ``"ai_fallback": false``: then keep waiting)."""
         if self.closed or self.match is not match or match.paired or match.began:
             return
-        if not self.admin_prefs.get("human_opponent_fallback", True):
+        if not self.admin_prefs.get("human_opponent_fallback", True) or self.people_only():
             matches.LOBBY.requeue(match)
             return
         partner = matches.fallback_opponent(self.opponent_pool())

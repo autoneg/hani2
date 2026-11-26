@@ -7,9 +7,13 @@ groups in ``assistant_groups/<key>.json``; both have the same shape::
     {"description": "...",                            # or an object
      "syspath": ["/dir/with/packages", ...],          # added to sys.path (relative: to the file)
      "agents": ["spec", ...],                         # opponent groups (Assistant groups: "assistants")
-     "assistant": "pkg.module:Class"}                 # opponent groups only: the Assistant for
+     "assistant": "pkg.module:Class",                 # opponent groups only: the Assistant for
                                                       # participants arriving with ?group=<key>
                                                       # ("support_agent" is the old name)
+     "ai_fallback": false}                            # opponent groups only (default true): a
+                                                      # ?group=<key> session never gets an AI
+                                                      # opponent (no wait-time fallback, no "play
+                                                      # an AI" button); its AI entries are dropped
 
 A group token ``:key`` (or ``?group=key``) is looked up, first hit wins, in
 
@@ -43,6 +47,8 @@ SUBDIR = {OPPONENT: "groups", ASSISTANT: "assistant_groups"}
 MEMBERS_KEY = {OPPONENT: "agents", ASSISTANT: "assistants"}
 #: keys of an opponent group file naming the Assistant for its participants (new name first)
 ASSISTANT_KEYS = ("assistant", "support_agent")
+#: key of an opponent group file: ``false`` keeps its sessions to people only (no AI opponent ever)
+AI_FALLBACK_KEY = "ai_fallback"
 # group keys: letters, digits, '.', '_' and '-' (long enough for hmac-carrying keys)
 _KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 
@@ -76,6 +82,8 @@ class Group:
     #: results | study | project | settings | builtin
     source: str = "builtin"
     path: Path | None = None
+    #: opponent groups: ``False`` when the file says ``"ai_fallback": false`` (people only, no AI opponent)
+    ai_fallback: bool = True
     #: why the file cannot be used as written (conflicting keys); its members / Assistant are then empty
     error: str = ""
 
@@ -84,6 +92,7 @@ class Group:
                    description=self.description, source=self.source, path=str(self.path) if self.path else None)
         if self.kind == OPPONENT:
             out["assistant"] = self.assistant
+            out["ai_fallback"] = self.ai_fallback
         if self.error:
             out["error"] = self.error
         return out
@@ -142,6 +151,22 @@ def _add_syspath(dirs: list[str]) -> None:
             sys.path.append(d)
 
 
+def parse_flag(v: Any, default: bool = True) -> bool:
+    """A boolean written in a group file: JSON booleans, ``0``/``1`` and the usual words
+    (``"false"``, ``"no"``, ``"off"`` …); anything else is ``default``."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, (int, float)):
+        return bool(v)
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in ("1", "true", "yes", "on"):
+            return True
+        if s in ("0", "false", "no", "off"):
+            return False
+    return default
+
+
 def group_problems(data: Any, kind: str) -> list[str]:
     """Keys of a group file that mean the same thing but disagree (``[]``: none)."""
     kind = check_kind(kind)
@@ -187,6 +212,8 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
         if members is None:
             members = data.get("agents", [])
         g.description = str(data.get("description") or "")
+        if kind == OPPONENT:  # read even from a file with an error: a broken strict file stays strict
+            g.ai_fallback = parse_flag(data.get(AI_FALLBACK_KEY), True)
         if kind == OPPONENT and not g.error:
             g.assistant = next((data[k] for k in ASSISTANT_KEYS if data.get(k)), None)
         if g.error and kind == ASSISTANT:
@@ -494,6 +521,11 @@ def validate_data(kind: str, data: Any) -> dict[str, Any]:
             if not (isinstance(a, str) or (isinstance(a, list) and all(isinstance(x, str) for x in a))):
                 raise ValueError("'assistant' must be a class spec or a list of them")
             out["assistant"] = a
+        if AI_FALLBACK_KEY in data:
+            f = data[AI_FALLBACK_KEY]
+            if not isinstance(f, bool):
+                raise ValueError(f"'{AI_FALLBACK_KEY}' must be true or false")
+            out[AI_FALLBACK_KEY] = f
     return out
 
 

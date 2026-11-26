@@ -1,1 +1,0 @@
-import{c as e}from"./index-6RLio46Q.js";const a={name:"square-dashed-bottom",size:24,node:[["path",{d:"M5 21a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2",key:"as5y1o"}],["path",{d:"M9 21h1",key:"15o7lz"}],["path",{d:"M14 21h1",key:"v9vybs"}]]};a.node;const t=e(a);export{a as __iconData,t as default};

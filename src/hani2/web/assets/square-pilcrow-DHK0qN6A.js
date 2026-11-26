@@ -1,1 +1,0 @@
-import{c as a}from"./index-6RLio46Q.js";const e={name:"square-pilcrow",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 12H9.5a2.5 2.5 0 0 1 0-5H17",key:"1l9586"}],["path",{d:"M12 7v10",key:"jspqdw"}],["path",{d:"M16 7v10",key:"lavkr4"}]],aliases:["pilcrow-square"]};e.node;const r=a(e);export{e as __iconData,r as default};

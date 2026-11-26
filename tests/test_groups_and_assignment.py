@@ -569,3 +569,18 @@ def test_a_broken_test_agent_falls_back_without_crashing(study):
     s.start()
     s.wait_for_turn()
     assert s.phase == "running"
+
+
+def test_ai_fallback_is_read_checked_and_kept(tmp_path):
+    p = tmp_path / "g.json"
+    for raw, want in ((False, False), ("false", False), ("no", False), (0, False), (True, True), (None, True)):
+        data = {"agents": ["human"]}
+        if raw is not None:
+            data["ai_fallback"] = raw
+        p.write_text(json.dumps(data))
+        g = groups.load_file(p, groups.OPPONENT)
+        assert g.ai_fallback is want and g.to_dict()["ai_fallback"] is want
+    assert groups.validate_data(groups.OPPONENT, {"agents": ["human"], "ai_fallback": False})["ai_fallback"] is False
+    assert "ai_fallback" not in groups.validate_data(groups.OPPONENT, {"agents": ["human"]})
+    with pytest.raises(ValueError):
+        groups.validate_data(groups.OPPONENT, {"agents": ["human"], "ai_fallback": "false"})

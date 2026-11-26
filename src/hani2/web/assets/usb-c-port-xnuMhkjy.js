@@ -1,1 +1,0 @@
-import{c as t}from"./index-6RLio46Q.js";const e={name:"usb-c-port",size:24,node:[["path",{d:"M6 12h12",key:"8npq4p"}],["rect",{x:"2",y:"8",width:"20",height:"8",rx:"4",key:"86l77p"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
