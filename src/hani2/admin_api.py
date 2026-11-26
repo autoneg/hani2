@@ -353,9 +353,13 @@ def admin_balance(project: str, study: str):
     humans = data.get("humans", {})
     rows = [{"user": u, "index": h.get("index"), "assistant": h.get("assistant", ""),
              "assistant_group": h.get("assistant_group", ""), "assigned_at": h.get("assigned_at", ""),
-             "first_seen": h.get("first_seen", "")} for u, h in humans.items()]
+             "first_seen": h.get("first_seen", ""), "cross": h.get("cross", "none"),
+             "assistant_plan": h.get("assistant_plan") or []} for u, h in humans.items()]
+    from hani2 import balance
+
     return {"pool": pool, "source": source, "group": group,
-            "counts": assignment.assistant_counts(data, pool), "humans": len(humans), "assignments": rows}
+            "counts": assignment.assistant_counts(data, pool), "humans": len(humans), "assignments": rows,
+            "solo": balance.study_balance(ref)}
 
 
 from hani2 import admin_scenarios  # noqa: E402

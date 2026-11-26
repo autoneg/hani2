@@ -220,13 +220,16 @@ Within a study HANI2 assigns, from the pools the study inherits from its project
   participant's next slot of that type.
 
 These are the default [scheduling methods](scheduling.md). A study (or its project, for all its
-studies) can choose another method per dimension:
+studies) can choose another method per dimension, and set two options:
 
 ```yaml
 scheduling:
   opponents: latin_square   # random, cyclic, fixed_order, external
-  assistants: balanced      # random_fixed, random_each, round_robin, external
+  assistants: balanced      # random_fixed, round_robin, random_each, latin_square, cyclic,
+                            # balanced_subset, random_subset, external
   scenarios: by_participant # set_order, random, latin_square, external
+  cross: shift              # cross the Assistant with the opponent: shift (default) | none
+  assistant_repeats: false  # may a person get one Assistant twice?
 ```
 
 `hani2 scheduling list --details` explains each one with examples; `hani2 study create
@@ -241,7 +244,185 @@ results row (`assistant`, `assistant_group`, `assistant_class`, `assistant_error
 `opponent_group`, plus the three `*_scheduling` columns), to the `scenario_started` event and to
 the recordings.
 
+### K sessions per person over N Assistants
+
+Each person plays **K** counted negotiations (`n_required`), and the pool has **N** Assistants.
+Which Assistant method to use depends on how K compares with N and on what you want to compare:
+
+| Design | Method | What each person gets |
+|---|---|---|
+| Between-subjects: one Assistant per person | `balanced`, `random_fixed`, `round_robin` | the same Assistant in all K negotiations |
+| Every Assistant once (K = N) | `latin_square` | every Assistant once, in the order of a row of a balanced Latin square |
+| K of N (K < N), compared within each person | `balanced_subset` | K different Assistants, chosen when the person arrives |
+| K of N, cheap and random | `random_subset` | the first K of a random order of the N |
+| Anything, drawn at random | `random_each` | a random Assistant every negotiation (repeats possible) |
+| An outside system decides | `external` | what the person's `schedule.json` names |
+
+**Each Assistant at most once.** `latin_square`, `cyclic`, `balanced_subset`, `random_subset`
+and `external` promise that a person never gets the same Assistant twice. That needs K ≤ N, so
+saving a study (with `hani2 study create`, the admin console or the admin API) where K > N is
+refused:
+
+```text
+scheduling.assistants is 'latin_square' with n_required = 6 negotiations but only 5 Assistants
+(…): each Assistant is used at most once per human. Lower n_required, add Assistants, or set
+scheduling.assistant_repeats: true
+```
+
+Fix it by lowering `n_required`, adding Assistants, or allowing repeats with
+`scheduling.assistant_repeats: true` (the Assistants then wrap around). A study whose file already
+broke the rule before it was checked keeps running: it gets a warning in the server log, in
+`hani2 study show` and in `hani2 study balance`, and its Assistants wrap around. `random_each`
+repeats by nature and is allowed unless you set `assistant_repeats: false`. A `schedule.json` that
+names one Assistant in two slots is used as written but flagged (`external:repeat` in the
+`assistant_scheduling` column and a `scheduling_repeat` error event).
+
+### Position and co-occurrence balance
+
+Two kinds of balance matter when each person sees several Assistants:
+
+- **Position**: each Assistant should appear equally often as the first, second, … negotiation,
+  so that learning and fatigue do not favour one Assistant. `latin_square` and `cyclic` balance it
+  exactly over every full block of people; `balanced_subset` keeps the counts within one of each
+  other as long as it can.
+- **Co-occurrence**: with K < N, each person compares only some of the Assistants. Every *pair* of
+  Assistants should be used by the same person about equally often, otherwise any within-person
+  comparison (paired differences, Bradley–Terry) leans on some pairs much more than on others. The
+  first K columns of a Latin square always put the same neighbours together, so for K < N use
+  `balanced_subset`. It chooses each new person's K Assistants and their order to keep, in this
+  order, the totals, the pair counts and the position counts as even as possible, and stores the
+  plan in `assignments.json` (`assistant_plan`), so a reload or a later visit continues it.
+
+### Crossing Assistants with opponents
+
+If both the Assistants and the opponents follow the same Latin square over pools of the same size,
+Assistant 1 always meets opponent 1, Assistant 2 always meets opponent 2, and so on. The effect of
+an Assistant then cannot be told apart from the effect of its opponent. `scheduling.cross: shift`
+(the default) prevents this: when the Assistants change every negotiation and the opponents use
+`latin_square` or `cyclic`, each block of participants gets its opponents shifted by one more
+place. Over enough people every Assistant meets every opponent equally often, and the opponents'
+own position and order balance is kept. With 5 Assistants and 5 opponents, 50 participants complete
+the design, with every (Assistant, opponent) pair 10 times.
+
+- With `balanced_subset`, the Assistants are planned together with the person's opponent sequence,
+  so the (Assistant, opponent) pairs even out too.
+- With `scenarios: latin_square`, the scenario type gets its own shift, so it is confounded with
+  neither the Assistant nor the opponent.
+- Pools of different sizes, and the `random_*` methods, are balanced only approximately;
+  `hani2 study balance` shows the real counts.
+- **Running studies never change.** Each person's rule is stored in `assignments.json` (`cross`)
+  the first time they are seen. Changing `cross` later only affects people who arrive afterwards,
+  and people who joined a study before crossing existed keep `none` (so does everyone who joins
+  that study later, unless its file sets `cross`).
+- With `cross: none`, HANI2 warns about the confounding in the log and with a
+  `scheduling_confounded` event.
+
+The formulas and an example table are in
+[Crossing Assistants with opponents](scheduling.md#crossing).
+
+### Schedules from an outside system: who owns the plan
+
+An outside system (for example a recruiting website) can write a `schedule.json` into each
+participant's results folder. Whatever a slot names (`agent_class_name`, `assistant`,
+`scenario_type`, `scenario_index`, `time_limit`) is used as given. The recommended split is that
+**HANI2 owns the plan**: the outside system writes only what it must fix (for example the scenario
+type), or no schedule at all, and leaves `assistant` and `agent_class_name` empty. HANI2 then fills
+the open slots with the study's methods and the crossing above, so the K-of-N and crossing rules are
+implemented once:
+
+```json
+{"version": 2, "negotiations": [
+  {"slot": 0, "scenario_type": "Trade"},
+  {"slot": 1, "scenario_type": "Trade"},
+  {"slot": 2, "scenario_type": "Trade"}
+]}
+```
+
+If the outside system writes complete slots instead, it owns the plan, and HANI2 only checks it (an
+Assistant named twice is flagged as `external:repeat`). Participants who already started with
+HANI2's older rotation for open slots (their folder holds `fallback_rotation.txt`) keep that
+rotation until they finish.
+
 The full rules of every method are in [Scheduling methods](scheduling.md).
+
+## Designs, ready to copy
+
+Each block is a complete `study.yaml` for a project of the right `kind`; settings the project
+already gives can be left out.
+
+### The finals: every finalist once, crossed with HAN finalists
+
+Every participant uses every finalist Assistant once, in a counterbalanced order, against the HAN
+finalists, crossed so that no Assistant is tied to one opponent. With 5 finalists on each side,
+50 participants complete the design.
+
+```yaml title="projects/HI2027/studies/finals/study.yaml"
+type: prolific
+title: The finals
+overrides:
+  study_mode: solo
+  assistants: [":hi2027-finalists"]   # N = 5 Assistants
+  opponents: [":han2026-finalists"]   # 5 HAN agents (or ":pan")
+  n_required: 5                       # K = N
+  practice: true
+  scheduling:
+    assistants: latin_square
+    opponents: latin_square
+    cross: shift                      # the default; written out for clarity
+```
+
+### K-of-N screening
+
+Each participant tries 3 of 8 Assistants; totals, positions and the pairs used by one person are
+balanced, and the opponents are crossed with the Assistants.
+
+```yaml title="projects/HI2027/studies/screening/study.yaml"
+type: prolific
+title: Screening
+overrides:
+  study_mode: solo
+  assistants: [":hi2027-qualified"]   # N = 8
+  opponents: [":pan"]
+  n_required: 3                       # K = 3 < N
+  scheduling:
+    assistants: balanced_subset
+    opponents: latin_square
+```
+
+### A HAN Solo study
+
+People without an Assistant negotiate against the HAN entrants, each in a counterbalanced order.
+
+```yaml title="projects/HAN2027/studies/main/study.yaml"
+type: prolific
+title: Negotiate with AI agents
+overrides:
+  study_mode: solo
+  assistants: [none]
+  opponents: [":han2027-qualified"]
+  n_required: 5
+  scheduling:
+    opponents: latin_square
+```
+
+### An HI Solo study that also plays HAN agents
+
+The opponents of an HI study can be HAN entrants. Each row then records the HAN agent's group, year
+and build (`opponent_group`, `opponent_han_year`, `opponent_han_source`, `opponent_han_version`), so
+the same games can be read as games of those agents too.
+
+```yaml title="projects/HI2027/studies/hi-vs-han/study.yaml"
+type: online
+title: Assistants against this year's HAN agents
+overrides:
+  study_mode: solo
+  assistants: [":hi2027-finalists"]
+  opponents: [":han2027-finalists", ":han2026-finalists"]
+  n_required: 5
+  scheduling:
+    assistants: latin_square
+    opponents: latin_square
+```
 
 ## Forms and questionnaires
 
@@ -405,6 +586,7 @@ See [Project management: scores](project-management.md#scores) and run
 
 - The admin console's study page (**Projects & Studies**, then the study) shows the number of participants and of recorded negotiations, how many counted humans each Assistant of the pool has, and every assignment (see [Admin console](admin.md#projects-studies)).
 - Open the console at `/s/<project>/<study>/admin` (or use **Open in this study**) to see the study's results, events and recordings.
+- `hani2 study balance <project>/<study>` prints how balanced the assignment came out, from the counted negotiations so far: the negotiations per Assistant, Assistant × position, the pairs of Assistants used by the same person, Assistant × opponent and Assistant × scenario type (each with its spread, the largest minus the smallest count), the people who got one Assistant twice, how many completed all K, each person's crossing rule and the warnings about the study's files. `--json` prints the same as JSON.
 - `GET /api/admin/projects/{project}/studies/{study}/balance` and `.../assignments` return the same as JSON (see [Admin API](#admin-api)).
 
 ## Results
@@ -722,6 +904,7 @@ hani2 study create PROJECT/STUDY [--type prolific|online|lab] [--title TEXT] [--
                                  [--study-mode solo|paired|mixed] [--opponents LIST]
 hani2 study list [PROJECT]
 hani2 study show PROJECT/STUDY [--base-url URL]   # settings, scheduling, mode, pairing, HAN sources, errors
+hani2 study balance PROJECT/STUDY [--json]        # totals, positions, pairs and crossing so far
 hani2 --study PROJECT/STUDY         # the default study of this server
 hani2 experiment create|list ...    # see Experiments above
 ```
@@ -741,5 +924,5 @@ These JSON endpoints are for admins only; the conventions (names, layers) are th
 | `PUT` / `DELETE /api/admin/projects/{project}/studies/{study}/scores/{key}` | Add, redefine or remove a score in `study.yaml` (the same checks as for a [project](project-management.md#admin-api)). |
 | `POST /api/admin/projects/{project}/studies/{study}/scores/{key}/duplicate` | `{"from": "..."}`: copy a score into the study. |
 | `PUT /api/admin/projects/{project}/studies/{study}/scores_enabled` | `{"enabled": [...]}`, or `null` for the project's choice. `GET /api/admin/scores?study=P/S` lists the study's scores. |
-| `GET /api/admin/projects/{project}/studies/{study}/balance` | The study's Assistant pool and how many counted humans each Assistant has, with every assignment. |
+| `GET /api/admin/projects/{project}/studies/{study}/balance` | The study's Assistant pool and how many counted humans each Assistant has, with every assignment (each with its `cross` rule and `assistant_plan`), and under `solo` the report of `hani2 study balance`. |
 | `GET /api/admin/projects/{project}/studies/{study}/assignments` | The study's `assignments.json`. |

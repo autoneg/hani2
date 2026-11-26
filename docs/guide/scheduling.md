@@ -14,9 +14,15 @@ Each of these *dimensions* has its own scheduling method. A study chooses them i
 type: prolific
 scheduling:
   opponents: latin_square   # random, cyclic, fixed_order, external
-  assistants: balanced      # random_fixed, random_each, round_robin, external
+  assistants: balanced      # random_fixed, round_robin, random_each, latin_square, cyclic,
+                            # balanced_subset, random_subset, external
   scenarios: by_participant # set_order, random, latin_square, external
+  cross: shift              # cross the Assistant with the opponent: shift (default) | none
+  assistant_repeats: false  # may a person get one Assistant twice?
 ```
+
+The two options `cross` and `assistant_repeats` are described in
+[Options: crossing and repeats](#options-crossing-and-repeats).
 
 Each dimension is resolved separately: the study's choice, else the project's
 (`scheduling:` in project.yaml, at the top level or under `defaults:`), else the
@@ -62,9 +68,13 @@ hani2 study show HI2027/hi-2027-01  # the methods in use, and any error
 A participant's `schedule.json` (written into their results folder by an outside
 system) always wins over the method: a slot's `agent_class_name`, `scenario_type` /
 `scenario_index` and `assistant` (or the top-level `assistant`) are used as given and
-recorded as `external`. A slot that leaves the opponent open is filled with the
-cyclic rotation, as before. The `external` method means *only* such input is used;
-what happens when it is missing is described with each `external` method below.
+recorded as `external`. A slot (or a whole schedule) that leaves the opponent or the
+Assistant open is filled by the study's own methods, crossed as described below, so
+an outside system only needs to write what it must fix (for example the scenario
+type). Participants who already started on HANI2's older rotation for open slots
+(their results folder holds `fallback_rotation.txt`) keep it. The `external` method
+means *only* such input is used; what happens when it is missing is described with
+each `external` method below.
 
 ## Recorded in the results
 
@@ -74,7 +84,7 @@ existing ones:
 | Column | Values |
 |---|---|
 | `opponent_scheduling` | a method key; `external` when `schedule.json` named the opponent; `practice` for a practice round; `external:missing` when `external` found no input; `user` when the participant chose it; empty when HANI2 did not schedule the opponent |
-| `assistant_scheduling` | a method key; `external` for an Assistant from `schedule.json`; `user` when the participant chose it; empty for an admin's or a test link's explicit choice |
+| `assistant_scheduling` | a method key; `external` for an Assistant from `schedule.json`; `external:repeat` when `schedule.json` names an Assistant the participant already had (see [Assistant repeats](#assistant-repeats)); `user` when the participant chose it; empty for an admin's or a test link's explicit choice |
 | `scenario_scheduling` | a method key; `external` / `external:missing` as above; `user` when the participant chose it; empty for an admin's choice or outside a study |
 
 A participant may choose for themselves only where the admin allows it, and never in a Prolific

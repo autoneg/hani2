@@ -328,7 +328,8 @@ def test_balance(admin, studies):
     assert {a["user"] for a in r["assignments"]} == {"u1", "u2"}
     a1 = next(a for a in r["assignments"] if a["user"] == "u1")
     assert a1 == {"user": "u1", "index": 0, "assistant": "level1_hello:HelloAgent", "assistant_group": "",
-                  "assigned_at": "t1", "first_seen": "t0"}
+                  "assigned_at": "t1", "first_seen": "t0", "cross": "none", "assistant_plan": []}
+    assert r["solo"]["study"] == "HI2027/hi-01" and r["solo"]["participants"] == 0  # hani2 study balance
     assert admin.get("/api/admin/projects/HI2027/studies/none/balance").status_code == 404
     admin.put("/api/admin/pools/assistant?layer=study:HI2027/hi-01", json={"items": [":tutorial"]})
     r = admin.get("/api/admin/projects/HI2027/studies/hi-01/balance").json()

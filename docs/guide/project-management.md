@@ -220,9 +220,26 @@ opponents, the Assistants and the scenario types. A study can choose another met
 ```yaml
 scheduling:
   opponents: latin_square   # random, cyclic, fixed_order, external
-  assistants: balanced      # random_fixed, random_each, round_robin, external
+  assistants: balanced      # random_fixed, round_robin, random_each, latin_square, cyclic,
+                            # balanced_subset, random_subset, external
   scenarios: by_participant # set_order, random, latin_square, external
+  cross: shift              # cross the Assistant with the opponent: shift (default) | none
+  assistant_repeats: false  # may a person get one Assistant twice?
 ```
+
+The Assistant methods fall into three families:
+
+| You want | Assistant method | Each person gets |
+|---|---|---|
+| One Assistant per person (between-subjects; the game) | `balanced` (default), `random_fixed`, `round_robin` | one Assistant for all their negotiations |
+| Every Assistant once (the finals: K = N) | `latin_square` (or `cyclic`) | every Assistant once, in a counterbalanced order |
+| K of N Assistants (screening: K < N) | `balanced_subset` (or `random_subset`) | K different Assistants, with totals, positions and pairs balanced |
+
+`n_required` is K, the counted negotiations per person. A method that promises "each Assistant at
+most once" refuses a file where K is larger than the number of Assistants, unless
+`scheduling.assistant_repeats: true`. When the Assistants change every negotiation and the opponents
+use `latin_square` or `cyclic`, `scheduling.cross: shift` (the default) **crosses** them, so that
+every Assistant meets every opponent equally often instead of always the same one.
 
 What these defaults do within a study is described in
 [Assigning Assistants, opponents and scenarios](study-management.md#assigning-assistants-opponents-and-scenarios),
