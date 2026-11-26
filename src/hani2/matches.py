@@ -197,6 +197,17 @@ class Match:
         self._first_ready_at: float | None = None
         self._watching = False
         self._stopped = False
+        #: per seat: what the cell-aware pairing knows about that side (see :mod:`hani2.pairing`):
+        #: its committed Assistant, position, remaining set, study, scenario label, …
+        self.ctx: dict[int, dict] = {}
+        host_ctx = getattr(host, "_pair_ctx", None)
+        if isinstance(host_ctx, dict):
+            self.ctx[host_index] = dict(host_ctx)
+        #: the match cell this match is in flight in, and the study whose cell store holds it
+        self.cell: str | None = None
+        self.cell_ref: Any = None
+        #: how the match was formed (``cells``, ``order``, ``random``, ``code``; ``""``: not paired yet)
+        self.pairing = ""
 
     # -- seats -----------------------------------------------------------------
     @property
@@ -218,6 +229,29 @@ class Match:
         Assistant fits the waiting seat, and the seat fits it."""
         i = next(iter(self.seats))
         return self.has[i] in kinds(want_assistant) and bool(has_assistant) in self.wants[i]
+
+    def host_index(self) -> int:
+        """The seat of the waiting side (call while it is the only one)."""
+        return next(iter(self.seats))
+
+    @property
+    def scenario_type(self) -> str:
+        info = self.info or {}
+        c = self.ctx.get(self.host_index()) if self.seats else None
+        return str((c or {}).get("scenario_type") or info.get("scenario_type") or "")
+
+    def release_cell(self) -> None:
+        """Drop this match's in-flight cell (its partners were separated before the start). Never
+        call it holding :attr:`lock`."""
+        with self.lock:
+            cell, ref, self.cell, self.cell_ref = self.cell, self.cell_ref, None, None
+        if cell is not None and ref is not None:
+            try:
+                from hani2 import assignment
+
+                assignment.release_cell(ref, self.id)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
 
     def has_left(self, s: NegotiationSession) -> bool:
         i = self.index_of(s)
@@ -401,6 +435,8 @@ class Match:
                 del self.seats[i]
                 self.wants.pop(i, None)
                 self.has.pop(i, None)
+                self.ctx.pop(i, None)
+                self.pairing = ""
                 self.ready.discard(i)
                 self._absent_since.clear()
                 self._first_ready_at = None  # unpaired again
@@ -415,6 +451,8 @@ class Match:
                 s.ss["match_abandoned"] = "self"
                 if rest is not None:
                     rest.ss["match_abandoned"] = "opponent"
+        if not self.began:
+            self.release_cell()  # separated before the start: the cell is free again
         if rest is None and not self.began:
             LOBBY.withdraw(self)  # outside self.lock: the lobby takes its lock first, then a match's
             return
@@ -462,23 +500,34 @@ class Lobby:
                 return False  # these two were just separated (one did not press Start)
             return True
 
-    def pair(self, s: NegotiationSession, want_assistant: Any = False, has_assistant: bool = False) -> Match | None:
+    def pair(self, s: NegotiationSession, want_assistant: Any = False, has_assistant: bool = False,
+             select: Any = None) -> Match | None:
         """A waiting match ``s`` can join (it is then seated), else ``None``: one at random among those
         that fit. ``want_assistant``: the opponents ``s`` accepts (see :func:`kinds`); ``has_assistant``:
-        whether ``s`` has an Assistant."""
+        whether ``s`` has an Assistant. ``select(fits)``, when given, chooses among the matches that fit
+        instead (the cell-aware pairing of :mod:`hani2.pairing`; ``None``: none of them, ``s`` waits).
+        It runs under the lobby's lock, so two joiners never choose at the same moment."""
         key = match_key(s)
         with self._lock:
             queue = self.waiting.get(key) or []
             fits = [m for m in list(queue) if self._fits(m, s, want_assistant, has_assistant, queue)]
             if not fits:
                 return None
-            m = random.choice(fits)  # random among the people waiting: nobody can aim at someone
+            if select is not None:
+                m = select(fits)
+                if m is None:
+                    return None
+            else:
+                m = random.choice(fits)  # random among the people waiting: nobody can aim at someone
             with m.lock:
                 queue.remove(m)
                 m.cancel_timer()
                 i = m.free_index()
                 m.seats[i] = s
                 m.wants[i], m.has[i] = kinds(want_assistant), bool(has_assistant)
+                jctx = getattr(s, "_pair_ctx", None)
+                if isinstance(jctx, dict):
+                    m.ctx[i] = {**jctx, **m.ctx.get(i, {})}  # the selector may have put the choice there
                 if m.ready:  # the waiting side already pressed Start: the clock for the other starts now
                     m._first_ready_at = time.time()
             m.watch()  # from now on: partners who never press Start, pages closed for good
@@ -560,9 +609,10 @@ class Lobby:
 LOBBY = Lobby()
 
 
-def fallback_opponent(pool: list) -> Any:
-    """An opponent from ``pool`` other than ``human`` (the built-in default pool when none is left)."""
+def fallback_opponent(pool: list, default: list | None = None) -> Any:
+    """An opponent from ``pool`` other than ``human`` (``default``, else the built-in default pool,
+    when none is left)."""
     from hani2.agents import DEFAULT_POOL
 
     rest = [p for p in pool if not is_human(p)]
-    return random.choice(rest or list(DEFAULT_POOL))
+    return random.choice(rest or list(default or DEFAULT_POOL))

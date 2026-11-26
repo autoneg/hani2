@@ -1690,6 +1690,9 @@ class NegotiationSession:
                                                         self.admin_prefs.get("scenario_set"))
             self._leave_match()
             joined, hosting = None, False
+            self._pair_ctx = None  # the cell-aware pairing of this round (see hani2.pairing)
+            self._paired_assistant = None
+            self.ss["pairing"] = ""
             decision, self._opponent_decision = getattr(self, "_opponent_decision", None), None
             if plan.get("partner") is not None and not matches.is_human(plan["partner"]) and self.people_only():
                 plan.pop("partner")  # a study's own AI pick (schedule, practice) never plays a people-only group
@@ -1701,10 +1704,29 @@ class NegotiationSession:
                 decision = None
             if decision != "ai" and self._plans_human(plan):
                 # a human opponent: join a participant waiting for one (and take their scenario). Who
-                # has an Assistant decides who fits whom, so settle this round's Assistant first.
-                self.refresh_assistant(plan)
+                # has an Assistant decides who fits whom, so settle this round's Assistant first --
+                # except in a Paired HI study, where every side has one and the joiner's Assistant is
+                # chosen at pairing (late binding, see hani2.pairing)
+                from hani2 import pairing
+
+                eff = pairing.settings(self)
+                pctx = pairing.context(self, plan, stype, eff) if eff is not None else None
+                if pctx is not None and pctx["late"]:
+                    if not pctx["remaining"]:  # every Assistant planned for this person was used
+                        self._paired_exhausted = True
+                        self.study.finish()
+                        self.push_state()
+                        return
+                    has = True
+                else:
+                    self.refresh_assistant(plan)
+                    has = self.support_agent is not None
+                    if pctx is not None:
+                        a = (self.assistant_choice.spec if self.assistant_choice is not None and has else None)
+                        pctx["assistant"] = a or "none"
+                        pctx["remaining"] = [pctx["assistant"]]
+                self._pair_ctx = pctx
                 want = plan.get("human_kinds") or matches.kinds(matches.wants_assistant(plan["partner"]))
-                has = self.support_agent is not None
                 self._warn_unpairable(want, has)
                 if decision is None and self.opponent_choice_enabled():
                     # the participant first chooses between a person and an AI: nobody is paired yet
@@ -1714,8 +1736,31 @@ class NegotiationSession:
                     # one load at a time per match key, from looking for a partner to waiting: two
                     # participants loading together must not both end up waiting
                     hold.enter_context(matches.LOBBY.loading(self))
-                    joined = matches.LOBBY.pair(self, want, has)
+                    joined = matches.LOBBY.pair(self, want, has,
+                                                select=pairing.selector(pctx) if pctx is not None else None)
                     hosting = joined is None
+                    if pctx is not None and joined is not None:
+                        mine = dict(joined.ctx.get(joined.index_of(self)) or pctx)
+                        hctx = next((c for i, c in joined.ctx.items() if i != joined.index_of(self)), {})
+                        mine["scenario"] = hctx.get("scenario") or joined.scenario_type
+                        mine["scenario_type"] = joined.scenario_type
+                        self._pair_ctx = mine
+                        if pctx["late"]:
+                            self._paired_assistant = mine.get("assistant")
+                        plan["scenario_scheduling"] = "host"  # the joiner plays the host's scenario
+                    elif pctx is not None:
+                        # the host commits one Assistant of its set and the scenario type now
+                        types = [stype] if pctx["fixed_type"] else \
+                            (list(store.scenario_order(self.admin_prefs.get("scenario_set"))) or [stype])
+                        h, t = pairing.commit(pctx, types, stype)
+                        if pctx["late"]:
+                            pctx["assistant"] = h
+                            self._paired_assistant = h
+                        if t and t != stype:
+                            stype = t
+                            plan["type"] = t
+                            plan["scenario_scheduling"] = "cells"  # the host's balanced pick
+                        pctx["scenario_type"] = stype
             try:
                 if joined is not None:
                     scenario, info, sdir = joined.scenario, dict(joined.info or {}), joined.sdir
@@ -1738,6 +1783,18 @@ class NegotiationSession:
             # a participant who joined plays the waiting participant's scenario (and its type)
             self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype
             self.refresh_assistant(plan)  # a schedule slot or a new ?group= may name another Assistant
+            pctx = self._pair_ctx
+            if pctx is not None and hosting:
+                if pctx["cell_scenario"] == "name":
+                    pctx["scenario"] = str(info.get("scenario_name") or getattr(scenario.outcome_space, "name", "")
+                                           or stype).split("/")[-1]
+                else:
+                    pctx["scenario"] = self.ss["scenario_type"]
+                if not pctx["late"]:
+                    a = self.assistant_choice.spec if self.assistant_choice is not None and self.support_agent else None
+                    pctx["assistant"] = a or "none"
+                    pctx["remaining"] = [pctx["assistant"]]
+            self._set_plan_position(pctx)
             self.ss["is_practice_round"] = bool(plan.get("practice", False))
             # the scenario's evaluation criteria are for evaluation only: keep them out of what the
             # opponent, the Assistant and the browser see (the recording stores them)
@@ -1783,6 +1840,9 @@ class NegotiationSession:
             self.ss["human_ended_negotiation"] = False
             self.ss["match_abandoned"] = ""
             self.ss["opponent_user"] = None
+            for k in ("match_cell", "opponent_assistant", "opponent_assistant_entrant", "opponent_participant"):
+                self.ss[k] = ""
+            self.ss["cross_study"] = False
             self.ss["support_agent_used"] = False
             self.ss["autopilot_used"] = self.autopilot_active
             self.history = []
@@ -1804,6 +1864,7 @@ class NegotiationSession:
             if joined is not None:
                 self.match = joined
                 self.ss["match_id"] = joined.id
+                self.ss["pairing"] = joined.pairing or ("code" if matches.match_key(self).startswith("code:") else "random")
             elif hosting:
                 matches.LOBBY.host(self, hi, scenario, info, sdir, criteria, want, has)
                 self.ss["match_id"] = self.match.id if self.match is not None else None
@@ -2209,6 +2270,7 @@ class NegotiationSession:
             self.ss["start_at_dt"] = datetime.now()
             tl = self.mechanism.nmi.time_limit if self.mechanism else None
             self.deadline = (time.time() + float(tl)) if tl and tl != float("inf") else None
+        self._mark_paired_used()
         if self.recorder is not None:
             self.recorder.start()
         self._add_tools("start")
@@ -2219,7 +2281,8 @@ class NegotiationSession:
                      value={"partner": self.ss.get("last_partner_type"), "opponent_group": self.ss.get("opponent_group", ""),
                             "opponent_scheduling": self.ss.get("opponent_scheduling", ""),
                             "scenario_scheduling": self.ss.get("scenario_scheduling", ""),
-                            **(self.ss.get("assistant_attribution") or {})})
+                            **(self.ss.get("assistant_attribution") or {}),
+                            **self._paired_columns()})
         self._schedule_timeout()
         self._agent_event("negotiation_started")
         self.push_state()
@@ -2268,6 +2331,10 @@ class NegotiationSession:
     def _can_play_ai_instead(self) -> bool:
         m = self.match
         if m is None or m.paired or m.began or self.phase not in ("ready", "starting") or self.people_only():
+            return False
+        from hani2 import pairing
+
+        if pairing.fallback(self) in ("wait", "end"):
             return False
         return self.opponent_choice_enabled() or self._pref_on("human_opponent_fallback", True)
 
@@ -2326,7 +2393,9 @@ class NegotiationSession:
 
     def _plan_ai(self, plan: dict) -> None:
         """This round's opponent is an AI from the rest of the pool."""
-        plan["partner"] = matches.fallback_opponent(self.opponent_pool())
+        from hani2 import pairing
+
+        plan["partner"] = pairing.fallback_partner(self)
         plan.pop("human_kinds", None)
 
     @property
@@ -2341,6 +2410,11 @@ class NegotiationSession:
             return {"ok": False, "error": "choose 'person' or 'ai'"}
         if kind == "ai" and self.people_only():
             return {"ok": False, "error": "This game is with another person only: please wait for them to join."}
+        if kind == "ai" and self.match is not None:
+            from hani2 import pairing
+
+            if pairing.fallback(self) in ("wait", "end"):
+                return {"ok": False, "error": "This study pairs you with another person only: please wait for them to join."}
         with self.lock:
             m = self.match
             waiting = m is not None and not m.paired and not m.began and self.phase in ("ready", "starting")
@@ -2358,6 +2432,7 @@ class NegotiationSession:
             if waiting:
                 self._leave_match()
                 self.ss["match_id"] = None
+                self.ss["pairing"] = "fallback"  # waited for a person, plays an AI instead
             self._choice_kinds = None
             matches.LOBBY.watch_choice(self, False)
             plan = dict(getattr(self, "round_plan", {}) or {})
@@ -2385,6 +2460,101 @@ class NegotiationSession:
                          action="unpairable_alone", value={"error": msg})
         except Exception:  # noqa: BLE001
             pass
+
+    # -- Paired studies (see hani2.pairing) ------------------------------------
+    def _set_plan_position(self, pctx: dict | None) -> None:
+        """``assistant_position`` (the Assistant's position in the person's plan: in a Paired study
+        how many Assistants they used before, else the counted negotiation) and ``plan_size`` (K),
+        for the row; empty outside a study and for admins and guests."""
+        from hani2 import assignment
+
+        info = self.study_mode_info
+        self.ss["study_mode"] = info.mode if info is not None else ""
+        self.ss["assistant_position"] = ""
+        self.ss["plan_size"] = ""
+        if self.study_ref is None or not assignment.counts_as_human(self):
+            return
+        try:
+            self.ss["plan_size"] = assignment._plan_size(self)
+            if pctx is not None and pctx.get("late"):
+                self.ss["assistant_position"] = int(pctx.get("position") or 0)
+            else:
+                self.ss["assistant_position"] = assignment._assistant_slot(self)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+        try:
+            g = assignment.group_file(self)
+            entrant = getattr(g, "entrant", None) if g is not None and not g.error else None
+            own = getattr(g, "own", None) if g is not None and not g.error else None
+        except Exception:  # noqa: BLE001
+            entrant = own = None
+        self.ss["assistant_entrant"] = str(entrant or "")
+        self.ss["own_assistant"] = "" if own is None else bool(own)
+
+    def _paired_columns(self) -> dict[str, Any]:
+        """The Paired result columns of this negotiation (as :func:`hani2.results.save_result` writes
+        them), for the ``scenario_started`` event."""
+        from hani2.results import paired_columns
+
+        return paired_columns(self.ss)
+
+    def _mark_paired_used(self) -> None:
+        """A negotiation in a Paired study started: its Assistant is now used by this person (even
+        if the match is abandoned later; an AI fallback counts too)."""
+        pctx = self.__dict__.get("_pair_ctx")
+        if pctx is None:
+            return
+        from hani2 import assignment
+
+        c = self.assistant_choice
+        spec = c.spec if c is not None and self.support_agent is not None else None
+        if not spec:
+            return
+        m = self.match
+        mid = m.id if m is not None else f"fallback:{getattr(self.mechanism, 'id', '') or uuid.uuid4().hex[:8]}"
+        try:
+            assignment.mark_used(self, spec, mid)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+
+    def _cell_row_written(self, summary: dict) -> None:
+        """This side's row of a match was written: fill the match's cell once both rows are clean,
+        release it when this one is not (abandoned, erred)."""
+        m = self.match
+        if m is None or m.cell_ref is None:
+            return
+        from hani2 import assignment
+
+        ok = not self.ss.get("match_abandoned") and summary.get("status") != "erred"
+        try:
+            assignment.cell_row_written(m.cell_ref, m.id, int(self.ss.get("human_index") or 0), ok)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+
+    def _paired_end(self, match) -> None:
+        """``pairing.fallback: end``: nobody could be paired with this person's Assistant. It is
+        skipped (not used) and the next one is tried; with nothing left (or nothing else to try:
+        one Assistant for every match, no Assistant), the person finishes early."""
+        from hani2 import assignment
+
+        pctx = self.__dict__.get("_pair_ctx") or {}
+        with self.lock:
+            self.match = None
+            self.ss["match_id"] = None
+            if self.phase == "starting":
+                self.phase, self.thinking = "ready", False
+        a = pctx.get("assistant")
+        if pctx.get("late") and a:
+            assignment.skip_assistant(self, str(a))
+            self.toast("Nobody could be paired with you right now: you move on to the next negotiation.",
+                       "info", duration=10000)
+            self.load()
+            return
+        self._paired_exhausted = True
+        self.toast("Nobody could be paired with you right now: the study ends here.", "info", duration=10000)
+        with self.lock:
+            self.study.finish()
+        self.push_state()
 
     def _leave_match(self) -> None:
         m, self.match = self.match, None
@@ -2435,13 +2605,20 @@ class NegotiationSession:
         ``"ai_fallback": false``: then keep waiting)."""
         if self.closed or self.match is not match or match.paired or match.began:
             return
-        if not self.admin_prefs.get("human_opponent_fallback", True) or self.people_only():
+        from hani2 import pairing
+
+        fb = pairing.fallback(self)
+        if fb == "wait" or not self.admin_prefs.get("human_opponent_fallback", True) or self.people_only():
             matches.LOBBY.requeue(match)
             return
-        partner = matches.fallback_opponent(self.opponent_pool())
+        if fb == "end":
+            self._paired_end(match)
+            return
+        partner = pairing.fallback_partner(self)
         with self.lock:
             self.match = None
             self.ss["match_id"] = None
+            self.ss["pairing"] = "fallback"
             self.round_plan = dict(getattr(self, "round_plan", {}) or {}, partner=partner)
             starting = self.phase == "starting"
         self.toast("No other participant is available right now: you will negotiate with an AI opponent.",
@@ -2492,7 +2669,42 @@ class NegotiationSession:
                 plan = getattr(s, "round_plan", {}) or {}
                 s.ss["opponent_scheduling"] = str(plan.get("opponent_scheduling") or "")
                 s.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
+        self._match_columns(match, seats)
         return m
+
+    @staticmethod
+    def _match_columns(match, seats: dict) -> None:
+        """Both seats' Paired columns: the match cell, the other side's Assistant, entrant and
+        participant index, how the match was formed and whether it crosses two studies."""
+        from hani2 import assignment
+
+        specs: dict[int, str] = {}
+        for i, s in seats.items():
+            c = s.assistant_choice
+            specs[i] = (c.spec or "") if c is not None and s.__dict__.get("support_agent") is not None else ""
+        key = match.cell
+        if not key:
+            hctx = match.ctx.get(next(iter(seats))) or {}
+            scen = hctx.get("scenario") or match.scenario_type or str((match.info or {}).get("scenario_type") or "")
+            key = assignment.cell_key(scen, specs.get(0) or "none", specs.get(1) or "none")
+        index: dict[int, Any] = {}
+        for i, s in seats.items():
+            try:
+                with projects.use_study(s.study_ref):
+                    pi = assignment.participant_index(s) if s.study_ref is not None else None
+            except Exception:  # noqa: BLE001
+                pi = None
+            index[i] = "" if pi is None else pi
+        for i, s in seats.items():
+            o = seats[1 - i]
+            with s.lock:
+                s.ss["match_cell"] = key
+                s.ss["opponent_assistant"] = specs.get(1 - i) or "none"
+                s.ss["opponent_assistant_entrant"] = str(o.ss.get("assistant_entrant") or "")
+                s.ss["opponent_participant"] = index[1 - i]
+                s.ss["cross_study"] = str(s.study_ref or "") != str(o.study_ref or "")
+                if not s.ss.get("pairing"):
+                    s.ss["pairing"] = match.pairing or ("code" if str(match.key).startswith("code:") else "random")
 
     @staticmethod
     def _rewind_clock(match, m) -> None:
@@ -3187,6 +3399,7 @@ class NegotiationSession:
         try:
             row, summary = __import__("hani2.results", fromlist=["save_result"]).save_result(self.ss, m)
             self.ss["results"].append(row)
+            self._cell_row_written(summary)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
             row = None

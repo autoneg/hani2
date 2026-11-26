@@ -325,7 +325,8 @@ class Study:
         pass
 
     def finished(self) -> bool:
-        return False
+        # a Paired study: every Assistant planned for this person was used or skipped (hani2.pairing)
+        return bool(self.session.__dict__.get("_paired_exhausted"))
 
     def finish(self) -> None:
         """Show the end page: the completion link or the end text."""
@@ -850,7 +851,7 @@ class ProlificStudy(Study):
         return None
 
     def finished(self) -> bool:
-        return self.counted() >= self.n_required
+        return self.counted() >= self.n_required or bool(self.session.__dict__.get("_paired_exhausted"))
 
     def wants_consent(self) -> bool:
         from hani2.config import get_env

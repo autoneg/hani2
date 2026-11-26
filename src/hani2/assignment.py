@@ -39,6 +39,10 @@
     it was balanced against);
   - ``external``: only ``schedule.json`` names the Assistant (else an error).
 
+  In a Paired study the method gives each human a *set* of remaining Assistants
+  (:func:`remaining_assistants`) and the pairing picks one of them per match (see
+  :mod:`hani2.pairing`).
+
   This holds for pools from a group file (with more than one Assistant),
   ``--assistants``, study.yaml / project.yaml and the settings; an admin's
   ``?assistant=``, a schedule.json entry and a group file naming one Assistant are
@@ -52,6 +56,13 @@
   …) on first sight; it picks their row of the opponent Latin square and their
   scenario type. Their crossing rule (``cross``: ``shift`` or ``none``, see
   :func:`cross_rule`) is stored at the same moment and never changes for them.
+
+* **Paired studies.** ``humans[u].used_assistants`` lists ``[assistant, match_id]`` for every
+  negotiation the human started (an Assistant is *used* once both sides pressed Start, even if
+  the match is abandoned later), ``humans[u].skipped_assistants`` the ones skipped because nobody
+  could be paired with them (``pairing.fallback: end``). The match cells live in
+  ``<study results>/match_cells.json`` (completed and in-flight matches per cell, and the
+  Assistant × position counts), under the same locks.
 
 Everything is kept in ``<study results>/assignments.json``, read and written under
 a thread lock and a file lock, written atomically.
@@ -614,6 +625,13 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
     if chosen:  # the human's own pick for this negotiation (see hani2.choices): used as given, not recorded
         return AssistantChoice(spec=str(chosen), source="user", pool=[str(chosen)], scheduling="user")
     c = assistant_pool(session, settings, plan)
+    paired = (getattr(session, "__dict__", None) or {}).get("_paired_assistant")
+    if paired:  # a Paired study chose it at pairing (the host's commit, the joiner's late binding)
+        c.spec, c.error = str(paired), None
+        c.scheduling = "external" if c.source == "schedule" else _assistant_method(session)
+        if paired not in c.pool:
+            c.pool = [*c.pool, str(paired)]
+        return c
     if c.error or not c.pool:
         return c
     if c.source in ("query", "schedule", "fixed") or (c.source == "group" and len(c.pool) == 1):
@@ -703,3 +721,302 @@ def _schedule_repeats(session: Any, spec: str) -> bool:
         except Exception:  # noqa: BLE001
             pass
     return True
+
+
+# --------------------------------------------------------------------------- #
+# Paired studies: match cells and the Assistants a person has used             #
+# --------------------------------------------------------------------------- #
+#: the cell store of a study, next to ``assignments.json`` and under the same locks
+CELLS_FILE = "match_cells.json"
+#: an in-flight match older than its time limit plus this many seconds is dropped
+INFLIGHT_GRACE = 600.0
+
+
+def cells_path(ref: Any = projects.UNSET) -> Path:
+    """``match_cells.json`` of study ``ref`` (default: the current study)."""
+    return store_path(ref).with_name(CELLS_FILE)
+
+
+def _empty_cells() -> dict[str, Any]:
+    return {"version": 1, "cells": {}, "inflight": {}, "positions": {}}
+
+
+def _read_cells(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            for k in ("cells", "inflight", "positions"):
+                if not isinstance(data.get(k), dict):
+                    data[k] = {}
+            data.setdefault("version", 1)
+        else:
+            data = _empty_cells()
+    except FileNotFoundError:
+        data = _empty_cells()
+    except Exception as e:  # noqa: BLE001
+        print(f"[hani2] {path} is broken ({e}); starting a new one next to it")
+        try:
+            path.replace(path.with_name(path.name + f".broken-{int(datetime.now().timestamp())}"))
+        except OSError:
+            pass
+        data = _empty_cells()
+    now = datetime.now().timestamp()
+    for mid, e in list(data["inflight"].items()):  # stale: older than the time limit + INFLIGHT_GRACE
+        try:
+            if float((e or {}).get("expires") or 0) < now:
+                del data["inflight"][mid]
+        except (TypeError, ValueError):
+            del data["inflight"][mid]
+    return data
+
+
+@contextlib.contextmanager
+def cell_store(ref: Any, write: bool = True) -> Iterator[dict[str, Any]]:
+    """The cell store of study ``ref``, read (stale in-flight entries dropped) under the lock of
+    ``assignments.json``, and written back atomically when ``write`` and it changed."""
+    path = store_path(ref)
+    cpath = path.with_name(CELLS_FILE)
+    with _locked(path):
+        data = _read_cells(cpath)
+        before = json.dumps(data, sort_keys=True)
+        yield data
+        if write and json.dumps(data, sort_keys=True) != before:
+            _write(cpath, data)
+
+
+def read_cells(ref: Any = projects.UNSET) -> dict[str, Any]:
+    """A copy of the cell store of study ``ref`` (stale in-flight entries left out)."""
+    with cell_store(ref, write=False) as data:
+        return json.loads(json.dumps(data))
+
+
+def _side_name(spec: Any) -> str:
+    s = str(spec or "").strip()
+    return s if s else NO_ASSISTANT
+
+
+def cell_key(scenario: Any, a0: Any, a1: Any) -> str:
+    """The canonical key of a match cell: ``"<scenario>|<A>@0|<B>@1"`` (sides by ufun index;
+    ``none`` for a side without an Assistant)."""
+    return f"{scenario}|{_side_name(a0)}@0|{_side_name(a1)}@1"
+
+
+def parse_cell(key: str) -> tuple[str, str, str]:
+    """``(scenario, side-0 Assistant, side-1 Assistant)`` of a cell key."""
+    scen, _, rest = str(key).partition("|")
+    left, _, right = rest.partition("|")
+    return scen, left.rsplit("@", 1)[0], right.rsplit("@", 1)[0]
+
+
+def cell_count(data: dict[str, Any], key: str) -> int:
+    """Completed + in-flight matches of a cell."""
+    done = int((data["cells"].get(key) or {}).get("completed") or 0)
+    return done + sum(1 for e in data["inflight"].values() if (e or {}).get("cell") == key)
+
+
+def assistant_scenario_count(data: dict[str, Any], assistant: str, scenario: str) -> int:
+    """Completed + in-flight matches of ``scenario`` (a cell's scenario part, or its recorded type)
+    that have ``assistant`` on either side."""
+
+    def hit(key: str, typ: Any) -> bool:
+        scen, a0, a1 = parse_cell(key)
+        return (scen == scenario or str(typ or "") == scenario) and assistant in (a0, a1)
+
+    n = sum(int(c.get("completed") or 0) for k, c in data["cells"].items() if hit(k, (c or {}).get("type")))
+    return n + sum(1 for e in data["inflight"].values() if hit(str((e or {}).get("cell")), (e or {}).get("type")))
+
+
+def position_count(data: dict[str, Any], assistant: str, position: int) -> int:
+    """How many completed matches used ``assistant`` as a person's ``position``-th Assistant."""
+    row = data["positions"].get(assistant) or []
+    return int(row[position]) if 0 <= position < len(row) else 0
+
+
+def reserve_cell(data: dict[str, Any], match_id: str, key: str, *, scenario_type: str = "",
+                 sides: dict[int, tuple[str, int | None]] | None = None, ttl: float | None = None) -> None:
+    """Put match ``match_id`` in flight in cell ``key`` (call inside :func:`cell_store`)."""
+    now = datetime.now()
+    limit = float(ttl) if ttl and ttl != float("inf") else 3600.0
+    data["inflight"][match_id] = {
+        "cell": key, "type": scenario_type, "since": now.isoformat(timespec="seconds"),
+        "expires": now.timestamp() + limit + INFLIGHT_GRACE,
+        "sides": {str(i): [a, k] for i, (a, k) in (sides or {}).items()}, "rows": {},
+    }
+
+
+def release_cell(ref: Any, match_id: str) -> bool:
+    """Drop the in-flight entry of ``match_id`` (separated before the start, abandoned, erred)."""
+    if ref is None or not match_id:
+        return False
+    with cell_store(ref) as data:
+        return data["inflight"].pop(match_id, None) is not None
+
+
+def cell_row_written(ref: Any, match_id: str, side: int, ok: bool) -> str:
+    """One side's row of match ``match_id`` was written (``ok``: not abandoned, not erred). The
+    cell is filled once both sides wrote a clean row; a row that is not clean releases it. Returns
+    ``completed``, ``released``, ``waiting`` or ``""`` (no in-flight entry: nothing to do)."""
+    if ref is None or not match_id:
+        return ""
+    with cell_store(ref) as data:
+        e = data["inflight"].get(match_id)
+        if e is None:
+            return ""
+        if not ok:
+            del data["inflight"][match_id]
+            return "released"
+        e.setdefault("rows", {})[str(side)] = True
+        if len(e["rows"]) < 2:
+            return "waiting"
+        del data["inflight"][match_id]
+        key = str(e.get("cell"))
+        c = data["cells"].setdefault(key, {"completed": 0, "match_ids": []})
+        if e.get("type"):
+            c["type"] = e["type"]
+        if match_id not in c.setdefault("match_ids", []):
+            c["completed"] = int(c.get("completed") or 0) + 1
+            c["match_ids"].append(match_id)
+            for a, k in (e.get("sides") or {}).values():
+                if not a or k is None or is_no_assistant(a):
+                    continue
+                row = data["positions"].setdefault(a, [])
+                while len(row) <= int(k):
+                    row.append(0)
+                row[int(k)] += 1
+        return "completed"
+
+
+def used_assistants(session: Any) -> list[str]:
+    """The Assistants the session's human has used in this study (a negotiation with them started),
+    in order; ``[]`` for admins and guests (theirs are kept on the session)."""
+    if not counts_as_human(session):
+        return [a for a, _m in (getattr(session, "__dict__", {}).get("_uncounted_used") or [])]
+    data = read_assignments(session.study_ref)
+    h = data["humans"].get(session.user) or {}
+    return [str(x[0]) for x in h.get("used_assistants") or [] if isinstance(x, (list, tuple)) and x]
+
+
+def skipped_assistants(session: Any) -> list[str]:
+    """The Assistants skipped for the human because nobody could be paired with them
+    (``pairing.fallback: end``)."""
+    if not counts_as_human(session):
+        return list(getattr(session, "__dict__", {}).get("_uncounted_skipped") or [])
+    data = read_assignments(session.study_ref)
+    return list((data["humans"].get(session.user) or {}).get("skipped_assistants") or [])
+
+
+def mark_used(session: Any, assistant: str, match_id: str) -> None:
+    """Record that the human started a negotiation with ``assistant`` (``used_assistants``, as
+    ``[assistant, match_id]``; once per match)."""
+    if not assistant or is_no_assistant(assistant):
+        return
+    if not counts_as_human(session):
+        lst = session.__dict__.setdefault("_uncounted_used", [])
+        if not any(m == match_id for _a, m in lst):
+            lst.append((assistant, match_id))
+        return
+    path = store_path(session.study_ref)
+    cross = _explicit_cross(session.study_ref)
+    with _locked(path):
+        data = _read(path)
+        h = _human(data, session.user, cross)
+        lst = h.setdefault("used_assistants", [])
+        if any(isinstance(x, (list, tuple)) and len(x) > 1 and x[1] == match_id for x in lst):
+            return
+        lst.append([assistant, match_id])
+        _write(path, data)
+
+
+def skip_assistant(session: Any, assistant: str) -> None:
+    """Nobody could be paired with the human's ``assistant`` (``pairing.fallback: end``): it is
+    left out of their remaining Assistants (and not counted as used)."""
+    if not assistant:
+        return
+    if not counts_as_human(session):
+        session.__dict__.setdefault("_uncounted_skipped", []).append(assistant)
+        return
+    path = store_path(session.study_ref)
+    with _locked(path):
+        data = _read(path)
+        h = _human(data, session.user, _explicit_cross(session.study_ref))
+        h.setdefault("skipped_assistants", []).append(assistant)
+        _write(path, data)
+
+
+def _schedule_set(session: Any) -> list[str]:
+    """The Assistants of every slot of the human's ``schedule.json`` (``external`` in Paired: a set)."""
+    st = getattr(session, "study", None)
+    out: list[str] = []
+    try:
+        for e in (st.schedule() if callable(getattr(st, "schedule", None)) else []):
+            if isinstance(e, dict) and e.get("assistant"):
+                out.append(str(e["assistant"]))
+        data = st.schedule_data() if callable(getattr(st, "schedule_data", None)) else None
+        if not out and isinstance(data, dict) and data.get("assistant"):
+            out.append(str(data["assistant"]))
+    except Exception:  # noqa: BLE001
+        return []
+    return out
+
+
+def _dedupe(seq: list[str]) -> list[str]:
+    return list(dict.fromkeys(seq))
+
+
+def remaining_assistants(session: "NegotiationSession", settings: dict, plan: dict | None = None) -> tuple[list[str], str]:
+    """``(R_u, method)``: the Assistants the human may still play in a Paired study, in the order of
+    preference, and the scheduling method they come from (see the Study management docs):
+
+    * an Assistant that is fixed for this page (the group file's, the human's own pick, an admin's
+      URL) or the study's one-per-person methods (``balanced``, ``random_fixed``, ``round_robin``):
+      that one Assistant, for every match;
+    * ``latin_square`` / ``cyclic`` / ``balanced_subset`` / ``random_subset``: the first K of the
+      human's sequence, without the ones already used (or skipped); with
+      ``scheduling.assistant_repeats: true`` the sequence wraps instead;
+    * ``random_each``: the whole pool (repeats allowed);
+    * ``external`` (or a ``schedule.json`` naming Assistants): the Assistants of its slots, as a set.
+
+    ``[]`` means the human has used every Assistant planned for them.
+    """
+    from hani2 import scheduling
+
+    fixed = group_assistant(session)
+    if fixed:
+        return [fixed], ""
+    chosen = (getattr(session, "__dict__", None) or {}).get("chosen_assistant")
+    if chosen:
+        return [str(chosen)], "user"
+    c = assistant_pool(session, settings, plan)
+    if c.error or not c.pool:
+        return [], ""
+    if c.source in ("query", "fixed") or (c.source == "group" and len(c.pool) == 1):
+        return [c.pool[0]], ""
+    method = _assistant_method(session)
+    used = set(used_assistants(session)) | set(skipped_assistants(session))
+    ref = getattr(session, "study_ref", None)
+    options = scheduling.options_for(ref) if ref is not None else {}
+    if c.source == "schedule" or method == "external":
+        seq = _schedule_set(session) or list(c.pool)
+        if scheduling.repeats_allowed("external", options):
+            return _dedupe(seq), "external"
+        return [a for a in _dedupe(seq) if a not in used], "external"
+    if method not in scheduling.PER_NEGOTIATION_ASSISTANTS:
+        return [assign_assistant(session, c.pool, c.group, method)], method
+    if method == "random_each":
+        order = list(c.pool)
+        scheduling.rng(_seed(session), "paired", len(used)).shuffle(order)
+        return order, method
+    k = _plan_size(session)
+    if len(c.pool) == 1:
+        seq = [c.pool[0]] * k
+    elif method in scheduling.SUBSET_ASSISTANTS:
+        seq = subset_plan(session, c.pool, method)
+    else:
+        idx = participant_index(session) or 0
+        seq = [scheduling.pick_assistant_slot(method, c.pool, idx, j, _seed(session)) for j in range(k)]
+    if scheduling.repeats_allowed(method, options) or len(c.pool) == 1:
+        n = len(used_assistants(session))
+        rot = seq[n % len(seq):] + seq[:n % len(seq)] if seq else []
+        skipped = set(skipped_assistants(session))
+        return [a for a in _dedupe(rot) if a not in skipped], method
+    return [a for a in _dedupe(seq) if a not in used], method

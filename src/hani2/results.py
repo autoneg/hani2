@@ -83,6 +83,32 @@ def _condition(ss: dict) -> dict[str, Any]:
 
 SCHEDULING_COLUMNS = ["opponent_scheduling", "assistant_scheduling", "scenario_scheduling"]
 
+#: the study's mode and how the negotiation was paired (see hani2.pairing): ``study_mode`` (the
+#: planned mode), ``pairing`` (``cells``, ``order``, ``random``, ``fallback``, ``code`` or empty),
+#: ``match_cell`` (``"<scenario>|<A>@0|<B>@1"``, the same in both rows), ``side`` (the human's ufun
+#: index), the other side's Assistant, entrant and participant index, the human's Assistant entrant
+#: and whether it is their own team's, the Assistant's position in the person's plan and the plan's
+#: size (K), and whether the match joined people of two studies
+PAIRED_COLUMNS = ["study_mode", "pairing", "match_cell", "side", "opponent_assistant", "opponent_assistant_entrant",
+                  "opponent_participant", "assistant_entrant", "own_assistant", "assistant_position", "plan_size",
+                  "cross_study"]
+
+
+def paired_columns(ss: dict[str, Any]) -> dict[str, Any]:
+    """The :data:`PAIRED_COLUMNS` of a negotiation (empty strings when they do not apply)."""
+    match = bool(ss.get("match_id"))
+    out: dict[str, Any] = {k: ss.get(k, "") for k in PAIRED_COLUMNS}
+    out["study_mode"] = str(ss.get("study_mode") or "")
+    out["pairing"] = str(ss.get("pairing") or "")
+    out["side"] = ss.get("human_index", "")
+    for k in ("match_cell", "opponent_assistant", "opponent_assistant_entrant", "opponent_participant"):
+        out[k] = ss.get(k, "") if match else ""
+    out["cross_study"] = bool(ss.get("cross_study")) if match else False
+    for k in ("assistant_entrant", "own_assistant", "assistant_position", "plan_size"):
+        v = ss.get(k, "")
+        out[k] = "" if v is None else v
+    return out
+
 
 def _attribution(ss: dict[str, Any]) -> dict[str, str]:
     """The Assistant (spec, group, class, error), the opponent's group, the scheduling methods and
@@ -335,6 +361,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         | _condition(ss)
         | _attribution(ss)
         | _han_provenance(ss, m)
+        | paired_columns(ss)
         | _participant(ss, human_ufun, human_utility, m.agreement is not None)
         | _information(ss, m)
         | _stamp(ss)
