@@ -31,7 +31,8 @@ N = {
     "marks": "The coloured lines mark your value on disagreement, the opponent's latest offer, and your own.",
     "drag": "Drag across the part of the bar you want. Here, deals worth between sixty and ninety percent to you.",
     "giveme": "Give me chooses how many deals you get. Ten deals give you a choice.",
-    "pick": "Click a row, and the deal goes into your counter-offer. You can still change it before you send it.",
+    "pick": "Click a row, and the deal goes into your counter-offer. Send offer, in the window or under your "
+    "offer, sends it; you can still change it first.",
     "sent": "We send it. A good habit: start high, and move left slowly as the deadline comes closer. "
          "Never go below the no-deal line.",
     "menu": "The Tools menu, next to the Utility Bar, opens any tool in the same small window.",

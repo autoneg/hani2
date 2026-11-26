@@ -28,7 +28,8 @@ and the page under it stays usable.
 - **Drag** across the part of the bar you want, or **click** one point for the nearest deals.
 - **Give me** chooses what you get from that part: one deal, up to ten, or all of them.
 - Click a row of the table to choose that deal: it goes into your counter-offer, and the editor
-  opens with it, so you can check or change it. Then press **Send offer**.
+  opens with it, so you can check or change it.
+- **Send offer**, in the tool or under your counter-offer, sends it.
 
 A good habit: start high (the right end of the bar) and move left slowly as the deadline
 approaches. Never go left of the *No deal* line: such a deal is worse than no deal at all.

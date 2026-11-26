@@ -164,8 +164,12 @@ def start(page) -> None:
 
 
 def send_counter(page, message: str) -> None:
-    if not page.locator("[data-anchor=send]").get_by_role("button", name="Send offer").count():
+    main_send = page.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
+    for _ in range(4):  # Counter-offer toggles the editor; an Assistant filling the offer may open it too
+        if main_send.count() and main_send.first.is_visible():
+            break
         page.get_by_role("button", name="Counter-offer").click()
+        page.wait_for_timeout(600)
     box = page.get_by_placeholder(re.compile("Explain your offer"))
     if box.count():
         box.fill(message)
@@ -352,7 +356,6 @@ def take_tools(browser, use_llm: bool) -> None:
             def ask_llm(d):
                 type_into(d.locator("textarea"), "Propose a fair middle ground on the rent and keep the lease short.")
                 d.get_by_role("button", name="Generate").click()
-            llm_shot(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Suggested offer")
 
             def answered(d, button: str, empty: str) -> None:
                 d.get_by_role("button", name=button, exact=True).click()
@@ -384,6 +387,23 @@ def take_tools(browser, use_llm: bool) -> None:
         settle(page)
         shot_tool(page, "Negotiation Plot", "tool-negotiation-plot-estimate")
         shot_tool(page, "Utility-based Selector", "tool-utility-selector-estimate")
+        ctx.close()
+
+
+def take_llm_tool(browser) -> None:
+    """The LLM tool on its own prompt (no Assistant), with its Set offer and Send offer buttons."""
+    with server(["--no-assistant"], env_json=tools_env()) as url:
+        ctx, page = new_page(browser, url)
+        login(page, "admin", "adminpass")
+        page.goto("/app")
+        start(page)
+        play(page, 3)
+        hide_toasts(page)
+
+        def ask_llm(d):
+            type_into(d.locator("textarea"), "Propose a fair middle ground on the rent and keep the lease short.")
+            d.get_by_role("button", name="Generate").click()
+        llm_shot(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Suggested offer")
         ctx.close()
 
 
@@ -675,7 +695,9 @@ def pick_options(page, n: int = 2) -> None:
 
 
 def take_walk_han(browser) -> None:
-    with server(["--no-assistant"], env_json=WALK_ENV, opponent=WALK_OPPONENT) as url:
+    # more rounds: the conceding opponent must not accept before the accept and end shots
+    env = {"negotiation": {"n_steps": 30, "time_limit": None}}
+    with server(["--no-assistant"], env_json=env, opponent=WALK_OPPONENT) as url:
         ctx, page = new_page(browser, url)
         page.goto("/play")
         expect(page.get_by_role("button", name="Start negotiation")).to_be_visible()
@@ -693,7 +715,7 @@ def take_walk_han(browser) -> None:
         box.fill("I can pay a little more if the deposit is lower.")
         settle(page)
         save(page, "walk-han-counter")
-        page.get_by_role("button", name="Send offer").click()
+        page.locator("[data-anchor=send]").get_by_role("button", name="Send offer").click()
         play(page, 3)
         hide_toasts(page)
         settle(page)
@@ -781,7 +803,12 @@ def take_walk_hi(browser, use_llm: bool) -> None:
         if btn.get_attribute("aria-pressed") == "true":
             btn.click()  # close it: on screens under 1600 px it covers the tools
             settle(page, 600)
-        tab(page, "Negotiation Plot").first.click()
+        plot_tab = tab(page, "Negotiation Plot").first
+        if plot_tab.count() and plot_tab.is_visible():
+            plot_tab.click()
+        else:  # the Assistant may have rearranged or hidden tools while it answered: open it from the menu
+            page.get_by_test_id("launch-tools").click()
+            page.get_by_role("menuitem", name=re.compile(r"^Negotiation Plot")).click()
         settle(page, 1500)
         save(page, "walk-hi-estimate")
         open_assistant(page)
@@ -831,7 +858,7 @@ def take_walk_hi(browser, use_llm: bool) -> None:
             mover = None
             for _ in range(300):
                 for p in (a, b):
-                    s = p.get_by_role("button", name="Send offer")
+                    s = p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
                     if s.count() and s.is_enabled():
                         mover = p
                 if mover:
@@ -841,7 +868,7 @@ def take_walk_hi(browser, use_llm: bool) -> None:
             box = mover.get_by_placeholder(re.compile("Explain your offer"))
             if box.count():
                 box.fill("Hello! Let us find a deal that works for both of us.")
-            mover.get_by_role("button", name="Send offer").click()
+            mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").click()
             expect(other.get_by_role("button", name=ACCEPT).first).to_be_enabled(timeout=30000)
             hide_toasts(other)
             settle(other, 1500)
@@ -870,6 +897,8 @@ def main() -> None:
         try:
             if "tools" in a.what:
                 take_tools(browser, use_llm)
+            if "llm" in a.what or ("tools" in a.what and use_llm):
+                take_llm_tool(browser)
             if "popup" in a.what:
                 take_popup(browser)
             if "character" in a.what:

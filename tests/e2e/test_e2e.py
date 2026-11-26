@@ -513,7 +513,7 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
     """Picking a deal in the Utility-based Selector only fills the counter-offer; its Send offer button
     then sends the deal at once, with the message typed in the message box, and it lands in the history."""
     p = new_page(viewport={"width": 1400, "height": 900})
-    p.goto("/play")
+    p.goto("/play?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="Utility-based Selector").click()
@@ -552,7 +552,7 @@ def test_random_generates_a_deal_and_send_offer_sends_it(new_page):
     """The Random generator (admins): Generate fills the counter-offer, its Send offer sends that deal."""
     p = new_page(viewport={"width": 1400, "height": 900})
     fresh_admin(p)
-    p.goto("/app")
+    p.goto("/app?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="Random").click()
@@ -580,7 +580,7 @@ def test_the_llm_tool_recommends_an_offer_when_nothing_is_typed(new_page):
     """With an empty instruction the LLM tool's button reads Recommend an offer; typing makes it Generate."""
     p = new_page(viewport={"width": 1400, "height": 900})
     fresh_admin(p)
-    p.goto("/app")
+    p.goto("/app?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="LLM").click()

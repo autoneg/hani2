@@ -142,7 +142,7 @@ def narration(module_globals: dict) -> list[str]:
 START = "button:has-text('Start negotiation')"
 ACCEPT_ON = "button.btn-success:not([disabled]):not(:has-text('Accept offer'))"
 COUNTER = "button:has-text('Counter-offer')"
-SEND = "button:has-text('Send offer')"
+SEND = "[data-anchor=send] button:has-text('Send offer')"  # the offer area's; tools have their own
 END_BTN = "button.btn-danger:not(:has-text('negotiation'))"
 MESSAGE = "textarea[placeholder^='Explain']"
 CONFIRM_ACCEPT = "button:has-text('Accept offer')"

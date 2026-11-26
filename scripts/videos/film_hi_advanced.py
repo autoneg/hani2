@@ -50,7 +50,8 @@ N = {
              "for both lie near it. The yellow banner says this is an estimate, and it may be wrong.",
     "selector": "The Utility-based Selector can use the estimate too. It can choose deals by the opponent's "
              "estimated value: still good for you, and more likely to be accepted.",
-    "pick": "We choose the deal at the top: it goes into our counter-offer. We check it, and send it.",
+    "pick": "The deals at the top are best for the opponent, but worth little to us. We choose one that is still "
+    "worth more to us than no deal: it goes into our counter-offer. We check it, and send it.",
     "tips": "When you play people, the same Assistant helps you. While you wait, most studies offer an AI instead. "
     "Keep your messages friendly, and be patient: "
          "people need time to decide.",
@@ -136,7 +137,16 @@ def main() -> None:
             f.sleep(2.0)
             f.finish_speech(); f.unring()
             f.say(N["pick"], wait=False)
-            f.click(W, "tbody tr:first-child")  # choosing a row puts the deal into the counter-offer
+            # the rows come best for the opponent first: choose the one still worth most to us
+            best = f.frame(W).evaluate("""() => {
+                const t = [...document.querySelectorAll('table')].find(t => /Opponent/.test(t.innerText) && t.querySelector('tbody tr'));
+                const head = [...t.querySelectorAll('thead th')].map(th => th.innerText.trim());
+                const col = head.findIndex(h => h === 'Utility');
+                let bi = 0, bv = -1;
+                [...t.querySelectorAll('tbody tr')].forEach((r, i) => {
+                    const v = parseFloat(r.children[col].innerText); if (v > bv) { bv = v; bi = i; } });
+                return bi + 1; }""")
+            f.click(W, f"tbody tr:nth-child({best})")  # choosing a row puts the deal into the counter-offer
             f.sleep(1.0)
             if not f.loc(W, SEND).count():
                 f.click(W, COUNTER)  # the selector filled the offer; open the editor to check it
