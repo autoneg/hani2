@@ -87,6 +87,33 @@ Creates the settings folder with the default settings files, the sample scenario
 
 See [Installation](installation.md) for the list of files it creates.
 
+## `hani2 human-trial`
+
+Try a negotiation between two people on one machine:
+
+```bash
+hani2 human-trial
+```
+
+It starts a trial server with a home folder of its own (`~/negmas/hani2-trial`, never your normal
+settings folder) and one study whose participants negotiate with each other. It prints two links, one
+per participant, and opens both. Two tabs of one browser are enough: each link carries its own
+participant id, and both share a match code, so they pair with each other and nobody else. Press
+**Start** in both tabs and negotiate. Each run uses new participants, and both rows land in the
+printed results folder with the same `match_id`. The first start in a new home takes about a minute
+while the settings and sample scenarios are created.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--assistant` / `--no-assistant` | `--no-assistant` | Give both participants the Assistant (opponents `human+assistant`). |
+| `--wait` | `0` | Seconds to wait for the other participant before an AI opponent takes over. `0` waits forever. |
+| `--time-limit` | the usual one | Time limit of each negotiation, in seconds. |
+| `--port`, `-p` | any free port | Port to listen on. |
+| `--home` | `~/negmas/hani2-trial` | Home folder of the trial server (settings and results). |
+| `--browser` / `--no-browser` | `--browser` | Open both participants' pages. |
+
+See [Human opponents](../guide/human-opponents.md) for running such studies for real.
+
 ## `hani2 info`
 
 ```bash

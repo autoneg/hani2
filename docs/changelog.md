@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`hani2 human-trial`.** One command tries a negotiation between two people on this machine: a
+  trial server with its own home folder and two linked pages (two tabs of one browser are enough).
+  `--assistant` gives both sides the Assistant. See [`hani2 human-trial`](getting-started/cli.md#hani2-human-trial).
 - **Games: people play each other whenever they like.** `human_opponents_first` makes every
   negotiation look for a person first, of any human kind the pool lists, with the AI entries as the
   fallback. `human_opponent_choice` (or `?opponent_choice=1`) lets the participant choose *Play a

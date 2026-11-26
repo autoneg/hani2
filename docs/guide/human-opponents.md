@@ -24,6 +24,13 @@ Each participant keeps their own page, tools and Assistant. Whether a participan
 decided as always (the study's Assistant settings, its Assistant pool and balance). The opponent entry
 only says what the *other* side must be.
 
+!!! tip "Try it on one machine"
+    `hani2 human-trial` starts a trial server and opens two linked pages, one per participant, in
+    your browser. See [`hani2 human-trial`](../getting-started/cli.md#hani2-human-trial).
+
+The bundled welcome text (`announcements.md`) speaks of an AI opponent. A study with human opponents
+should have its own `announcements.md` that says the other side is a person.
+
 ## Pairing
 
 When a participant's next opponent is `human` or `human+assistant`, HANI2 pairs them as their scenario loads:
