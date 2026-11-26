@@ -194,9 +194,24 @@ export interface SessionState {
   study_name?: string | null;
   study: { kind: string; pid?: string; required?: number; counted?: number; practice_next?: boolean; auto_deadline?: number | null; auto_kind?: string | null; max_minutes?: number };
   can_choose_scenario: boolean;
+  /** what the participant may choose for the next negotiation (null: nothing) */
+  choices?: Choices | null;
   webmcp?: { enabled: boolean; actions: boolean };
   tool_maximize?: "window" | "fullscreen" | "off";
   next_opponent: string | null;
+}
+
+export interface ChoiceOption {
+  value: string;
+  label: string;
+}
+
+export interface Choices {
+  scenario: { options: string[]; names: Record<string, string[]>; current: string | null };
+  /** current: the participant's pick (null: assigned automatically) */
+  opponent: { options: ChoiceOption[]; current: string | null };
+  /** current: the Assistant of the next negotiation; chosen: whether the participant picked it */
+  assistant: { options: ChoiceOption[]; current: string | null; chosen: boolean };
 }
 
 export interface Component {

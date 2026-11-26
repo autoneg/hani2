@@ -1,0 +1,1 @@
+import{c as t}from"./index-CuOGBlPT.js";const e={name:"tv-minimal",size:24,node:[["path",{d:"M7 21h10",key:"1b0cd5"}],["rect",{width:"20",height:"14",x:"2",y:"3",rx:"2",key:"48i651"}]],aliases:["tv-2"]};e.node;const i=t(e);export{e as __iconData,i as default};

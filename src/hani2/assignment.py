@@ -277,7 +277,7 @@ def is_no_assistant(spec: Any) -> bool:
 class AssistantChoice:
     spec: str | None
     group: str = ""
-    #: query | group | schedule | env | study | settings
+    #: query | group | schedule | env | study | settings | user (the human chose it; see hani2.choices)
     source: str = "settings"
     pool: list[str] = field(default_factory=list)
     error: str | None = None
@@ -431,6 +431,9 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
     """The Assistant this session should run now (pool + fixed, balanced pick)."""
     from hani2 import scheduling
 
+    chosen = (getattr(session, "__dict__", None) or {}).get("chosen_assistant")
+    if chosen:  # the human's own pick for this negotiation (see hani2.choices): used as given, not recorded
+        return AssistantChoice(spec=str(chosen), source="user", pool=[str(chosen)], scheduling="user")
     c = assistant_pool(session, settings, plan)
     if c.error or not c.pool:
         return c

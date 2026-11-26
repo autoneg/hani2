@@ -653,6 +653,11 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         if not r.get("ok"):
             s.toast(r.get("error", "Please complete the questionnaire"), "warning")
         return r
+    if t == "choose":
+        r = s.choose(str(msg.get("kind") or ""), msg.get("value"))
+        if not r.get("ok"):
+            s.toast(r.get("error", "Not allowed"), "warning")
+        return r
     if t == "opponent" and s.admin_mode:
         spec = str(msg.get("spec") or "")
         if not s.is_admin and not agents.client_spec_allowed(spec):

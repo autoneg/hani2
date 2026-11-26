@@ -456,6 +456,65 @@ function AdminPickers({ st }: { st: SessionState }) {
   );
 }
 
+/** The participant's own choices for the next negotiation (when the admin allows them). */
+function ChoicePickers({ st }: { st: SessionState }) {
+  const c = st.choices!;
+  const [type, setType] = useState<string>(c.scenario.current && c.scenario.options.includes(c.scenario.current) ? c.scenario.current : "");
+  const [name, setName] = useState<string>("");
+  const names = (type && c.scenario.names[type]) || [];
+  const auto = (opts: { value: string; label: string }[], v: string | null) => opts.find((o) => o.value === v)?.label;
+  return (
+    <div className="grid gap-3 rounded-xl border border-dashed border-line p-3 sm:grid-cols-2" data-testid="choice-pickers">
+      {c.scenario.options.length > 0 && (
+        <div className="sm:col-span-2">
+          <span className="label">Scenario</span>
+          <div className="flex gap-1.5">
+            <select className="field" aria-label="Scenario type" value={type} onChange={(e) => { setType(e.target.value); setName(""); }}>
+              {!c.scenario.options.includes(type) && <option value="">Choose a scenario…</option>}
+              {c.scenario.options.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+            {names.length > 0 && (
+              <select className="field" aria-label="Scenario" value={name} onChange={(e) => setName(e.target.value)}>
+                <option value="">Any</option>
+                {names.map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            )}
+            <button className="btn-secondary shrink-0" disabled={!type} onClick={() => send({ type: "load", scenario_type: type, name: name || null })}>
+              Load
+            </button>
+          </div>
+        </div>
+      )}
+      {c.opponent.options.length > 0 && (
+        <label>
+          <span className="label">Opponent</span>
+          <select className="field" aria-label="Opponent" value={c.opponent.current ?? ""} onChange={(e) => send({ type: "choose", kind: "opponent", value: e.target.value || null })}>
+            <option value="">Assigned automatically</option>
+            {c.opponent.options.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {c.assistant.options.length > 0 && (
+        <label>
+          <span className="label">Assistant</span>
+          <select className="field" aria-label="Assistant" value={c.assistant.chosen ? (c.assistant.current ?? "") : ""} onChange={(e) => send({ type: "choose", kind: "assistant", value: e.target.value || null })}>
+            <option value="">Assigned automatically{!c.assistant.chosen && c.assistant.current ? ` (${auto(c.assistant.options, c.assistant.current) ?? c.assistant.current.split(/[.:]/).pop()})` : ""}</option>
+            {c.assistant.options.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
+}
+
 function Intro({ st }: { st: SessionState }) {
   const [md, setMd] = useState("");
   useEffect(() => {
@@ -493,7 +552,7 @@ function Intro({ st }: { st: SessionState }) {
           <Markdown text={md} size="sm" />
         </div>
       )}
-      {(st.can_choose_scenario || st.admin_mode) && <AdminPickers st={st} />}
+      {st.admin_mode ? <AdminPickers st={st} /> : st.choices ? <ChoicePickers st={st} /> : null}
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary px-5 py-2.5 text-base" onClick={() => sendOrWarn({ type: "start" })} disabled={!st.scenario}>
           <Play size={17} /> Start negotiation

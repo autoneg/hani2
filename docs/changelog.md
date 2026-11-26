@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **Human opponents.** A project or study can have its participants negotiate with each other: the
+  opponent entries `human` (another participant without an Assistant) and `human+assistant` (with one)
+  pair participants as their scenario loads, within a project or by `?match=<code>`. This covers team
+  against team, human against human, and a team against a human alone (two studies). Each side keeps
+  its own page, tools and Assistant. If nobody joins, an AI opponent takes over after
+  `human_opponent_wait` seconds. A participant who leaves ends the negotiation. Results record
+  `opponent_kind`, `match_id`, `opponent_user` and `abandoned`. See [Human opponents](guide/human-opponents.md).
+- **Participants can choose the scenario, the opponent and the Assistant** when the admin allows it.
+  Each negotiation starts with HANI2's usual pick; participants may then choose another from the
+  allowed set (any of the pool, or a list). The playground's setting (`playground.choices`) never
+  reaches a project or study; projects and studies allow it in their own `env.json` (`choices`),
+  and Prolific studies never do. The admin console edits it on **Negotiation → What participants
+  may choose**, and the results record a participant's pick as `user`. See
+  [What participants may choose](guide/configuration.md#what-participants-may-choose).
 - **The character steps aside while its conversation is open.** Clicking the Assistant's character
   opens the conversation (next to it, or in the dock) and hides the character with its speech
   bubbles; closing the conversation brings it back, unless the participant has hidden it.

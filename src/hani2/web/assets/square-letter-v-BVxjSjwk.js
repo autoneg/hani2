@@ -1,0 +1,1 @@
+import{c as t}from"./index-CuOGBlPT.js";const e={name:"square-letter-v",size:24,node:[["path",{d:"m9 8 2.525 7.66a.5.5 0 0 0 .95 0L15 8",key:"1arqi6"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const r=t(e);export{e as __iconData,r as default};

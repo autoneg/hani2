@@ -6,6 +6,8 @@ import { Checks } from "../controls/Checks";
 import { Toggle } from "../controls/Toggle";
 import { Disclosure } from "../Disclosure";
 import { Select } from "../controls/Select";
+import { Tags } from "../controls/Tags";
+import { useLayer } from "../layer";
 import type { SearchEntry } from "../types";
 
 const PROVIDERS = ["ollama", "openai", "anthropic", "gemini", "azure", "groq", "mistral", "openrouter"];
@@ -80,7 +82,7 @@ export const NEGOTIATION: FieldGroup[] = [
       { id: "generate-on-failure", path: "negotiation.generate_on_failure", label: "Generate a scenario when none is saved", type: "toggle" },
       { id: "scenario-set-session", path: "negotiation.scenario_set", label: "Scenario set", hint: "Empty: the default set (Scenarios page)", type: "custom" },
       { id: "predefined-order", path: "negotiation.predefined_order", label: "Follow the scenario order", type: "toggle" },
-      { id: "allow-scenario-selection", path: "negotiation.allow_scenario_selection", label: "Participants may choose the scenario", type: "toggle" },
+      { id: "allow-scenario-selection", path: "negotiation.allow_scenario_selection", label: "Participants may choose the scenario", hint: "The old switch (any type, every layer); prefer \"What participants may choose\" below", type: "toggle" },
       { id: "role-rule", path: "negotiation.role_rule", label: "Participant's role", hint: "Which side the participant plays", type: "select", options: ROLE_RULES },
       { id: "human-roles", path: "negotiation.human_roles", label: "Preferred roles", hint: "For the preferred-roles rule", type: "tags", placeholder: "Tenant" },
       { id: "human-index", path: "negotiation.human_index", label: "Seat index", hint: "For the seat-index rule (0 first)", type: "stepper", min: 0, max: 1 },
@@ -92,16 +94,57 @@ export const NEGOTIATION: FieldGroup[] = [
     ],
   },
 ];
+/* What participants may choose (env.json → playground.choices in the settings folder, choices in a project or study) */
+const CHOICE_KINDS = [
+  { kind: "scenario", label: "Scenario", hint: "Any: the types of the session's scenario set", placeholder: "Trade" },
+  { kind: "opponent", label: "Opponent", hint: "Any: the session's opponent pool", placeholder: "BoulwareTBNegotiator or :group" },
+  { kind: "assistant", label: "Assistant", hint: "Any: the session's Assistant pool; \"none\" offers no Assistant", placeholder: "my_assistant:MyAssistant or none" },
+];
+export const CHOICES: FieldGroup = {
+  title: "What participants may choose",
+  footer: "Each negotiation starts with the scenario, opponent and Assistant chosen as usual; participants may then pick another from the allowed set. Prolific studies never allow it. In the settings folder this applies only to the playground (sessions outside any project or study); set it on a project or a study to allow it there.",
+  fields: CHOICE_KINDS.map((k) => ({ id: `choose-${k.kind}`, path: `choices.${k.kind}`, label: k.label, hint: k.hint, type: "custom" as const, keywords: "choose pick select participant playground", wide: true })),
+};
+function ChoiceControl({ value, onChange, label, placeholder, suggestions }: { value: any; onChange: (v: any) => void; label: string; placeholder: string; suggestions?: string[] }) {
+  const mode = value === true ? "any" : Array.isArray(value) ? "list" : "off";
+  return (
+    <div className="flex flex-col gap-2">
+      <Select
+        label={`${label}: who may choose`}
+        value={mode}
+        onChange={(m) => onChange(m === "any" ? true : m === "list" ? (Array.isArray(value) ? value : []) : false)}
+        options={[{ value: "off", label: "Not allowed" }, { value: "any", label: "Any from the pool" }, { value: "list", label: "Only these" }]}
+      />
+      {mode === "list" && <Tags label={label} value={value} onChange={onChange} placeholder={placeholder} suggestions={suggestions} />}
+    </div>
+  );
+}
+
 export const Negotiation = ({ meta }: { meta: any }) => {
+  const { layer } = useLayer();
   const sets = Object.keys(meta?.scenario_sets ?? {});
-  const groups = NEGOTIATION.map((g) => ({
+  const suggest: Record<string, string[]> = {
+    scenario: meta?.scenario_types ?? [],
+    opponent: [...Object.keys(meta?.opponent_groups ?? meta?.agent_groups ?? {}).map((g) => `:${g}`)],
+    assistant: ["none"],
+  };
+  const choicePath = (kind: string) => (layer.kind === "settings" ? `playground.choices.${kind}` : `choices.${kind}`);
+  const choices: FieldGroup = {
+    ...CHOICES,
+    title: layer.kind === "settings" ? "What participants may choose in the playground" : CHOICES.title,
+    fields: CHOICES.fields.map((f, i) => {
+      const k = CHOICE_KINDS[i];
+      return { ...f, path: choicePath(k.kind), render: (s: any) => <ChoiceControl label={k.label} placeholder={k.placeholder} suggestions={suggest[k.kind]} value={s.get(choicePath(k.kind))} onChange={(v) => s.set(choicePath(k.kind), v)} /> };
+    }),
+  };
+  const groups = [...NEGOTIATION.map((g) => ({
     ...g,
     fields: g.fields.map((f) =>
       f.id === "scenario-set-session"
         ? { ...f, render: (s: any) => <Select label="Scenario set" value={s.get("negotiation.scenario_set") ?? ""} onChange={(v) => s.set("negotiation.scenario_set", v || null)} options={[{ value: "", label: `Default${meta?.scenario_set ? ` (${meta.scenario_set})` : ""}` }, ...sets.map((k) => ({ value: k, label: k }))]} /> }
         : f,
     ),
-  }));
+  })), choices];
   return (
     <SettingsPage
       kind="env"

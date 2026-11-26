@@ -1,1 +1,0 @@
-import{c as a}from"./index-CCjOq-WF.js";const e={name:"georgian-lari",size:24,node:[["path",{d:"M10 10V3",key:"we2wk2"}],["path",{d:"M14 10V3",key:"uvx26u"}],["path",{d:"M19 13a7 7 0 10-7 7",key:"ic4q8w"}],["path",{d:"M5 20h14",key:"1dxev2"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

@@ -263,3 +263,11 @@ def test_one_study_whose_participants_cannot_fit_each_other_is_never_paired(hani
     a = make_session(user="alice", partner=None, study="HX/s")
     b = make_session(user="bob", partner=None, study="HX/s")
     assert a.match is not None and b.match is not None and a.match is not b.match
+
+
+def test_the_opponent_picker_never_offers_human_entries(hani2_home):
+    from hani2 import choices
+
+    s = make_session(user="erin", opponent="human+assistant,BoulwareTBNegotiator", load=False)
+    opts = choices.opponent_options(s, True)
+    assert [choices.spec_key(o) for o in opts] == ["BoulwareTBNegotiator"]
