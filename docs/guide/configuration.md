@@ -185,6 +185,8 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `allow_scenario_selection` | `false` | Let non-admins pick the scenario. |
 | `show_opponent_type` | `false` | Show the opponent agent's type. Always on for admins. (Old name: `show_partner_type`.) |
 | `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
+| `human_opponent_wait` | `120` | Seconds a participant waits for a [human opponent](human-opponents.md) before the fallback (0: forever). |
+| `human_opponent_fallback` | `true` | After that wait, negotiate with an AI opponent from the rest of the pool (else keep waiting). |
 
 The Prolific flow overrides some of these per round (for example the time limits). See [Prolific](prolific.md).
 

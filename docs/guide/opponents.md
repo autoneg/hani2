@@ -7,7 +7,7 @@
     [Assistant](assistant.md)). Participants see it labelled **Opponent**.
     The older names `--agents`, `HANI2_AGENTS`, `?agents=` and `agents` still work.
 
-Every negotiation pairs the participant with one automated *opponent*. HANI2 picks it from a *pool* of agent specs when the negotiation starts. This page explains how specs are written, how the pool is chosen and what HANI2 does to the opponent before it plays.
+Every negotiation pairs the participant with one *opponent*: an automated agent or, with the pool entries `human` and `human+assistant`, another participant (see [Human opponents](human-opponents.md)). HANI2 picks it from a *pool* of agent specs when the negotiation starts. This page explains how specs are written, how the pool is chosen and what HANI2 does to the opponent before it plays.
 
 ## Agent specs
 

@@ -139,6 +139,10 @@ export interface SessionState {
     opponent_role?: string;
   };
   opponent: null | { name: string; type: string };
+  /** who the opponent is: an AI agent, or another participant (alone or with an Assistant) */
+  opponent_kind?: "agent" | "human" | "human+assistant";
+  /** waiting for another participant to join or to start */
+  waiting_for_opponent?: boolean;
   negotiation: {
     running: boolean;
     thinking: boolean;
