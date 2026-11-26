@@ -401,3 +401,145 @@ def test_pass_hat_k_is_per_scenario_and_opponent():
     rows += [dict(group="g", scenario="s", opponent="B", agreement=0.0) for _ in range(4)]
     rel = {r["k"]: r["pass_hat_k"] for r in compare_rows(rows, by="group", max_k=4)["reliability"]}
     assert rel[4] == pytest.approx(0.5)
+
+
+# --------------------------------------------------------------------------- #
+# Strata: Solo, Paired, combined; HAN alone / vs_team; head-to-head            #
+# --------------------------------------------------------------------------- #
+def _paired(match, a, ua, adv_a, b, ub, adv_b, scenario="s", **kw):
+    """The two rows of a Paired match: ``a`` at side 0, ``b`` at side 1."""
+    base = dict(study_mode="paired", pairing="cells", opponent_kind="human+assistant", match_id=match)
+    return [_row(a, ua, scenario, "human+assistant", adv_a, side=0, opponent_assistant=b, assistant=a, **base, **kw),
+            _row(b, ub, scenario, "human+assistant", adv_b, side=1, opponent_assistant=a, assistant=b, **base, **kw)]
+
+
+def test_hi_strata_cells_and_dedup():
+    from hani2.evaluation.tracks import strata_boards
+
+    rows = [
+        _row("A", "u1", "s", "o", 0.8, study_mode="solo", opponent_kind="agent"),
+        _row("B", "u2", "s", "o", 0.4, study_mode="solo", opponent_kind="agent"),
+        # a Paired study's fallback: an AI game, ranked under Solo
+        _row("A", "u3", "s", "o", 0.6, study_mode="paired", pairing="fallback", opponent_kind="agent"),
+        *_paired("m1", "A", "u4", 0.7, "B", "u5", 0.3),
+        *_paired("m2", "A", "u6", 0.5, "B", "u7", 0.5, welfare=1.2),
+    ]
+    solo = leaderboard(rows, "hi", "outcome", n_boot=0, stratum="solo")
+    assert solo["strata"] == {"solo": 3, "paired": 4} and solo["sessions"] == 3
+    assert solo["cells"] == ["scenario", "opponent"] and solo["stratum"] == "solo"
+    a = next(e for e in solo["entries"] if e["entrant"] == "A")
+    assert a["n"] == 2 and a["scores"]["hi_outcome"]["mean"] == pytest.approx(0.7)  # one cell (s, o)
+    paired = leaderboard(rows, "hi", "outcome", n_boot=0, stratum="paired")
+    assert paired["cells"] == ["scenario", "side", "opponent_assistant"]
+    # each match once in the board's totals, twice (once per Assistant) in the entries
+    assert paired["totals"] == dict(rows=4, sessions=2, matches=2, agreement_rate=1.0, welfare=1.2)
+    a = next(e for e in paired["entries"] if e["entrant"] == "A")
+    assert a["n"] == 2 and a["cells"] == 1 and a["paired"] == 2 and a["solo"] == 0  # A always at side 0 against B
+    assert a["scores"]["hi_outcome"]["mean"] == pytest.approx(0.6)
+    comb = leaderboard(rows, "hi", "outcome", n_boot=0)
+    assert comb["stratum"] == "combined" and comb["sessions"] == 5 and comb["totals"]["rows"] == 7
+    a = next(e for e in comb["entries"] if e["entrant"] == "A")
+    # cell-balanced over the Solo cell (0.8, 0.6) and the Paired cell (0.7, 0.5)
+    assert a["cells"] == 2 and a["scores"]["hi_outcome"]["mean"] == pytest.approx((0.7 + 0.6) / 2)
+    assert any("ci_unit=match" in n for n in comb["notes"])
+    assert set(strata_boards(rows, "hi", n_boot=0)) == {"combined", "solo", "paired"}
+    with pytest.raises(ValueError):
+        leaderboard(rows, "hi", stratum="alone")
+    with pytest.raises(ValueError):
+        leaderboard(rows, "hi", ci_unit="team")
+
+
+def test_legacy_rows_give_the_same_board():
+    """Rows without the new fields: the default board is what it was (every row Solo)."""
+    rows = [_row("A", "u1", "s1", "o1", 0.2), _row("A", "u2", "s1", "o1", 0.4), _row("A", "u3", "s2", "o1", 1.0),
+            _row("B", "u1", "s1", "o1", 0.1), _row("B", "u2", "s2", "o1", 0.3)]
+    lb = leaderboard(rows, "hi", "outcome", n_boot=200)
+    assert lb["cells"] == ["scenario", "opponent"] and lb["strata"] == {"solo": 5, "paired": 0}
+    assert lb["sessions"] == 5 and lb["notes"] == []
+    s = lb["entries"][0]["scores"]["hi_outcome"]
+    assert s["ci_unit"] == "participant" and s["mean"] == pytest.approx(0.65)
+
+
+def test_same_assistant_match_is_one_observation():
+    rows = [*_paired("m1", "A", "u1", 0.8, "A", "u2", 0.2), *_paired("m2", "A", "u3", 0.6, "B", "u4", 0.4)]
+    lb = leaderboard(rows, "hi", "outcome", n_boot=0, stratum="paired")
+    a = next(e for e in lb["entries"] if e["entrant"] == "A")
+    assert a["n"] == 2 and a["same_assistant"] == 1 and a["participants"] == 3
+    # cells: (s, both, A) = mean(0.8, 0.2) = 0.5 and (s, 0, B) = 0.6
+    assert a["scores"]["hi_outcome"]["mean"] == pytest.approx(0.55)
+    assert lb["totals"]["sessions"] == 2 and any("same-Assistant" in n for n in lb["notes"])
+
+
+def test_abandoned_match_drops_both_rows():
+    rows = [*_paired("m1", "A", "u1", 0.8, "B", "u2", 0.2)]
+    rows[0]["abandoned"] = "self"
+    lb = leaderboard(rows, "hi", "outcome", n_boot=0)
+    assert lb["excluded"] == {"abandoned": 2} and lb["entries"] == []
+
+
+def test_ci_unit_match():
+    rows = []
+    for i in range(6):
+        rows += _paired(f"m{i}", "A", "u1" if i < 3 else "u2", 0.5 + 0.05 * i, "B", f"v{i}", 0.3)
+    p = leaderboard(rows, "hi", "outcome", n_boot=200, stratum="paired")
+    m = leaderboard(rows, "hi", "outcome", n_boot=200, stratum="paired", ci_unit="match")
+    sa = next(e for e in p["entries"] if e["entrant"] == "A")["scores"]["hi_outcome"]
+    sm = next(e for e in m["entries"] if e["entrant"] == "A")["scores"]["hi_outcome"]
+    assert sa["ci_unit"] == "participant" and sm["ci_unit"] == "match" and m["ci_unit"] == "match"
+    assert sa["mean"] == sm["mean"] and sm["lo"] is not None and sm["lo"] <= sm["mean"] <= sm["hi"]
+    assert any("resamples matches" in n for n in m["notes"])
+
+
+def test_han_strata_alone_vs_team_and_human_opponents():
+    from hani2.evaluation.tracks import strata_boards
+
+    def r(opp, user, adv, sa="none", **kw):
+        return {**dict(support_agent=sa, user=user, scenario="s", opponent=opp, status="success", agreement=1,
+                       opponent_advantage=adv), **kw}
+
+    rows = [r("X", "u1", 0.8), r("Y", "u2", 0.4),
+            # HI Solo against HAN entrants: vs_team only
+            r("X", "u3", 0.2, sa="A", opponent_han_year=2026), r("Y", "u4", 0.6, sa="B", opponent_han_year=2026),
+            # an Assistant against a non-HAN agent: in neither HAN stratum
+            r("Z", "u5", 0.9, sa="A"),
+            # HAN Paired: a person against a person, nothing to rank
+            r("human", "u6", 0.5, opponent_kind="human", match_id="m1"),
+            r("human", "u7", 0.5, opponent_kind="human", match_id="m1")]
+    alone = leaderboard(rows, "han", "outcome", n_boot=0)
+    assert alone["stratum"] == "alone" and not alone["pooled"]
+    assert alone["excluded"] == {"human opponent": 2} and alone["cells"] == ["scenario"]
+    assert {e["entrant"]: e["scores"]["han_outcome"]["mean"] for e in alone["entries"]} == {
+        "X": pytest.approx(0.8), "Y": pytest.approx(0.4)}
+    team = leaderboard(rows, "han", "outcome", n_boot=0, stratum="vs_team")
+    assert team["excluded"] == {} and team["cells"] == ["scenario", "assistant"]
+    assert {e["entrant"]: e["scores"]["han_outcome"]["mean"] for e in team["entries"]} == {
+        "X": pytest.approx(0.2), "Y": pytest.approx(0.6)}
+    assert alone["strata"] == team["strata"] == {"alone": 2, "vs_team": 2}
+    both = leaderboard(rows, "han", "outcome", n_boot=0, stratum="both")
+    assert both["pooled"] and any("pooled" in n for n in both["notes"]) and both["sessions"] == 4
+    x = next(e for e in both["entries"] if e["entrant"] == "X")
+    assert x["cells"] == 2 and x["scores"]["han_outcome"]["mean"] == pytest.approx(0.5)
+    assert set(strata_boards(rows, "han", n_boot=0)) == {"alone", "vs_team"}
+
+
+def test_head_to_head_bradley_terry():
+    from hani2.evaluation.tracks import head_to_head
+
+    rows = [*_paired("m1", "A", "u1", 0.8, "B", "u2", 0.2), *_paired("m2", "B", "u3", 0.3, "A", "u4", 0.6),
+            *_paired("m3", "B", "u5", 0.7, "C", "u6", 0.1), *_paired("m4", "A", "u7", 0.5, "C", "u8", 0.5),
+            *_paired("m5", "A", "u9", 0.9, "A", "u10", 0.1),  # same Assistant: compares nothing
+            _row("C", "w", "s", "o", 1.0)]  # Solo: not a match
+    h = head_to_head(rows)
+    assert h["matches"] == 4 and h["groups"] == 1 and h["notes"] == []
+    assert [e["entrant"] for e in h["entries"]] == ["A", "B", "C"]
+    a = h["entries"][0]
+    assert (a["wins"], a["losses"], a["ties"], a["matches"], a["rank"]) == (2, 0, 1, 3, 1)
+    assert sum(e["strength"] for e in h["entries"]) == pytest.approx(0, abs=1e-9)
+    ab = next(p for p in h["pairs"] if (p["a"], p["b"]) == ("A", "B"))
+    assert ab["a_wins"] == 2 and ab["mean_diff"] == pytest.approx((0.6 + 0.3) / 2)
+    lb = leaderboard(rows, "hi", "outcome", n_boot=0, head_to_head=True)
+    assert lb["head_to_head"]["entries"][0]["entrant"] == "A"
+    assert "head_to_head" not in leaderboard(rows, "hi", "outcome", n_boot=0)
+    # two groups that never met
+    h = head_to_head([*_paired("m1", "A", "u1", 0.8, "B", "u2", 0.2), *_paired("m2", "C", "u3", 1, "D", "u4", 0)])
+    assert h["groups"] == 2 and h["notes"]
