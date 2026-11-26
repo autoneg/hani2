@@ -100,7 +100,8 @@ class HaniFilm(Film):
 def film(name: str) -> Film:
     """A Film whose work files go to ``VIDEOS/work/<name>``."""
     out = VIDEOS / "work" / name
-    return HaniFilm(out, voice="af_heart", say_map=SAY_MAP, brand=BRAND, headless="--show" not in sys.argv)
+    return HaniFilm(out, voice="af_heart", say_map=SAY_MAP, brand=BRAND, logo=False,  # HANI2 is not an NEC project
+                    headless="--show" not in sys.argv)
 
 
 def pane(f: Film, pid: str, url: str, name: str = "HANI2", sub: str = "", color: str = NEC["bright"],
