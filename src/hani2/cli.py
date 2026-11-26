@@ -1291,7 +1291,7 @@ def project_create(
     organizer: Annotated[Optional[str], typer.Option(help="Who runs it.")] = None,
     contact: Annotated[Optional[str], typer.Option(help="Contact for participants (e-mail).")] = None,
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
-    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, round_robin, random_each, latin_square, cyclic, balanced_subset, random_subset, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
     study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
     opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
@@ -1358,7 +1358,7 @@ def study_create(
     end_text: Annotated[Optional[str], typer.Option("--end-text", help="Text of the end page (may use {{variables}}).")] = None,
     base_url: Annotated[Optional[str], typer.Option("--base-url", help="Public address of this server for the printed links (default: HANI2_PUBLIC_URL).")] = None,
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
-    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
+    assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, round_robin, random_each, latin_square, cyclic, balanced_subset, random_subset, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
     study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
     opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
@@ -1474,6 +1474,11 @@ def study_show(
     typer.echo("  scheduling (in use):")
     for d in scheduling.DIMENSIONS:
         typer.echo(f"    {d}: {effective[d]}" + ("" if d in explicit else "  (default)"))
+    opts = scheduling.options_for(r)
+    typer.echo(f"    cross: {opts.get('cross', scheduling.CROSS_DEFAULT)}" + ("" if "cross" in opts else "  (default)"))
+    if "assistant_repeats" in opts:
+        typer.echo(f"    assistant_repeats: {str(opts['assistant_repeats']).lower()}")
+    errors = [*errors, *(f"{w} (a running study: the Assistants wrap around)" for w in scheduling.study_repeat_problems(r))]
     from hani2 import study_modes
 
     mode = study_modes.resolve(r)
@@ -1483,6 +1488,24 @@ def study_show(
     for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)
+
+
+@study_app.command("balance")
+def study_balance(
+    ref: str,
+    as_json: Annotated[bool, typer.Option("--json", help="Print the report as JSON.")] = False,
+):
+    """How balanced the study's assignment came out: totals, positions, pairs of Assistants used by
+    the same person, and the crossing of Assistants with opponents and scenario types."""
+    import json as _json
+
+    from hani2 import balance, projects
+
+    r = _ref(ref)
+    if not projects.study_exists(r):
+        raise typer.BadParameter(f"no study {r}")
+    rep = balance.study_balance(r)
+    typer.echo(_json.dumps(rep, indent=1) if as_json else balance.render(rep))
 
 
 @groups_app.command("list")

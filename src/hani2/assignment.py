@@ -34,6 +34,9 @@
   - ``random_each``: drawn again for every negotiation (not recorded as fixed);
   - ``latin_square`` / ``cyclic``: one Assistant per counted negotiation, counterbalanced over
     participants (balanced Williams square / cyclic rotation; not recorded as fixed);
+  - ``balanced_subset`` / ``random_subset``: K different Assistants of the N per human (K is
+    ``n_required``), planned on arrival and kept as ``assistant_plan`` (with the ``opponent_plan``
+    it was balanced against);
   - ``external``: only ``schedule.json`` names the Assistant (else an error).
 
   This holds for pools from a group file (with more than one Assistant),
@@ -47,7 +50,8 @@
 
 * **Participant index.** Every counted human of a study gets the next index (0, 1,
   …) on first sight; it picks their row of the opponent Latin square and their
-  scenario type.
+  scenario type. Their crossing rule (``cross``: ``shift`` or ``none``, see
+  :func:`cross_rule`) is stored at the same moment and never changes for them.
 
 Everything is kept in ``<study results>/assignments.json``, read and written under
 a thread lock and a file lock, written atomically.
@@ -147,28 +151,78 @@ def counts_as_human(session: "NegotiationSession") -> bool:
             and getattr(session, "mode", "") != "simulated")
 
 
-def _human(data: dict, user: str) -> dict[str, Any]:
+def _explicit_cross(ref: Any) -> str | None:
+    """``scheduling.cross`` as the study's files set it (``None``: unset)."""
+    from hani2 import scheduling
+
+    if ref is None:
+        return None
+    try:
+        return scheduling.options_for(ref).get("cross")
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _new_cross(data: dict, explicit: str | None) -> str:
+    """The crossing rule of a human seen for the first time: the files' ``cross``, else ``shift`` --
+    unless the study already has humans from before crossing existed (no ``cross`` stored), which
+    keeps the whole study on ``none``."""
+    from hani2 import scheduling
+
+    if explicit:
+        return explicit
+    if any("cross" not in h for h in data.get("humans", {}).values()):
+        return "none"
+    return scheduling.CROSS_DEFAULT
+
+
+def _human(data: dict, user: str, cross: str | None = None) -> dict[str, Any]:
+    """The record of ``user`` (created on first sight with the next index and the crossing rule
+    ``cross``, the files' ``scheduling.cross``; see :func:`_new_cross`)."""
     h = data["humans"].get(user)
     if h is None:
         idx = int(data.get("next_index", len(data["humans"])))
-        h = {"index": idx, "first_seen": datetime.now().isoformat()}
+        rule = _new_cross(data, cross)
+        h = {"index": idx, "first_seen": datetime.now().isoformat(), "cross": rule}
         data["humans"][user] = h
         data["next_index"] = idx + 1
     return h
 
 
-def participant_index(session: "NegotiationSession") -> int | None:
-    """The human's index within the study (assigned on first call); ``None`` for admins and guests."""
+def participant_record(session: "NegotiationSession") -> dict[str, Any] | None:
+    """A copy of the human's record in the study (created on first call: index, crossing rule);
+    ``None`` for admins and guests."""
     if not counts_as_human(session):
         return None
+    cross = _explicit_cross(session.study_ref)
     path = store_path(session.study_ref)
     with _locked(path):
         data = _read(path)
         known = session.user in data["humans"]
-        h = _human(data, session.user)
+        h = _human(data, session.user, cross)
         if not known:
             _write(path, data)
-        return int(h["index"])
+        return dict(h)
+
+
+def participant_index(session: "NegotiationSession") -> int | None:
+    """The human's index within the study (assigned on first call); ``None`` for admins and guests."""
+    h = participant_record(session)
+    return None if h is None else int(h["index"])
+
+
+def cross_rule(session: Any) -> str:
+    """The crossing rule (``shift`` / ``none``) of the session's human: stored at first sight, so a
+    running study never changes it for people already in it (a record from before crossing
+    existed means ``none``). Admins and guests use the study's current rule."""
+    from hani2 import scheduling
+
+    if getattr(session, "study_ref", None) is None:
+        return "none"
+    h = participant_record(session) if counts_as_human(session) else None
+    if h is None:
+        return _explicit_cross(session.study_ref) or scheduling.CROSS_DEFAULT
+    return str(h.get("cross") or "none")
 
 
 def assistant_counts(data: dict[str, Any], pool: list[str]) -> dict[str, int]:
@@ -210,9 +264,10 @@ def assign_assistant(session: "NegotiationSession", pool: list[str], group: str 
                 choice = _least(pool, assistant_counts(_read(path), pool))
         session._uncounted_assistant = choice  # type: ignore[attr-defined]
         return choice
+    cross = _explicit_cross(session.study_ref)
     with _locked(path):
         data = _read(path)
-        h = _human(data, session.user)
+        h = _human(data, session.user, cross)
         if h.get("assistant") in pool:
             choice = h["assistant"]
             if h.get("assistant_group") != group and group:
@@ -227,6 +282,82 @@ def assign_assistant(session: "NegotiationSession", pool: list[str], group: str 
                  assigned_at=datetime.now().isoformat())
         _write(path, data)
         return choice
+
+
+def _plan_size(session: Any) -> int:
+    """K: the counted negotiations per human (``n_required``)."""
+    k = getattr(getattr(session, "study", None), "n_required", None)
+    if isinstance(k, int) and k > 0:
+        return k
+    return max(1, int(projects.setting("n_required", 5, env="PROLIFIC_N_REQUIRED", cast=int,
+                                       ref=getattr(session, "study_ref", None)) or 5))
+
+
+def _planned_opponents(session: Any, k: int) -> list[Any] | None:
+    """The human's own opponent sequence for slots ``0..k-1`` (``None``: not planned by HANI2)."""
+    fn = getattr(getattr(session, "study", None), "planned_opponents", None)
+    if not callable(fn):
+        return None
+    try:
+        return fn(k)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _plan_ok(plan: Any, pool: list[str], k: int, method: str, h: dict) -> bool:
+    return (isinstance(plan, list) and len(plan) == min(k, len(pool)) and all(a in pool for a in plan)
+            and len(set(plan)) == len(plan) and h.get("assistant_plan_method") == method)
+
+
+def subset_plan(session: Any, pool: list[str], method: str) -> list[str]:
+    """The human's planned Assistants for ``balanced_subset`` / ``random_subset`` (K of the pool, in
+    order), kept in ``assignments.json`` as ``assistant_plan`` (with ``opponent_plan``, the opponent
+    sequence it was planned against). Planned on first need; planned again (the old plan kept
+    under ``previous_assistant_plans``) when a member left the pool or K changed. Admins and guests
+    get a plan that is not recorded."""
+    from hani2 import scheduling
+
+    k = _plan_size(session)
+    seed = _seed(session)
+    opponents = _planned_opponents(session, min(k, len(pool))) if method == "balanced_subset" else None
+
+    def plan_from(data: dict, user: str | None) -> list[str]:
+        if method == "random_subset":
+            return scheduling.random_subset(pool, k, seed)
+        others = [(h["assistant_plan"], h.get("opponent_plan")) for u, h in data.get("humans", {}).items()
+                  if u != user and isinstance(h.get("assistant_plan"), list)]
+        return scheduling.balanced_subset(pool, k, [o[0] for o in others], seed, opponents=opponents,
+                                          opponent_plans=[o[1] for o in others])
+
+    path = store_path(session.study_ref)
+    if not counts_as_human(session):
+        prev = (getattr(session, "__dict__", None) or {}).get("_uncounted_plan")
+        if prev and prev[0] == method and _plan_ok(prev[1], pool, k, method, {"assistant_plan_method": method}):
+            return list(prev[1])
+        with _locked(path):
+            plan = plan_from(_read(path), None)
+        try:
+            session._uncounted_plan = (method, plan)
+        except AttributeError:  # pragma: no cover
+            pass
+        return plan
+    cross = _explicit_cross(session.study_ref)
+    with _locked(path):
+        data = _read(path)
+        h = _human(data, session.user, cross)
+        plan = h.get("assistant_plan")
+        if _plan_ok(plan, pool, k, method, h):
+            return list(plan)
+        if plan:
+            h.setdefault("previous_assistant_plans", []).append(plan)
+        plan = plan_from(data, session.user)
+        h.update(assistant_plan=plan, assistant_plan_method=method, assistant_planned_at=datetime.now().isoformat())
+        if opponents:
+            h["opponent_plan"] = [str(o) for o in opponents]
+        else:
+            h.pop("opponent_plan", None)
+        _write(path, data)
+        return list(plan)
 
 
 # --------------------------------------------------------------------------- #
@@ -490,13 +621,77 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
         # file naming one Assistant): used as given, not recorded
         c.spec = c.pool[0]
         c.scheduling = "external" if c.source == "schedule" else ""
+        if c.source == "schedule" and _schedule_repeats(session, c.spec):
+            c.scheduling = "external" + scheduling.REPEAT_SUFFIX
         return c
     method = _assistant_method(session)
     c.scheduling = method
     if method in scheduling.PER_NEGOTIATION_ASSISTANTS:
         slot = _assistant_slot(session) if method != "random_each" else _negotiations_done(session)
-        idx = (participant_index(session) or 0) if method != "random_each" else 0
-        c.spec = c.pool[0] if len(c.pool) == 1 else scheduling.pick_assistant_slot(method, c.pool, idx, slot, _seed(session))
+        _warn_repeats(session, method, c.pool)
+        if len(c.pool) == 1:
+            c.spec = c.pool[0]
+        elif method in scheduling.SUBSET_ASSISTANTS:
+            plan = subset_plan(session, c.pool, method)
+            c.spec = plan[slot % len(plan)]
+        else:
+            idx = (participant_index(session) or 0) if method != "random_each" else 0
+            c.spec = scheduling.pick_assistant_slot(method, c.pool, idx, slot, _seed(session))
         return c
     c.spec = assign_assistant(session, c.pool, c.group, method)
     return c
+
+
+_REPEAT_WARNED: set[str] = set()
+
+
+def _warn_repeats(session: Any, method: str, pool: list[str]) -> None:
+    """A running study whose files break "each Assistant at most once" (K > N without
+    ``assistant_repeats: true``): a warning in the log, once per study and pool; the Assistants wrap."""
+    from hani2 import scheduling
+
+    ref = getattr(session, "study_ref", None)
+    if ref is None or method not in scheduling.AT_MOST_ONCE_ASSISTANTS:
+        return
+    probs = scheduling.repeat_problems(method, _plan_size(session), pool, scheduling.options_for(ref))
+    for p in probs:
+        key = f"{ref}|{p}"
+        if key not in _REPEAT_WARNED:
+            _REPEAT_WARNED.add(key)
+            print(f"[hani2] WARNING: study {ref}: {p} (the Assistants wrap around)")
+
+
+def _schedule_repeats(session: Any, spec: str) -> bool:
+    """Whether the outside schedule names ``spec`` for an earlier counted slot too (an
+    ``external:repeat`` error unless ``assistant_repeats: true``); logged as an ``ERROR`` event."""
+    from hani2 import scheduling
+
+    st = getattr(session, "study", None)
+    fn = getattr(st, "schedule_assistant", None)
+    if not callable(fn) or not callable(getattr(st, "is_practice_next", None)) or st.is_practice_next():
+        return False
+    ref = getattr(session, "study_ref", None)
+    if ref is None or scheduling.options_for(ref).get("assistant_repeats") is True:
+        return False
+    slot = _assistant_slot(session)
+    try:
+        earlier = [fn(j, False) for j in range(slot)]
+    except Exception:  # noqa: BLE001
+        return False
+    if spec not in [str(e) for e in earlier if e]:
+        return False
+    msg = (f"schedule.json names the Assistant {spec!r} again for {session.user}'s negotiation {slot + 1}; "
+           "each Assistant should be used at most once per person (set scheduling.assistant_repeats: true "
+           "to allow it). It is used as written")
+    key = f"{ref}|{session.user}|{slot}"
+    if key not in _REPEAT_WARNED:
+        _REPEAT_WARNED.add(key)
+        print(f"[hani2] ERROR: {msg}")
+        try:
+            from hani2 import events as ev
+
+            ev.log_event(session.sid, ev.EventType.ERROR, user=session.user, component="scheduling",
+                         action="scheduling_repeat", value={"assistant": spec, "slot": slot, "error": msg})
+        except Exception:  # noqa: BLE001
+            pass
+    return True

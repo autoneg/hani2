@@ -127,3 +127,84 @@ def test_questionnaire_answers_cannot_overwrite_row_metadata(tmp_path):
                        {"q1": 4, "agent_type": "forged"})
     rows = list(csv.DictReader((tmp_path / "negotiation_questionnaires.csv").open()))
     assert [r["agent_type"] for r in rows] == ["Real", "Real"]
+
+
+# --------------------------------------------------------------------------- #
+# Prolific: hani2 owns the plan for slots schedule.json leaves open            #
+# --------------------------------------------------------------------------- #
+OPP3 = ["BoulwareTBNegotiator", "ConcederTBNegotiator", "LinearTBNegotiator"]
+ASS3 = ["level1_hello:HelloAgent", "level2_rules:RulesAgent", "level5_deal_coach:DealCoach"]
+
+
+def _prolific_study(hani2_home, monkeypatch, **overrides):
+    from hani2 import projects
+    from hani2.projects import StudyRef
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/s1", type="prolific", opponents=OPP3, assistants=ASS3, practice=False, n_required=3,
+                          scheduling={"assistants": "latin_square", "opponents": "latin_square"}, **overrides)
+    return StudyRef("HI", "s1")
+
+
+def _write_schedule(ref, pid, slots):
+    from hani2 import projects
+
+    d = projects.study_dir(ref) / "results" / f"prolific_{pid}"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": slots}), encoding="utf-8")
+    return d
+
+
+def _play_round(s):
+    s.start()
+    s.wait_for_turn()
+    s.send_counter()
+    s.wait_for_turn()
+    s.end()
+    s.wait_until_done()
+    s.load()
+
+
+def test_open_slots_use_the_study_plan_and_its_crossing(hani2_home, monkeypatch):
+    """scmlweb's schedule fixes only the scenario type: the opponent and the Assistant come from
+    the study's methods, crossed, and the old rotation is not started (D14)."""
+    from hani2 import assignment, scheduling
+
+    ref = _prolific_study(hani2_home, monkeypatch)
+    path = assignment.store_path(ref)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"version": 1, "humans": {}, "next_index": 6}), encoding="utf-8")  # block 1
+    d = _write_schedule(ref, "OPEN", [{"slot": k, "scenario_type": "Trade"} for k in range(3)])
+    s = make_session(user="prolific_OPEN", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    got = []
+    for k in range(3):
+        assert s.round_plan["opponent_scheduling"] == "latin_square" and s.round_plan["scenario_scheduling"] == "external"
+        assert s.assistant_choice.scheduling == "latin_square"
+        got.append((s.assistant_choice.spec, s.round_plan["partner"]))
+        _play_round(s)
+    seed = f"{ref}|prolific_OPEN"
+    want = [(scheduling.pick_assistant_slot("latin_square", ASS3, 6, k),
+             scheduling.pick_opponent("latin_square", OPP3, 6, k, seed, offset=1)) for k in range(3)]
+    assert got == want
+    assert not (d / "fallback_rotation.txt").exists()
+
+
+def test_participants_on_the_old_rotation_keep_it(hani2_home, monkeypatch):
+    ref = _prolific_study(hani2_home, monkeypatch)
+    d = _write_schedule(ref, "OLD", [{"slot": 0, "scenario_type": "Trade"}])
+    (d / "fallback_rotation.txt").write_text("1", encoding="utf-8")
+    s = make_session(user="prolific_OLD", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    assert s.round_plan["partner"] == OPP3[1] and s.round_plan["opponent_scheduling"] == "cyclic"
+    assert s.study.planned_opponents(3) is None
+
+
+def test_a_slot_naming_an_opponent_still_wins(hani2_home, monkeypatch):
+    ref = _prolific_study(hani2_home, monkeypatch)
+    _write_schedule(ref, "NAMED", [{"slot": 0, "agent_class_name": "LinearTBNegotiator"}, {"slot": 1}])
+    s = make_session(user="prolific_NAMED", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    assert s.round_plan["partner"] == "LinearTBNegotiator" and s.round_plan["opponent_scheduling"] == "external"
+    plan = s.study.planned_opponents(3)
+    assert plan[0] == "LinearTBNegotiator" and plan[1] in OPP3
+    _play_round(s)
+    assert s.round_plan["opponent_scheduling"] == "latin_square" and s.round_plan["partner"] == plan[1]

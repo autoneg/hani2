@@ -78,7 +78,8 @@ def _rows(s):
 # --------------------------------------------------------------------------- #
 REQUIRED = {
     "opponents": {"latin_square", "random", "cyclic", "fixed_order", "external"},
-    "assistants": {"balanced", "random_fixed", "random_each", "latin_square", "cyclic", "round_robin", "external"},
+    "assistants": {"balanced", "random_fixed", "random_each", "latin_square", "cyclic", "round_robin", "external",
+                   "balanced_subset", "random_subset"},
     "scenarios": {"by_participant", "set_order", "random", "latin_square", "external"},
 }
 
@@ -400,7 +401,8 @@ def test_scheduling_methods_endpoint(client):
     assert client.get("/api/admin/scheduling-methods").status_code == 401
     client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
     data = client.get("/api/admin/scheduling-methods").json()
-    assert set(data) == {"dimensions", "defaults"}
+    assert set(data) == {"dimensions", "defaults", "options"}
+    assert data["options"]["cross"] == {"values": ["shift", "none"], "default": "shift"}
     assert set(data["dimensions"]) == {"opponents", "assistants", "scenarios"}
     for dim, items in data["dimensions"].items():
         assert REQUIRED[dim] <= {m["key"] for m in items}
@@ -595,9 +597,10 @@ def test_cli_study_create_and_scheduling_list(run, hani2_home):
 
 
 def test_assistant_and_opponent_latin_squares_of_one_size_warn(study, monkeypatch, capsys):
+    """Without the crossing (``cross: none``), equal Latin squares confound Assistant and opponent."""
     monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
     _set_study(study, assistants=[HELLO, RULES, COACH], opponents=POOL, practice=False,
-               scheduling={"assistants": "latin_square", "opponents": "latin_square"})
+               scheduling={"assistants": "latin_square", "opponents": "latin_square", "cross": "none"})
     s = prolific("CF", study)
     assert "confounded" in capsys.readouterr().out
     db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
@@ -607,3 +610,322 @@ def test_assistant_and_opponent_latin_squares_of_one_size_warn(study, monkeypatc
     s = prolific("CG", study)
     assert "confounded" not in capsys.readouterr().out
     s.close()
+    _set_study(study, scheduling={"assistants": "latin_square", "opponents": "latin_square"})  # crossed
+    s = prolific("CH", study)
+    assert "confounded" not in capsys.readouterr().out
+    assert assignment.read_assignments(study)["humans"]["prolific_CH"]["cross"] == "shift"
+    s.close()
+
+
+# --------------------------------------------------------------------------- #
+# Solo assignment: K of N, subsets, the crossing                               #
+# --------------------------------------------------------------------------- #
+LS = {"assistants": "latin_square", "opponents": "latin_square", "scenarios": "by_participant"}
+FIVE = ["A1", "A2", "A3", "A4", "A5"]
+FIVE_OPP = ["o1", "o2", "o3", "o4", "o5"]
+
+
+def _design(methods, cross, people, n_a=5, n_o=5):
+    """(Assistant, opponent) of each participant and slot, by the same rules a study uses."""
+    a_pool, o_pool = FIVE[:n_a], FIVE_OPP[:n_o]
+    out = []
+    for i in range(people):
+        d = scheduling.opponent_offset(methods, cross, n_o, i)
+        out.append([(scheduling.pick_assistant_slot(methods["assistants"], a_pool, i, k),
+                     scheduling.pick_opponent(methods["opponents"], o_pool, i, k, offset=d)) for k in range(n_a)])
+    return out
+
+
+def test_p1_regression_latin_squares_of_five_are_fully_crossed_over_fifty_people():
+    """P1: Assistant and opponent pools of 5, both on latin_square. Without the crossing Assistant j
+    always meets opponent j; with ``cross: shift`` every pair occurs 10 times over 50 people, and
+    each column stays a Latin column for the opponents too."""
+    plain = Counter(p for row in _design(LS, "none", 50) for p in row)
+    assert len(plain) == 5 and all(FIVE.index(a) == FIVE_OPP.index(o) for a, o in plain)  # confounded
+    rows = _design(LS, "shift", 50)
+    pairs = Counter(p for row in rows for p in row)
+    assert len(pairs) == 25 and set(pairs.values()) == {10}
+    for k in range(5):
+        assert set(Counter(row[k][1] for row in rows).values()) == {10}  # opponent position balance
+        assert set(Counter(row[k][0] for row in rows).values()) == {10}
+    assert all(sorted(o for _, o in row) == FIVE_OPP for row in rows)  # each opponent once per person
+    follows = Counter((row[k][1], row[k + 1][1]) for row in rows for k in range(4))
+    assert len(follows) == 20 and len(set(follows.values())) == 1  # carry-over balance survives
+    assert [scheduling.opponent_offset(LS, "shift", 5, i) for i in (0, 9, 10, 49, 50)] == [0, 0, 1, 4, 0]
+
+
+def test_cyclic_crossing_and_what_is_not_crossed():
+    cyc = {"assistants": "cyclic", "opponents": "cyclic", "scenarios": "by_participant"}
+    pairs = Counter(p for row in _design(cyc, "shift", 25) for p in row)
+    assert len(pairs) == 25 and set(pairs.values()) == {5}
+    assert scheduling.opponent_offset({**LS, "assistants": "balanced"}, "shift", 5, 30) == 0  # one Assistant
+    assert scheduling.opponent_offset({**LS, "opponents": "random"}, "shift", 5, 30) == 0
+    assert scheduling.opponent_offset({**LS, "assistants": "balanced_subset"}, "shift", 5, 30) == 3
+
+
+def test_scenario_type_gets_its_own_offset():
+    """Assistants, opponents and scenario types on latin_square over 3 each: the scenario offset
+    moves after every full opponent crossing (R * n_o = 18 people), so over 54 people every
+    (Assistant, opponent) and every (Assistant, scenario type) pair is equally common."""
+    m = {"assistants": "latin_square", "opponents": "latin_square", "scenarios": "latin_square"}
+    pool, opp, types = ["A", "B", "C"], ["a", "b", "c"], ["X", "Y", "Z"]
+    ao, at = Counter(), Counter()
+    for i in range(54):
+        d = scheduling.opponent_offset(m, "shift", 3, i)
+        ds = scheduling.scenario_offset(m, "shift", 3, i, 3)
+        assert ds == (i // 18) % 3
+        for k in range(3):
+            a = scheduling.pick_assistant_slot("latin_square", pool, i, k)
+            ao[(a, scheduling.pick_opponent("latin_square", opp, i, k, offset=d))] += 1
+            at[(a, scheduling.pick_scenario_type("latin_square", types, i, k, offset=ds))] += 1
+    assert set(ao.values()) == {18} and set(at.values()) == {18}
+    assert scheduling.scenario_offset(m, "none", 3, 30, 3) == 0
+    # opponents not crossed: the scenario square's own rows make the block
+    assert scheduling.scenario_offset({**m, "opponents": "random"}, "shift", 3, 7, 3) == 1
+
+
+def _subset_stats(plans):
+    totals = Counter(a for p in plans for a in p)
+    pos = Counter((a, k) for p in plans for k, a in enumerate(p))
+    pairs = Counter(tuple(sorted(x)) for p in plans for x in __import__("itertools").combinations(p, 2))
+    return totals, pos, pairs
+
+
+def test_balanced_subset_balances_totals_positions_and_pairs():
+    pool, k = FIVE, 3
+    plans: list[list[str]] = []
+    for i in range(30):
+        plan = scheduling.balanced_subset(pool, k, plans, seed=f"s|u{i}")
+        assert len(plan) == 3 and len(set(plan)) == 3 and set(plan) <= set(pool)
+        plans.append(plan)
+        totals, _, _ = _subset_stats(plans)
+        assert max(totals[a] for a in pool) - min(totals[a] for a in pool) <= 1  # ±1 at every arrival
+    totals, pos, pairs = _subset_stats(plans)
+    assert set(totals.values()) == {18}
+    assert max(pos.values()) - min(pos[(a, p)] for a in pool for p in range(k)) <= 1
+    assert len(pairs) == 10 and max(pairs.values()) - min(pairs.values()) <= 2  # 9 ± 1: as even as greedy gets
+    # a Latin-square prefix is what balanced_subset fixes: its pairs are far from even
+    prefix = [[scheduling.pick_assistant_slot("latin_square", pool, i, j) for j in range(k)] for i in range(30)]
+    _, _, lp = _subset_stats(prefix)
+    assert max(lp.values()) - min(lp.get(p, 0) for p in pairs) > max(pairs.values()) - min(pairs.values())
+    # reproducible from the stored plans and the seed
+    assert scheduling.balanced_subset(pool, k, plans[:7], seed="s|u7") == plans[7]
+    # k is capped at the pool; a big pool fills greedily, one position at a time
+    assert sorted(scheduling.balanced_subset(["A", "B"], 5, [], "x")) == ["A", "B"]
+    big = [f"B{j}" for j in range(12)]
+    gp: list[list[str]] = []
+    for i in range(12):
+        gp.append(scheduling.balanced_subset(big, 6, gp, seed=f"g{i}"))
+        assert len(set(gp[-1])) == 6
+    assert set(Counter(a for p in gp for a in p).values()) == {6}
+
+
+def test_balanced_subset_plans_opponents_with_it():
+    """The 4th criterion: with the human's opponent sequence, (Assistant, opponent) pairs even out."""
+    pool, opp = ["A", "B", "C"], ["a", "b", "c"]
+    m = {"assistants": "balanced_subset", "opponents": "latin_square", "scenarios": "by_participant"}
+    plans, oplans = [], []
+    for i in range(36):
+        d = scheduling.opponent_offset(m, "shift", 3, i)
+        seq = [scheduling.pick_opponent("latin_square", opp, i, k, offset=d) for k in range(3)]
+        plans.append(scheduling.balanced_subset(pool, 3, plans, f"s|{i}", opponents=seq, opponent_plans=oplans))
+        oplans.append(seq)
+    vs = Counter((a, o) for p, s in zip(plans, oplans) for a, o in zip(p, s))
+    assert len(vs) == 9 and max(vs.values()) - min(vs.values()) <= 2
+
+
+def test_random_subset_is_distinct_and_reproducible():
+    got = scheduling.random_subset(FIVE, 3, "s|u1")
+    assert len(set(got)) == 3 and got == scheduling.random_subset(FIVE, 3, "s|u1")
+    assert scheduling.pick_assistant_slot("random_subset", FIVE, 0, 1, "s|u1") == got[1]
+    firsts = {scheduling.random_subset(FIVE, 3, f"s|u{i}")[0] for i in range(40)}
+    assert firsts == set(FIVE)
+    with pytest.raises(ValueError):
+        scheduling.pick_assistant_slot("balanced_subset", FIVE, 0, 0)
+
+
+def test_options_are_validated_and_merged(study):
+    assert scheduling.check_scheduling({"cross": "NONE", "assistant_repeats": "yes", "opponents": "cyclic"}) == \
+        {"cross": "none", "assistant_repeats": True, "opponents": "cyclic"}
+    with pytest.raises(ValueError, match="cross must be one of shift, none"):
+        scheduling.check_scheduling({"cross": "diagonal"})
+    with pytest.raises(ValueError, match="assistant_repeats must be true or false"):
+        scheduling.check_scheduling({"assistant_repeats": "maybe"})
+    projects.create_project("HI", kind="assistant", scheduling={"cross": "none", "assistants": "cyclic"})
+    projects.create_study(study, scheduling={"assistant_repeats": True})
+    assert scheduling.options_for(study) == {"cross": "none", "assistant_repeats": True}
+    assert scheduling.methods_for(study)["assistants"] == "cyclic"  # the options are not dimensions
+
+
+@pytest.mark.parametrize("method", ["latin_square", "cyclic", "balanced_subset", "random_subset"])
+def test_k_above_n_is_refused_unless_repeats_are_allowed(study, method):
+    pool = [HELLO, RULES, COACH]
+    with pytest.raises(ValueError, match="n_required = 4 negotiations but only 3 Assistants"):
+        projects.create_study(study, assistants=pool, n_required=4, scheduling={"assistants": method})
+    projects.create_study(study, assistants=pool, n_required=3, scheduling={"assistants": method})
+    projects.create_study(study, n_required=4, scheduling={"assistant_repeats": True})
+    # the project's defaults count too
+    with pytest.raises(ValueError, match="at most once"):
+        projects.create_project("HI", kind="assistant", assistants=pool, n_required=6,
+                                scheduling={"assistants": method})
+
+
+def test_random_each_and_repeats(study):
+    pool = [HELLO, RULES]
+    projects.create_study(study, assistants=pool, n_required=5, scheduling={"assistants": "random_each"})  # by nature
+    with pytest.raises(ValueError, match="random_each.*assistant_repeats is false"):
+        projects.create_study(study, scheduling={"assistant_repeats": False})
+    projects.create_study(study, n_required=5, scheduling={"assistants": "balanced"})  # one per human: no check
+
+
+def test_k_above_n_in_a_running_study_warns_and_wraps(study, monkeypatch, capsys, run):
+    pool = [HELLO, RULES]
+    _set_study(study, assistants=pool, n_required=3, practice=False, scheduling={"assistants": "cyclic"})
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    s = prolific("W1", study)
+    seen = []
+    for _ in range(3):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        s.load()
+    assert seen == [HELLO, RULES, HELLO]  # wraps around
+    assert "the Assistants wrap around" in capsys.readouterr().out
+    r = run("study", "show", str(study))
+    assert "n_required = 3 negotiations but only 2 Assistants" in _flat(r.output)
+
+
+def test_admin_put_keeps_the_options_and_refuses_k_above_n(study, client):
+    client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
+    url = "/api/admin/projects/HI/studies/s1"
+    body = {"data": {"type": "online", "assistants": [HELLO, RULES, COACH], "n_required": 3,
+                     "scheduling": {"assistants": "latin_square", "cross": "none", "assistant_repeats": False}}}
+    assert client.put(url, json=body).json()["ok"]
+    got = client.get(url).json()
+    assert got["scheduling"] == {"assistants": "latin_square", "cross": "none", "assistant_repeats": False}
+    body["data"]["n_required"] = 5
+    r = client.put(url, json=body)
+    assert r.status_code == 400 and "n_required = 5 negotiations but only 3 Assistants" in r.json()["detail"]
+    body["data"]["scheduling"]["assistant_repeats"] = True
+    assert client.put(url, json=body).json()["ok"]
+    r = client.put(url, json={"data": {"scheduling": {"cross": "sideways"}}})
+    assert r.status_code == 400 and "shift, none" in r.json()["detail"]
+
+
+def _start_index(study, n, humans=None):
+    path = assignment.store_path(study)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"version": 1, "humans": humans or {}, "next_index": n}), encoding="utf-8")
+
+
+def test_crossing_in_real_sessions_uses_one_index_and_slot(study, monkeypatch, run):
+    """The second block of a 3 × 3 Latin-square study (participant 6, R = 6): the Assistants follow
+    row 0 and the opponents the same row shifted by one, through plan_round and choose_assistant."""
+    pool = [HELLO, RULES, COACH]
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=pool, opponents=POOL, practice=False, n_required=3,
+               scheduling={"assistants": "latin_square", "opponents": "latin_square"})
+    _start_index(study, 6)
+    s = prolific("X6", study)
+    assert s.study.participant_index() == 6
+    got = []
+    for k in range(3):
+        assert s.round_plan["opponent_scheduling"] == "latin_square"
+        got.append((s.assistant_choice.spec, s.round_plan["partner"]))
+        _play(s)
+        s.load()
+    row = assignment.latin_square(3)[0]
+    assert got == [(pool[row[k]], POOL[(row[k] + 1) % 3]) for k in range(3)]
+    assert [(r["assistant"], r["agent_type"]) for r in _rows(s)] == got
+    h = assignment.read_assignments(study)["humans"]["prolific_X6"]
+    assert h["cross"] == "shift"
+    # changing the file later does not change the plan of a human already in the study
+    _set_study(study, scheduling={"assistants": "latin_square", "opponents": "latin_square", "cross": "none"})
+    assert assignment.cross_rule(s) == "shift"
+    rep = json.loads(run("study", "balance", str(study), "--json").output)
+    assert rep["participants"] == 1 and rep["negotiations"] == 3 and rep["cross_rules"] == {"shift": 1}
+    assert sum(rep["crossing"][a][o] for a, o in got) == 3
+
+
+def test_running_study_from_before_crossing_keeps_none(study, monkeypatch):
+    """A study whose humans were recorded before crossing existed (no ``cross``) keeps the old plan
+    for new humans too, unless its file sets ``cross``."""
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=[HELLO, RULES, COACH], opponents=POOL, practice=False, n_required=3,
+               scheduling={"assistants": "latin_square", "opponents": "latin_square"})
+    _start_index(study, 6, {"prolific_old": {"index": 5, "first_seen": "2026-01-01T00:00:00"}})
+    s = prolific("Y", study)
+    assert s.round_plan["partner"] == POOL[assignment.latin_square(3)[0][0]]  # not shifted
+    assert assignment.read_assignments(study)["humans"]["prolific_Y"]["cross"] == "none"
+    s.close()
+    _set_study(study, scheduling={"assistants": "latin_square", "opponents": "latin_square", "cross": "shift"})
+    s = prolific("Z", study)  # index 7: an explicit cross wins
+    assert assignment.read_assignments(study)["humans"]["prolific_Z"]["cross"] == "shift"
+    s.close()
+
+
+def test_balanced_subset_in_a_study(study, monkeypatch, run):
+    pool = [HELLO, RULES, COACH]
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
+    _set_study(study, assistants=pool, opponents=POOL, practice=True, n_required=2,
+               scheduling={"assistants": "balanced_subset", "opponents": "latin_square"})
+    plans = []
+    for pid in ("P0", "P1", "P2"):
+        s = prolific(pid, study)
+        assert s.round_plan["practice"] is True
+        h = assignment.read_assignments(study)["humans"][f"prolific_{pid}"]
+        plan = h["assistant_plan"]
+        assert len(plan) == 2 and len(set(plan)) == 2 and h["assistant_plan_method"] == "balanced_subset"
+        assert h["opponent_plan"] == s.study.planned_opponents(2)
+        assert s.assistant_choice.spec == plan[0]  # practice: the first counted slot's Assistant
+        _play(s)
+        s.load()
+        seen = []
+        for k in range(2):
+            assert s.assistant_choice.scheduling == "balanced_subset"
+            s.refresh_assistant(s.round_plan)  # a reconnect keeps it
+            seen.append(s.assistant_choice.spec)
+            assert s.round_plan["partner"] == h["opponent_plan"][k]
+            _play(s)
+            s.load()
+        assert seen == plan
+        plans.append(plan)
+    pairs = Counter(tuple(sorted(p)) for p in plans)
+    assert len(pairs) == 3  # every pair of Assistants once over three people
+    rep = json.loads(run("study", "balance", str(study), "--json").output)
+    assert rep["plans"] == 3 and set(rep["totals"].values()) == {2} and rep["spread"]["pairs"] == 0
+    assert rep["completed"] == 3 and not rep["repeats"]
+    text = run("study", "balance", str(study)).output
+    assert "Pair co-occurrence" in text and "Assistant x opponent" in text
+
+
+def test_random_subset_in_a_study(study, monkeypatch):
+    pool = [HELLO, RULES, COACH]
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
+    _set_study(study, assistants=pool, practice=False, n_required=2, scheduling={"assistants": "random_subset"})
+    s = prolific("R0", study)
+    want = scheduling.random_subset(pool, 2, f"{study}|prolific_R0")
+    seen = []
+    for _ in range(2):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        s.load()
+    assert seen == want
+    assert assignment.read_assignments(study)["humans"]["prolific_R0"]["assistant_plan"] == want
+
+
+def test_external_schedule_naming_an_assistant_twice_is_flagged(study, monkeypatch):
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
+    _set_study(study, opponents=POOL, practice=False, scheduling={"assistants": "external"})
+    d = projects.study_dir(study) / "results" / "prolific_RP"
+    d.mkdir(parents=True)
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
+        {"slot": 0, "assistant": RULES}, {"slot": 1, "assistant": RULES}]}), encoding="utf-8")
+    s = prolific("RP", study)
+    assert s.assistant_choice.scheduling == "external"
+    _play(s)
+    s.load()
+    assert s.assistant_choice.spec == RULES and s.assistant_choice.scheduling == "external:repeat"
+    _play(s)
+    assert [r["assistant_scheduling"] for r in _rows(s)] == ["external", "external:repeat"]
+    db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
+    assert db.execute("SELECT COUNT(*) FROM events WHERE action='scheduling_repeat'").fetchone()[0] == 1

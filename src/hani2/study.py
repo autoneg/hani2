@@ -185,13 +185,14 @@ class Study:
         if sched is not None and not (url_pool or s.admin_mode):
             method = sched[0]["opponents"]
             pool = list(s.opponent_pool())
+            slot = self._slot()
             if len(pool) >= 2:
                 if method == SCHED_EXTERNAL:  # nothing outside names it: rotate, and say so
                     self._scheduling_missing("opponents")
-                    partner = self._pick_opponent("cyclic", pool, s.round_number)
+                    partner = self._pick_opponent("cyclic", pool, slot)
                     method += MISSING
                 else:
-                    partner = self._pick_opponent(method, pool, s.round_number)
+                    partner = self._pick_opponent(method, pool, slot)
                 plan["partner"] = partner
                 plan["opponent_group"] = s.opponent_group
                 plan["opponent_scheduling"] = method
@@ -205,7 +206,7 @@ class Study:
                     pick, method = "by_participant", method + MISSING
                 else:
                     pick = method
-                plan["type"] = self._pick_scenario(pick, s.round_number, counter)
+                plan["type"] = self._pick_scenario(pick, self._slot(), counter)
                 plan["scenario_scheduling"] = method
             else:
                 plan["scenario_scheduling"] = "set_order" if s.admin_prefs.get("predefined_order", True) else "random"
@@ -226,18 +227,59 @@ class Study:
     def _seed(self) -> str:
         return f"{self.session.study_ref}|{self.session.user}"
 
+    def _slot(self) -> int:
+        """The negotiation the next plan is for: the human's finished negotiations in this study
+        (the same count the Assistant's plan uses, so the two stay crossed)."""
+        from hani2 import assignment
+
+        return assignment._negotiations_done(self.session)
+
+    def _plan_pool(self) -> list:
+        """The opponent pool HANI2 schedules over."""
+        return list(self.session.opponent_pool())
+
+    def _cross(self) -> tuple[dict[str, str], str] | None:
+        """``(methods, crossing rule)`` of this human (``None``: HANI2 does not schedule them)."""
+        from hani2 import assignment
+
+        sched = self.scheduling_methods()
+        if sched is None:
+            return None
+        return sched[0], assignment.cross_rule(self.session)
+
     def _pick_opponent(self, method: str, pool: list, slot: int) -> Any:
         from hani2 import scheduling
 
         idx = self.participant_index() or 0
-        return scheduling.pick_opponent(method, pool, idx, slot, self._seed())
+        offset = 0
+        cross = self._cross()
+        if cross is not None and cross[0].get("opponents") == method:  # not for a stand-in rotation
+            offset = scheduling.opponent_offset(cross[0], cross[1], len(pool), idx)
+        return scheduling.pick_opponent(method, pool, idx, slot, self._seed(), offset=offset)
 
     def _pick_scenario(self, method: str, slot: int, counter: int) -> str | None:
         from hani2 import scheduling
 
         idx = self.participant_index() or 0
         types = store.scenario_order(self.session.admin_prefs.get("scenario_set"))
-        return scheduling.pick_scenario_type(method, types, idx, slot, self._seed(), counter=counter)
+        offset = 0
+        cross = self._cross()
+        if method == "latin_square" and cross is not None and cross[0].get("scenarios") == method:
+            n_o = len(self._plan_pool()) if scheduling.crossing_active(cross[0], cross[1]) else 0
+            offset = scheduling.scenario_offset(cross[0], cross[1], len(types), idx, n_o)
+        return scheduling.pick_scenario_type(method, types, idx, slot, self._seed(), counter=counter, offset=offset)
+
+    def planned_opponents(self, k: int) -> list | None:
+        """The opponents this human meets in counted negotiations ``0..k-1`` as HANI2 schedules them
+        (crossed with the Assistant), for planning the Assistants with them (``balanced_subset``);
+        ``None`` when HANI2 does not choose them (outside a study, ``external``, a pool of one)."""
+        sched = self.scheduling_methods()
+        if sched is None or sched[0]["opponents"] == SCHED_EXTERNAL:
+            return None
+        pool = self._plan_pool()
+        if len(pool) < 2:
+            return None
+        return [self._pick_opponent(sched[0]["opponents"], pool, j) for j in range(k)]
 
     def _scheduling_missing(self, dimension: str) -> None:
         """``external`` scheduling found no outside input for this negotiation: log it loudly."""
@@ -656,6 +698,27 @@ class ProlificStudy(Study):
 
     _finalists_group = ""
 
+    def _slot(self) -> int:
+        return self.counted()
+
+    def _plan_pool(self) -> list:
+        return list(self.finalists())
+
+    def planned_opponents(self, k: int) -> list | None:
+        """As :meth:`Study.planned_opponents`; a slot of ``schedule.json`` that names an opponent
+        keeps it, and a participant on the old rotation is not planned."""
+        if (self.user_path / "fallback_rotation.txt").exists():
+            return None
+        base = super().planned_opponents(k)
+        sched = self.schedule()
+        if base is None and not sched:
+            return None
+        out = []
+        for j in range(k):
+            entry = sched[j] if j < len(sched) and isinstance(sched[j], dict) else {}
+            out.append(entry.get("agent_class_name") or (base[j] if base is not None else None))
+        return out if any(o is not None for o in out) else None
+
     def _rotation_offset(self) -> int:
         from hani2.assignment import _locked
 
@@ -730,9 +793,10 @@ class ProlificStudy(Study):
                     partner, group = want, ""
                 opp_method = SCHED_EXTERNAL
             elif pool:
-                # a study run by HANI2 itself: the study's opponents scheduling method (default: a
-                # balanced Latin square by participant index); outside a study, when schedule.json
-                # leaves the slot open, or for participants who started with it: the old rotation
+                # HANI2 owns the plan: a slot schedule.json leaves open (or no schedule) uses the
+                # study's opponents scheduling method (default: a balanced Latin square by
+                # participant index, crossed with the Assistant). Outside a study, and for
+                # participants who already started on it (fallback_rotation.txt): the old rotation
                 methods = self.scheduling_methods()
                 method = methods[0]["opponents"] if methods is not None else ""
                 legacy = (self.user_path / "fallback_rotation.txt").exists()
@@ -740,7 +804,7 @@ class ProlificStudy(Study):
                     self._scheduling_missing("opponents")
                     partner = self._pick_opponent("cyclic", pool, slot)
                     opp_method = method + MISSING
-                elif not method or sched or legacy:
+                elif not method or legacy:
                     partner = pool[(self._rotation_offset() + slot) % len(pool)]
                     opp_method = "cyclic" if method else ""
                 elif len(pool) == 1:

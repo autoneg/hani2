@@ -223,9 +223,9 @@ $$
 *Participant i starts with opponent i and goes round the pool in order.*
 
 Participant $i$ starts with opponent $i$ (modulo the pool size) and then takes the
-next opponent of the pool in each negotiation. This is the rotation HANI2 used
-before Latin squares (participants that already started with it, and studies
-whose `schedule.json` leaves a slot's opponent open, keep it).
+next opponent of the pool in each negotiation. (Before Latin squares, HANI2 used
+a rotation like this one for every Prolific participant; participants who already
+started with that old rotation keep it.)
 
 Example: 3 opponents A, B, C and 4 participants.
 
@@ -339,6 +339,8 @@ Default: `balanced`.
 | [`random_each`](#assistants-random-each) | Every negotiation draws a new Assistant at random (within-subjects). |
 | [`latin_square`](#assistants-latin-square) | Every human works with every Assistant, in an order from a balanced (Williams) Latin square (within-subjects). |
 | [`cyclic`](#assistants-cyclic) | Human i starts with Assistant i and goes round the pool, one Assistant per negotiation (within-subjects). |
+| [`balanced_subset`](#assistants-balanced-subset) | Each human gets K different Assistants of the N, chosen on arrival to balance totals, pairs and positions. |
+| [`random_subset`](#assistants-random-subset) | Each human gets the first K of a random order of the N Assistants. |
 | [`round_robin`](#assistants-round-robin) | Human i keeps Assistant i modulo the pool size. |
 | [`external`](#assistants-external) | Only an outside system decides: the participant's schedule.json names the Assistant. |
 
@@ -492,10 +494,17 @@ $$
   rows under-filled.
 - What one Assistant taught can still help in the next negotiation (balanced,
   not removed).
-- With the opponents also on `latin_square` and a pool of the same size, the
-  Assistant and the opponent of a negotiation are confounded; use a single
-  opponent, or a different method for one of the two. HANI2 warns about this
-  (a `scheduling_confounded` event), for `cyclic` too.
+- With $K < m$ negotiations, the first $K$ columns of a row are always the
+  same neighbours in the square, so some pairs of Assistants are used together
+  much more often than others; use `balanced_subset` for K-of-N designs.
+
+**Crossing with the opponent.** When the opponents use `latin_square` (or
+`cyclic`) too, the same rule would give Assistant $j$ the same opponent $j$ in
+every negotiation, so their effects could not be told apart. With
+`scheduling.cross: shift` (the default) the opponent sequence is shifted by a
+block offset instead; see [Crossing Assistants with opponents](#crossing).
+With `cross: none` HANI2 warns about the confounding (a
+`scheduling_confounded` event).
 
 ### Cyclic rotation (each negotiation) (`cyclic`) {#assistants-cyclic}
 
@@ -531,6 +540,104 @@ $$
 
 - Carry-over is not balanced: each Assistant always follows the same one
   (`latin_square` balances it too).
+
+Like `latin_square`, it is crossed with a `latin_square` or `cyclic` opponent
+method when `scheduling.cross` is `shift` (see [Crossing](#crossing)).
+
+### Balanced subset (K of N, each negotiation) (`balanced_subset`) {#assistants-balanced-subset}
+
+*Each human gets K different Assistants of the N, chosen on arrival to balance totals, pairs and positions.*
+
+Each human works with **K different Assistants out of the N** of the pool, one per
+counted negotiation ($K$ is `n_required`). The subset and its order are chosen
+when the human first arrives, so that, over the humans so far:
+
+1. every Assistant is used about equally often (totals within one of each other);
+2. every **pair** of Assistants is used by the same human about equally often
+   (*co-occurrence*), which matters for any within-person comparison
+   (paired differences, Bradley–Terry);
+3. every Assistant appears about equally often in every **position**.
+
+The plan is kept in the study's `assignments.json`, so a reload, a reconnect or
+a later visit continues the same plan. This is the method for **K-of-N
+screening**; for $K = N$ (everyone uses every Assistant) use `latin_square`.
+
+Example: 4 Assistants A, B, C, D, $K = 2$ negotiations, 6 participants arriving
+one after another. Every pair of Assistants appears once.
+
+| Participant (in order of arrival) | Negotiation 1 | Negotiation 2 |
+|---|---|---|
+| 0 | C | B |
+| 1 | D | A |
+| 2 | B | D |
+| 3 | A | C |
+| 4 | B | A |
+| 5 | C | D |
+
+**Rule.** With $c_a$ the number of humans who have Assistant $a$ in their plan,
+$c_{ab}$ the number who have both $a$ and $b$, $c_{a,p}$ the number who have $a$
+at position $p$, and (when the opponents are planned with it) $c_{a,o}$ the number
+of negotiations of $a$ against opponent $o$, the new human $i$ gets the ordered
+tuple
+
+$$
+(a_0, \dots, a_{K-1}) = \operatorname*{arg\,min}_{\text{distinct } a_p \in A}
+\Big(\sum_p c_{a_p},\ \sum_{p<q} c_{a_p a_q},\ \sum_p c_{a_p,p},\ \sum_p c_{a_p, o(i,p)}\Big)
+$$
+
+in lexicographic order, ties broken by a random draw seeded by the study and
+the human. Every ordered tuple is tried when $N \le 8$ and $K \le 5$; above that
+the tuple is filled one position at a time with the same criteria. The last
+criterion uses the human's own opponent sequence $o(i, p)$ (crossed as in
+[Crossing](#crossing)), so Assistants and opponents are planned together.
+
+**Advantages**
+
+- Each human sees each Assistant at most once, and the pairs of Assistants that
+  meet in one person are balanced, which a prefix of a Latin square is not.
+- Robust to drop-outs: each new human fills the gaps the earlier ones left.
+
+**Disadvantages**
+
+- Depends on arrival order and on the humans before (reproducible from the
+  stored plans, not from the participant index alone).
+- Carry-over (which Assistant follows which) is not balanced.
+- $K \le N$ is required unless `assistant_repeats: true`.
+
+### Random subset (K of N, each negotiation) (`random_subset`) {#assistants-random-subset}
+
+*Each human gets the first K of a random order of the N Assistants.*
+
+Each human works with **K different Assistants out of the N**, one per counted
+negotiation: the first $K$ of a **random permutation** of the pool, seeded by the
+study and the human (so it is reproducible and needs no shared state).
+
+Example (one possible draw): 4 Assistants A, B, C, D, $K = 2$, 6 participants.
+
+| Participant (in order of arrival) | Negotiation 1 | Negotiation 2 |
+|---|---|---|
+| 0 | A | B |
+| 1 | C | B |
+| 2 | A | D |
+| 3 | C | B |
+| 4 | C | B |
+| 5 | C | B |
+
+**Rule.** With $\pi_i$ a random permutation of $A$ seeded by the study and human $i$,
+
+$$
+a(i, k) = A\left[\pi_i(k)\right], \quad k = 0, \dots, K-1
+$$
+
+**Advantages**
+
+- Simple and cheap; each human sees each Assistant at most once.
+- Independent of arrival order.
+
+**Disadvantages**
+
+- Totals, positions and pairs are balanced only in expectation: small studies
+  can be noticeably uneven (`balanced_subset` evens them out).
 
 ### Fixed per human, round robin (`round_robin`) {#assistants-round-robin}
 
@@ -780,6 +887,96 @@ then says `external`.
 **Disadvantages**
 
 - Depends on the outside system writing a complete schedule.
+
+## Options: crossing and repeats
+
+Two options sit next to the three methods in the same `scheduling` mapping, and
+merge the same way (study over project, each on its own):
+
+```yaml
+scheduling:
+  assistants: latin_square
+  opponents: latin_square
+  cross: shift              # shift (default) | none
+  assistant_repeats: false  # default: false for the methods that use each Assistant at most once
+```
+
+### Crossing Assistants with opponents (`cross`) {#crossing}
+
+When the Assistants change every negotiation (`latin_square`, `cyclic`,
+`balanced_subset`, `random_subset`, `random_each`) and the opponents use
+`latin_square` or `cyclic`, the two rules would otherwise line up: with 5
+Assistants and 5 opponents both on `latin_square`, Assistant $j$ would meet
+opponent $j$ in every negotiation, and the effect of an Assistant could not be
+told apart from the effect of its opponent. With `cross: shift` (the default)
+the opponent sequence of participant $i$ is their own Latin-square row, shifted
+by a block offset:
+
+$$
+d(i) = \left\lfloor i / R \right\rfloor \bmod n_o, \qquad
+o(i,k) = P_o\left[\,(W_{i \bmod R,\,k} + d(i)) \bmod n_o\,\right]
+$$
+
+where $W$ is the opponents' square (for `cyclic`, $W_{i,k} = i + k$), $R$ its
+number of rows and $n_o$ the number of opponents. Within each block of $R$
+participants the opponent is shifted by the same $d$; over $n_o$ blocks every
+(Assistant, opponent) pair occurs equally often. A shift keeps every column a
+Latin column, so the position and carry-over balance of the opponents is kept.
+A full design is $R \cdot n_o$ participants: for 5 Assistants and 5 opponents
+($R = 10$) that is 50 participants, each pair 10 times.
+
+Example: 3 Assistants A, B, C and 3 opponents a, b, c, both on `latin_square`
+($R = 6$): Assistant / opponent of each negotiation.
+
+| Participant | Offset $d$ | Negotiation 1 | Negotiation 2 | Negotiation 3 |
+|---|---|---|---|---|
+| 0 | 0 | A / a | B / b | C / c |
+| 1 | 0 | B / b | C / c | A / a |
+| 2 | 0 | C / c | A / a | B / b |
+| 3 | 0 | C / c | B / b | A / a |
+| 4 | 0 | A / a | C / c | B / b |
+| 5 | 0 | B / b | A / a | C / c |
+| 6 | 1 | A / b | B / c | C / a |
+| 7 | 1 | B / c | C / a | A / b |
+| 8 | 1 | C / a | A / b | B / c |
+| 9 | 1 | C / a | B / c | A / b |
+| 10 | 1 | A / b | C / a | B / c |
+| 11 | 1 | B / c | A / b | C / a |
+
+- With `assistants: balanced_subset`, the opponents keep this crossed sequence
+  and the Assistant plan takes it into account (its 4th criterion).
+- With `scenarios: latin_square`, the scenario type gets its own offset
+  $d_s(i) = \lfloor i / (R \cdot n_o) \rfloor \bmod n_s$ (or
+  $\lfloor i / R_s \rfloor \bmod n_s$ when the opponents are not crossed), so the
+  type is confounded with neither.
+- The counts are equal only when both pools have the same size; otherwise they
+  stay within one of each other over blocks of the least common multiple.
+  `random_*` methods are balanced in expectation only. `hani2 study balance`
+  shows the real counts.
+- **Each human keeps the rule they started with.** It is stored for them in the
+  study's `assignments.json` the first time they are seen, so changing `cross`
+  in a running study changes nothing for people already in it. People who
+  joined a study before crossing existed keep `none`.
+- `cross: none` turns it off; HANI2 then warns when the Assistant and the
+  opponent are confounded (a `scheduling_confounded` event).
+
+### Assistant repeats (`assistant_repeats`) {#assistant-repeats}
+
+`latin_square`, `cyclic`, `balanced_subset`, `random_subset` and `external`
+promise that a human gets **each Assistant at most once**. That is possible only
+when the counted negotiations per person ($K$, `n_required`) are at most the
+Assistants of the pool ($N$). With `assistant_repeats` unset (or `false`), a
+study file where $K > N$ is **refused on save** ("n_required = 6 negotiations but
+only 5 Assistants"); a study already running with such a file only gets a
+warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
+Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
+on purpose.
+
+`random_each` can repeat an Assistant by nature: it is allowed unless
+`assistant_repeats: false` is set explicitly, which refuses it. For `external`,
+a `schedule.json` that names one Assistant in two slots is used as written, and
+flagged: an `ERROR` event (`scheduling_repeat`) and `external:repeat` in the
+`assistant_scheduling` column.
 
 <!-- scheduling-methods:end -->
 

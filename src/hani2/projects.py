@@ -331,12 +331,14 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
     With the file's study ``ref`` (a study.yaml) or ``project`` name (a project.yaml), the mode
     checks run too, on the file's settings merged with its project's: ``study_mode`` against
     ``opponents``, the Assistant and the project's ``kind``, the ``pairing`` block, and the years
-    of ``:han<year>-<set>`` entries (see :mod:`hani2.study_modes`)."""
+    of ``:han<year>-<set>`` entries (see :mod:`hani2.study_modes`), and ``n_required`` against
+    the Assistants for a method that uses each at most once (:func:`hani2.scheduling.save_problems`)."""
     problems = file_problems(data, nested)
     if ref is not None or project is not None:
-        from hani2 import study_modes
+        from hani2 import scheduling, study_modes
 
-        problems = list(dict.fromkeys([*problems, *study_modes.save_problems(data, nested, ref=ref, project=project)]))
+        problems = list(dict.fromkeys([*problems, *study_modes.save_problems(data, nested, ref=ref, project=project),
+                                       *scheduling.save_problems(data, nested, ref=ref, project=project)]))
     if problems:
         raise ValueError("; ".join(problems))
     return data
