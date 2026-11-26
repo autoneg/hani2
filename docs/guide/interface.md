@@ -94,7 +94,7 @@ Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default 
 
 ### Tabs
 
-Each pane shows its tools as tabs with an icon and a name. Hover a tab to see the tool's description. Clicking a tab makes it the active tool of that pane and refreshes its content.
+Each pane shows its tools as tabs with an icon and a name. Hover a tab to see the tool's description. Clicking a tab makes it the active tool of that pane and refreshes its content. The tabs follow each tool's `order` (smaller first): in the upper pane **Scenario Info** comes first, then **Preferences**, so you read the scenario and then your preferences. Scenario Info is the open tab while a scenario is loaded; when the negotiation starts, your Preferences come to the front (see [below](#your-preferences-when-the-negotiation-starts)).
 
 ### Help
 
