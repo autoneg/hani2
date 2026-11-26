@@ -632,7 +632,7 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         elif op == "delivery":
             sa.set_proactive_delivery(str(msg.get("value")))
         elif op == "reset":
-            sa.messages = sa.messages[:1]
+            sa.clear_conversation()
             with s.lock:
                 s.chat = []
         s.push_state()

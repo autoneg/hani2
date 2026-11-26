@@ -742,8 +742,22 @@ class SupportAgent:
         deadline = _time.time() + 60
         while self._busy.locked() and _time.time() < deadline:
             _time.sleep(0.02)
-        if self.autopilot and self.session.is_my_turn():
+        if self.autopilot and self._my_turn():
             self._run_autopilot_turn()
+
+    def _my_turn(self) -> bool:
+        """Whether it is the participant's turn now."""
+        return bool(self.session.is_my_turn())
+
+    def _viewer_is_admin(self) -> bool:
+        return bool(self.session.is_admin)
+
+    def clear_conversation(self) -> None:
+        """Forget the conversation with the language model (the participant cleared the chat)."""
+        self.messages = self.messages[:1]
+
+    def shutdown(self) -> None:
+        """The session drops this Assistant (it closed, or another Assistant replaces this one)."""
 
     def _run_autopilot_turn(self) -> None:
         note = ("(system) AUTOPILOT is engaged: it is your turn and NO human is watching. You MUST act now by "
@@ -833,7 +847,7 @@ class SupportAgent:
             if not force_action:
                 from hani2.connections import llm_error
 
-                self.post(f"⚠️ Assistant error: {llm_error(e, admin=self.session.is_admin)}")
+                self.post(f"⚠️ Assistant error: {llm_error(e, admin=self._viewer_is_admin())}")
             return executed
         finally:
             self._busy.release()
@@ -889,6 +903,11 @@ class SupportAgent:
 
         The model comes from the ``assistant`` model chain (see :mod:`hani2.model_chain`); a hard
         failure moves the session to the next available entry."""
+        return self._completion(self.messages, tools, force_action=force_action, no_tools=no_tools)
+
+    def _completion(self, conversation: list[dict], tools: list[dict], force_action: bool = False,
+                    no_tools: bool = False) -> dict:
+        """:meth:`_complete` for a given conversation (an isolated Assistant's comes from its worker)."""
         from hani2 import model_chain
 
         s = self.settings
@@ -897,7 +916,7 @@ class SupportAgent:
 
         def _messages(res):
             used[:] = [res]
-            return flatten_tool_messages(self.messages) if res.is_ollama else self.messages
+            return flatten_tool_messages(conversation) if res.is_ollama else conversation
 
         extra: dict[str, Any] = {}
         if tools:
@@ -1180,6 +1199,19 @@ def create_support_agent_for(session: "NegotiationSession", choice: Any = None,
         # a group file naming an Assistant is there to try that Assistant: start it switched on
         session.ss["support_agent_default_enabled"] = True
     session.ss.pop("assistant_presentation_override", None)  # a new Assistant decides afresh
+    from hani2.support_agent import isolation
+
+    if isolation.mode(session) == "process" and not isolation.trusted(choice.spec):
+        # an untrusted Assistant never runs in the server: in a worker process, or not at all
+        try:
+            agent = isolation.create(session, choice, settings)
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            _assistant_failed(session, choice, f"the isolated Assistant {choice.spec!r} failed to start: "
+                                               f"{type(e).__name__}: {e}{_where(choice)}")
+            return None
+        session.ss["support_agent"] = agent
+        return agent
     try:
         klass = load_assistant_class(choice.spec)
         agent = klass(session.ss, settings)

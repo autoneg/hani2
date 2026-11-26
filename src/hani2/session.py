@@ -1716,7 +1716,13 @@ class NegotiationSession:
                 (self.support_agent is not None or self.assistant_error):
             cur.group, cur.source, cur.pool = choice.group, choice.source, choice.pool
             return
+        old = self.__dict__.get("support_agent")
         self.support_agent = create_support_agent_for(self, choice=choice, settings=settings)
+        if old is not None and old is not self.support_agent:
+            try:
+                old.shutdown()  # an isolated Assistant's worker process ends with it
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
         if self.support_agent is not None and self.autopilot_active:
             try:  # the new Assistant drives the autopilot like the old one did
                 from hani2.support_agent import autopilot as ap
@@ -3543,6 +3549,12 @@ class NegotiationSession:
             self._leave_match()
         except Exception:  # noqa: BLE001
             traceback.print_exc()
+        sa = self.__dict__.get("support_agent")
+        if sa is not None:
+            try:
+                sa.shutdown()
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
         self.study.close()
         if self.recorder is not None:
             self.recorder.close()
