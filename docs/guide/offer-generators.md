@@ -117,9 +117,10 @@ Instructions that work well:
 writes the suggestions*, and your instruction goes to the Assistant's own model, with its own
 instructions, what it knows of the negotiation and your conversation with it (it calls no
 functions). The conversation then remembers what you asked and what it suggested, so you can ask
-about it in the chat. The tool's own prompt is used instead when the Assistant is switched off, may
-not fill the offer (or the message) that the mode asks for, runs through an agent harness, or
-presses **Generate** itself. A Python Assistant can answer in its own way by overriding
+about it in the chat. This is the Assistant's *Answer the LLM tool* capability (`llm_tool`,
+on by default; see [Capabilities](assistant.md#capabilities)). The tool's own prompt is used instead
+when the Assistant is switched off, lacks that capability, may not fill the offer (or the message)
+that the mode asks for, runs through an agent harness, or presses **Generate** itself. A Python Assistant can answer in its own way by overriding
 `suggest_offer` (see [Methods to override](assistant.md#methods-to-override)).
 
 **Without an Assistant**, the model sees the issues, your preferences, the opponent's current offer

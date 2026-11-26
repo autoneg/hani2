@@ -384,3 +384,39 @@ def test_the_assistant_pressing_generate_uses_the_tools_prompt(monkeypatch):
     tool = s.tool_controller.find("LLM")
     assert tool.generated and tool.generated["text"] == "Tool.", tool.status
     s.end()
+
+
+def test_the_llm_tool_capability_is_on_by_default_and_switches_the_routing(monkeypatch):
+    import json
+    from importlib import resources
+
+    import hani2.llm_service as llm
+    from hani2.support_agent.capabilities import CAPABILITY_INFO, Capability
+    from hani2.support_agent.settings import DEFAULT_CAPABILITIES
+
+    assert Capability.LLM_TOOL.value == "llm_tool" and "llm_tool" in CAPABILITY_INFO
+    assert DEFAULT_CAPABILITIES["llm_tool"] is True
+    shipped = json.loads(resources.files("hani2").joinpath("default_settings/assistant_settings.json").read_text())
+    assert shipped["capabilities"]["llm_tool"] is True
+
+    s = _started(is_admin=True, assistant_settings={"capabilities": {**DEFAULT_CAPABILITIES, "llm_tool": False}})
+    sa = s.support_agent
+    assert not sa.answers_llm_tool("both") and sa.suggest_offer("anything") is None
+    outcome = {i.name: list(i.all)[0] for i in s.issues}
+    prompts: list = []
+    monkeypatch.setattr(llm, "is_llm_configured", lambda: True)
+    monkeypatch.setattr(llm, "_call_llm", lambda prompt, settings=None: prompts.append(prompt) or json.dumps(
+        {"text": "Tool.", "outcome": outcome, "reasoning": "x"}))
+    monkeypatch.setattr(sa, "_complete", lambda *a, **k: (_ for _ in ()).throw(AssertionError("asked the Assistant")))
+    tool = s.tool_controller.find("LLM")
+    assert "Your Assistant" not in str(tool.render())
+    assert _generate(s, tool, instruction="be fair")["text"] == "Tool." and prompts
+    # the participant switching it off has the same effect; switching it back routes to the Assistant again
+    s2 = _started(is_admin=True)
+    sa2 = s2.support_agent
+    assert sa2.answers_llm_tool("both")
+    sa2.capabilities.user_capabilities["llm_tool"] = False
+    assert not sa2.answers_llm_tool("both")
+    assert "Your Assistant" not in str(s2.tool_controller.find("LLM").render())
+    s.end()
+    s2.end()

@@ -725,21 +725,27 @@ class SupportAgent:
                      '"outcome": null, "reasoning": "<one sentence>"}.',
     }
 
+    def answers_llm_tool(self, mode: str = "both") -> bool:
+        """Whether this Assistant writes the LLM offer tool's suggestions in ``mode``: it is on and
+        has ``llm_tool`` plus ``fill_offer`` and/or ``fill_text`` for what the mode asks."""
+        if not self.user_enabled or not self.capabilities.has(Capability.LLM_TOOL):
+            return False
+        needs = {"both": (Capability.FILL_OFFER, Capability.FILL_TEXT), "outcome_only": (Capability.FILL_OFFER,),
+                 "text_only": (Capability.FILL_TEXT,)}.get(mode, (Capability.FILL_OFFER, Capability.FILL_TEXT))
+        return all(self.capabilities.has(c) for c in needs)
+
     def suggest_offer(self, instruction: str, mode: str = "both", timeout: float = 120.0) -> dict | None:
         """The participant wrote ``instruction`` in the LLM offer tool: suggest an offer and/or a
         message (``mode``: ``both``, ``outcome_only`` or ``text_only``) for the tool to show.
 
         Returns ``{"outcome": {issue: value} | None, "text": str | None, "error": str | None}``, or
-        ``None`` when this Assistant does not answer (switched off, not allowed to fill the offer
-        or message the mode asks for, or no plain chat model: the tool then uses its own prompt).
+        ``None`` when this Assistant does not answer (switched off, without the ``llm_tool``
+        capability, not allowed to fill the offer or message the mode asks for, or no plain chat
+        model: the tool then uses its own prompt). See :meth:`answers_llm_tool`.
         The default runs one completion on this Assistant's model with its own system prompt and
         conversation (no functions are called), and remembers the request and the suggestion in
         the conversation. Override it for a rule-based Assistant."""
-        if not self.user_enabled:
-            return None
-        needs = {"both": (Capability.FILL_OFFER, Capability.FILL_TEXT), "outcome_only": (Capability.FILL_OFFER,),
-                 "text_only": (Capability.FILL_TEXT,)}.get(mode, (Capability.FILL_OFFER, Capability.FILL_TEXT))
-        if not all(self.capabilities.has(c) for c in needs):
+        if not self.answers_llm_tool(mode):
             return None
         try:
             res = self.model()

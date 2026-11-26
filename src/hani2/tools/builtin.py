@@ -1452,9 +1452,13 @@ class ResponseGeneratorTool(OutcomeSelector):
         self._by_agent = False
 
     def assistant(self):
-        """The participant's Assistant when it is on (it then writes the suggestions), else ``None``."""
+        """The participant's Assistant when it writes the suggestions (it is on and has the
+        ``llm_tool`` capability for the chosen mode), else ``None``."""
         sa = getattr(self.session, "support_agent", None)
-        return sa if sa is not None and getattr(sa, "user_enabled", False) else None
+        if sa is None or not getattr(sa, "user_enabled", False):
+            return None
+        answers = getattr(sa, "answers_llm_tool", None)
+        return sa if answers is None or answers(self.values.get("mode", "both")) else None
 
     def instruction(self) -> str:
         """The typed instruction, or the mode's default when nothing is typed."""
