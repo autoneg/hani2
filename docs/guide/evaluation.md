@@ -188,12 +188,12 @@ The two competition tracks each have two leaderboards, or **boards**:
 
 | | Human-Agent Negotiation (`han`) | Hybrid Intelligence (`hi`) |
 | --- | --- | --- |
-| Sessions | without an Assistant | with an Assistant |
+| Sessions | without an Assistant (`alone`); with an Assistant against HAN agents (`vs_team`) | with an Assistant, against AI opponents (Solo) or people (Paired) |
 | Entrants | opponent agents | Assistants (with their language model) |
 | Outcome board | `han_outcome`: what the agent obtained | `hi_outcome`: what the participant and the Assistant obtained |
 | Interaction board | `han_interaction`: how well it behaved as an opponent | `hi_interaction`: how well it worked as an Assistant (`hi_assistant`) and how well the team worked (`hi_team`) |
-| Balanced over | scenarios | scenario × opponent cells |
-| Left out | practice rounds, abandoned sessions, system failures, [simulated participants](simulation.md) | the same, and sessions where the opponent agent failed |
+| Balanced over | scenarios (`vs_team`: scenario × Assistant) | scenario × opponent cells (Paired: scenario × side × opposing Assistant) |
+| Left out | practice rounds, abandoned sessions, system failures, [simulated participants](simulation.md), sessions against a person | the same, without the last, and sessions where the opponent agent failed |
 
 In HAN an opponent agent that fails scores 0 for that session; in HI an opponent failure is not the
 Assistant's fault and the session is left out.
@@ -235,6 +235,69 @@ scored on different things.
 
 `--relative` subtracts each cell's mean over all entrants before averaging. Use it when entrants
 played different scenarios or opponents.
+
+### Strata: Solo, Paired and HAN against teams
+
+A board is shown per **stratum**, so that games of different kinds are never mixed by accident.
+`--stratum` (the `stratum` field of the API, the `stratum` argument in Python) picks one:
+
+| Track | Stratum | Rows | Cells |
+| --- | --- | --- | --- |
+| `hi` | `combined` (default) | every HI row | Solo and Paired cells side by side |
+| `hi` | `solo` | an AI opponent, including the AI fallbacks of Paired studies and the AI games of Mixed ones | scenario × opponent |
+| `hi` | `paired` | a person on the other side | scenario × side × opposing Assistant |
+| `han` | `alone` (default, the official board) | a person without an Assistant against the agent | scenario |
+| `han` | `vs_team` | a person **with** an Assistant against a HAN entrant (`opponent_han_year` set) | scenario × Assistant |
+| `han` | `both` | `alone` and `vs_team` pooled, labelled *pooled* | scenario × Assistant (`none` for `alone`) |
+
+The stratum follows what happened, not only what the study planned: a row is Paired when a person
+sat on the other side (`opponent_kind` is `human` or `human+assistant`).
+
+- **HI, Paired rows.** A match gives one observation to each of its two Assistants. A
+  same-Assistant match gives that Assistant **one** observation, the mean of its two rows. The
+  board's totals (`sessions`, `totals.agreement_rate`, `totals.welfare`) count each match once,
+  and an abandoned match leaves out both rows. Every entry also says how many of its observations
+  were Solo, Paired and same-Assistant.
+- **The combined HI board** is the cell-balanced mean over all cells. This works because a cell is
+  either a Solo cell or a Paired cell, never both.
+- **HAN `vs_team`.** In an HI Solo study against HAN agents, the Assistant makes the agent's job
+  harder or easier, so the cells are scenario × Assistant. These rows never enter the official
+  `alone` board. Only `--stratum both` pools them, and the board then says it is pooled. The HAN
+  interaction score needs the opponent questionnaire scales: an HI study that should feed it must ask
+  those items too, otherwise only `han_outcome` is measured (the board's coverage warning says so).
+- **HAN rows against a person** (a HAN Paired study) have no agent to rank. They are counted under
+  *excluded: human opponent*.
+
+Every board lists its rows per stratum (`strata`), whatever stratum it shows, and notes
+(`notes`) about how to read it. In Python, `strata_boards(rows, track, board)` returns every
+stratum's board side by side (HI: `combined`, `solo`, `paired`; HAN: `alone`, `vs_team`).
+
+**Confidence intervals by match.** The bootstrap resamples participants. The two rows of a Paired
+match belong to two participants, who are resampled independently, which slightly understates
+how much the two rows depend on each other. `--ci-unit match` resamples matches instead (an AI game
+is a match of its own) as a sensitivity check. Each score reports the unit it used in `ci_unit`.
+
+**Head-to-head.** `--head-to-head` (HI) adds a ranking from the Paired matches alone. In each match
+between two different Assistants, the one whose participant got the higher `human_advantage` wins
+(equal values are a tie, half a win each). A Bradley–Terry model turns these into a strength per
+Assistant (log scale, mean 0), with wins, losses, ties and the pairs that met. Half a tied game is
+added to each side of every pair that met, so an Assistant that never won still gets a finite
+strength. When some Assistants never met the others, even indirectly, their strengths are
+compared only within their own group, and the view says so. It is shown beside the board, not
+instead of it.
+
+```bash
+hani2 replay leaderboard results/ --track hi --stratum paired --head-to-head
+hani2 replay leaderboard results/ --track han --stratum vs_team
+```
+
+```python
+from hani2.evaluation import head_to_head, leaderboard, strata_boards
+
+by_stratum = strata_boards(rows, "hi", "outcome")          # {"combined": ..., "solo": ..., "paired": ...}
+board = leaderboard(rows, "hi", "outcome", stratum="paired", ci_unit="match", head_to_head=True)
+h2h = head_to_head(rows)                                    # {"entries": [...], "pairs": [...], ...}
+```
 
 ## Judge reliability
 

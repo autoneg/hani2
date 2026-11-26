@@ -564,7 +564,13 @@ overrides:
 
 The opponents of an HI study can be HAN entrants. Each row then records the HAN agent's group, year
 and build (`opponent_group`, `opponent_han_year`, `opponent_han_source`, `opponent_han_version`), so
-the same games can be read as games of those agents too.
+the same games can be read as games of those agents too. On the HAN board they form their own
+stratum, `vs_team`, next to the official `alone` board and never pooled with it unless you ask
+(see [Strata](evaluation.md#strata-solo-paired-and-han-against-teams)):
+
+```bash
+hani2 replay leaderboard projects/HI2027/studies/hi-vs-han --track han --stratum vs_team
+```
 
 ```yaml title="projects/HI2027/studies/hi-vs-han/study.yaml"
 type: online
@@ -629,7 +635,8 @@ scenario and the side are balanced.
 ### Why a HAN Paired study ranks nothing
 
 In a HAN project, `study_mode: paired` pairs two people without Assistants (`opponents: [human]`,
-`assistants: [none]`). No HAN agent plays, so its rows have no entrant and are never ranked. It
+`assistants: [none]`). No HAN agent plays, so its rows have no entrant and are never ranked: the HAN board counts them
+under *excluded: human opponent*. It
 exists for completeness, for example to measure how people negotiate with each other on the same
 scenarios.
 
@@ -971,9 +978,47 @@ df = pd.concat(pd.read_csv(f) for f in root.glob("*/results.csv"))
 print(df.groupby("agent_type")["human_utility"].mean())
 ```
 
+#### Reading Paired results
+
 A match between two people writes two rows, one per participant, with the same `match_id` and
-`match_cell`. Count negotiation-level measures (agreements, welfare, durations) once per `match_id`;
-each row is an observation for its own Assistant.
+`match_cell`. Each row reads the match from its own side: `side` is the participant's side,
+`assistant` their Assistant, `opponent_assistant` the other side's, and `opponent_participant` the
+other person's participant index in their study. Keep these rules when you analyse them:
+
+- **Each row is an observation for its own Assistant.** An Assistant takes part in a match once, so
+  its own mean already counts every match once.
+- **Negotiation-level measures** (agreements, welfare, durations) are the same in both rows. Count
+  them **once per `match_id`**, or every match is counted twice.
+- **A same-Assistant match** (both sides with one Assistant, for example an inviter and their guest
+  in a game) says nothing about that Assistant compared with the others. Count it as **one**
+  observation, the mean of its two rows. Paired evaluation studies do not form such matches unless
+  `pairing.allow_same_assistant` is on.
+- **Abandoned matches** count for neither side: when one row has `abandoned` set, leave out both.
+- **AI fallbacks** (`pairing = fallback`, `opponent_kind = agent`) are Solo games, even though
+  `study_mode` is `paired`. They have no `match_id` and fill no cell.
+- **The cell** of a Paired row is (scenario, `side`, opposing Assistant), and of a Solo row
+  (scenario, opponent). A board balances over these cells, so the two kinds never mix inside a cell.
+- **The two rows are not independent.** The default confidence intervals resample participants,
+  which treats the two people of a match as independent and so slightly understates the
+  uncertainty. Resampling matches instead (`--ci-unit match`) is the sensitivity check.
+
+`hani2 replay leaderboard` applies all of these. It ranks each stratum on its own (`--stratum solo`,
+`paired`, or `combined`, the default), and `--head-to-head` adds a ranking from the Paired matches
+alone, where the two Assistants of a match are compared directly. See
+[Strata](evaluation.md#strata-solo-paired-and-han-against-teams).
+
+```bash
+hani2 replay leaderboard projects/HI2027/studies/paired --track hi --stratum paired --head-to-head
+hani2 replay leaderboard projects/HI2027/studies/paired --track hi --ci-unit match   # sensitivity check
+```
+
+In Python, deduplicate by match before computing negotiation-level measures:
+
+```python
+paired = df[df["match_id"].fillna("") != ""]
+per_match = paired.drop_duplicates("match_id")
+print(per_match["agreement"].mean(), per_match["welfare"].mean())
+```
 
 The leaderboard score of a participant is computed per scenario name: drop the worst result, average the best three of the rest, and score 0 for scenarios with fewer than two results. The score is the average over scenarios, times 100.
 
