@@ -1,6 +1,6 @@
 # Design note: Solo and Paired studies, fair assignment, HAN opponents in HI, the game leaderboard
 
-Status: **draft for review, nothing built yet** (2026-11-26). This note is internal and is not in the
+Status: **draft for review, nothing built yet** (2026-11-26; scores and per-project boards added the same day). This note is internal and is not in the
 MkDocs nav (it lives outside `docs/`). It should not be published as written. Each work package
 writes its own user docs.
 
@@ -338,7 +338,7 @@ decision, and the joiner's own scenario plan is ignored (recorded as `scenario_s
 says nothing about A compared with the others: the two utilities split one deal between copies of
 the same Assistant. It is **`true` in the game**, where an invited guest plays with the inviter's
 Assistant, so the inviter and the guest necessarily share one. How such matches are scored:
-§6.2 and §7.1.
+§6.2 and §8.1.
 
 ### 4.5 What can and cannot be guaranteed
 
@@ -456,225 +456,328 @@ the second row is written after the first.
 
 ---
 
-## 7. The game leaderboard (the default HI board)
+## 7. Evaluation criteria and scores you define
 
-### 7.1 Which games count
+A **criterion** is any number HANI2 measures for a negotiation: a metric column or a questionnaire
+answer. A **score** combines criteria with weights. You can define as many scores as you like, make
+any of them available in any project or study, and sort any leaderboard by them (§8).
 
-| Rule | Value |
+### 7.1 The criteria catalogue
+
+A new module, `evaluation/criteria.py`, builds one catalogue, served by
+`GET /api/admin/criteria?project=…&study=…`. It holds:
+
+1. **Every column of every registered metric.** Today that is 25 metrics with 200 columns:
+   125 hard, 36 soft (judged by a language model), 23 subjective and 16 scores.
+2. **Every questionnaire item** of the questionnaires the project or study uses (`q_<id>`), and
+   every scale (`scale_<name>`). Their bounds come from the questionnaire YAML (`likert5`,
+   `likert7`, `yes_no`, `select`, `min`/`max`). Reversed items are already reversed by
+   `subjective.py`.
+3. **Every score**, the built-in ones and yours, so one score can contain another.
+
+Each criterion carries:
+
+| Field | Meaning |
 |---|---|
-| Games counted | **People and AI**: Paired matches (`opponent_kind` human or `human+assistant`) and AI games (`agent`, including fallbacks). Shown **apart and combined** (`games=people\|ai\|all`, default `all`) |
-| Entrant | The row's Assistant (`assistant_entrant`, else the spec) |
-| Guests | **Count for the inviter's Assistant**: a guest plays with it, so their rows already carry that Assistant. `invited_by` is kept, but no name is ever shown |
-| Not counted | Practice; simulated participants; playground (`guest_*`, `play:`) and admin sessions (`counts_as_human` false); `erred`; abandoned matches (both rows: shown only as the Assistant's *abandon rate*) |
-| Same-Assistant games (inviter against guest) | Left out of the **utility** category (they are not a contest). Counted **once** in HI-score (the mean of the two rows) |
-| Minimum to be ranked | `min_games: 10` counted games **and** `min_participants: 3` distinct participants who do **not** own the Assistant. Entrants below either minimum are listed as "not ranked yet" |
-| Caps | `max_games_per_pair: 3` (the same two users, either side, per Assistant, over the board's window) and `max_games_per_participant: 20` per Assistant. Games over a cap are skipped, counted under `excluded["cap"]`, and the latest games are the ones dropped |
-| Own-team games | Counted, but `own_assistant` rows can be excluded with `exclude_own: true` (*D8*) |
+| `id`, `title`, `description` | From the metric's `Column`, or from the question text |
+| `source` | `hard`, `soft`, `subjective`, `questionnaire` or `score` |
+| `level` | `negotiation` (one value per game) or `participant` (a post-session answer, one per person) |
+| `direction` | `higher`, `lower` or `none`. It comes from `Column.higher_is_better`, which 110 of the 200 columns set. The other 90 are descriptive (for example `n_offers`, `negotiation_seconds`, the move-type shares, `opponent_advantage`), so a score that uses one of them must state the direction |
+| `normaliser` | The default mapping to [0, 1] (§7.2) |
+| `cost` | `live` (computed when the game ends), `judge` (needs the offline judge run) or `questionnaire` |
+| `coverage` | The share of the board's games that have a value |
 
-### 7.2 Categories
+The 11 columns that are not numbers (`status`, `ended_by`, labels, level names) cannot be chosen.
 
-Each board has categories that can be switched (`?category=`), configured under
-`leaderboard.categories` (project or study, merged key by key):
+**Participant-level answers.** A post-session answer is attached to every game of that
+participant, **but only when the participant used one Assistant throughout** (the game, or
+between-subjects studies). When a participant used several Assistants, as in the finals, the answer
+cannot be credited to one of them. The editor then greys the criterion out for HI scores and says
+why.
+
+### 7.2 Normalisation: every component in [0, 1], where 1 is best
+
+Before weighting, every component value is mapped to [0, 1] with 1 as the best value. The mapping
+is machine-readable. Today `Column.range` is free text for the docs; it stays, and a normaliser is
+added next to it.
+
+| Normaliser | Rule | Default for |
+|---|---|---|
+| `bounded [lo, hi]` | $(x-lo)/(hi-lo)$, clipped | `[0, 1]` (57 columns), `0 or 1` / `{0, 1}` (24), `1–7` (34), `[−1, 1]`, utilities, every questionnaire item with its own bounds |
+| `advantage` | clipped to [0, 1]; no better than no deal = 0 | the `*_advantage` columns, as today |
+| `reciprocal(s)` | $s/(s+x)$ (lower is better, unbounded) | counts, seconds, tokens, distances, US dollars, when lower is better |
+| `saturating(s)` | $x/(x+s)$ (higher is better, unbounded) | unbounded counts when higher is better |
+| `percentile` | the share of reference games with a lower value (the empirical CDF) | any criterion, on request |
+| `clip [lo, hi]` | your own bounds | any criterion, on request |
+
+With `direction: lower`, the bounded rules use $1-\cdot$ instead.
+
+**The reference for unbounded criteria.** The scale $s$ is the median in a **frozen reference**,
+so the median game scores 0.5. Without a frozen reference, adding a game would change everyone's
+past scores. The reference is set per project with `normalisation.reference` (a list of studies and
+an end date). `hani2 scores freeze <project>` computes the medians and quantiles and stores them in
+`projects/<p>/results/normalisation.json`. The board shows them in its notes. Until a reference is
+frozen, the board uses the current data and is labelled **provisional**.
+
+**Checks.** `criteria.py` has a table of default normalisers, keyed by column and derived from
+`range` where the text parses. A test checks that every numeric column has one. A component whose
+criterion has no default must give its own normaliser, otherwise the score cannot be saved.
+
+### 7.3 Defining a score: weights that sum to 1
 
 ```yaml
-leaderboard:
-  source: game            # game | tournament   (the default HI board; §7.5)
-  games: all              # all | people | ai
-  window: {since: 2026-12-01, until: null}
-  min_games: 10
-  min_participants: 3
-  max_games_per_pair: 3
-  max_games_per_participant: 20
-  exclude_own: false
-  adjust: relative        # relative | balanced  (D7)
-  categories:
-    - key: utility
-      title: Utility
-      score: hi_outcome           # the team's advantage over no deal, in [0, 1]
-    - key: hi_score
-      title: HI-score
-      score: hi_score             # see below
-      weights: {}                 # overrides of hi_score's component weights
-    - key: agreement              # optional extra categories: any column or score
-      title: Deals
-      score: agreement
+scores:
+  hi_score:
+    title: HI-score
+    description: The team's result, the Assistant's help and how people experienced it
+    track: hi                    # hi (ranks Assistants) | han (ranks opponents) | any
+    components:
+      - {criterion: human_advantage,       weight: 0.30}
+      - {criterion: welfare_optimality,    weight: 0.10}
+      - {criterion: ja_overall,            weight: 0.15}            # judge
+      - {criterion: hi_team,               weight: 0.15}            # a score inside a score
+      - {criterion: scale_tam_usefulness,  weight: 0.10}            # a questionnaire scale
+      - {criterion: q_ueq_2,               weight: 0.05}            # one questionnaire item
+      - {criterion: irrational_accept,     weight: 0.10}            # direction lower comes from the catalogue
+      - {criterion: n_offers, weight: 0.05, direction: lower,
+         normaliser: {kind: reciprocal, scale: reference_median}}
+    missing: renormalise         # renormalise | zero | skip_game
+    min_coverage: 0.5
 ```
 
-**`hi_score`** is a new `Score` in `evaluation/scores.py` (track `hi`). `board` is a new third value,
-`game`: `tracks.BOARDS` gains `game`, and `TRACKS["hi"]["boards"]["game"] = ["hi_outcome",
-"hi_score"]`. `tracks.leaderboard` also gets `rank_by=<score or column>`, so that a category can
-rank by any score or any numeric column (for example `agreement`), not only by a board's first
-score. Its default components, all with configurable weights:
+- **Weights are ≥ 0 and sum to 1.** The editor takes percentages and shows the running sum. Save
+  works only at 100 %, and a **Normalise** button rescales the weights to 100 %. The API and the
+  CLI refuse a sum that is not 1 (to within 1e-6). A hand-edited file whose sum is not 1 is
+  rescaled when it is loaded, with a warning in the log and in the study's `errors`.
+- **Missing values** (`missing`):
+  - `renormalise` (the default, and today's behaviour): the weights of the components present are
+    rescaled to sum to 1, and `<score>_coverage` says how much weight was present.
+  - `zero`: a missing value counts as 0.
+  - `skip_game`: the game does not count for this score.
+- **Coverage across entrants:** a component that is present in fewer than `min_coverage` of some
+  entrant's games is dropped for **everyone**, and the rest are rescaled to sum to 1. That way every
+  entrant is scored on the same parts. The board shows the weights in effect, the dropped parts and
+  a warning.
+- **Scores inside scores** are allowed, since a score is already in [0, 1]. Cycles are refused. The
+  editor can show the weights flattened down to criteria.
+- **Every score is in [0, 1], and its weights in effect always sum to 1.** The board shows both.
+- **Built-in scores** (`utility` = `human_advantage` alone, `hi_outcome`, `hi_assistant`,
+  `hi_team`, `hi_interaction`, `han_outcome`, `han_interaction`) become definitions in the same
+  format, with their weights shown rescaled to sum to 1. Their values do not change, because the
+  current weighted mean already divides by the sum of the weights. They are read-only; **Duplicate**
+  copies one into the project, where it can be edited.
+- **Names:** a score's key must not be the name of a column. The key is checked on save.
 
-| Component | Default weight | Live? |
-|---|---|---|
-| `agreement` | 0.5 | yes (eval cache, no language model) |
-| `welfare_optimality` (or `nash_optimality`) | 0.5 | yes (eval cache) |
-| `irrational_accept` (inverse) | 0.5 | yes (eval cache) |
-| `hi_assistant` (the judge, errors, function calls, its questionnaire items) | 1 | judge parts: offline |
-| `hi_team` (reliance, engagement, the human's errors) | 1 | judge parts: offline |
+### 7.4 Where scores live and where they are available
 
-The questionnaire scales are **already inside `hi_assistant`**: `scale_ueq_pragmatic_norm`,
-`scale_tam_usefulness_norm`, `scale_felt_heard_norm` and `scale_intention_to_use_norm`, each at
-weight 0.5. Without a game questionnaire these columns are empty, and `_active_components` drops
-them for everyone, so the board needs nothing special. With a questionnaire, they enter only once
-every entrant has answers for at least `min_coverage` of its games. A questionnaire asked after only
-some games would fall under the default 0.5. A category can therefore set its own `min_coverage`,
-for example `0.3` for `hi_score` when D6 asks only after some games.
-
-Weights come, in order of precedence, from the category's `weights`, then
-`env.json evaluation.scores.hi_score.weights`, then the defaults. A weight of 0 drops a component.
-Components missing for too many entrants are dropped for everyone (`_active_components`,
-`min_coverage`), so every entrant is scored on the same parts. The board shows `components`,
-`dropped_components` and `weight_share`, and marks a category **provisional** when the judge has
-not yet scored a share of the games (`judge_share < 0.8`).
-
-The game project has `questionnaires: false` today. To use subjective scales, the game needs a short
-post-game questionnaire, for example the four items above, optional or every *n*-th game. *(D6)*
-
-### 7.3 Where the numbers come from (two data paths)
-
-- **Live path**: a per-game evaluation cache. When a game's row is written, the non-LLM metrics of
-  its recording are computed and stored in `<study results>/eval_cache/<recording key>.json`.
-  The metrics are those `evaluate_paths` computes without `llm`: outcome, welfare, irrational
-  accept, function-call success, reliance flags. The endpoint aggregates these cache files and
-  never re-reads recordings, so it is cheap. The cache is also rebuilt by
-  `hani2 leaderboard refresh <study>`.
-- **Offline path**: `hani2 leaderboard judge <study> --since …` runs the language-model judge on
-  games that have not been judged yet and adds its scores to the same cache files. Its cost is
-  logged as usual. It runs under the judge-reliability gate (`official` boards leave out soft
-  components without a report).
-- The aggregation is the existing `tracks.leaderboard` with `relative` or cell balance, the cells
-  (scenario, side, opponent), and the bootstrap. One function, `evaluation/game_board.py:
-  game_leaderboard(rows, config)`, applies §7.1 (filters, caps, minimums, same-Assistant handling)
-  and then calls it per category.
-
-### 7.4 Confidence intervals and privacy
-
-- A 95 % percentile bootstrap, **resampling participants** (the existing `_bootstrap`). When an
-  Assistant has been played by only one participant (often its owner), the fallback to sessions is
-  shown as `ci_unit: "session"`. `min_participants` mostly keeps such entrants unranked.
-- `tied_with_leader` stays as it is today: the upper bound reaches the leader's lower bound. A rank
-  is shown as "=2" when tied.
-- **No user names anywhere** in the board or the endpoint: no `user`, `opponent_user`,
-  `invited_by` or participant index. Counts only (games, participants, people/AI split).
-
-### 7.5 The default HI board
-
-`leaderboard.source: game` is the default for HI. The tournament board, which scmlweb computes from
-its Tournament rows and which `hani2.results.simulated_leaderboard` mirrors, stays selectable:
-
-- **In hani2**: a new admin page, **Leaderboards** (WP7), with a source switch (game / hani2's own
-  simulated table `simulated_leaderboard`, which is computed in hani2 and is *not* known to match
-  scmlweb's Tournament board), a category switch, a games switch and strata tabs (Solo / Paired / combined; HAN
-  `alone` / `vs_team`).
-- **In scmlweb** (*to confirm with scmlweb*): the HI leaderboard page reads the endpoint in §8 by
-  default and keeps its Tournament view as a second tab.
+- **Defined** in `project.yaml` under `scores:`. A study can add scores or redefine one by key in
+  its own `study.yaml` (merged key by key). The built-ins come from the server.
+- **Available**: `scores_enabled: [hi_score, utility, …]` in the project (default) or the study
+  (override) lists the scores that are computed and shown in that study's boards, results views
+  and exports. The default is the built-ins plus the project's own scores.
+- `hani2 scores list|show|check <project>[/<study>]` prints the definitions, the weights in effect,
+  the normalisers and the coverage in the data.
 
 ---
 
-## 8. The contract with scmlweb
+## 8. Leaderboards in hani2: per project and per study
 
-### 8.1 The endpoint
+### 8.1 Which games count
 
-`GET /api/v1/leaderboards/hi`
+| Rule | Value |
+|---|---|
+| Games counted | **People and AI**: Paired matches (`opponent_kind` human or `human+assistant`) and AI games (`agent`, including fallbacks), shown apart and combined |
+| Entrant | The row's Assistant (`assistant_entrant`, else the spec). On HAN boards, the opponent agent |
+| Guests | **Count for the inviter's Assistant**: a guest plays with it, so their rows already carry that Assistant. No name is ever shown |
+| Not counted | Practice; simulated participants; playground and admin sessions (`counts_as_human` false); `erred`; abandoned matches (both rows: shown only as the Assistant's *abandon rate*) |
+| Same-Assistant games (an inviter against their guest) | Left out of `utility`. Counted **once** (the mean of the two rows) in other scores, unless the score sets `same_assistant: skip` |
+| Minimum to be ranked | `min_games` counted games **and** `min_participants` distinct players who do not own the Assistant. Below either, the entrant is listed as "not ranked yet" |
+| Caps | `max_games_per_pair` (the same two users) and `max_games_per_participant`, per Assistant. Games over a cap are counted under `excluded["cap"]`, and the latest games are the ones dropped |
+| Own-team games | Counted. `exclude_own: true` leaves them out (D8) |
 
-| Query | Default | Meaning |
+### 8.2 Configuring a board
+
+A **project board** pools the project's chosen studies, and a **study board** shows one study. Both
+use one `leaderboard:` block. The project sets it, and a study overrides it key by key for its own
+board:
+
+```yaml
+leaderboard:
+  track: hi                         # hi: entrants are Assistants; han: entrants are opponents
+  source: game                      # game (default for HI) | tournament (hani2's simulated table)
+  studies: [play, prolific-03]      # project board: which studies feed it (default: all)
+  include:                          # rows from other projects, each with its stratum
+    - {study: HI2027/play, stratum: vs_team}       # for example on HAN2027's board
+  sort_options: [hi_score, utility, agreement]     # what end users may sort by (enabled scores or criteria)
+  default_sort: hi_score
+  columns: [hi_score, utility, agreement, games, participants]
+  user_options:                     # the switches end users get, with their allowed values
+    games:   [all, people, ai]
+    stratum: [combined, solo, paired]
+    window:  [all, last_30_days]
+  defaults: {games: all, stratum: combined, window: all}
+  visibility: participants          # public | participants | admins
+  rules: {min_games: 10, min_participants: 3, max_games_per_pair: 3,
+          max_games_per_participant: 20, exclude_own: false, adjust: relative, ci: 0.95}
+```
+
+- **Sorting.** A board can be sorted by **any enabled score or numeric criterion**. Admins may sort
+  by anything that is enabled. End users may sort only by `sort_options`, and use only the switches
+  and values in `user_options`. A switch that is not listed is not shown, and its default applies.
+- **Ranks and ties.** A score is ranked by its entrant-level mean (cell-adjusted or cell-balanced,
+  per `adjust`). A raw criterion is ranked by its mean in its own direction, and its raw value is
+  shown. Ties use the confidence interval, as today (`tied_with_leader`, shown as "=2").
+- **Validation on save:** every key in `sort_options` and `columns` must be enabled in every study
+  the board reads, `default_sort` must be in `sort_options`, and each switch value must be one HANI2
+  knows.
+
+### 8.3 Where the numbers come from
+
+- **Live:** when a game's row is written, the metrics that need no language model are computed
+  from its recording and stored in `<study results>/eval_cache/<recording key>.json`. Boards
+  aggregate these files and never re-read recordings, so they are cheap.
+  `hani2 leaderboard refresh <project>[/<study>]` rebuilds the cache.
+- **Offline:** `hani2 leaderboard judge …` runs the judge on the games not judged yet, and adds the
+  `judge` criteria to the same files. A score that needs judge criteria is labelled **provisional**
+  while fewer than 80 % of its games have been judged.
+- **Aggregation:** `evaluation/boards.py: board(project, study, query)` applies §8.1, computes
+  every needed score per game with §7, and calls the existing `tracks.leaderboard` machinery
+  (cells, adjustment, bootstrap) with `rank_by=<score or criterion>`. **One function serves every
+  view**: hani2's pages, the admin page and the API that scmlweb reads (§9). That is what keeps
+  scmlweb on the same rules.
+
+### 8.4 Confidence intervals and privacy
+
+- A 95 % percentile bootstrap that **resamples participants**. When an Assistant has only one
+  participant, the bootstrap falls back to sessions, shown as `ci_unit: "session"`.
+- **No user names** appear on any board or in the API: no `user`, `opponent_user`, `invited_by` or
+  participant index. Only counts.
+
+### 8.5 The pages in hani2 (no scmlweb needed)
+
+| Page | Who sees it | Content |
 |---|---|---|
-| `study` | the project's `leaderboard` study, else `hi-game/play` | `<project>/<study>` |
-| `category` | the first configured category | `utility`, `hi_score`, … (`categories` lists them) |
-| `games` | `all` | `all`, `people`, `ai` |
-| `stratum` | `combined` | `combined`, `solo`, `paired` |
-| `since`, `until` | the board's `window` | ISO dates |
+| `/s/<project>/leaderboard` | per `visibility` | The project board, with the switches in `user_options` |
+| `/s/<project>/<study>/leaderboard` | per the study's `visibility` | That study's board |
+| Admin → **Leaderboards** | admins | Any project or study board; every enabled score and criterion; strata (HI Solo / Paired / combined, HAN `alone` / `vs_team`); excluded games; the weights in effect; and the board and score editors (§10) |
 
-`GET /api/v1/leaderboards/han` takes `stratum=alone|vs_team|both` and is the same otherwise.
+For HI, `source: game` is the default. `source: tournament` shows hani2's own simulated table
+(`simulated_leaderboard`, which is not known to match scmlweb's Tournament board) and stays
+selectable.
 
-**Auth (new).** `Authorization: Bearer <JWT>`, HS256, signed with the **existing** SSO provider
-secret (`auth.sso.scmlweb.secret` / `HANI2_SSO_SCMLWEB_SECRET`), so there is no new secret to share.
-Claims: `iss` (the provider's issuer), **`aud: "hani2-api"`** plus the root path (different from the
-sign-in audience, so a sign-in token can never read the API and an API token can never sign anyone
-in), `scope: "leaderboard:read"`, and `iat`/`exp` at most 120 s apart. Unlike the sign-in token it
-is **not** single-use, so it can be retried. Admin cookies work too. Board config
-`leaderboard.public: true` would allow unauthenticated reads, since no names are in the data.
-*(D9)*
+---
 
-**Response** (`200`, `application/json`; schema version 1):
+## 9. scmlweb: the same rules for the active project
+
+### 9.1 The API (the same function as hani2's pages)
+
+- `GET /api/v1/projects/{project}/leaderboard?sort=&games=&stratum=&window=`
+- `GET /api/v1/projects/{project}/studies/{study}/leaderboard?…`
+- `GET /api/v1/leaderboards`: every project that has a board, with its track, year and
+  `visibility`.
+
+**Auth (new).** `Authorization: Bearer <JWT>`, HS256, signed with the existing SSO provider secret.
+Claims: `aud: "hani2-api"` plus the root path (so a sign-in token can't read the API and an API
+token can't sign anyone in), `scope: "leaderboard:read"`, and `iat`/`exp` at most 120 s apart. It
+is not single-use. Boards with `visibility: public` need no token. Values outside the board's
+`user_options` or `sort_options` get a **400**, so scmlweb cannot show a view that the project does
+not allow.
+
+**Response** (schema `hani2.leaderboard/2`). The response carries the allowed options, so scmlweb
+draws exactly the switches the project allows and keeps no rules of its own:
 
 ```json
 {
-  "schema": "hani2.leaderboard/1",
-  "track": "hi",
-  "study": "hi-game/play",
-  "source": "game",
-  "generated_at": "2026-12-14T09:30:00Z",
-  "data_version": "sha1:4be1…",
-  "category": {"key": "hi_score", "title": "HI-score", "score": "hi_score",
-               "components": {"agreement": 0.5, "welfare_optimality": 0.5, "irrational_accept": 0.5,
-                              "hi_assistant": 1, "hi_team": 1},
-               "dropped_components": ["scale_ueq_pragmatic_norm"],
-               "provisional": false},
-  "categories": [{"key": "utility", "title": "Utility"}, {"key": "hi_score", "title": "HI-score"}],
-  "games": "all",
-  "stratum": "combined",
+  "schema": "hani2.leaderboard/2",
+  "project": "HI2027", "study": null, "track": "hi", "source": "game",
+  "generated_at": "2027-03-14T09:30:00Z", "data_version": "sha1:4be1…",
+  "query": {"sort": "hi_score", "games": "all", "stratum": "combined", "window": "all"},
+  "options": {
+    "sort": [{"key": "hi_score", "title": "HI-score", "description": "…", "kind": "score"},
+             {"key": "utility", "title": "Utility", "kind": "score"},
+             {"key": "agreement", "title": "Deals", "kind": "criterion", "direction": "higher"}],
+    "games": ["all", "people", "ai"], "stratum": ["combined", "solo", "paired"],
+    "window": ["all", "last_30_days"],
+    "defaults": {"sort": "hi_score", "games": "all", "stratum": "combined", "window": "all"}
+  },
+  "columns": ["hi_score", "utility", "agreement", "games", "participants"],
+  "scores": {"hi_score": {"weights_in_effect": {"human_advantage": 0.333, "ja_overall": 0.167, "…": 0},
+                          "dropped": ["q_ueq_2"], "provisional": false}},
   "rules": {"min_games": 10, "min_participants": 3, "max_games_per_pair": 3,
-            "max_games_per_participant": 20, "exclude_own": false, "adjust": "relative",
-            "window": {"since": "2026-12-01", "until": null}},
+            "max_games_per_participant": 20, "exclude_own": false, "adjust": "relative", "ci": 0.95},
   "entries": [
-    {"rank": 1, "tied_with_leader": false, "ranked": true,
-     "entrant": "sub_0412", "assistant": "team42.assistant:Helper", "label": "Helper",
-     "score": 0.71, "ci": [0.64, 0.77], "ci_unit": "participant",
-     "games": {"all": 58, "people": 21, "ai": 37},
-     "participants": 17, "guests": 6,
-     "abandon_rate": 0.03, "cost_usd": 0.012,
-     "coverage": 0.93}
+    {"rank": 1, "tied_with_leader": false, "entrant": "sub_0412",
+     "assistant": "team42.assistant:Helper", "label": "Helper",
+     "values": {"hi_score": {"mean": 0.71, "ci": [0.64, 0.77]},
+                "utility":  {"mean": 0.62, "ci": [0.55, 0.69]},
+                "agreement": {"mean": 0.88, "ci": [0.80, 0.94]}},
+     "games": {"all": 58, "people": 21, "ai": 37}, "participants": 17, "guests": 6,
+     "ci_unit": "participant", "abandon_rate": 0.03, "cost_usd": 0.012}
   ],
-  "unranked": [
-    {"entrant": "sub_0533", "assistant": "team7.a:Coach", "label": "Coach",
-     "games": {"all": 4, "people": 1, "ai": 3}, "participants": 2, "reason": "min_games"}
-  ],
-  "excluded": {"practice": 3, "abandoned": 5, "cap": 12, "same_assistant (utility)": 4},
+  "unranked": [{"entrant": "sub_0533", "label": "Coach", "games": {"all": 4}, "reason": "min_games"}],
+  "excluded": {"practice": 3, "abandoned": 5, "cap": 12},
   "warnings": []
 }
 ```
 
-- `entrant` is the group file's `entrant` id when there is one, else the Assistant spec.
-- `score` is in [0, 1]. With `adjust: relative` it is the cell-adjusted mean plus the board-wide
-  mean, so it stays on the [0, 1] scale. `ci` is `null` when there are fewer than 2 clusters.
-- `data_version` changes only when the counted data changes, so scmlweb can cache on it.
-- Errors: `400` (unknown study, category, games or stratum), `401` (missing or bad token), `403`
-  (wrong `aud` or `scope`), `404` (the study has no `leaderboard` block).
+**Which project is active.** scmlweb names it in its own configuration, for example
+`{"hi": "HI2027", "han": "HAN2027"}`, because the competition year is scmlweb's concept. Its HI page
+reads `HI2027`'s project board, with the Tournament view as a second tab. *(D20)*
 
-*Alternative:* hani2 could push a tournament-style payload into scmlweb's Tournament API. That is
-**not recommended**, because it would put a second copy of the rules in scmlweb. Pull plus caching
-on `data_version` is simpler. *(D10)*
+### 9.2 The HI2027 and HAN2027 projects
 
-### 8.2 What scmlweb writes (to confirm with scmlweb)
+scmlweb defines them in its repository (`resources/hani2/projects/HI2027/`,
+`resources/hani2/projects/HAN2027/`). **Each game becomes a study of its year's project**
+(`HI2027/play`, `HAN2027/play`), so one project board pools the game and the year's Prolific
+studies. The 2026 `hi-game` and `han-game` projects stay as they are, for the history. *(D22)*
 
-**(a) Game projects** (`resources/hani2/projects/hi-game/`, copied in on start):
-
-```yaml title="project.yaml"
-full_name: HI game
-kind: none                 # outside any evaluation study, but with its own board
-year: 2026
+```yaml title="HI2027/project.yaml"
+full_name: HANI HI 2027
+kind: assistant
+year: 2027
 defaults:
-  practice: false
-  time_limit: 600
   study_mode: mixed
-  opponents: [human+assistant, ":han2026-finalists"]   # people first, else a HAN finalist (feeds HAN vs_team)
-  assistants: []           # always from the group file
+  opponents: [human+assistant, ":han2026-finalists"]   # "last year" until han-agents covers 2027
   scheduling: {assistants: balanced}
-  pairing: {scope: project, assign: cells, allow_same_assistant: true, fallback: ai}
-  questionnaires: false    # D6
+  pairing: {scope: study, assign: cells, allow_same_assistant: true, fallback: ai}
+scores: {hi_score: {…}}                 # §7.3
+scores_enabled: [utility, hi_score, hi_interaction]
 leaderboard:
+  track: hi
   source: game
-  categories: [{key: utility, score: hi_outcome}, {key: hi_score, score: hi_score}]
+  studies: [play]                       # add Prolific studies as they run
+  sort_options: [hi_score, utility]
+  default_sort: hi_score
+  user_options: {games: [all, people, ai]}
+  visibility: public
 ```
 
-`han-game` stays as it is (`kind: none`, `study_mode: solo`). Its board is the HAN endpoint with
-`stratum=alone`.
+```yaml title="HAN2027/project.yaml"
+full_name: HANI HAN 2027
+kind: opponent
+year: 2027
+defaults:
+  study_mode: solo
+scores_enabled: [han_outcome, han_interaction]
+leaderboard:
+  track: han
+  studies: [play]
+  include: [{study: HI2027/play, stratum: vs_team}]   # HI games against HAN agents, as their own stratum
+  sort_options: [han_outcome, han_interaction]
+  user_options: {stratum: [alone, vs_team]}
+  defaults: {stratum: alone}
+```
 
-**(b) Runtime group files** (`<project>/studies/play/results/groups/<key>.json`). The new keys are
-`entrant`, `own` and `han_year`. Each is optional and ignored by older hani2 versions:
+**Who owns these files** *(D21)*. Today scmlweb copies its projects in on every start, which would
+overwrite the controls you set in hani2's editor. Recommended: scmlweb **seeds** them, copying only
+files that are missing and never overwriting. After that, hani2's editor owns the scores and
+leaderboard keys. `hani2 project export HI2027` writes the files back, so they can be committed to
+scmlweb's repository.
+
+### 9.3 What scmlweb writes (to confirm with scmlweb)
+
+**Runtime group files** (`<project>/studies/play/results/groups/<key>.json`). The new keys are
+`entrant`, `own` and `han_year`:
 
 ```json
 {"agents": ["human+assistant", ":han2026-finalists"],
@@ -684,29 +787,25 @@ leaderboard:
  "ai_fallback": true}
 ```
 
-For a guest's invitation, the same file has `"own": false`. The new keys:
-
 - `entrant` (string): scmlweb's id for the Assistant (a submission or team id). It is written to
-  `assistant_entrant` and becomes the endpoint's `entrant`.
-- `own` (bool): this participant belongs to the team that submitted the Assistant. It is written
-  to `own_assistant`.
-- `han_year` (int): the HAN year of the AI agents **listed in this file** when they are named by
-  class path from scmlweb's zips rather than by a `:han<year>-*` group. It is written to
-  `opponent_han_year` so those games still feed the HAN `vs_team` stratum.
+  `assistant_entrant` and becomes the API's `entrant`.
+- `own` (bool): this participant is on the team that submitted the Assistant. For a guest's
+  invitation it is `false`.
+- `han_year` (int): the HAN year of the AI agents listed in this file, when they are named by class
+  path from scmlweb's zips rather than by a `:han<year>-*` group. It feeds `opponent_han_year`.
 
-`validate_data` accepts these keys from WP5 on. Older hani2 versions ignore them when they read a
-file, but would drop them when an admin saves the file through the API.
+`validate_data` accepts these keys from WP7 on. Older hani2 versions ignore them when they read a
+file, but drop them when an admin saves the file through the API.
 
-**(c) Prolific:** `<results_base>/groups/<key>.json` and `schedule.json` per PID keep their format.
-**What goes in the slots changes** if hani2 owns the K-of-N plan (§3.5, D14): scmlweb then leaves
-`assistant` and `agent_class_name` empty. A Prolific `paired` study with `assistants: external` treats the schedule's slots as a **set** (§4.2),
-so slot order is a preference, not a promise. *(D4)*
+**Prolific:** `<results_base>/groups/<key>.json` and the `schedule.json` per PID keep their format.
+If hani2 owns the K-of-N plan (§3.5, D14), scmlweb leaves `assistant` and `agent_class_name` empty.
+A `paired` study with `assistants: external` treats the slots as a set (§4.2, D4).
 
-**(d) Guest settings** (`--settings`): unchanged.
+**Guest settings** (`--settings`): unchanged.
 
 ---
 
-## 9. The editor: one `?` help mechanism
+## 10. The editor: one `?` help mechanism
 
 **Today:** `Field.hint` is a one-line grey text, `Row` has no help, and `Projects.tsx` builds most
 rows by hand. The only `?` is `ToolHelp` (`CircleHelp`, a portalled dialog) for tools.
@@ -715,7 +814,8 @@ rows by hand. The only `?` is `ToolHelp` (`CircleHelp`, a portalled dialog) for 
 
 1. **Texts on the server.** A new `src/hani2/help_texts.py` holds `HELP: dict[str, Help]` keyed by
    **setting id** (`study_mode`, `pairing.assign`, `scheduling.assistants`, `scheduling.cross`,
-   `opponents.han`, `leaderboard.min_games`, …). Each entry has `title`, `summary` (≤ 1 line, used
+   `opponents.han`, `scores.missing`, `scores.normaliser`, `leaderboard.user_options`, …). Criteria
+   reuse their catalogue text (§7.1) as their `?`. Each entry has `title`, `summary` (≤ 1 line, used
    as the hint) and `details` (Markdown with maths and tables, written like the scheduling methods'
    `details`). They are served once by `GET /api/admin/help` (admins), cached on the client like
    `useScheduling`. Scheduling methods keep their own registry, and `help_texts` links to it.
@@ -744,42 +844,55 @@ rows by hand. The only `?` is `ToolHelp` (`CircleHelp`, a portalled dialog) for 
   **Crossing** row.
 - **Pairing** (only Paired / Mixed): the scope, how matches are formed, same-Assistant matches, the
   fallback and its pool.
-- **Leaderboard** (only projects that have the block): source, games, minimums, caps, own-team
-  games, adjustment, and categories with their weights (a small table).
+- **Scores** (a project or study page, and Admin → Leaderboards): a list of the scores, built-in
+  ones shown read-only with **Duplicate**. The **score builder** has:
+  - a criteria picker over the catalogue (§7.1), searchable, grouped by source (outcome metrics,
+    behaviour, judge, questionnaire items and scales, scores). Each criterion shows its direction,
+    its normaliser, its cost (live, judge or questionnaire) and its coverage in the current data;
+    criteria that can't be used are greyed out with the reason;
+  - per component, a weight in %, a direction (preset, and required when the catalogue has none)
+    and a normaliser (preset, changeable);
+  - a running sum of the weights, with Save enabled only at 100 % and a **Normalise** button;
+  - a preview: the score's distribution and the top entrants on the current data, with the
+    weights in effect after coverage.
+- **Scores enabled** (project default, study override): checkboxes over every defined score.
+- **Leaderboard** (project, and a study override): track, source, studies and includes, sort
+  options and default sort, columns, the switches end users get with their allowed values and
+  defaults, visibility, minimums, caps, own-team games, adjustment, and a link to the board as an
+  end user sees it.
 - Every row above has a `?`. Rows whose meaning is plain (Full name, Link, Start / end, Year,
   Organizer, Contact) do not.
 
 ---
 
-## 10. Work packages, in order
+## 11. Work packages, in order
 
 Each package ends with its tests green (`.venv/bin/pytest -q`), its docs written, and a commit.
-**Only WP6 and WP7 touch `frontend/`, and they run one after the other**. Each rebuilds and commits
+**Only WP8 and WP9 touch `frontend/`, and they run one after the other**. Each rebuilds and commits
 `src/hani2/web`.
 
 | WP | What | Files | Tests | Docs |
 |---|---|---|---|---|
 | **1. Mode keys and validation** | `study_mode`, the `pairing` block (parsed, merged, validated against `opponents`, the Assistant and the project kind), the derived mode, per-session checks of group files and slots, `hani2 study show` output, `hani2 han check` | `projects.py` (`DEFAULT_KEYS`, `file_problems`), `matches.py` (`study:` scope in `match_key`), `session.py` (per-session filter, reusing `people_only`), `assignment.py` (group-file checks), `cli.py` | `tests/test_projects.py`, `tests/test_human_opponents.py` (scope, contradictions), `tests/test_agents.py` (han check) | `docs/guide/projects.md`, `studies.md`, `human-opponents.md` |
-| **2. Solo assignment** | The K ≤ N check, `assistant_repeats`, `balanced_subset`, `random_subset`, the `cross: shift` crossing, the `hani2 study balance` report (Solo part) | `scheduling.py` (registry, rules, generated docs), `assignment.py` (plans in `assignments.json`), `study.py` (`plan_round` crossing) | `tests/test_scheduling.py` (subset and position balance, crossing coverage for 5 × 5 over 50 people, P1 regression), `tests/test_study.py` | `docs/guide/scheduling.md` (regenerated with `python -m hani2.scheduling`) |
-| **3. Paired assignment** | The `match_cells.json` store, host commit, joiner late binding (`refresh_assistant` after `pair` in `paired`), cell-aware `Lobby.pair`, in-flight reservation and release, completion hook, `pairing.fallback`, scenario fit for `by_participant`, `used_assistants`, the new result columns of §5, the Paired part of `hani2 study balance` | `matches.py`, `session.py` (≈1655–1765, `_leave_match`, end of round), `assignment.py` (cell store), `results.py` (columns), `events.py` | new `tests/test_pairing_cells.py` (hard guarantees, dead-end fallback, abandon releases, concurrency with two joiners), `tests/test_human_opponents.py`, `tests/test_session.py` | `docs/guide/human-opponents.md` (Paired section), `scheduling.md` (Paired note) |
-| **4. Evaluation** | Paired cells per row, match dedup, same-Assistant collapse, `ci_unit: match`, the `study_mode` strata, the HAN `vs_team` stratum, `excluded["human opponent"]`, optional head-to-head | `evaluation/__init__.py` (`ID_FIELDS`), `evaluation/tracks.py`, `evaluation/base.py` | `tests/test_tracks.py` | `docs/guide/evaluation.md` |
-| **5. Game board backend** | The `hi_score` Score, the `leaderboard` config block, `evaluation/game_board.py` (filters, caps, minimums, categories), the eval cache (written at row save), `hani2 leaderboard refresh/judge`, the endpoint `/api/v1/leaderboards/{hi,han}`, API-token auth, the new group-file keys `entrant`, `own`, `han_year` | `evaluation/scores.py`, new `evaluation/game_board.py`, `projects.py` (`leaderboard` key), `server.py`, `sso.py` (`verify_api_token`), `groups.py`, `results.py`, `cli.py` | new `tests/test_game_board.py`, `tests/test_server.py` (endpoint, 401/403/400), `tests/test_sso.py` (audience separation), `tests/test_groups_and_assignment.py` | new `docs/guide/leaderboards.md` (added to the `mkdocs.yml` nav), `human-opponents.md#a-game`, `authentication.md` (API tokens) |
-| **6. Help mechanism and editor** *(frontend)* | `help_texts.py` and `/api/admin/help`; `Row.help`, `Field.help`, the shared `HelpDialog`; the Mode, HAN picker, Assignment, Pairing and Leaderboard rows in `Projects.tsx`; the generated settings reference; rebuild `src/hani2/web` | `src/hani2/help_texts.py`, `server.py`, `frontend/src/admin/{Row,schema}.tsx`, `frontend/src/ui/HelpDialog.tsx`, `frontend/src/negotiate/ToolPane.tsx` (use it), `frontend/src/admin/pages/Projects.tsx`, `src/hani2/web/**` | `tests/test_admin_api.py` (help coverage of `REQUIRED`), `frontend/tests/help.test.mjs`, `tests/e2e` (open a `?`, save a contradiction and get a 400) | `docs/guide/admin.md`, `projects.md` (generated reference) |
-| **7. Leaderboards admin page** *(frontend, after WP6)* | The page with source, category, games and strata switches, unranked entrants and exclusions; rebuild `src/hani2/web` | `frontend/src/admin/pages/Leaderboards.tsx`, `Sidebar.tsx`, `src/hani2/web/**` | `tests/e2e` (switch categories) | `docs/guide/leaderboards.md` |
-| **8. scmlweb** *(other repo, after WP5)* | Read the endpoint and make it the default HI board with the Tournament tab; write `entrant` and `own`; update `resources/hani2/projects/hi-game` | scmlweb | scmlweb's | scmlweb's |
+| **2. Solo assignment** | The K ≤ N check, `assistant_repeats`, `balanced_subset`, `random_subset`, the `cross: shift` crossing, the open-slot branch of `ProlificStudy.plan_round` (§3.5, D14), the `hani2 study balance` report (Solo part) | `scheduling.py` (registry, rules, generated docs), `assignment.py` (plans in `assignments.json`), `study.py` | `tests/test_scheduling.py` (subset and position balance, crossing coverage for 5 × 5 over 50 people, P1 regression), `tests/test_study.py` | `docs/guide/scheduling.md` (regenerated with `python -m hani2.scheduling`) |
+| **3. Paired assignment** | The `match_cells.json` store, host commit, joiner late binding, cell-aware `Lobby.pair` with `slack`, in-flight reservation and release, completion hook, `pairing.fallback`, scenario fit for `by_participant`, `used_assistants`, the result columns of §5, the Paired part of `hani2 study balance` | `matches.py`, `session.py` (≈1655–1765, `_leave_match`, end of round), `assignment.py` (cell store), `results.py`, `events.py` | new `tests/test_pairing_cells.py` (hard guarantees, dead-end fallback, abandon releases, two concurrent joiners), `tests/test_human_opponents.py`, `tests/test_session.py` | `docs/guide/human-opponents.md` (Paired section), `scheduling.md` |
+| **4. Evaluation strata** | Paired cells per row, match dedup, same-Assistant collapse, `ci_unit: match`, the `study_mode` strata, HAN `vs_team`, `excluded["human opponent"]`, optional head-to-head | `evaluation/__init__.py` (`ID_FIELDS`), `evaluation/tracks.py`, `evaluation/base.py` | `tests/test_tracks.py` | `docs/guide/evaluation.md` |
+| **5. Criteria catalogue and normalisation** | `evaluation/criteria.py` (metric columns, questionnaire items and scales, scores; levels, directions, costs), machine-readable normalisers with a default for every numeric column, frozen references (`normalisation.json`, `hani2 scores freeze`), `GET /api/admin/criteria` | new `evaluation/criteria.py`, `evaluation/base.py` (`Column.normaliser`), `evaluation/hard.py`, `soft`/`llm_judge.py`, `subjective.py`, `questionnaires.py`, `server.py`, `cli.py` | new `tests/test_criteria.py` (every numeric column has a normaliser, every value is in [0, 1], questionnaire bounds and reversed items, participant-level rule) | `docs/guide/metrics.md` (a generated criteria reference) |
+| **6. User-defined scores** | `scores:` and `scores_enabled` in project and study files (merged), validation (weights ≥ 0 summing to 1, no cycles, key clashes, directions), rescaling on load with a warning, `missing` policies, built-ins rewritten as definitions, `hani2 scores list/show/check` | `evaluation/scores.py`, `projects.py` (`DEFAULT_KEYS`), `server.py` (admin CRUD for scores), `cli.py` | `tests/test_scores_defined.py` (weights, missing policies, coverage drop, nested scores, built-ins unchanged against today's values) | `docs/guide/evaluation.md` (Defining scores) |
+| **7. Boards and API** | The `leaderboard` block (project, study override, validation), `evaluation/boards.py` (§8.1 rules, `rank_by`, strata, includes, caps, minimums), the eval cache and `hani2 leaderboard refresh/judge`, the public and admin pages' API `GET /api/v1/projects/{p}[/studies/{s}]/leaderboard` and `/api/v1/leaderboards`, API-token auth, `visibility`, the group-file keys `entrant`, `own` and `han_year`, `hani2 project export` | new `evaluation/boards.py`, `evaluation/tracks.py` (`rank_by`, the `game` board), `projects.py`, `server.py`, `sso.py` (`verify_api_token`), `groups.py`, `results.py`, `cli.py` | new `tests/test_boards.py` (game rules, sort options, 400 for options not allowed, same result for the page and the API), `tests/test_server.py` (401/403/400), `tests/test_sso.py` (audience separation), `tests/test_groups_and_assignment.py` | new `docs/guide/leaderboards.md` (in the `mkdocs.yml` nav), `authentication.md` (API tokens), `human-opponents.md#a-game` |
+| **8. Help mechanism and editor** *(frontend)* | `help_texts.py` and `/api/admin/help`; `Row.help`, `Field.help`, the shared `HelpDialog`; Mode, the HAN picker, Assignment, Pairing, the score builder, Scores enabled and Leaderboard settings in `Projects.tsx`; the generated settings reference; rebuild `src/hani2/web` | `src/hani2/help_texts.py`, `server.py`, `frontend/src/admin/{Row,schema}.tsx`, `frontend/src/ui/HelpDialog.tsx`, `frontend/src/negotiate/ToolPane.tsx`, `frontend/src/admin/pages/Projects.tsx`, new `frontend/src/admin/ScoreBuilder.tsx`, `src/hani2/web/**` | `tests/test_admin_api.py` (help coverage), `frontend/tests/help.test.mjs`, `frontend/tests/weights.test.mjs` (sum and Normalise), `tests/e2e` (open a `?`, build a score, save a contradiction and get a 400) | `docs/guide/admin.md`, `projects.md` (generated reference) |
+| **9. Leaderboard pages** *(frontend, after WP8)* | The end-user pages `/s/<p>/leaderboard` and `/s/<p>/<s>/leaderboard` (only the switches allowed), and Admin → Leaderboards (everything, strata, exclusions, weights in effect); rebuild `src/hani2/web` | new `frontend/src/pages/Leaderboard.tsx`, `frontend/src/admin/pages/Leaderboards.tsx`, `Sidebar.tsx`, `router.ts`, `server.py` (the page routes), `src/hani2/web/**` | `tests/e2e` (switch sort options and games; a hidden switch is not shown; visibility) | `docs/guide/leaderboards.md` |
+| **10. scmlweb** *(other repo, after WP7)* | Seed `HI2027` and `HAN2027` (copy if missing), move the games into them, read the project board API for the active project (scmlweb's configuration) as the default HI board, with the Tournament tab; write `entrant` and `own` | scmlweb | scmlweb's | scmlweb's |
 
-WP1 → WP2 → WP3 → WP4 → WP5 are backend only and in dependency order. WP4 and WP5 could be swapped,
-but WP5 reuses WP4's strata. WP6 starts after WP5, because its Leaderboard rows need WP5's keys.
-If the editor is wanted earlier, WP6 can be split: the help mechanism plus Mode, HAN, Assignment
-and Pairing after WP3, and the Leaderboard rows after WP5. WP7 follows WP6. Only one of them is
-open on `frontend/` at a time.
-
-WP2 also changes `ProlificStudy.plan_round` (§3.5) when D14 is answered "hani2 owns the plan". WP5
-also touches `evaluation/tracks.py` (the `game` board and `rank_by`).
+WP1 → WP7 are backend only and in dependency order. WP5 and WP6 do not need WP3 or WP4 and could
+run right after WP1, but WP7 needs all of them. WP8 starts after WP7, because its editors need the
+scores and leaderboard keys. If the editor is wanted earlier, WP8 can be split: the help mechanism
+plus Mode, HAN, Assignment and Pairing after WP3, and the score and leaderboard editors after WP7.
+WP9 follows WP8.
 
 ---
 
-## 11. Decisions for the user
+## 12. Decisions for the user
 
 Each question has a recommended answer.
 
@@ -790,14 +903,21 @@ Each question has a recommended answer.
 | D3 | Should the Assistant × opponent crossing (`cross: shift`) be on by default for new studies? It fixes the confounding P1 | **Yes**, stored per human so that running studies do not change |
 | D4 | In Paired, should a person's Assistants be a *set* (the order is only a preference), so that the cell balance can work? | **Yes.** Strict order (`assign: order`) stays available for scripted lab sessions |
 | D5 | When nobody fits in Paired: should the fallback default to playing an AI opponent with the planned Assistant, counting it as used, filling no cell and being ranked under Solo? | **Yes** (`fallback: ai`). Prolific participants are paid for the time anyway |
-| D6 | Should the game ask a short questionnaire so that HI-score can include subjective scales (the four scales already in `hi_assistant`)? | **Yes: 4 items after every game, skippable**, with `min_coverage: 0.3` on the `hi_score` category so that partial answers still count |
+| D6 | Should the game ask a short questionnaire so that scores can include subjective items? | **Yes: 4 items after every game, skippable**, with `min_coverage: 0.3` on the scores that use them, so partial answers still count |
 | D7 | Game board adjustment: cell-adjusted means (`relative`) or the cell-balanced mean? | **`relative`**, because the game's cells are sparse and uneven. Cell-balanced for planned studies |
 | D8 | Should games where a team plays its own Assistant count? | **Count them, but require `min_participants: 3` players who are not the owners.** `exclude_own` stays available |
-| D9 | Endpoint auth: a JWT on the existing SSO secret, or a public board (no names in it)? | **The JWT** (`aud: hani2-api`). The board can be made public later with `leaderboard.public` |
+| D9 | API auth: a JWT on the existing SSO secret, or public boards (no names in them)? | **The JWT** (`aud: hani2-api`) for non-public boards. Boards with `visibility: public` need none |
 | D10 | Should scmlweb pull from the endpoint, or should hani2 push tournament-style results? | **Pull**, cached on `data_version` |
-| D11 | Should same-Assistant matches (an inviter against their guest) be out of the utility category but counted once in HI-score? | **Yes.** They are not allowed at all in Paired evaluation studies |
+| D11 | Should same-Assistant matches (an inviter against their guest) be out of `utility` but counted once in other scores? | **Yes.** They are not allowed at all in Paired evaluation studies |
 | D12 | Where do HAN entrants come from: the installed `han-agents` package or scmlweb's `agent_placements` and zips? | **The package for `:han<year>-*`**, with `hani2 han check` comparing it to scmlweb's list. Group files from scmlweb can still name the zips |
 | D13 | Should the HAN board show HI-Solo games against HAN agents as a separate `vs_team` stratum next to the official `alone` board, never pooled by default? | **Yes** |
 | D14 | For Prolific, who owns the K-of-N and crossing plan: hani2 (scmlweb leaves the `assistant` and `agent_class_name` slots empty) or scmlweb (it writes complete slots)? | **hani2 owns it**: one implementation of the rules. scmlweb's slots keep only what it must fix |
 | D15 | In the game, does each player always use their own team's Assistant (guests: the inviter's), or does the game assign Assistants (balanced at pairing)? With own Assistants, "balanced at pairing" balances only *whom* each Assistant meets, and the non-owner players of an Assistant are mostly invited guests | **Own Assistant for team members and their guests** (as today). Balancing at pairing goes over the opposing Assistant, the scenario and the side. Players who have no team get an Assistant through `balanced` |
 | D16 | Is the *scenario* in a match cell the type (domain) or the instance (the predefined utility functions)? | **The type.** The instance is recorded, and the instances follow the scenario method |
+| D17 | How should unbounded criteria (counts, seconds, tokens, distances) be normalised by default? | **`reciprocal` / `saturating` around the median of a frozen reference**, so the median game is 0.5. `percentile` and your own bounds stay available |
+| D18 | Weights: refuse to save until they sum to 100 %, or rescale them silently? | **Refuse in the editor, the API and the CLI**, with a **Normalise** button. Only hand-edited files are rescaled on load, with a warning |
+| D19 | Post-session answers (one per participant): credit them to the Assistant only when the participant used one Assistant throughout? | **Yes.** Otherwise they are greyed out for HI scores |
+| D20 | Which project's board does scmlweb show: does scmlweb's configuration name the active project, or does hani2 mark one? | **scmlweb's configuration** (`{"hi": "HI2027", "han": "HAN2027"}`). hani2 lists every board |
+| D21 | Who owns the files of `HI2027` and `HAN2027` after scmlweb creates them? | **scmlweb seeds them (copies only missing files), then hani2's editor owns them.** `hani2 project export` writes them back for scmlweb's repository |
+| D22 | Should the games move into the year projects (`HI2027/play`, `HAN2027/play`), so that one project board pools the game and the Prolific studies? | **Yes.** The 2026 `hi-game` and `han-game` stay for the history |
+| D23 | Default visibility of a project board in hani2? | **`participants`** (signed-in users), and `public` for HI2027 and HAN2027 once you are happy with them |
