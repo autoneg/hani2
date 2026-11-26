@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **Admins from a trusted website.** With `"trust_admin_claim": true` in a hand-off provider's settings
+  (`auth.sso.<name>`, off by default), a valid, non-guest token with `"admin": true` (the JSON boolean
+  only) makes the account an admin of this server. Every hand-off decides again: a token without the
+  claim removes that grant. The grant is stored apart from the `role` (as `sso_admin`, per server), so
+  admins made on the *Users* page, with `admin.emails` or the built-in `admin` account are never
+  demoted. Grants and removals go to the event log (`admin_granted`, `admin_revoked`) and the server
+  log. A demoted account (by the claim or on the *Users* page) now loses its admin session at once:
+  its next page load gets a new session, and an open page's live connection is closed at its next
+  message. Before, the old admin session lasted until the server restarted. See
+  [Admins from the website](guide/authentication.md#admins-from-the-website).
 - **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
   participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no
   **Play an AI opponent instead** button, no person/AI choice screen, no AI entries in the opponent

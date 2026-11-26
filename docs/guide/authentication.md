@@ -106,7 +106,8 @@ sends the browser to HANI2 with it.
         "label": "ANAC account",
         "prefix": "anac_",
         "issuer": "scmlweb",
-        "guest_studies": ["arena/play"]
+        "guest_studies": ["arena/play"],
+        "trust_admin_claim": false
       }
     }
   }
@@ -116,6 +117,19 @@ sends the browser to HANI2 with it.
 The secret may also come from the environment variable `HANI2_SSO_<NAME>_SECRET`, for example
 `HANI2_SSO_SCMLWEB_SECRET`. A provider without a secret (or with one shorter than 16 characters)
 is off. With a `login_url`, the login page shows **Continue with your ANAC account**.
+
+The settings of a provider:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `secret` | — | The shared HS256 secret, 16 characters or more (32+ recommended). Or `HANI2_SSO_<NAME>_SECRET`. |
+| `login_url` | — | The website's page that mints a token. Without it, there is no login button (links from the website still work). |
+| `label` | the name | The login button's text: **Continue with your &lt;label&gt;**. |
+| `prefix` | `anac_` | HANI2 user names are `<prefix><sub>`. Nobody can register a name with this prefix by hand. |
+| `issuer` | the name | The `iss` the tokens must carry. |
+| `guest_studies` | `[]` | The studies [guest tokens](#guests) may open (`project/study`). |
+| `trust_admin_claim` | `false` | `true`: the token's `admin` claim makes the account an admin of this server. See [Admins from the website](#admins-from-the-website). |
+| `enabled` | `true` | `false` turns the provider off. |
 
 ### The flow
 
@@ -144,10 +158,43 @@ An HS256 JSON Web Token signed with the shared secret. Its claims:
 | `jti` | A random id of 8–128 characters. Each token works once. |
 | `email`, `name` | Optional: stored with the account. |
 | `leagues` | Optional: a list such as `["han", "hi"]`, stored with the account. |
+| `admin` | Optional: `true` for a person who should be an admin of this server. Counts only with `trust_admin_claim`. |
 
 Any JWT library can make these tokens. Accounts made this way are marked with the provider's
 name, and names with their prefix cannot be registered by hand. The website's emails are not
 checked by HANI2, so these accounts never become admins through `admin.emails`.
+
+### Admins from the website
+
+With `"trust_admin_claim": true` in a provider's settings, the website can say who is an admin of
+this server, for example the organizers of a competition league. The setting is off by default, and
+then the claim is ignored.
+
+- A token makes its account an admin only when the token is valid (signature, issuer, audience,
+  times and single use are checked as always), it is not a [guest](#guests) token, and its `admin`
+  claim is the JSON boolean `true`. Anything else is not a grant: a missing claim, `false`, `null`, or the
+  strings `"true"`, `"1"` and numbers such as `1`. The setting itself must also be the boolean `true`.
+- The grant is decided again on every hand-off. A valid token without the claim, or with any other
+  value, removes it. A refused token (bad signature, expired, replayed, …) changes nothing.
+- The grant is stored with the account as `sso_admin`, apart from the `role`. It is kept per server, by
+  the token's audience (`hani2`, `hani2/hiplay2`, …). Two servers that share a `HANI2_HOME` keep their own
+  admins, so the website can make someone an admin on one server and not on another.
+- Removing the claim never removes another kind of admin: a `role` of `admin` given on the *Users*
+  page or with `hani2 users add --admin` stays. The built-in `admin` account and `admin.emails`
+  admins are separate accounts and are never touched. Hand-off accounts never become admins through
+  `admin.emails`.
+- With the setting turned off, or the provider removed, its grants stop counting at once. They are
+  not deleted, and each next hand-off clears that server's entry.
+- Each grant and each removal is written to the event log (`admin_granted`, `admin_revoked`, with the
+  provider and the audience) and to the server log as
+  `[sso] scmlweb: admin granted for anac_789 on hani2 (the token's admin claim)`.
+- A demoted account loses admin rights at once. API calls check the role on every request. Its next
+  page load gets a new session without the admin view. An open page's live connection is closed at
+  its next message, and the page then reconnects as a non-admin. The same happens when an admin is
+  demoted on the *Users* page.
+- The *Users* page lists the grant as `sso_admin`. Clearing *admin* there changes only the `role`:
+  the next hand-off with the claim makes the account an admin again. To stop that, change the
+  website, or turn off `trust_admin_claim`.
 
 A participant who already has a session in the study and comes back through a new hand-off (a new
 "play" click on the website) after a finished negotiation gets a new negotiation. A reload of the
@@ -183,7 +230,10 @@ A user is an admin when any of these is true:
 
 - the username is `admin`,
 - the account has the role `admin` (set with `hani2 users add --admin`, or in the admin console),
-- the account's email is listed in `admin.emails` in `env.json` (case-insensitive). This is the simplest way to make OAuth users admins:
+- the account was made by a [trusted website](#sign-in-from-a-trusted-website) whose provider has
+  `trust_admin_claim` on, and the last hand-off token to this server carried `"admin": true` (see
+  [Admins from the website](#admins-from-the-website)),
+- the account's email is listed in `admin.emails` in `env.json` (case-insensitive; not for self-registered or hand-off accounts). This is the simplest way to make OAuth users admins:
 
     ```json
     {"admin": {"password": "adminpass", "emails": ["me@example.org"]}}
@@ -252,11 +302,11 @@ Some tools are hidden in sessions without an account (see [Tools](tools.md)), an
 
 An admin's session on `/app` or `/play` is always in the *admin view*: the admin badge, the opponent's type and the opponent picker. `?admin=1` and `?opponents=` are admin options. For anyone else they are ignored, so a shared link cannot unlock the opponent picker or pick arbitrary opponent classes. `?group=` works for everyone.
 
-To let a user of a trusted website (for example an organiser on the ANAC site) use these options, make their HANI2 account an admin on the *Users* page of the admin console. Signing in again from the website keeps the role.
+To let a user of a trusted website (for example an organiser on the ANAC site) use these options, make their HANI2 account an admin on the *Users* page of the admin console. Signing in again from the website keeps the role. Or let the website decide: with `trust_admin_claim` on, its `admin` claim makes the account an admin (see [Admins from the website](#admins-from-the-website)).
 
 ## Logging
 
-Logins, failed logins and logouts are written to the event log (`login`, `login_failed`, `logout`). See [Studies and results](studies.md).
+Logins, failed logins and logouts are written to the event log (`login`, `login_failed`, `logout`), and so are admin grants and removals by a trusted website's `admin` claim (`admin_granted`, `admin_revoked`). See [Studies and results](studies.md).
 
 ## Production checklist
 

@@ -27,6 +27,8 @@ class EventType(str, Enum):
     LOGIN = "login"
     LOGOUT = "logout"
     LOGIN_FAILED = "login_failed"
+    ADMIN_GRANTED = "admin_granted"  # by a hand-off's admin claim (hani2.sso)
+    ADMIN_REVOKED = "admin_revoked"
     SCENARIO_LOADED = "scenario_loaded"
     SCENARIO_STARTED = "scenario_started"
     OFFER_MADE = "offer_made"

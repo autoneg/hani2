@@ -190,6 +190,10 @@ def set_user_consent(username: str, consented: bool = True, **extra: Any) -> Non
 
 
 def is_admin_user(username: str | None) -> bool:
+    """Whether ``username`` is an admin of this instance: the built-in ``admin``, ``role: admin`` (the
+    Users page, ``hani2 users add --admin``), a listed ``admin.emails`` address (not for self-registered
+    or hand-off accounts), or a hand-off's ``admin`` claim from a provider with ``trust_admin_claim`` on
+    (``sso_admin``, see :mod:`hani2.sso`). Read from the user store on every call: nothing is cached."""
     if not username:
         return False
     if username == "admin":
@@ -197,6 +201,10 @@ def is_admin_user(username: str | None) -> bool:
     meta = get_meta(username)
     if meta.get("role") == "admin":
         return True
+    if meta.get("sso"):
+        from hani2 import sso
+
+        return sso.claim_admin_provider(meta) is not None
     if (meta.get("self_registered") and not meta.get("oauth")) or meta.get("sso"):
         return False  # an email typed at registration or sent by a hand-off site is unverified here
     email = str(meta.get("email", "")).strip().lower()

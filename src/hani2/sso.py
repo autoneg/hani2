@@ -22,6 +22,13 @@ Token claims: ``iss`` (the issuer), ``aud`` (``hani2`` plus this server's root p
 Emails from the website are not verified by HANI2, so these accounts never become admins
 through ``admin.emails``.
 
+Admins from the website: with ``"trust_admin_claim": true`` in the provider's settings (off by default), a
+verified, non-guest token with the claim ``admin`` set to the JSON boolean ``true`` (nothing else counts:
+not ``"true"``, not ``1``) makes the account an admin of this instance. The grant is stored apart from
+``role`` (``sso_admin``: ``{<this server's aud>: <provider>}``) and is decided again on every hand-off: a
+token without the claim removes it, never a ``role`` given in HANI2. :func:`hani2.auth.is_admin_user`
+honours it only while the provider is configured with ``trust_admin_claim`` on.
+
 Guests: a token with ``guest: true`` (optionally ``invited_by`` and ``name``) signs in a person who has no
 account on the website (for example someone a participant invited). The account ``<prefix><sub>`` is
 flagged as a guest and bound to the one study ``next`` names, which must be listed in the provider's
@@ -90,6 +97,29 @@ def reserved_prefixes() -> list[str]:
 
     cfgs = get_env("auth.sso", {}) or {}
     return sorted({"anac_", *(str(c.get("prefix")) for c in cfgs.values() if isinstance(c, dict) and c.get("prefix"))})
+
+
+def trusts_admin_claim(cfg: dict[str, Any] | None) -> bool:
+    """Whether a provider's ``admin`` claim may make admins (only ``"trust_admin_claim": true``)."""
+    return isinstance(cfg, dict) and cfg.get("trust_admin_claim") is True
+
+
+def this_audience() -> str:
+    """The ``aud`` of this process (its ``HANI2_ROOT_PATH``): the key of the admin grants it honours."""
+    return audience(os.environ.get("HANI2_ROOT_PATH", ""))
+
+
+def claim_admin_provider(meta: dict[str, Any]) -> str | None:
+    """The provider whose ``admin`` claim makes this account an admin of this instance now, else ``None``:
+    the grant must be for this instance, from the provider that made the account, not a guest, and that
+    provider must still be configured with ``trust_admin_claim`` on."""
+    grants = meta.get("sso_admin")
+    if not isinstance(grants, dict) or meta.get("guest"):
+        return None
+    name = grants.get(this_audience())
+    if not name or name != meta.get("sso"):
+        return None
+    return str(name) if trusts_admin_claim(providers().get(str(name))) else None
 
 
 def audience(root_path: str = "") -> str:
@@ -215,9 +245,10 @@ def guest_studies(cfg: dict[str, Any]) -> list[str]:
     return [str(x).strip().strip("/") for x in raw if str(x).strip()]
 
 
-def sign_in(name: str, claims: dict[str, Any], next_path: str | None = None) -> str:
+def sign_in(name: str, claims: dict[str, Any], next_path: str | None = None, *, root_path: str | None = None) -> str:
     """Create or update the account for verified ``claims``; returns its user name. A guest token
-    (``guest: true``) needs ``next_path`` to name a study in the provider's ``guest_studies``."""
+    (``guest: true``) needs ``next_path`` to name a study in the provider's ``guest_studies``. The
+    ``admin`` claim is decided again here (see :func:`_admin_grants`)."""
     from hani2 import auth
 
     cfg = providers()[name]
@@ -236,18 +267,48 @@ def sign_in(name: str, claims: dict[str, Any], next_path: str | None = None) -> 
         inviter = claims.get("invited_by")
         fields.update(guest=True, guest_study=study, email="",
                       invited_by=str(inviter)[:64] if isinstance(inviter, (str, int)) and str(inviter) else "")
+    aud = audience(root_path) if root_path is not None else this_audience()
+    granted = not guest and trusts_admin_claim(cfg) and claims.get("admin") is True
     if not auth.user_exists(user):
-        auth.create_user(user, None, **fields)
+        before: dict[str, Any] = {}
+        grants = _admin_grants(before, aud, name, granted)
+        auth.create_user(user, None, **fields, **({"sso_admin": grants} if grants else {}))
     else:
-        meta = auth.get_meta(user)
-        if meta.get("sso") != name:
+        before = auth.get_meta(user)
+        if before.get("sso") != name:
             raise SSOError("conflict", f"the account {user} was not made by {name}")
-        if bool(meta.get("guest")) != guest:
-            raise SSOError("conflict", f"the account {user} is {'a guest' if meta.get('guest') else 'not a guest'} "
+        if bool(before.get("guest")) != guest:
+            raise SSOError("conflict", f"the account {user} is {'a guest' if before.get('guest') else 'not a guest'} "
                                        f"account; a {'guest' if guest else 'normal'} token cannot sign it in")
-        auth.update_meta(user, **fields)
+        grants = _admin_grants(before, aud, name, granted)
+        auth.update_meta(user, **fields, sso_admin=grants)
     auth.update_meta(user, last_handoff=time.time())
+    had = isinstance(before.get("sso_admin"), dict) and before["sso_admin"].get(aud) == name
+    if granted != had:
+        _log_admin_change(user, name, aud, granted)
     return user
+
+
+def _admin_grants(meta: dict[str, Any], aud: str, name: str, granted: bool) -> dict[str, str]:
+    """The account's ``sso_admin`` after a hand-off to the instance ``aud``: this instance's entry is set
+    (claim honoured) or dropped (anything else); other instances' entries stay as they are."""
+    old = meta.get("sso_admin")
+    grants = {str(k): str(v) for k, v in old.items()} if isinstance(old, dict) else {}
+    if granted:
+        grants[aud] = name
+    else:
+        grants.pop(aud, None)
+    return grants
+
+
+def _log_admin_change(user: str, provider: str, aud: str, granted: bool) -> None:
+    """A security event and a log line for every admin grant or removal by a hand-off."""
+    from hani2 import events as ev
+
+    what = "granted" if granted else "removed"
+    print(f"[sso] {provider}: admin {what} for {user} on {aud} (the token's admin claim)")
+    ev.log_event(None, ev.EventType.ADMIN_GRANTED if granted else ev.EventType.ADMIN_REVOKED, user=user,
+                 component="sso", value={"provider": provider, "audience": aud, "source": "admin_claim"})
 
 
 def guest_study(user: str | None) -> str | None:
