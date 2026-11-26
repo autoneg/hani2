@@ -59,7 +59,11 @@ can be joined. The other side waits until they press **Start**.
 
 People are paired within a project by default, so its studies can be paired with each other. A study's `pairing.scope` changes this: `study` keeps its people among themselves (the default of a study that declares `study_mode: paired`), and `code` pairs only through `?match=` links (see [Pairing defaults](project-management.md#pairing-defaults)). When several
 people who fit are waiting, the newcomer joins one of them at random, so nobody can aim at a
-particular person. Links with `?match=<code>` pair only people who share that code, whatever their
+particular person. In a study declared `study_mode: paired` the newcomer instead takes the match
+that best balances the study's *match cells* (scenario, Assistant at each side), with chance among
+the near-equal ones; the person waiting has already been given their Assistant, and the newcomer's
+Assistant is chosen, and started, only once they are paired. Two people never share an Assistant
+there unless the study allows it. See [Paired studies](study-management.md#paired-studies). Links with `?match=<code>` pair only people who share that code, whatever their
 project. Use this for sessions arranged in advance or for testing. A study that sets
 `human_opponent_codes: false` ignores `?match=` for everyone but admins.
 
@@ -103,7 +107,11 @@ this button.
   keep waiting instead (for the whole study), or `"ai_fallback": false` in a group file for the
   participants arriving with it ([People-only invitations](#people-only-invitations)). Without a
   fallback, the page says *Waiting for another participant. The negotiation starts as soon as they
-  are ready.*
+  are ready.* A study's `pairing.fallback` says the same per study: `ai` (the default), `wait` (keep
+  waiting; the *Play an AI opponent instead* button is not offered) or `end` (in a Paired study, the
+  participant moves on to their next Assistant with a notification, or reaches the end page when
+  none is left). In a Paired study the AI opponent comes from `pairing.fallback_opponents`, and the
+  participant keeps the Assistant they were waiting with.
 - **Someone does not press Start.** When one side has pressed **Start** and the other has not within
   `human_opponent_wait` seconds, they are separated. The side that pressed waits for someone else. The
   other keeps its scenario and side, and waits for someone new.
@@ -145,7 +153,11 @@ Each participant gets their own row in `results.csv`, from their own side:
 | `invited_by` | For a guest who came through an invitation (see [Guests](authentication.md#guests)): who invited them, else empty |
 
 The participant who joined keeps their own plan columns (such as `scenario_scheduling`), although the
-scenario is the one the waiting participant loaded. A study that falls back to AI opponents has rows with
+scenario is the one the waiting participant loaded; in a study declared Paired their
+`scenario_scheduling` is `host`. Both rows also say how the match was formed (`pairing`), its cell
+(`match_cell`), each side (`side`), the other side's Assistant (`opponent_assistant`) and participant
+index (`opponent_participant`), and whether the two came from different studies (`cross_study`); see
+[`results.csv` columns](study-management.md#resultscsv-columns). A study that falls back to AI opponents has rows with
 `opponent_kind` `agent`. A participant whose session was closed gets no row.
 
 When you analyse a study, count each `match_id` once for negotiation-level measures (agreement rate,

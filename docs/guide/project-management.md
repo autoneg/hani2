@@ -182,19 +182,20 @@ pairing:
 | Key | Default | Meaning |
 |---|---|---|
 | `scope` | `study` in a study that declares `study_mode: paired`, else `project` | Where people meet. `study`: only people of the same study meet. `project`: people of every study of the project meet, so two studies can be paired with each other. `code`: people meet only through a shared `?match=<code>` link; without a code a participant meets nobody (the wait-time fallback applies). A `?match=<code>` link pairs those who share it in every scope, unless `human_opponent_codes` is `false`. |
-| `assign` | `cells` in a declared Paired study, else `random` | How the two people of a match are chosen. |
-| `slack` | `1` | How strictly the match is balanced. |
-| `cell_scenario` | `type` | Whether balancing counts scenario types or single scenarios. |
-| `allow_same_assistant` | `false` | Whether both sides of a match may use the same Assistant. |
-| `fallback` | `ai` | What happens when nobody fits: play an AI opponent (`ai`), keep waiting (`wait`, the same as `human_opponent_fallback: false`) or skip the slot (`end`). When `human_opponent_fallback` is also set in an `env.json` and the two disagree, the file is refused. |
-| `fallback_opponents` | the study's AI pool | The AI opponents of the fallback. Human entries are refused. |
+| `assign` | `cells` in a declared Paired study, else `random` | How the two people of a match are chosen: `cells` balances the match cells (scenario, Assistant at each side), `order` makes everyone follow their planned order strictly, `random` picks at random among the people who fit. |
+| `slack` | `1` | How strictly `cells` balances: cells whose count is within `slack` of the emptiest are treated as tied, and chance decides among them. `0` is the strictest, but who meets whom becomes easier to predict. |
+| `cell_scenario` | `type` | What "scenario" means in a cell: the scenario type (`type`) or the single scenario (`name`, which multiplies the number of cells by the scenarios per type). |
+| `allow_same_assistant` | `false` | Whether both sides of a match may use the same Assistant. With one Assistant in the study's pool it is always allowed (no match could be formed otherwise). |
+| `fallback` | `ai` | What happens when nobody fits within `human_opponent_wait` seconds: play an AI opponent with the Assistant already chosen (`ai`), keep waiting (`wait`, the same as `human_opponent_fallback: false`) or skip the slot (`end`: the next Assistant, or the end of the study when none is left). When `human_opponent_fallback` is also set in an `env.json` and the two disagree, the file is refused. |
+| `fallback_opponents` | the study's AI pool, else `:pan` | The AI opponents of the fallback. Human entries are refused. |
 
 Every key is checked when a file is saved (unknown keys and values not listed above are refused)
-and reported when a hand-edited file has a problem. This version uses `scope` to decide where
-people meet; the other keys are checked and kept for the balanced pairing of matches, which a
-later version adds. In particular `fallback: wait` does not stop the AI fallback yet: for a
-supervised session that must keep waiting, set `human_opponent_fallback: false` in the study's
-`env.json` (see [Human opponents](human-opponents.md)).
+and reported when a hand-edited file has a problem. `assign`, `slack`, `cell_scenario`,
+`allow_same_assistant` and `fallback` apply to a study declared `study_mode: paired`, and to any
+other study that sets `assign: cells` or `assign: order` in its `pairing` block (for example a
+Mixed game); `fallback` also applies wherever it is written. Other studies pair as they always did.
+What each choice does, and what it can and cannot guarantee, is explained in
+[Paired studies](study-management.md#paired-studies).
 
 ### HAN agents by year
 

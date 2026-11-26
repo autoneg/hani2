@@ -352,6 +352,154 @@ rotation until they finish.
 
 The full rules of every method are in [Scheduling methods](scheduling.md).
 
+## Paired studies
+
+In a Paired study two people negotiate with each other, each with their own Assistant in an HI
+project (`opponents: [human+assistant]`) or both without one in a HAN project
+(`opponents: [human]`). Fairness is then decided when two people are paired, and the unit is the
+**match**, not the person. This section describes how a study declared `study_mode: paired` pairs
+people; the keys are in [Pairing defaults](project-management.md#pairing-defaults). What the
+participants see (the waiting room, turns, leaving) is in [Human opponents](human-opponents.md).
+
+### Match cells
+
+Every match falls in one **cell**:
+
+$$
+\text{cell} = (\text{scenario},\ \text{Assistant at side 0},\ \text{Assistant at side 1})
+$$
+
+written `"<scenario>|<A>@0|<B>@1"`, for example `Trade|teamA.Helper@0|teamB.Coach@1`. The sides are
+the two utility functions of the scenario, so a match has one cell, the same in both people's rows.
+By default *scenario* is the scenario type (`pairing.cell_scenario: type`); the single scenario that
+was played is recorded but not balanced. `cell_scenario: name` balances single scenarios too, which
+multiplies the number of cells by the scenarios per type. In a HAN Paired study, where nobody has an
+Assistant, a cell is just the scenario (`Trade|none@0|none@1`).
+
+With N Assistants, S scenario types and no same-Assistant matches there are $S \cdot N(N-1)$ cells:
+60 for 5 Assistants and 3 types. With K = 5 matches per person and two people per match,
+50 participants play 125 matches, about 2 per cell.
+
+The counts are kept in `<study results>/match_cells.json`:
+
+```json
+{"version": 1,
+ "cells":    {"Trade|teamA.Helper@0|teamB.Coach@1": {"completed": 2, "match_ids": ["…", "…"], "type": "Trade"}},
+ "inflight": {"7f3a…": {"cell": "Trade|teamA.Helper@0|teamC.Pal@1", "since": "2027-…", "expires": 1801234567.0}},
+ "positions": {"teamA.Helper": [3, 2, 4, 1, 2]}}
+```
+
+- **Only completed matches fill a cell.** A match is completed when both rows were written, neither
+  is abandoned and the status is not `erred` (a deal, no deal in time and a refusal all count).
+- A match that is **being played** is *in flight*: it counts when the next match is chosen, so two
+  people arriving at the same moment do not both take the emptiest cell. A match whose partners were
+  separated before the start, an abandoned match and an erred one release their entry and fill
+  nothing. An entry older than the time limit plus 10 minutes is dropped.
+- AI games (the fallback below) never fill a cell.
+- `positions` counts, for each Assistant, how often it was a person's 1st, 2nd, … Assistant in a
+  completed match.
+
+Each person's use is kept in `assignments.json`: `used_assistants` lists `[assistant, match_id]` for
+every negotiation they started. An Assistant counts as **used once the negotiation has started**
+(both pressed Start), even when the match is abandoned later: the person has seen it, and "at most
+once" is about exposure. The cell, however, counts only completed matches.
+
+### Each person's set of Assistants
+
+In a Paired study the study's `scheduling.assistants` method gives each person a **set** of
+Assistants they may still play, with a preferred order:
+
+| Method | The person's set |
+|---|---|
+| `balanced`, `random_fixed`, `round_robin` | Their one fixed Assistant, for every match (a person always plays their own Assistant, as in a game) |
+| `latin_square`, `cyclic`, `balanced_subset`, `random_subset` | The first K of their sequence, without the ones already used. The order is a preference, not a promise |
+| `random_each` | All N, with repeats |
+| `external` | The Assistants of their `schedule.json` slots (their order is a preference) |
+
+An Assistant fixed for the page (the group file's `assistant`, the person's own pick, an admin's
+`?assistant=`) is the whole set. With `scheduling.assistant_repeats: true` the sequence wraps around
+instead of running out.
+
+### How a match is formed
+
+`pairing.assign` chooses the rule:
+
+| `assign` | Rule | Use |
+|---|---|---|
+| `cells` (the default) | The cell-aware choice below | Evaluation studies, games |
+| `order` | Each person follows their planned order strictly: two people fit only when their *next* planned Assistants form an allowed pair | Small, scripted lab sessions. It thins the pool a lot |
+| `random` | Chance, among the people who fit | Back-compatible pairing |
+
+With `cells`:
+
+1. **The host commits.** Someone who finds nobody to join waits as a *host*. They commit **one**
+   Assistant of their set now, and the scenario type: the pair with the fewest completed and
+   in-flight matches that have this Assistant in this type, then the fewest uses of the Assistant at
+   the person's position, then the preferred order, then the scenario method's own pick. Their
+   Assistant is live while they wait. With `scenarios: by_participant` the person's own type is
+   kept; so is a scenario the person chose or a schedule named.
+2. **The joiner chooses, and binds late.** Someone who arrives looks at every waiting host that
+   fits (same lobby, the right scenario type, not just separated), and at every Assistant of their
+   own set that is not the host's (unless `allow_same_assistant`). Each choice is scored by, in this
+   order: the cell's completed and in-flight matches, the Assistant's count at the joiner's position,
+   the size of the host's set (the most constrained host first, which avoids dead ends at the end of
+   a study), the size of the joiner's set, and chance. Counts within `pairing.slack` (default 1) of
+   the lowest are treated as equal, so nobody can aim at a particular person. Only then is the
+   joiner's Assistant started.
+3. The chosen cell is put in flight, both Assistants are marked used when the negotiation starts,
+   and the cell is filled when both rows are written.
+
+**Scenarios.** The joiner always plays the host's scenario: the scenario is decided per match, and
+the joiner's own scenario plan is recorded as `scenario_scheduling: host`. With
+`scenarios: by_participant` (one scenario type per person), a joiner fits **only hosts of their own
+type**, which divides the people waiting for each person by the number of types. With any other
+scenario method, the host picks the type as in step 1.
+
+**Same-Assistant matches.** `pairing.allow_same_assistant` is `false` by default: a match of an
+Assistant against itself says nothing about it compared with the others. Set it to `true` when two
+people must be able to share one, as in a game where an invited guest plays with the inviter's
+Assistant. A study whose pool has a single Assistant always allows it.
+
+**Where people meet.** A Paired study pairs its people among themselves (`pairing.scope: study`),
+because its cell counts belong to it. With `scope: project`, people from several studies of the
+project meet; each match is then counted in the host's study and marked `cross_study` in both rows.
+
+### When nobody fits
+
+The typical dead end is a person with one Assistant left while everyone waiting has only that
+Assistant left too. After `human_opponent_wait` seconds, `pairing.fallback` applies:
+
+- **`ai`** (the default): the person plays their committed Assistant against an AI opponent from
+  `pairing.fallback_opponents` (else the study's AI pool, else `:pan`). The Assistant is now
+  **used** for them: they spent the time, and are paid for it. The row has `study_mode = paired`,
+  `opponent_kind = agent` and `pairing = fallback`, and fills no cell.
+- **`wait`**: keep waiting, the same as `human_opponent_fallback: false`. For supervised lab
+  sessions only. The *Play an AI opponent instead* button is not offered.
+- **`end`**: the slot is skipped. The person moves on to their next Assistant (the skipped one is
+  not used, and is listed under `skipped_assistants` in `assignments.json`), or finishes early with
+  the completion link when none is left.
+
+A person who has used every Assistant planned for them also finishes, even with fewer than K
+counted negotiations (for example after abandoned matches).
+
+### What is guaranteed and what is only best effort
+
+| Guarantee | Paired | Why |
+|---|---|---|
+| Each Assistant at most once per person | **Hard** | The joiner chooses only from their own set, and the host commits only from theirs |
+| No same-Assistant match (when not allowed) | **Hard** | A filter at pairing |
+| A match fills at most one cell, and only when completed | **Hard** | See [Match cells](#match-cells) |
+| Totals per Assistant within ±1 | Best effort | Depends on who is waiting at the same moment |
+| Cell balance | Best effort, greedy | The same reason |
+| Position balance | Best effort | The joiner's pick depends on whom it meets |
+| Order and carry-over balance | **Not guaranteed** | Pairing reorders each person's set |
+| Every person completes all K with people | **Not guaranteed** | Arrivals: the last person waiting can be left without a partner |
+
+`hani2 study balance` shows how far the balance got (see [Monitoring](#monitoring)).
+
+The agreed final evaluation (every finalist once, a Latin-square order, nobody against a person) is
+a Solo study, so none of this changes it.
+
 ## Designs, ready to copy
 
 Each block is a complete `study.yaml` for a project of the right `kind`; settings the project
@@ -429,6 +577,68 @@ overrides:
   scheduling:
     assistants: latin_square
     opponents: latin_square
+```
+
+### A Paired HI study
+
+Two people negotiate with each other, each with an Assistant. Each person plays 4 of the 5
+finalists, one per match, never the same one twice and never against the same Assistant; the matches
+are spread over the cells (scenario type × the two Assistants).
+
+```yaml title="projects/HI2027/studies/paired/study.yaml"
+type: prolific
+title: Negotiate with another person
+overrides:
+  study_mode: paired                  # opponents: [human+assistant] is filled in
+  assistants: [":hi2027-finalists"]   # N = 5
+  n_required: 4                       # K = 4
+  scheduling:
+    assistants: balanced_subset       # each person's set: 4 of the 5
+  pairing:
+    assign: cells
+    slack: 1
+    allow_same_assistant: false
+    fallback: ai                      # nobody fits in time: an AI opponent
+    fallback_opponents: [":pan"]
+```
+
+How long a person waits before the fallback is `human_opponent_wait` (seconds, default 120) in the
+study's `env.json`, under `negotiation` (see [Human opponents](human-opponents.md#when-nobody-comes-or-someone-leaves)).
+
+### The game
+
+Signed-in players use their own team's Assistant (a guest uses the inviter's), meet other players
+when someone is waiting and an AI otherwise. Matches are balanced over the opposing Assistant, the
+scenario and the side; an inviter and their guest may share an Assistant.
+
+```yaml title="projects/HI2027/studies/play/study.yaml"
+type: online
+title: Play
+overrides:
+  study_mode: mixed
+  opponents: [human+assistant, ":han2027-qualified"]
+  scheduling: {assistants: balanced}  # players without a team get one, balanced
+  pairing: {scope: study, assign: cells, allow_same_assistant: true, fallback: ai}
+```
+
+To look for a person first in every round, set `human_opponents_first: true` in the study's
+`env.json`, under `negotiation`. Because the block sets `assign: cells`, matches are balanced in this
+Mixed study too; each player's set is their one Assistant, so only the opponent's Assistant, the
+scenario and the side are balanced.
+
+### Why a HAN Paired study ranks nothing
+
+In a HAN project, `study_mode: paired` pairs two people without Assistants (`opponents: [human]`,
+`assistants: [none]`). No HAN agent plays, so its rows have no entrant and are never ranked. It
+exists for completeness, for example to measure how people negotiate with each other on the same
+scenarios.
+
+```yaml title="projects/HAN2027/studies/people/study.yaml"
+type: lab
+title: People against people
+overrides:
+  study_mode: paired                  # opponents: [human] and assistants: [none] are filled in
+  pairing: {fallback: wait}           # a supervised session: keep waiting for a partner
 ```
 
 ## Forms and questionnaires
@@ -594,7 +804,13 @@ See [Project management: scores](project-management.md#scores) and run
 - The admin console's study page (**Projects & Studies**, then the study) shows the number of participants and of recorded negotiations, how many counted humans each Assistant of the pool has, and every assignment (see [Admin console](admin.md#projects-studies)).
 - Open the console at `/s/<project>/<study>/admin` (or use **Open in this study**) to see the study's results, events and recordings.
 - `hani2 study balance <project>/<study>` prints how balanced the assignment came out, from the counted negotiations so far: the negotiations per Assistant, Assistant × position, the pairs of Assistants used by the same person, Assistant × opponent and Assistant × scenario type (each with its spread, the largest minus the smallest count), the people who got one Assistant twice, how many completed all K, each person's crossing rule and the warnings about the study's files. `--json` prints the same as JSON.
-- `GET /api/admin/projects/{project}/studies/{study}/balance` and `.../assignments` return the same as JSON (see [Admin API](#admin-api)).
+- In a Paired or Mixed study (or one with matches between people) the report has a second part, the
+  Paired balance: the completed matches per cell and how many planned cells are still empty (with
+  the spread over the planned cells), the matches in flight, the completed matches per Assistant,
+  Assistant × position, the pairs of Assistants used by the same person, the same-Assistant matches,
+  the AI fallbacks, the Assistants skipped because nobody could be paired (`fallback: end`) and the
+  people with fewer than K counted negotiations (still playing, or left without a partner).
+- `GET /api/admin/projects/{project}/studies/{study}/balance` and `.../assignments` return the same as JSON (see [Admin API](#admin-api)); the Paired part is under `paired` (`null` for a Solo study).
 
 ## Results
 
@@ -706,8 +922,30 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `opponent_han_year` | The HAN year of the AI opponent when it is a HAN entrant (from a `:han<year>-<set>` group), else empty. |
 | `opponent_han_source` | Where that agent came from: `submissions` (the current year's submitted zips) or `han-agents` (the package). |
 | `opponent_han_version` | Which build played: the sha256 of the submitted zip, or the `han-agents` version. |
-| `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). |
+| `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). In a Paired study the joiner's `scenario_scheduling` is `host` (it plays the host's scenario), and a host whose scenario type was chosen to balance the cells has `cells`. |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
+
+**Mode and pairing**
+
+| Column | Meaning |
+|--------|---------|
+| `opponent_kind` | What actually happened: `agent` (an AI opponent, also an AI fallback in a Paired study), `human` or `human+assistant` (another participant without or with an Assistant). |
+| `match_id` | The match, shared by both rows of a match between two people. |
+| `opponent_user` | The other participant's user name. |
+| `abandoned` | Who left a match between two people: `self`, `opponent` or empty. |
+| `invited_by` | Who invited a guest, else empty. |
+| `study_mode` | The planned mode of the study: `solo`, `paired` or `mixed` (empty outside a study). |
+| `pairing` | How the match was formed: `cells`, `order`, `random`, `code` (a shared `?match=` link) or `fallback` (nobody fitted, an AI played); empty for an AI game that was planned as one. |
+| `match_cell` | The match's cell, `"<scenario>|<A>@0|<B>@1"`, the same in both rows; empty for AI games. |
+| `side` | 0 or 1: the participant's utility function index (the same as `human_index`). |
+| `opponent_assistant` | The other side's Assistant (its spec, or `none`); empty for AI games. |
+| `opponent_assistant_entrant` | The other side's `assistant_entrant`. |
+| `opponent_participant` | The other side's participant index in their study (pseudonymous). |
+| `assistant_entrant` | The entrant id of the participant's Assistant, from the group file's `entrant` key (empty without one). |
+| `own_assistant` | `true` when the participant plays their own team's Assistant (the group file's `own` key), else empty. |
+| `assistant_position` | The position of this Assistant in the participant's plan, from 0: the counted negotiation in a Solo study, the number of Assistants used before in a Paired one (empty outside a study, for admins and guests). |
+| `plan_size` | K: the counted negotiations per person (`n_required`). |
+| `cross_study` | Whether the two people of a match came from two studies (the match is counted in the host's study). |
 
 **Final mechanism state.** The fields of the negmas `SAOState` at the end, for example `step`, `time`, `relative_time`, `broken`, `timedout`, `has_error`, `error_details`, `erred_negotiator`, `current_offer`, `current_proposer`, `n_acceptances` and `current_data`.
 
@@ -732,6 +970,10 @@ root = Path.home() / "negmas" / "hani2" / "db"
 df = pd.concat(pd.read_csv(f) for f in root.glob("*/results.csv"))
 print(df.groupby("agent_type")["human_utility"].mean())
 ```
+
+A match between two people writes two rows, one per participant, with the same `match_id` and
+`match_cell`. Count negotiation-level measures (agreements, welfare, durations) once per `match_id`;
+each row is an observation for its own Assistant.
 
 The leaderboard score of a participant is computed per scenario name: drop the worst result, average the best three of the rest, and score 0 for scenarios with fewer than two results. The score is the average over scenarios, times 100.
 
