@@ -12,7 +12,7 @@ Assistant's answers come from the model, so they differ from take to take.
 from __future__ import annotations
 
 import hv
-from hv import ASSISTANT_PANEL, NEC, SEND, START, tab
+from hv import ASSISTANT_PANEL, COUNTER, NEC, SEND, START, tab
 
 NAME = "hani2-walkthrough-hi-advanced"
 W = "w"
@@ -135,6 +135,8 @@ def main() -> None:
             f.say(N["pick"], wait=False)
             f.click(W, "button:has-text('Set Offer')")
             f.sleep(1.0)
+            if not f.loc(W, SEND).count():
+                f.click(W, COUNTER)  # the selector filled the offer; open the editor to check it
             f.click(W, SEND)
             hv.my_turn(f, W)
             f.finish_speech()

@@ -192,10 +192,8 @@ def main() -> None:
             f.click(W, CONFIRM_ACCEPT)
             hv.wait_for(f, W, "text=Agreement reached")
             f.finish_speech()
-            f.say(N["results"], caption="My Results and Next negotiation", kicker="After the negotiation", wait=False)
-            f.click(W, "[data-testid=launch-tools]")
-            f.click(W, "[role=menuitem]:has-text('My Results')")
-            f.sleep(2.5)
+            f.say(N["results"], caption="The result, and Next negotiation", kicker="After the negotiation", wait=False)
+            f.point(W, "text=Agreement reached", hold=2.5)
             f.point(W, "button:has-text('Next negotiation')", hold=2.0)
             f.finish_speech(); f.unring()
 
