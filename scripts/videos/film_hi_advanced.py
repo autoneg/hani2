@@ -74,6 +74,8 @@ def main() -> None:
             f.part("1 · YOUR CHOICES", NEC["teal"])
             hv.pane(f, W, url + "/play", sub="With an Assistant")
             hv.wait_for(f, W, START)
+            # a small model sometimes writes HTML to the status board, which shows as raw text: keep it off camera
+            hv.hide(f, W, "[aria-label='Assistant status board']{display:none!important}")
             f.say(N["choose"], caption="Pickers before the start", kicker="Your choices", wait=False)
             f.point(W, "[data-testid=choice-pickers]", hold=3.0)
             f.finish_speech(); f.unring()

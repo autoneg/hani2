@@ -45,3 +45,15 @@ The narration is the `N` dictionary at the top of each script; the storyboard be
 happens on screen while each line is spoken (`f.say(..., wait=False)` lets actions run under the
 voice). `hv.py` holds the shared helpers: the servers, the window, drags, typing, the Assistant
 chat, subtitles and chapters (`f.mark("Title")` starts a chapter).
+
+## Release on YouTube
+
+```bash
+.venv/bin/python scripts/videos/release.py --open
+```
+
+writes `~/negmas/hani2-videos/youtube/`: per video a folder with `title.txt`, `description.txt` (with
+the chapters and the link to its written walkthrough), `tags.txt`, `<name>.en.srt` and a 1280x720
+`thumbnail.png`; plus `playlist.txt` (the playlist's title and text), `playlist.m3u` and `UPLOAD.md`,
+the upload checklist. `--open` plays the four videos as a playlist (IINA or VLC). After uploading,
+replace `YOUTUBE-LINK-PLACEHOLDER` in each `docs/walkthroughs/*.md` page with its video's link.
