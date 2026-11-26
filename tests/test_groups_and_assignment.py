@@ -584,3 +584,44 @@ def test_ai_fallback_is_read_checked_and_kept(tmp_path):
     assert "ai_fallback" not in groups.validate_data(groups.OPPONENT, {"agents": ["human"]})
     with pytest.raises(ValueError):
         groups.validate_data(groups.OPPONENT, {"agents": ["human"], "ai_fallback": "false"})
+
+
+# --------------------------------------------------------------------------- #
+# The group-file keys entrant, own and han_year                                #
+# --------------------------------------------------------------------------- #
+def test_entrant_own_and_han_year_are_read_checked_and_kept(tmp_path):
+    p = tmp_path / "g.json"
+    data = {"agents": ["human+assistant", ":pan"], "assistant": HELLO, "entrant": "sub_0412", "own": True,
+            "han_year": 2027, "ai_fallback": True}
+    p.write_text(json.dumps(data))
+    g = groups.load_file(p, groups.OPPONENT)
+    assert (g.entrant, g.own, g.han_year) == ("sub_0412", True, 2027)
+    d = g.to_dict()
+    assert d["entrant"] == "sub_0412" and d["own"] is True and d["han_year"] == 2027
+    # what an admin saves through the API keeps them (they used to be dropped)
+    saved = groups.validate_data(groups.OPPONENT, data)
+    assert saved["entrant"] == "sub_0412" and saved["own"] is True and saved["han_year"] == 2027
+    # loosely written files are read; nonsense is ignored, never an error at load
+    p.write_text(json.dumps({"agents": ["human"], "entrant": 412, "own": "no", "han_year": "2026"}))
+    g = groups.load_file(p, groups.OPPONENT)
+    assert (g.entrant, g.own, g.han_year) == ("412", False, 2026)
+    p.write_text(json.dumps({"agents": ["human"], "entrant": "", "own": "maybe", "han_year": "soon"}))
+    g = groups.load_file(p, groups.OPPONENT)
+    assert (g.entrant, g.own, g.han_year) == (None, None, None) and "entrant" not in g.to_dict()
+    # saving is strict
+    for bad in ({"own": "true"}, {"han_year": "2027"}, {"han_year": 12}, {"entrant": ""}, {"entrant": True}):
+        with pytest.raises(ValueError):
+            groups.validate_data(groups.OPPONENT, {"agents": ["human"], **bad})
+
+
+def test_group_keys_reach_the_results_row(study):
+    g = projects.study_dir(study) / "results" / "groups"
+    _write(g / "inv_42.json", {"agents": ["ConcederTBNegotiator"], "assistant": HELLO, "entrant": "sub_0412",
+                               "own": False, "han_year": 2027})
+    _set_study(study, practice=False)
+    s = make_session(user="anac_77", mode="main", partner=None, study=study,
+                     query={"noautostart": "1", "group": "inv_42"})
+    _play(s)
+    row = next(csv.DictReader(open(s.ss["user_path"] / "results.csv")))
+    assert row["assistant_entrant"] == "sub_0412" and row["own_assistant"] == "False"
+    assert row["opponent_han_year"] == "2027" and row["opponent_han_source"] == "group-file"

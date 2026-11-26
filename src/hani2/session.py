@@ -2476,6 +2476,13 @@ class NegotiationSession:
         self.ss["study_mode"] = info.mode if info is not None else ""
         self.ss["assistant_position"] = ""
         self.ss["plan_size"] = ""
+        try:  # the HAN year of the AI agents a group file names by class path (group key han_year)
+            g0 = assignment.group_file(self)
+            ok = g0 is not None and not g0.error
+            self.ss["group_han_year"] = getattr(g0, "han_year", None) if ok else None
+            self.ss["group_agents"] = list(g0.members) if ok else []
+        except Exception:  # noqa: BLE001
+            self.ss["group_han_year"], self.ss["group_agents"] = None, []
         if self.study_ref is None or not assignment.counts_as_human(self):
             return
         try:

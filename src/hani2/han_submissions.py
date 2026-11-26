@@ -51,6 +51,8 @@ from typing import Any
 SETS = ("all", "qualified", "finalists", "winners")
 SOURCE_SUBMISSIONS = "submissions"
 SOURCE_PACKAGE = "han-agents"
+#: a group file that names the agents by class path and gives their year (``han_year``)
+SOURCE_GROUP_FILE = "group-file"
 INDEX_FILE = "index.json"
 CURRENT_FILE = "current.json"
 #: seconds the class-import check of one submission may take

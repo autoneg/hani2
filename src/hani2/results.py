@@ -137,8 +137,13 @@ def _han_provenance(ss: dict[str, Any], m: SAOMechanism) -> dict[str, Any]:
     try:
         hi = int(ss.get("human_index", 0))
         others = [n for i, n in enumerate(m.negotiators) if i != hi]
-        return han_submissions.provenance(ss.get("last_partner_type"), str(ss.get("opponent_group") or ""),
-                                          others[0] if len(others) == 1 else None)
+        got = han_submissions.provenance(ss.get("last_partner_type"), str(ss.get("opponent_group") or ""),
+                                         others[0] if len(others) == 1 else None)
+        y = ss.get("group_han_year")
+        if not got.get("opponent_han_year") and y and str(ss.get("last_partner_type") or "") in (ss.get("group_agents") or []):
+            # an agent the group file names by class path, with the file's han_year
+            got = {**got, "opponent_han_year": int(y), "opponent_han_source": han_submissions.SOURCE_GROUP_FILE}
+        return got
     except Exception as e:  # noqa: BLE001 — the row is written anyway
         print(f"[hani2] could not tell the HAN agent's source: {e}")
         return empty

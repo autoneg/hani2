@@ -10,10 +10,16 @@ groups in ``assistant_groups/<key>.json``; both have the same shape::
      "assistant": "pkg.module:Class",                 # opponent groups only: the Assistant for
                                                       # participants arriving with ?group=<key>
                                                       # ("support_agent" is the old name)
-     "ai_fallback": false}                            # opponent groups only (default true): a
+     "ai_fallback": false,                            # opponent groups only (default true): a
                                                       # ?group=<key> session never gets an AI
                                                       # opponent (no wait-time fallback, no "play
                                                       # an AI" button); its AI entries are dropped
+     "entrant": "sub_0412",                           # opponent groups only: the outside system's id
+                                                      # of the Assistant (results: assistant_entrant)
+     "own": true,                                     # opponent groups only: the participant is on the
+                                                      # team that submitted the Assistant (own_assistant)
+     "han_year": 2027}                                # opponent groups only: the HAN year of the AI
+                                                      # agents named by class path (opponent_han_year)
 
 A group token ``:key`` (or ``?group=key``) is looked up, first hit wins, in
 
@@ -49,6 +55,8 @@ MEMBERS_KEY = {OPPONENT: "agents", ASSISTANT: "assistants"}
 ASSISTANT_KEYS = ("assistant", "support_agent")
 #: key of an opponent group file: ``false`` keeps its sessions to people only (no AI opponent ever)
 AI_FALLBACK_KEY = "ai_fallback"
+#: opponent group keys that describe the session for the results (see :func:`validate_data`)
+ENTRANT_KEY, OWN_KEY, HAN_YEAR_KEY = "entrant", "own", "han_year"
 # group keys: letters, digits, '.', '_' and '-' (long enough for hmac-carrying keys)
 _KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 
@@ -86,6 +94,12 @@ class Group:
     ai_fallback: bool = True
     #: why the file cannot be used as written (conflicting keys); its members / Assistant are then empty
     error: str = ""
+    #: opponent groups: the outside system's id of the Assistant (``entrant``; results: ``assistant_entrant``)
+    entrant: str | None = None
+    #: opponent groups: whether the participant plays their own team's Assistant (``own``; ``None``: not said)
+    own: bool | None = None
+    #: opponent groups: the HAN year of the AI agents the file names by class path (``han_year``)
+    han_year: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         out = dict(key=self.key, kind=self.kind, members=list(self.members), syspath=list(self.syspath),
@@ -93,6 +107,9 @@ class Group:
         if self.kind == OPPONENT:
             out["assistant"] = self.assistant
             out["ai_fallback"] = self.ai_fallback
+            for k in (ENTRANT_KEY, OWN_KEY, HAN_YEAR_KEY):
+                if getattr(self, k) is not None:
+                    out[k] = getattr(self, k)
         if self.error:
             out["error"] = self.error
         return out
@@ -187,6 +204,33 @@ def group_problems(data: Any, kind: str) -> list[str]:
     return out
 
 
+def _entrant(v: Any) -> str | None:
+    """``entrant``: a non-empty id (numbers are taken as text); anything else is ignored."""
+    if isinstance(v, bool) or v is None:
+        return None
+    s = str(v).strip() if isinstance(v, (str, int)) else ""
+    return s[:200] or None
+
+
+def _own(v: Any) -> bool | None:
+    """``own``: a boolean (the usual words too); ``None`` when not given or unreadable."""
+    if v is None:
+        return None
+    t, f = parse_flag(v, True), parse_flag(v, False)
+    return t if t == f else None
+
+
+def _han_year(v: Any) -> int | None:
+    """``han_year``: a year such as 2027 (``"2027"`` too); ``None`` otherwise."""
+    if isinstance(v, bool):
+        return None
+    try:
+        y = int(str(v).strip())
+    except (TypeError, ValueError):
+        return None
+    return y if 1900 <= y <= 9999 else None
+
+
 def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -> Group | None:
     """Read one group file (``None`` when missing or broken); its ``syspath`` is added to ``sys.path``."""
     kind = check_kind(kind)
@@ -216,6 +260,8 @@ def load_file(path: Path, kind: str, key: str | None = None, source: str = "") -
             g.ai_fallback = parse_flag(data.get(AI_FALLBACK_KEY), True)
         if kind == OPPONENT and not g.error:
             g.assistant = next((data[k] for k in ASSISTANT_KEYS if data.get(k)), None)
+            g.entrant, g.own, g.han_year = _entrant(data.get(ENTRANT_KEY)), _own(data.get(OWN_KEY)), \
+                _han_year(data.get(HAN_YEAR_KEY))
         if g.error and kind == ASSISTANT:
             members = []
     if not isinstance(members, list):
@@ -529,6 +575,20 @@ def validate_data(kind: str, data: Any) -> dict[str, Any]:
             if not isinstance(f, bool):
                 raise ValueError(f"'{AI_FALLBACK_KEY}' must be true or false")
             out[AI_FALLBACK_KEY] = f
+        if data.get(ENTRANT_KEY) is not None:
+            e = data[ENTRANT_KEY]
+            if isinstance(e, bool) or not isinstance(e, (str, int)) or not str(e).strip():
+                raise ValueError(f"'{ENTRANT_KEY}' must be a non-empty id (text)")
+            out[ENTRANT_KEY] = str(e).strip()
+        if data.get(OWN_KEY) is not None:
+            if not isinstance(data[OWN_KEY], bool):
+                raise ValueError(f"'{OWN_KEY}' must be true or false")
+            out[OWN_KEY] = data[OWN_KEY]
+        if data.get(HAN_YEAR_KEY) is not None:
+            y = data[HAN_YEAR_KEY]
+            if isinstance(y, bool) or not isinstance(y, int) or not 1900 <= y <= 9999:
+                raise ValueError(f"'{HAN_YEAR_KEY}' must be a year such as 2027")
+            out[HAN_YEAR_KEY] = y
     return out
 
 
