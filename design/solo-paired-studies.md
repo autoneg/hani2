@@ -2,7 +2,7 @@
 
 Status: **draft for review, nothing built yet** (2026-11-26; scores and per-project boards added the same day). This note is internal and is not in the
 MkDocs nav (it lives outside `docs/`). It should not be published as written. Each work package
-writes its own user docs.
+writes its user docs into the Project Management and Study Management pages (§11).
 
 Terms: the three parties are the **human** ("participant" in a study), the **Assistant** and the
 **opponent**. *HI* is the Hybrid Intelligence track, and its entrants are Assistants. *HAN* is the
@@ -865,7 +865,131 @@ rows by hand. The only `?` is `ToolHelp` (`CircleHelp`, a portalled dialog) for 
 
 ---
 
-## 11. Work packages, in order
+## 11. Documentation: Project Management and Study Management pages
+
+Everything in this note gets user documentation in **two main pages**, in a new nav section of
+their own. They are written for people who run competitions and studies: they explain every choice
+and give complete examples. Long, generated tables live in reference pages under the same section,
+and the two main pages link to them.
+
+Today the same subjects are spread over `projects.md` ("Projects and studies"), `studies.md`
+("Studies and results"), `scheduling.md`, `human-opponents.md`, `prolific.md`, `study-forms.md`,
+`evaluation.md` and `admin.md`. Other pages link to them about 70 times. MkDocs has no redirect
+plugin here, so moving content means updating those links.
+
+### 11.1 The new nav section
+
+```yaml
+nav:
+  - Project and study management:
+      - Project management: guide/project-management.md      # new (replaces projects.md)
+      - Study management: guide/study-management.md          # new (takes the study parts of projects.md and studies.md)
+      - Scheduling methods: guide/scheduling.md              # reference, generated, kept
+      - Criteria and scores reference: guide/criteria.md     # reference, generated (WP5)
+      - Settings reference: guide/settings-reference.md      # generated from help_texts.py (WP8): the `?` texts
+      - Study forms: guide/study-forms.md                    # kept, moved here
+      - Prolific: guide/prolific.md                          # kept, moved here
+```
+
+`Human opponents` stays in the User guide, where it describes what pairing looks like to the
+participants (waiting, turns, leaving). The *choices* about pairing move to Study management.
+`Evaluation metrics` stays in the User guide for what the metrics mean. *Defining scores and
+boards* moves to Project management.
+
+### 11.2 Project management (`guide/project-management.md`)
+
+1. **What a project is**: a competition year or a research line. Its `kind` (HI: ranks
+   Assistants; HAN: ranks opponents; none), its `year`, its studies and its folders.
+2. **Creating and editing a project**: the admin console (Projects & Studies, every choice with a
+   `?`), the command line, `project.yaml` and the admin API, and what a study inherits.
+3. **Defaults for its studies**: every key, with a link to the Settings reference.
+   - **Mode**: Solo, Paired or Mixed, what each means in HI and in HAN, and the derived mode.
+   - **Opponents**: AI pools, and HAN agents by year and set, where "this year" and "last year"
+     come from the project year.
+   - **Assistants and assignment**: the methods in short (one Assistant per person, every
+     Assistant once, K of N, crossing), linking to Scheduling methods.
+   - **Pairing defaults**.
+4. **Scores**:
+   - criteria (every metric and every questionnaire item);
+   - how values are scaled to [0, 1] and why the reference is frozen (`hani2 scores freeze`);
+   - defining a score (weights summing to 100 %, missing values, coverage, scores inside scores);
+   - built-in scores and duplicating them;
+   - which scores each study enables.
+5. **Leaderboards**:
+   - the project board and its studies, and rows taken in from other projects;
+   - sort options, columns, the switches end users get, visibility;
+   - which games count (people and AI, guests, own-team games, minimums, caps);
+   - confidence intervals and ties;
+   - the pages `/s/<project>/leaderboard`;
+   - the game board as the HI default, with the simulated table still available.
+6. **Connecting a website**: the leaderboard API (paths, API tokens, the JSON schema with an
+   example), group files with `entrant` and `own`, seeding projects from the website, and
+   `hani2 project export`. It names no particular website: "a trusted website, for example the
+   competition's site".
+7. **A competition year, worked through**: `HI2027` and `HAN2027` with their games and Prolific
+   studies, and how HI games against HAN agents reach the HAN board as their own group.
+8. **Command line and admin API**: a summary table.
+
+### 11.3 Study management (`guide/study-management.md`)
+
+1. **A study's life**: create, configure, test (`hani2 human-trial`, test links), run, monitor,
+   close.
+2. **Study types**: Prolific, online, lab, and a game (online, with sign-in hand-off and
+   invitations). Folders, URLs, texts with variables and consent, moved from `projects.md`.
+3. **`study.yaml` and overrides**: what a study can override, and how layers merge.
+4. **Mode**: Solo, Paired and Mixed, the checks against the opponent pool, and the error messages
+   with how to fix them.
+5. **Assigning Assistants, opponents and scenarios**:
+   - K sessions per person over N Assistants, each at most once;
+   - position and co-occurrence balance;
+   - crossing Assistants with opponents;
+   - schedules from an outside system, and who owns the plan;
+   - the full rules are in Scheduling methods.
+6. **Paired studies**:
+   - match cells and how a match is formed (`cells`, `order`, `random`, `slack`);
+   - same-Assistant matches, where people meet, what happens when nobody fits;
+   - **what is guaranteed and what is only best effort** (the table from §4.5).
+7. **Designs, ready to copy**:
+   - the finals (every finalist once, crossed with HAN finalists);
+   - K-of-N screening;
+   - a Paired HI study;
+   - a HAN Solo study;
+   - an HI Solo study that also feeds HAN;
+   - the game;
+   - why a HAN Paired study ranks nothing.
+8. **Forms and questionnaires**: in short, with a link to Study forms. It also says which
+   questionnaire items can be used in scores, and the rule for post-session answers.
+9. **Monitoring**: `hani2 study balance` and the study page (cell counts, positions, fallbacks,
+   people who could not complete).
+10. **Results**:
+    - the `results.csv` columns, including the new ones from §5;
+    - reading Paired results (count each match once for negotiation-level measures);
+    - the event log;
+    - moved from `studies.md`. The old "Experiments" layout becomes a short closing section.
+11. **The study's own board and its enabled scores**.
+12. **Command line and admin API**: a summary table.
+
+### 11.4 How the docs stay right
+
+- **WP0 (docs restructure, before WP1):**
+  - create the two pages from the existing content of `projects.md` and `studies.md`, with no new
+    features;
+  - delete the old files, update every inbound link and every anchor;
+  - add `mkdocs build --strict` to the checks, as `tests/test_docs_build.py`, which is skipped
+    when the docs extras are missing, so broken links and anchors fail the tests.
+- **Each work package** adds its sections to these two pages (the "Docs" column in §12), not to
+  new scattered pages.
+- **Single sources:**
+  - the Settings reference is generated from `help_texts.py`, so a `?` text and the docs can't
+    disagree;
+  - the Criteria and scores reference is generated from the criteria catalogue;
+  - Scheduling methods stays generated from `scheduling.py`.
+- The docs stay self-contained: no mention of the predecessor project and no internal design
+  notes.
+
+---
+
+## 12. Work packages, in order
 
 Each package ends with its tests green (`.venv/bin/pytest -q`), its docs written, and a commit.
 **Only WP8 and WP9 touch `frontend/`, and they run one after the other**. Each rebuilds and commits
@@ -873,18 +997,19 @@ Each package ends with its tests green (`.venv/bin/pytest -q`), its docs written
 
 | WP | What | Files | Tests | Docs |
 |---|---|---|---|---|
-| **1. Mode keys and validation** | `study_mode`, the `pairing` block (parsed, merged, validated against `opponents`, the Assistant and the project kind), the derived mode, per-session checks of group files and slots, `hani2 study show` output, `hani2 han check` | `projects.py` (`DEFAULT_KEYS`, `file_problems`), `matches.py` (`study:` scope in `match_key`), `session.py` (per-session filter, reusing `people_only`), `assignment.py` (group-file checks), `cli.py` | `tests/test_projects.py`, `tests/test_human_opponents.py` (scope, contradictions), `tests/test_agents.py` (han check) | `docs/guide/projects.md`, `studies.md`, `human-opponents.md` |
-| **2. Solo assignment** | The K ≤ N check, `assistant_repeats`, `balanced_subset`, `random_subset`, the `cross: shift` crossing, the open-slot branch of `ProlificStudy.plan_round` (§3.5, D14), the `hani2 study balance` report (Solo part) | `scheduling.py` (registry, rules, generated docs), `assignment.py` (plans in `assignments.json`), `study.py` | `tests/test_scheduling.py` (subset and position balance, crossing coverage for 5 × 5 over 50 people, P1 regression), `tests/test_study.py` | `docs/guide/scheduling.md` (regenerated with `python -m hani2.scheduling`) |
-| **3. Paired assignment** | The `match_cells.json` store, host commit, joiner late binding, cell-aware `Lobby.pair` with `slack`, in-flight reservation and release, completion hook, `pairing.fallback`, scenario fit for `by_participant`, `used_assistants`, the result columns of §5, the Paired part of `hani2 study balance` | `matches.py`, `session.py` (≈1655–1765, `_leave_match`, end of round), `assignment.py` (cell store), `results.py`, `events.py` | new `tests/test_pairing_cells.py` (hard guarantees, dead-end fallback, abandon releases, two concurrent joiners), `tests/test_human_opponents.py`, `tests/test_session.py` | `docs/guide/human-opponents.md` (Paired section), `scheduling.md` |
-| **4. Evaluation strata** | Paired cells per row, match dedup, same-Assistant collapse, `ci_unit: match`, the `study_mode` strata, HAN `vs_team`, `excluded["human opponent"]`, optional head-to-head | `evaluation/__init__.py` (`ID_FIELDS`), `evaluation/tracks.py`, `evaluation/base.py` | `tests/test_tracks.py` | `docs/guide/evaluation.md` |
-| **5. Criteria catalogue and normalisation** | `evaluation/criteria.py` (metric columns, questionnaire items and scales, scores; levels, directions, costs), machine-readable normalisers with a default for every numeric column, frozen references (`normalisation.json`, `hani2 scores freeze`), `GET /api/admin/criteria` | new `evaluation/criteria.py`, `evaluation/base.py` (`Column.normaliser`), `evaluation/hard.py`, `soft`/`llm_judge.py`, `subjective.py`, `questionnaires.py`, `server.py`, `cli.py` | new `tests/test_criteria.py` (every numeric column has a normaliser, every value is in [0, 1], questionnaire bounds and reversed items, participant-level rule) | `docs/guide/metrics.md` (a generated criteria reference) |
-| **6. User-defined scores** | `scores:` and `scores_enabled` in project and study files (merged), validation (weights ≥ 0 summing to 1, no cycles, key clashes, directions), rescaling on load with a warning, `missing` policies, built-ins rewritten as definitions, `hani2 scores list/show/check` | `evaluation/scores.py`, `projects.py` (`DEFAULT_KEYS`), `server.py` (admin CRUD for scores), `cli.py` | `tests/test_scores_defined.py` (weights, missing policies, coverage drop, nested scores, built-ins unchanged against today's values) | `docs/guide/evaluation.md` (Defining scores) |
-| **7. Boards and API** | The `leaderboard` block (project, study override, validation), `evaluation/boards.py` (§8.1 rules, `rank_by`, strata, includes, caps, minimums), the eval cache and `hani2 leaderboard refresh/judge`, the public and admin pages' API `GET /api/v1/projects/{p}[/studies/{s}]/leaderboard` and `/api/v1/leaderboards`, API-token auth, `visibility`, the group-file keys `entrant`, `own` and `han_year`, `hani2 project export` | new `evaluation/boards.py`, `evaluation/tracks.py` (`rank_by`, the `game` board), `projects.py`, `server.py`, `sso.py` (`verify_api_token`), `groups.py`, `results.py`, `cli.py` | new `tests/test_boards.py` (game rules, sort options, 400 for options not allowed, same result for the page and the API), `tests/test_server.py` (401/403/400), `tests/test_sso.py` (audience separation), `tests/test_groups_and_assignment.py` | new `docs/guide/leaderboards.md` (in the `mkdocs.yml` nav), `authentication.md` (API tokens), `human-opponents.md#a-game` |
-| **8. Help mechanism and editor** *(frontend)* | `help_texts.py` and `/api/admin/help`; `Row.help`, `Field.help`, the shared `HelpDialog`; Mode, the HAN picker, Assignment, Pairing, the score builder, Scores enabled and Leaderboard settings in `Projects.tsx`; the generated settings reference; rebuild `src/hani2/web` | `src/hani2/help_texts.py`, `server.py`, `frontend/src/admin/{Row,schema}.tsx`, `frontend/src/ui/HelpDialog.tsx`, `frontend/src/negotiate/ToolPane.tsx`, `frontend/src/admin/pages/Projects.tsx`, new `frontend/src/admin/ScoreBuilder.tsx`, `src/hani2/web/**` | `tests/test_admin_api.py` (help coverage), `frontend/tests/help.test.mjs`, `frontend/tests/weights.test.mjs` (sum and Normalise), `tests/e2e` (open a `?`, build a score, save a contradiction and get a 400) | `docs/guide/admin.md`, `projects.md` (generated reference) |
-| **9. Leaderboard pages** *(frontend, after WP8)* | The end-user pages `/s/<p>/leaderboard` and `/s/<p>/<s>/leaderboard` (only the switches allowed), and Admin → Leaderboards (everything, strata, exclusions, weights in effect); rebuild `src/hani2/web` | new `frontend/src/pages/Leaderboard.tsx`, `frontend/src/admin/pages/Leaderboards.tsx`, `Sidebar.tsx`, `router.ts`, `server.py` (the page routes), `src/hani2/web/**` | `tests/e2e` (switch sort options and games; a hidden switch is not shown; visibility) | `docs/guide/leaderboards.md` |
+| **0. Docs restructure** | The two management pages from existing content, the new nav section, links and anchors updated, the old `projects.md` and `studies.md` removed | `docs/guide/*.md`, `docs/getting-started/*.md`, `mkdocs.yml`, `README.md` | new `tests/test_docs_build.py` (`mkdocs build --strict`) | — |
+| **1. Mode keys and validation** | `study_mode`, the `pairing` block (parsed, merged, validated against `opponents`, the Assistant and the project kind), the derived mode, per-session checks of group files and slots, `hani2 study show` output, `hani2 han check` | `projects.py` (`DEFAULT_KEYS`, `file_problems`), `matches.py` (`study:` scope in `match_key`), `session.py` (per-session filter, reusing `people_only`), `assignment.py` (group-file checks), `cli.py` | `tests/test_projects.py`, `tests/test_human_opponents.py` (scope, contradictions), `tests/test_agents.py` (han check) | Project management §3 (mode, pairing defaults, HAN agents); Study management §2–§4 (types, overrides, mode) |
+| **2. Solo assignment** | The K ≤ N check, `assistant_repeats`, `balanced_subset`, `random_subset`, the `cross: shift` crossing, the open-slot branch of `ProlificStudy.plan_round` (§3.5, D14), the `hani2 study balance` report (Solo part) | `scheduling.py` (registry, rules, generated docs), `assignment.py` (plans in `assignments.json`), `study.py` | `tests/test_scheduling.py` (subset and position balance, crossing coverage for 5 × 5 over 50 people, P1 regression), `tests/test_study.py` | Study management §5, §7 (assignment, designs); Scheduling methods (regenerated with `python -m hani2.scheduling`) |
+| **3. Paired assignment** | The `match_cells.json` store, host commit, joiner late binding, cell-aware `Lobby.pair` with `slack`, in-flight reservation and release, completion hook, `pairing.fallback`, scenario fit for `by_participant`, `used_assistants`, the result columns of §5, the Paired part of `hani2 study balance` | `matches.py`, `session.py` (≈1655–1765, `_leave_match`, end of round), `assignment.py` (cell store), `results.py`, `events.py` | new `tests/test_pairing_cells.py` (hard guarantees, dead-end fallback, abandon releases, two concurrent joiners), `tests/test_human_opponents.py`, `tests/test_session.py` | Study management §6, §9, §10 (Paired, monitoring, results columns); `human-opponents.md` (what participants see) |
+| **4. Evaluation strata** | Paired cells per row, match dedup, same-Assistant collapse, `ci_unit: match`, the `study_mode` strata, HAN `vs_team`, `excluded["human opponent"]`, optional head-to-head | `evaluation/__init__.py` (`ID_FIELDS`), `evaluation/tracks.py`, `evaluation/base.py` | `tests/test_tracks.py` | Study management §10 (reading Paired results); `evaluation.md` (strata) |
+| **5. Criteria catalogue and normalisation** | `evaluation/criteria.py` (metric columns, questionnaire items and scales, scores; levels, directions, costs), machine-readable normalisers with a default for every numeric column, frozen references (`normalisation.json`, `hani2 scores freeze`), `GET /api/admin/criteria` | new `evaluation/criteria.py`, `evaluation/base.py` (`Column.normaliser`), `evaluation/hard.py`, `soft`/`llm_judge.py`, `subjective.py`, `questionnaires.py`, `server.py`, `cli.py` | new `tests/test_criteria.py` (every numeric column has a normaliser, every value is in [0, 1], questionnaire bounds and reversed items, participant-level rule) | Project management §4 (criteria, scaling); the new Criteria and scores reference (generated) |
+| **6. User-defined scores** | `scores:` and `scores_enabled` in project and study files (merged), validation (weights ≥ 0 summing to 1, no cycles, key clashes, directions), rescaling on load with a warning, `missing` policies, built-ins rewritten as definitions, `hani2 scores list/show/check` | `evaluation/scores.py`, `projects.py` (`DEFAULT_KEYS`), `server.py` (admin CRUD for scores), `cli.py` | `tests/test_scores_defined.py` (weights, missing policies, coverage drop, nested scores, built-ins unchanged against today's values) | Project management §4 (defining and enabling scores); Study management §11 |
+| **7. Boards and API** | The `leaderboard` block (project, study override, validation), `evaluation/boards.py` (§8.1 rules, `rank_by`, strata, includes, caps, minimums), the eval cache and `hani2 leaderboard refresh/judge`, the public and admin pages' API `GET /api/v1/projects/{p}[/studies/{s}]/leaderboard` and `/api/v1/leaderboards`, API-token auth, `visibility`, the group-file keys `entrant`, `own` and `han_year`, `hani2 project export` | new `evaluation/boards.py`, `evaluation/tracks.py` (`rank_by`, the `game` board), `projects.py`, `server.py`, `sso.py` (`verify_api_token`), `groups.py`, `results.py`, `cli.py` | new `tests/test_boards.py` (game rules, sort options, 400 for options not allowed, same result for the page and the API), `tests/test_server.py` (401/403/400), `tests/test_sso.py` (audience separation), `tests/test_groups_and_assignment.py` | Project management §5–§7 (boards, the API, connecting a website, a competition year); Study management §11; `authentication.md` (API tokens) |
+| **8. Help mechanism and editor** *(frontend)* | `help_texts.py` and `/api/admin/help`; `Row.help`, `Field.help`, the shared `HelpDialog`; Mode, the HAN picker, Assignment, Pairing, the score builder, Scores enabled and Leaderboard settings in `Projects.tsx`; the generated settings reference; rebuild `src/hani2/web` | `src/hani2/help_texts.py`, `server.py`, `frontend/src/admin/{Row,schema}.tsx`, `frontend/src/ui/HelpDialog.tsx`, `frontend/src/negotiate/ToolPane.tsx`, `frontend/src/admin/pages/Projects.tsx`, new `frontend/src/admin/ScoreBuilder.tsx`, `src/hani2/web/**` | `tests/test_admin_api.py` (help coverage), `frontend/tests/help.test.mjs`, `frontend/tests/weights.test.mjs` (sum and Normalise), `tests/e2e` (open a `?`, build a score, save a contradiction and get a 400) | The Settings reference (generated); `admin.md`; screenshots in both management pages |
+| **9. Leaderboard pages** *(frontend, after WP8)* | The end-user pages `/s/<p>/leaderboard` and `/s/<p>/<s>/leaderboard` (only the switches allowed), and Admin → Leaderboards (everything, strata, exclusions, weights in effect); rebuild `src/hani2/web` | new `frontend/src/pages/Leaderboard.tsx`, `frontend/src/admin/pages/Leaderboards.tsx`, `Sidebar.tsx`, `router.ts`, `server.py` (the page routes), `src/hani2/web/**` | `tests/e2e` (switch sort options and games; a hidden switch is not shown; visibility) | Project management §5 (the pages, as end users see them) |
 | **10. scmlweb** *(other repo, after WP7)* | Seed `HI2027` and `HAN2027` (copy if missing), move the games into them, read the project board API for the active project (scmlweb's configuration) as the default HI board, with the Tournament tab; write `entrant` and `own` | scmlweb | scmlweb's | scmlweb's |
 
-WP1 → WP7 are backend only and in dependency order. WP5 and WP6 do not need WP3 or WP4 and could
+WP0 comes first, so every later package writes into the new pages. WP1 → WP7 are backend only and in dependency order. WP5 and WP6 do not need WP3 or WP4 and could
 run right after WP1, but WP7 needs all of them. WP8 starts after WP7, because its editors need the
 scores and leaderboard keys. If the editor is wanted earlier, WP8 can be split: the help mechanism
 plus Mode, HAN, Assignment and Pairing after WP3, and the score and leaderboard editors after WP7.
@@ -892,7 +1017,7 @@ WP9 follows WP8.
 
 ---
 
-## 12. Decisions for the user
+## 13. Decisions for the user
 
 Each question has a recommended answer.
 
@@ -921,3 +1046,4 @@ Each question has a recommended answer.
 | D21 | Who owns the files of `HI2027` and `HAN2027` after scmlweb creates them? | **scmlweb seeds them (copies only missing files), then hani2's editor owns them.** `hani2 project export` writes them back for scmlweb's repository |
 | D22 | Should the games move into the year projects (`HI2027/play`, `HAN2027/play`), so that one project board pools the game and the Prolific studies? | **Yes.** The 2026 `hi-game` and `han-game` stay for the history |
 | D23 | Default visibility of a project board in hani2? | **`participants`** (signed-in users), and `public` for HI2027 and HAN2027 once you are happy with them |
+| D24 | Docs: two new pages (Project management, Study management) that replace `projects.md` and `studies.md`, with generated reference pages under the same nav section, and `mkdocs build --strict` in the tests? | **Yes**, done as WP0 before any feature, so each feature documents itself in the right place |
