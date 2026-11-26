@@ -312,9 +312,9 @@ def builtin_description(kind: str, key: str) -> str:
     k = key.strip().lstrip(":").lower()
     d = BUILTIN_DESCRIPTIONS.get((check_kind(kind), k))
     if d is None and check_kind(kind) == OPPONENT:
-        from hani2.agents import HAN_GROUP_DESCRIPTIONS
+        from hani2.agents import han_group_description
 
-        d = HAN_GROUP_DESCRIPTIONS.get(k)
+        d = han_group_description(k)
     return d or ""
 
 
@@ -322,9 +322,12 @@ def builtin_keys(kind: str) -> list[str]:
     kind = check_kind(kind)
     if kind == ASSISTANT:
         return ["default", "tutorial"]
-    from hani2.agents import AGENT_GROUPS
+    from hani2.agents import AGENT_GROUPS, han_group_keys
+    from hani2.study_modes import han_token
 
-    return [k.lstrip(":") for k in AGENT_GROUPS] + ["notext", "pan", "custom"]
+    # the HAN keys of the years some source covers (the current year from its submissions)
+    keys = [k.lstrip(":") for k in AGENT_GROUPS if han_token(k) is None] + han_group_keys()
+    return list(dict.fromkeys(keys + ["notext", "pan", "custom"]))
 
 
 def builtin_members(kind: str, key: str) -> list[str] | None:

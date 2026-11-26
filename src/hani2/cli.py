@@ -240,7 +240,7 @@ def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
-    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan; with hani2[han]: :han2026-all, :han2026-qualified, :han2026-finalists, :han2026-winners), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan; with hani2[han]: :han2026-all, :han2026-qualified, :han2026-finalists, :han2026-winners; the year of han.current_year comes from its submissions), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant: on (everyone), off (nobody), auto (admins only), or an Assistant class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     assistants: Annotated[Optional[str], typer.Option("--assistants", help="Assistant pool: comma-separated Assistant classes and/or Assistant groups (:default, :tutorial, or a group file's key). With more than one, each human keeps one Assistant, balanced across the humans of a study.")] = None,
@@ -1336,6 +1336,7 @@ def project_show(name: str):
 
     mode = study_modes.resolve_project(name)
     _echo_mode(mode)
+    _echo_han_sources(pr.defaults.get("opponents"))
     for e in dict.fromkeys([*pr.errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     for st in projects.list_studies(name):
@@ -1399,6 +1400,16 @@ def _echo_mode(info) -> None:
         typer.echo("  pairing (in use):")
         for k, v in info.pairing_effective.items():
             typer.echo(f"    {k}: {v}" + ("" if k in info.pairing else "  (default)"))
+
+
+def _echo_han_sources(pool) -> None:
+    """Where each ``:han<year>-<set>`` entry of a pool comes from."""
+    from hani2 import han_submissions, study_modes
+
+    for tok in study_modes.items(pool):
+        ht = study_modes.han_token(tok)
+        if ht is not None:
+            typer.echo(f"  {tok}: {han_submissions.source_text(ht[0])}")
 
 
 def _scheduling_options(opponents: Optional[str], assistants: Optional[str], scenarios: Optional[str]) -> Optional[dict]:
@@ -1467,6 +1478,7 @@ def study_show(
 
     mode = study_modes.resolve(r)
     _echo_mode(mode)
+    _echo_han_sources(projects.setting("opponents", None, ref=r))
     for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)
@@ -1503,6 +1515,73 @@ def groups_list(
             typer.echo(f"      members: {shown or '-'}")
             if g.get("assistant"):
                 typer.echo(f"      assistant: {g['assistant']}")
+
+
+han_app = typer.Typer(help="HAN agents of the current year, from the submitted zips (han.current_year, han.submissions).")
+app.add_typer(han_app, name="han")
+
+
+def _han_year(year: Optional[int]) -> int:
+    from hani2 import han_submissions
+
+    y = year if year is not None else han_submissions.current_year()
+    if y is None:
+        raise typer.BadParameter("give --year, or set han.current_year in env.json", param_hint="--year")
+    return y
+
+
+@han_app.command("import")
+def han_import(
+    year: Annotated[Optional[int], typer.Option("--year", help="The year (default: han.current_year).")] = None,
+    check: Annotated[bool, typer.Option("--check/--no-check", help="Check, in a separate process, that each class imports.")] = True,
+):
+    """Unpack each zip of a year's submissions index into its own new folder (nothing in it runs
+    while unpacking) and make it the entrant's current version. A new upload gets a new folder."""
+    from hani2 import han_submissions
+
+    y = _han_year(year)
+    if han_submissions.submissions_dir(y) is None:
+        raise typer.BadParameter(f"han.submissions has no folder for {y} in env.json", param_hint="--year")
+    results, problems = han_submissions.import_year(y, check=check)
+    for p in problems:
+        typer.secho(f"ERROR: {p}", fg="red")
+    for r in results:
+        line = f"{r.entrant:24s} {r.status:10s} {r.sha256[:12]}"
+        typer.secho(line + (f"  {r.message}" if r.message else ""), fg="red" if r.status == "error" else None)
+    ok = sum(r.status != "error" for r in results)
+    typer.echo(f"{ok} of {len(results)} entries ready in {han_submissions.import_root() / str(y)}")
+    if problems or ok < len(results):
+        raise typer.Exit(1)
+
+
+@han_app.command("check")
+def han_check(
+    year: Annotated[Optional[int], typer.Option("--year", help="The year (default: han.current_year).")] = None,
+    import_check: Annotated[bool, typer.Option("--import-check/--no-import-check", help="Import each class again (in a separate process).")] = True,
+):
+    """List a year's entries, their sets, their imported version and whether each class imports;
+    report zips the index does not list and module names two entrants share."""
+    from hani2 import han_submissions
+
+    y = _han_year(year)
+    rep = han_submissions.check_year(y, import_check=import_check)
+    typer.echo(f"HAN {y}: {han_submissions.source_text(y)}")
+    for p in rep["problems"]:
+        typer.secho(f"  ERROR: {p}", fg="red")
+    bad = bool(rep["problems"])
+    for r in rep["entries"]:
+        imp = {True: "imports", False: "DOES NOT IMPORT", None: "-"}[r["imports"]]
+        typer.echo(f"  {r['entrant']:24s} {','.join(r['sets']):32s} {r['version'][:12] or '-':12s} {imp:15s} {r['class']}")
+        for p in r["problems"]:
+            typer.secho(f"      {p}", fg="red")
+            bad = True
+    for z in rep["unlisted_zips"]:
+        typer.secho(f"  zip not in the index: {z}", fg="yellow")
+    for mod, who in rep["module_clashes"].items():
+        typer.secho(f"  module {mod!r} is used by {', '.join(who)}: only one of them can be loaded per server process",
+                    fg="yellow")
+    if bad:
+        raise typer.Exit(1)
 
 
 scheduling_app = typer.Typer(help="List the scheduling methods for opponents, Assistants and scenarios.")

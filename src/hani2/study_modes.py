@@ -257,6 +257,8 @@ def check_settings(settings: dict[str, Any], kind: str = "none", *, explicit_fal
         info.errors.append(f"{pre}pairing.fallback is {fb!r} but human_opponent_fallback is "
                            f"{str(explicit_fallback).lower()} (fallback: wait is human_opponent_fallback: "
                            f"false); keep one")
+    info.errors += [pre + p for p in han_year_problems(opponents)]
+    info.errors += [pre + p for p in han_year_problems(pairing.get("fallback_opponents"), "pairing.fallback_opponents")]
     mode = info.declared
     if mode is None:
         return info
