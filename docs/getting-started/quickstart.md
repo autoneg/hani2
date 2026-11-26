@@ -93,7 +93,7 @@ Each offer appears in the thread as a bubble: yours on the right, your opponent'
 
 When the negotiation ends, the action dock shows "Agreement reached" with the agreed deal, or "No agreement" with the reason (time ran out, you ended it, or your opponent ended it), and a gauge of your final utility. Press **Next negotiation** to load the next scenario.
 
-If a per-negotiation questionnaire is configured, it appears before the next negotiation (see [Study management](../guide/study-management.md)).
+If a per-negotiation questionnaire is configured, it appears before the next negotiation (see [Per-negotiation questionnaires](../guide/study-management.md#per-negotiation-questionnaires)).
 
 ## Tools
 

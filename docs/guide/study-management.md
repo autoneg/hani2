@@ -6,10 +6,10 @@ A study is one data collection inside a [project](project-management.md), with i
 
 1. **Create** the study: `hani2 study create PROJECT/STUDY` (or **New study** on the admin console's [Projects & Studies](admin.md#projects-studies) page). It prints the links to give participants. The project is created when it is missing.
 2. **Configure** it: `study.yaml` and its overrides of the project's defaults (see [`study.yaml` and overrides](#studyyaml-and-overrides)), its texts and forms (see [Forms and questionnaires](#forms-and-questionnaires)) and how it assigns Assistants, opponents and scenarios (see [Assigning Assistants, opponents and scenarios](#assigning-assistants-opponents-and-scenarios)).
-3. **Test** it: open the participant link yourself with a made-up ID, and try a negotiation between two people on one machine with [`hani2 human-trial`](../getting-started/cli.md#hani2-human-trial).
+3. **Test** it: open the participant link yourself (for a Prolific study, see [Testing locally](prolific.md#testing-locally)), and try a negotiation between two people on one machine with [`hani2 human-trial`](../getting-started/cli.md#hani2-human-trial).
 4. **Run** it: start the server (`hani2 --study PROJECT/STUDY` makes it the server's default study) and give out the link.
 5. **Monitor** it: see [Monitoring](#monitoring).
-6. **Close** it: the `end` date in `study.yaml` records when it ended, and its results stay in its own folder (see [Results](#results)).
+6. **Close** it: stop giving out the link. `start` and `end` in `study.yaml` record the study's dates, and its results stay in its own folder (see [Results](#results)).
 
 ## Study types
 

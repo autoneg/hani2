@@ -71,7 +71,7 @@ participant. Options, settings and admin screens use these two names throughout.
 
 | Feature | What it does | Details |
 | --- | --- | --- |
-| Experiments | Self-contained folders with their own settings, scenarios, questionnaires and results. | [Study management](guide/study-management.md) |
+| Experiments | Self-contained folders with their own settings, scenarios, questionnaires and results. | [Experiments](guide/study-management.md#experiments) |
 | Scenario sets | 19 scenario types grouped into sets (HAN2026, MIT2025, PieArena2026, ANL and one per ANL year, IAGO, HAN2027, HI2027, ANAC2027, or your own; sets can include other sets). Pick the set with `hani2 --scenario-set`, `env.json` (per project or study) or, as an admin, on the start screen. | [Scenario sets](guide/scenario-sets.md) |
 | Compositional scenarios | Build scenarios from difficulty factors (number of issues, opposition, ZOPA size, a hidden constraint, a deceptive opponent, time pressure), verify each automatically (ZOPA non-empty, target reachable), sample a balanced set, run an Assistant on it and report scores per factor: where does it fail? `hani2 compose`. | [Compositional scenarios](guide/compositional.md) |
 | Who plays which role | Rules for the participant's role: the scenario's suggested role, a fixed index, preferred role names, alternating or random. | [Which side the participant plays](guide/scenarios.md#which-side-the-participant-plays) |

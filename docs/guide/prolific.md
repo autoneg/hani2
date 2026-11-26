@@ -45,7 +45,7 @@ The practice round is complete only when the participant took at least one actio
 
 ### Questionnaires
 
-The questionnaire configured for the study (see [Study management](study-management.md) and [Study forms](study-forms.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
+The questionnaire configured for the study (see [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) and [Study forms](study-forms.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
 
 ### Scenarios and opponents
 
@@ -129,7 +129,7 @@ The usual HANI2 settings apply too: the opponent pool, scenario pools, `scenario
 
 ## Files written
 
-Prolific participants have the usual result files (see [Study management](study-management.md)) in `<results>/prolific_<PID>/`, plus:
+Prolific participants have the usual result files (see [Results](study-management.md#results)) in `<results>/prolific_<PID>/`, plus:
 
 | File | Content |
 |------|---------|

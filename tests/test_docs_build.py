@@ -1,6 +1,6 @@
 """The documentation builds with ``mkdocs build --strict``: no broken links, no broken anchors
 (``validation.links.anchors: warn`` in ``mkdocs.yml`` turns them into warnings, which strict mode
-makes fatal), no page missing from the nav. Skipped when the docs extras are not installed."""
+makes fatal). Skipped when the docs extras are not installed."""
 
 from __future__ import annotations
 

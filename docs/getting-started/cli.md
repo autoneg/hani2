@@ -299,7 +299,7 @@ The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in
 
 An experiment is a study of the `default` project; these commands keep their earlier behaviour.
 
-Experiments are self-contained studies with their own settings, scenarios and results. See [Study management](../guide/study-management.md).
+Experiments are self-contained studies with their own settings, scenarios and results. See [Experiments](../guide/study-management.md#experiments).
 
 ### `hani2 experiment create`
 

@@ -89,7 +89,7 @@ The module must define the lists `HSHP`, `HSLP`, `LSHP` and `LSLP` of negotiator
 
 A group file `groups/<key>.json` names a pool of opponents. The token `:<key>` expands to the agents in it, and so does a *bare* spec `<key>` (no `:` and no dot) when such a file exists. HANI2 looks for the file in these folders, in order, and the first file found wins:
 
-1. The study's results folder, `<results>/groups/`. `<results>` is `~/negmas/hani2/db` without a study, or the study's `results/` folder (see [Study management](study-management.md)). An outside system (for example a competition website) drops its files here, so its groups always win.
+1. The study's results folder, `<results>/groups/`. `<results>` is `~/negmas/hani2/db` without a study, or the study's `results/` folder (see [Results](study-management.md#results)). An outside system (for example a competition website) drops its files here, so its groups always win.
 2. The study folder, `<study>/groups/`.
 3. The project folder, `projects/<project>/groups/`, shared by all studies of the project. For the `default` project this is the settings folder.
 4. The settings folder, `settings/groups/`, for every project.

@@ -442,7 +442,7 @@ See [Autopilot](autopilot.md).
 
 ## Questionnaires
 
-`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Study management](study-management.md) for the format.
+`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for the format.
 
 ## Environment variables
 

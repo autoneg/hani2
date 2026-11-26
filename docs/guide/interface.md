@@ -326,7 +326,7 @@ Every notification is also kept in the session. The bell in the header shows how
 
 ## Questionnaire
 
-If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Study management](study-management.md) for the file format.
+If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for the file format.
 
 ## Utility by issue
 
