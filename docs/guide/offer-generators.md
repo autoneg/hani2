@@ -137,7 +137,9 @@ the offer area stays usable and you see at once what a generator puts into your 
   not next to the offer area, the offer area has two more buttons next to **Counter-offer**: one
   for the first offer generator (the **Utility Bar**), which also opens the counter-offer editor,
   and **Tools**, a menu of every tool with the offer generators first. Before and after a
-  negotiation the **Tools** menu is there too, for example to read your Preferences.
+  negotiation the **Tools** menu is there too, for example to read your Preferences. In the focus
+  view your Preferences open in the popup by themselves when a negotiation starts, and the view
+  stays the focus view.
 
 ![The Utility Bar in a popup, opened from the offer area in the simple view: the picked deal is in the counter-offer](../assets/screens/tool-popup.png)
 

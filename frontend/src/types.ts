@@ -176,7 +176,8 @@ export interface SessionState {
   history: HistoryItem[];
   tools: ToolInfo[];
   active_tabs: Record<string, string | null>;
-  reveal?: { tool: string; pane: string; seq: number } | null;
+  /** reveal a tool (the participant's preferences at the start); ``popup``: in the popup (focus view) */
+  reveal?: { tool: string; pane: string; seq: number; popup?: boolean } | null;
   prefs: Record<string, Json>;
   settings: Record<string, Json>;
   highlights: Highlight[];

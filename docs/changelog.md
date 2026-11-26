@@ -20,6 +20,8 @@
   page usable. Outside the full view the offer area gets a button for the first offer generator and
   a **Tools** menu that opens any tool, generators first, in the popup. See
   [Tools in a popup](guide/offer-generators.md#tools-in-a-popup).
+- **The focus view stays the focus view.** When a negotiation starts there, the participant's
+  Preferences open in the popup instead of switching the page to the full view.
 - **`ui.range_bar`**, a click-or-drag range input for tools, with optional density columns, an
   overlay line and marks.
 

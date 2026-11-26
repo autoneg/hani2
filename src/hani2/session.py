@@ -2408,8 +2408,8 @@ class NegotiationSession:
         """When a negotiation starts the participant must see their own
         preferences: bring the Preferences tool to the front of its pane, make
         sure that pane is not collapsed, and tell the browser to reveal it
-        (open the tool tray on tablets, switch to Tools on phones, leave the
-        focus view)."""
+        (open the tool tray on tablets, switch to Tools on phones; in the
+        focus view, open it in the popup and stay in the focus view)."""
         from hani2.tools.builtin import PreferencesTool
 
         tool = next((t for t in self.tools if isinstance(t, PreferencesTool)), None)
@@ -2428,14 +2428,12 @@ class NegotiationSession:
             region = "side" if st["pane"] == "side" else "tools"
             collapsed = [c for c in (self.layout.get("collapsed") or []) if c != region]
             self.layout["collapsed"] = collapsed
-            if self.layout.get("view") == "focus" and not self.view_locked():
-                self._switch_view("full")
-                st = self.tool_state(tool)
-                st["visible"] = True
-                self.active_tabs[st["pane"]] = tool.name
-                self.active_tabs["all"] = tool.name
+            # the focus view stays the focus view: the preferences open in the popup over it
+            popup = self.layout.get("view") == "focus"
+            if popup:
+                self.active_tabs["popup"] = tool.name
             self._reveal_seq = getattr(self, "_reveal_seq", 0) + 1
-            self.reveal = {"tool": tool.name, "pane": st["pane"], "seq": self._reveal_seq}
+            self.reveal = {"tool": tool.name, "pane": st["pane"], "seq": self._reveal_seq, "popup": popup}
         try:
             tool.refresh()
         except Exception:

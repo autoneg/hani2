@@ -1,1 +1,0 @@
-import{c as e}from"./index-EgugQHiT.js";const t={name:"panels-right-bottom",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 15h12",key:"1wkqb3"}],["path",{d:"M15 3v18",key:"14nvp0"}]]};t.node;const a=e(t);export{t as __iconData,a as default};

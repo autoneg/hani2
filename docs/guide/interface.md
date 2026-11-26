@@ -36,7 +36,7 @@ The layout menu offers four views. The current view is part of the session state
 | --- | --- |
 | `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility Bar and the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
 | `simple` | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
-| `focus` | The thread and action dock only. Opening a tool (or the start of a negotiation revealing the participant's preferences) brings the tools back. |
+| `focus` | The thread and action dock only. The action dock's **Tools** menu (and its button for the first offer generator) opens any tool in a [popup](#open-in-a-popup); when a negotiation starts, the participant's preferences open there, and the view stays the focus view. |
 | `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
 
 ![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
@@ -128,8 +128,9 @@ On a phone the popup is a sheet along the top of the screen. Opening and closing
 ### Your preferences when the negotiation starts
 
 When a negotiation starts, your **Preferences** tool comes into view: it becomes the active tab of
-its pane (and is shown again if it was hidden), a collapsed tools column opens, and the focus view
-switches to the full view. On a tablet in portrait the tools tray opens, and on a phone the
+its pane (and is shown again if it was hidden) and a collapsed tools column opens. In the focus
+view it opens in the [popup](#open-in-a-popup) instead, and the view stays the focus view (close
+the popup with **×** or **Esc**). On a tablet in portrait the tools tray opens, and on a phone the
 **Tools** tab opens; tap **Negotiate** to return to the offer.
 
 ### Move, hide and restore

@@ -452,9 +452,8 @@ def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
     p = new_page(viewport={"width": 1400, "height": 900})
     p.goto(f"/play?view={view}")
     start(p)
-    if view == "focus":  # starting shows the participant's preferences (in the full view): go back to focus
-        p.get_by_role("button", name="Layout").click()
-        p.get_by_role("menuitem", name=re.compile("^Focus")).or_(p.get_by_role("button", name=re.compile("^Focus"))).first.click()
+    if view == "focus":  # the start reveals the participant's preferences in the popup, and focus stays
+        expect(p.get_by_test_id("tool-popup")).to_have_attribute("aria-label", "Preferences (popup)")
         expect(p.locator("[data-region=tools]")).to_have_count(0)
     gen = p.get_by_test_id("launch-generator")
     expect(gen).to_have_text(re.compile("Utility Bar"))

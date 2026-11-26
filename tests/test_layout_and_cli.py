@@ -23,13 +23,24 @@ def test_own_preferences_are_revealed_on_start(hani2_home):
     others = [t.name for t in s.tools if s.tool_state(t)["pane"] == st["pane"] and t.name != "Preferences"]
     if others:
         s.active_tabs[st["pane"]] = others[0]
-    s.set_layout(view="focus", collapsed=["tools"])
+    s.set_layout(collapsed=["tools"])
     s.start()
     assert st["visible"]
     assert s.active_tabs[st["pane"]] == "Preferences" and s.active_tabs["all"] == "Preferences"
     assert s.layout["view"] == "full" and "tools" not in s.layout["collapsed"]
     snap = s.snapshot()
-    assert snap["reveal"]["tool"] == "Preferences"
+    assert snap["reveal"]["tool"] == "Preferences" and not snap["reveal"]["popup"]
+    s.end()
+
+
+def test_focus_view_reveals_the_preferences_in_the_popup(hani2_home):
+    s = make_session()
+    s.set_layout(view="focus")
+    s.start()
+    assert s.layout["view"] == "focus"  # the view is kept
+    assert s.active_tabs["popup"] == "Preferences" and "Preferences" in s.shown_tool_names()
+    reveal = s.snapshot()["reveal"]
+    assert reveal["tool"] == "Preferences" and reveal["popup"]
     s.end()
 
 

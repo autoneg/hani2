@@ -1,0 +1,1 @@
+import{c as e}from"./index-BslAo2_g.js";const t={name:"text-align-justify-start",size:24,node:[["path",{d:"M3 5h18",key:"1u36vt"}],["path",{d:"M3 12h18",key:"1i2n21"}],["path",{d:"M3 19h10",key:"ctrkv9"}]]};t.node;const n=e(t);export{t as __iconData,n as default};
