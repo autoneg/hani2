@@ -62,7 +62,7 @@ function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: numb
         {h.offer && h.utility !== null && h.utility !== undefined && (
           <div className="min-w-[11rem]">
             <div className="mb-0.5 text-[11px] text-muted">Worth to you</div>
-            <Gauge value={h.utility} reserved={reserved} party={tone} size="sm" />
+            <Gauge value={h.utility} reserved={reserved} party={tone} size="sm" parts={h.utility_parts} />
           </div>
         )}
         {!h.offer && !h.text && <div className="text-xs italic text-muted">No offer</div>}

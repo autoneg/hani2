@@ -167,6 +167,7 @@ const PREF_DEFAULTS: FieldGroup = {
   fields: [
     { id: "pref-show-history", path: "interface.prefs.show_history", label: "Show the whole history", type: "toggle" },
     { id: "pref-show-human-offers", path: "interface.prefs.show_human_offers", label: "Show the participant's offers in the history", type: "toggle" },
+    { id: "pref-color-utility", path: "interface.prefs.color_utility_by_issue", label: "Colour the utility bars by issue", hint: "Each issue's share of the value, most important first; linear additive preferences only, and only when the participant knows their utilities and weights", type: "toggle", keywords: "color colour segments stacked issues weights utility bar gauge" },
     { id: "pref-last-on-top", path: "interface.prefs.last_offer_on_top", label: "Newest offer on top", type: "toggle" },
     { id: "pref-offer-panel", path: "interface.prefs.offer_panel_always_visible", label: "Keep the offer editor open", type: "toggle" },
     { id: "pref-offer-display", path: "interface.prefs.offer_display", label: "Offers shown as", type: "select", options: [{ value: "text", label: "Sentences" }, { value: "table", label: "Issue chips" }] },

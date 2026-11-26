@@ -206,7 +206,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `participant_settings.<key>` | all `true` | Whether participants may change this. Off: the control is not shown and the server refuses the change. Administrators may always change everything (their settings drawer marks what participants do not see). |
-| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
+| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
 | `view` | `full` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
@@ -216,7 +216,7 @@ The `participant_settings` keys:
 
 | Key | Controls |
 | --- | --- |
-| `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
+| `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
 | `show_scenario_picture` | **Show the scenario's picture** in the settings drawer and the *Picture* switch of the *Scenario Info* tool. |
 | `scenario_picture_style` | **Scenario picture** in the settings drawer and the style menu of the *Scenario Info* tool. |
 | `open_scenario_description` | **Open the full scenario description**. |
