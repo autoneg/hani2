@@ -63,11 +63,27 @@ defaults:                  # every study of the project starts from these
   scenario_set: HI2027
   role_rule: auto
   strict_scenarios: true   # only saved scenarios; a missing pool is an error
+  force_reserved_value: 0  # every party's value on disagreement, in every negotiation
   opponents: [BoulwareTBNegotiator]
 sponsor: ACME              # any other key is available to texts as {{project_sponsor}}
 ```
 
 `full_name`, `short_description`, `link`, `year`, `organizer`, `contact` and any key you add yourself fill the [text variables](study-management.md#texts-with-variables) of every study of the project.
+
+### Forcing the value on disagreement
+
+`force_reserved_value` gives every party (the participant and the opponent) the same value on
+disagreement in every negotiation of a project or study, whatever each scenario says. It is unset by
+default, and then every scenario keeps its own values. Set it in `project.yaml` (for all the
+project's studies) or `study.yaml` (for one study; a study's value wins, and `0` is a value, not
+"unset"). The number is on the scenario's utility scale: 0 to 1 for normalised scenarios, so `0`
+means that any agreement is at least as good as none. In the console it is *Forced value on
+disagreement* under *Projects*; the field starts empty (each scenario's own values), and its − button
+sets it to 0.
+
+The forced value is applied in memory when a scenario loads: saved scenarios are never changed, the
+recorded scenario of each negotiation carries the value that was played, and the basic scenario info
+records it as `forced_reserved_value`.
 
 A setting given twice in `project.yaml` with different values (at the top level and again under `defaults:`) is refused when the file is saved through the admin API or the command line, and reported (server log, `hani2 project show`) when a hand-edited file has it; the value under `defaults:` is then used.
 
@@ -81,7 +97,7 @@ A study starts from its project:
 
 ## Defaults for its studies
 
-The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), and `scheduling` (how each study assigns them, see [Assignment](#assignment)).
+The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `force_reserved_value` (every party's value on disagreement in every negotiation of the study, whatever the scenario says, see [Forcing the value on disagreement](#forcing-the-value-on-disagreement)), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), and `scheduling` (how each study assigns them, see [Assignment](#assignment)).
 
 A study changes any of them under `overrides:` in its `study.yaml`.
 

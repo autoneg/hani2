@@ -14,10 +14,16 @@ they mean.
 
 The Preferences tool also shows, for every scenario:
 
-- **In short** (always visible, at the top): the preferences in two or three
-  sentences, such as the issues that matter most and least and their weights.
-- **Hints** (below the charts): the hints of the participant's role and, for
-  every issue, what the participant wants in plain words. The sentence follows
+- **In short** (at the top; clicking its title folds it away, and it stays
+  folded while the tool updates): the preferences in two or three sentences,
+  such as the issues that matter most and least and their weights, followed by
+  the hints below.
+- **Hints** (inside *In short*): the hints of the participant's role and, for
+  every issue, what the participant wants in plain words. After each sentence
+  an icon, as tall as the text, shows the direction at a glance: a green arrow
+  up (the more, the better), a red arrow down (the less, the better) or two
+  blue arrows meeting at a line (best at one value). Unordered options and
+  "worst at …" issues get no icon. The sentence follows
   the shape of the issue's value function: "The higher, the better (every step
   is worth the same).", "The lower, the better.", "Best at 5 days; the further
   away from it, the worse.", "Worst at …; the further away from it, the
@@ -26,11 +32,25 @@ The Preferences tool also shows, for every scenario:
   only part of their preferences ([Who knows what](information.md)) sees no
   hints.
 
+## Weights as a donut or a bar
+
+Issue weights are drawn as a donut by default. A thin horizontal bar, split
+into one segment per issue, takes much less room: set `tools.weights_chart` to
+`bar` in `env.json` (in the settings folder, a project or a study), or choose
+*Issue weights shown as* on the console's **Tools** page. Each segment shows
+its share when it fits, and the legend under the bar names every issue with
+its share. Signed weights (linear preferences with negative weights) are always
+drawn as signed bars.
+
+```json
+{"tools": {"weights_chart": "bar"}}
+```
+
 ## Supported types
 
 | Utility function | What is shown |
 | --- | --- |
-| `LinearAdditiveUtilityFunction`, `LinearUtilityAggregationFunction` | Issue weights (donut), the value of each option of the selected issue, the starting amount if not zero |
+| `LinearAdditiveUtilityFunction`, `LinearUtilityAggregationFunction` | Issue weights (donut or bar, see below), the value of each option of the selected issue, the starting amount if not zero |
 | `LinearUtilityFunction`, `AffineUtilityFunction` | Signed weight per numeric issue, the formula, the starting amount |
 | `GLAUtilityFunction` | Weight of each factor; for the selected factor its value function, or a heatmap for two small discrete issues |
 | `PAUtilityFunction`, `GPAUtilityFunction` | Table of polynomial terms (coefficient and product of factors) and the value functions |

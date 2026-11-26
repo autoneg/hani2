@@ -585,3 +585,24 @@ def test_pools_store_library_items_as_specs(admin, studies):
     admin.put("/api/admin/pools/assistant?layer=study:HI2027/hi-01", json={"items": ["@tutorial"]})
     b = admin.get("/api/admin/projects/HI2027/studies/hi-01/balance").json()
     assert b["group"] == "tutorial" and len(b["pool"]) == 10
+
+
+def test_compact_preferences_and_layout_settings_round_trip(admin, studies):
+    """The forced value on disagreement (0 is a value), the weights chart, the start view and the
+    simple view's tools side, saved through the admin API, read back and taking effect."""
+    from hani2.testing import make_session
+
+    r = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
+    r["overrides"] = {**(r.get("overrides") or {}), "force_reserved_value": 0}
+    assert admin.put("/api/admin/projects/HI2027/studies/hi-01", json={"data": r}).status_code == 200
+    back = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
+    assert back["overrides"]["force_reserved_value"] == 0
+    body = {"tools": {"weights_chart": "bar"}, "interface": {"view": "full", "simple_tools_side": "left"}}
+    assert admin.patch("/api/admin/settings/env?study=HI2027/hi-01", json=body).status_code == 200
+    s = make_session(study="HI2027/hi-01")
+    assert all(float(u.reserved_value) == 0.0 for u in s.scenario.ufuns)
+    assert s.layout["view"] == "full" and s.snapshot()["layout"]["tools_side"] == "left"
+    with projects.use_study("HI2027/hi-01"):
+        from hani2.tools.ufun_views import weights_chart
+
+        assert weights_chart() == "bar"

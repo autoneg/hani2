@@ -204,8 +204,9 @@ What participants may adjust themselves, the defaults of their own settings, and
 | `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
-| `view` | `full` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
+| `view` | `simple` | The view a session starts in: `simple`, `full`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
 | `view_locked` | `false` | `true`: participants and the Assistant cannot leave that view (administrators still can). Use it with `view: bare` for a no-tools condition. |
+| `simple_tools_side` | `right` | Where the tools column goes in the simple view: `right` or `left` of the negotiation. |
 
 The `participant_settings` keys:
 
@@ -318,6 +319,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.extra` | Extra tool classes, as `"module:Class"`, `"module.Class"` or `"path/to/file.py:Class"`. |
 | `tools.paths` | Extra folders (or `.py` files) to load tools from, besides `$HANI2_HOME/tools`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
+| `tools.weights_chart` | How the Preferences tool draws issue weights: `donut` (default) or `bar` (one thin horizontal bar, saves space). See [Weights as a donut or a bar](preferences.md#weights-as-a-donut-or-a-bar). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |

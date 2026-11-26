@@ -106,10 +106,15 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     "prefs": {k: v for k, v in USER_PREFS.items() if v is not None},
     "notifications": {"toast_seconds": 6, "center": True},
     # the view a session starts in (full | simple | focus | bare); ``?view=`` in the URL wins
-    "view": "full",
+    "view": "simple",
     # true: nobody but an admin may leave that view (not the participant, not the Assistant)
     "view_locked": False,
+    # where the tools go in the simple view: right or left of the negotiation
+    "simple_tools_side": "right",
 }
+
+#: The sides the tools can take in the simple view (env.json → interface.simple_tools_side).
+TOOLS_SIDES = ("right", "left")
 
 #: Where the open Assistant goes: ``beside`` the page (a dock or a slide-over) or over the
 #: ``tools`` area, in the open tool's place (assistant_settings.json → ``presentation.place``).
@@ -403,7 +408,7 @@ class NegotiationSession:
             "user_agent": user_agent,
             "view_mode": self.layout["view"],
             "view_source": "query" if self.query.get("view") in LAYOUT_VIEWS else (
-                "study" if self.interface_policy().get("view") not in (None, "full") else "default"),
+                "study" if self.interface_policy().get("view") not in (None, DEFAULT_INTERFACE["view"]) else "default"),
             "negotiation_running": False,
         }
         self.ss["actions"] = self._make_actions()
@@ -608,7 +613,12 @@ class NegotiationSession:
         for v in (self.query.get("view"), self.interface_policy().get("view")):
             if v in LAYOUT_VIEWS:
                 return str(v)
-        return "full"
+        return str(DEFAULT_INTERFACE["view"])
+
+    def simple_tools_side(self) -> str:
+        """Where the tools go in the simple view: ``right`` or ``left`` (env.json → interface.simple_tools_side)."""
+        side = str(self.interface_policy().get("simple_tools_side") or "right").lower()
+        return side if side in TOOLS_SIDES else "right"
 
     def view_locked(self) -> bool:
         """Whether the study fixes the view (env.json → interface.view_locked); admins are never locked."""
@@ -1698,6 +1708,10 @@ class NegotiationSession:
                 traceback.print_exc()
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
+            if joined is None:  # (a participant who joins plays the host's scenario, already forced)
+                rv = store.forced_reserved_value(self.study_ref)
+                if store.force_reserved_value(scenario, rv):
+                    info = {**info, "forced_reserved_value": rv}
             self.round_plan = plan
             # a participant who joined plays the waiting participant's scenario (and its type)
             self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype
@@ -3722,7 +3736,8 @@ class NegotiationSession:
                     "text_only_mode", "allow_scenario_selection")},
                 "highlights": list(self.highlights),
                 "annotations": dict(self.annotations),
-                "layout": {**self.layout, **({"locked": True} if self.view_locked() else {})},
+                "layout": {**self.layout, **({"locked": True} if self.view_locked() else {}),
+                           "tools_side": self.simple_tools_side()},
                 "custom_css": self.custom_css or None,
                 "display_overrides": dict(self.display_overrides) or None,
                 "agent_panels": list(self.agent_panels),

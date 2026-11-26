@@ -924,8 +924,9 @@ _CACHE_LOCK = threading.Lock()
 
 
 def _scenario_key(scenario: Any, scenario_dir: str | None, info: dict | None) -> str:
+    forced = (info or {}).get("forced_reserved_value")  # a study's forced value changes the records
     if scenario_dir:
-        return f"dir:{scenario_dir}"
+        return f"dir:{scenario_dir}" + (f"|rv={forced}" if forced is not None else "")
     return f"gen:{(info or {}).get('scenario_type')}:{(info or {}).get('index')}:{id(scenario)}"
 
 

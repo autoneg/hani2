@@ -187,6 +187,9 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer }: { titl
       </Row>
       <Row label="Strict scenarios" hint="strict_scenarios: serve saved scenarios only; a missing or broken pool is an error, never a generated scenario">{tri("strict_scenarios")}</Row>
       <Row label="Simple scenarios" hint="simple_scenarios: generate scenarios with round numbers and linear or symmetric preferences, and serve only saved scenarios generated that way">{tri("simple_scenarios")}</Row>
+      <Row label="Forced value on disagreement" hint="force_reserved_value: every party's value on disagreement in every negotiation, whatever the scenario says (0 to 1 on normalised scenarios). Empty: each scenario's own values">
+        <Stepper label="Forced value on disagreement" value={v.force_reserved_value ?? null} nullable placeholder={inherit.toLowerCase()} step={0.05} min={0} onChange={(x) => put("force_reserved_value", x)} />
+      </Row>
       <Row label="Counted negotiations" hint="n_required: negotiations per participant">{num("n_required")}</Row>
       <Row label="Practice round" hint="A first negotiation that does not count">{tri("practice")}</Row>
       <Row label="Practice time limit (s)">{num("practice_time_limit", 30)}</Row>

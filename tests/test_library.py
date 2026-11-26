@@ -486,7 +486,7 @@ def test_placement_per_view_in_sessions(hani2_home, monkeypatch):
     monkeypatch.setattr(ValueHistogramTool, "placement", {"simple": {"pane": "upper", "visible": False}},
                         raising=False)
     library.put_placement({"Trace": {"simple": {"pane": "side"}, "full": {"order": 3}}})
-    s = make_session()
+    s = make_session(query={"view": "full"})
     s.start()
     st = {t.name: s.tool_state(t) for t in s.tools}
     assert st["Value Histogram"]["pane"] == "lower" and st["Value Histogram"]["visible"]

@@ -16,7 +16,7 @@ def test_sizes_are_sanitised(hani2_home):
 
 
 def test_own_preferences_are_revealed_on_start(hani2_home):
-    s = make_session()
+    s = make_session(query={"view": "full"})
     prefs = next(t for t in s.tools if t.name == "Preferences")
     st = s.tool_state(prefs)
     st["visible"] = False

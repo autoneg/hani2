@@ -497,7 +497,7 @@ def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
 
 def test_full_view_opens_a_pane_tool_in_a_popup_and_back(new_page):
     p = new_page(viewport={"width": 1400, "height": 900})
-    p.goto("/play")
+    p.goto("/play?view=full")
     start(p)
     expect(p.get_by_test_id("launch-generator")).to_have_count(0)  # the generators sit next to the offer
     p.get_by_role("button", name="Open Utility Bar in a popup").click()
@@ -513,7 +513,7 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
     """Picking a deal in the Utility-based Selector only fills the counter-offer; its Send offer button
     then sends the deal at once, with the message typed in the message box, and it lands in the history."""
     p = new_page(viewport={"width": 1400, "height": 900})
-    p.goto("/play")
+    p.goto("/play?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="Utility-based Selector").click()
@@ -552,7 +552,7 @@ def test_random_generates_a_deal_and_send_offer_sends_it(new_page):
     """The Random generator (admins): Generate fills the counter-offer, its Send offer sends that deal."""
     p = new_page(viewport={"width": 1400, "height": 900})
     fresh_admin(p)
-    p.goto("/app")
+    p.goto("/app?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="Random").click()
@@ -580,7 +580,7 @@ def test_the_llm_tool_recommends_an_offer_when_nothing_is_typed(new_page):
     """With an empty instruction the LLM tool's button reads Recommend an offer; typing makes it Generate."""
     p = new_page(viewport={"width": 1400, "height": 900})
     fresh_admin(p)
-    p.goto("/app")
+    p.goto("/app?view=full")
     start(p)
     side = p.locator('[data-anchor="pane:side"]')
     side.get_by_role("tab", name="LLM").click()
@@ -604,3 +604,28 @@ def fresh_admin(p) -> str:
     assert p.request.post("/api/auth/logout").ok
     assert p.request.post("/api/auth/login", data={"username": name, "password": "secret1"}).ok
     return name
+
+
+def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
+    """Sessions open in the simple view (tools on the right). The Preferences tool's In short card,
+    on top, holds the hints with an arrow per issue, folds away and stays folded when the tool
+    re-renders (another issue picked)."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    expect(p.locator("[data-region=tools]")).to_have_attribute("data-side", "right")
+    p.get_by_role("tab", name="Preferences").first.click()
+    summary = p.get_by_role("button", name="In short")
+    expect(summary).to_have_attribute("aria-expanded", "true")
+    expect(p.get_by_text("What you want on each issue")).to_be_visible()
+    # one arrow per directional sentence ("the higher, the better", "best at 5", ...); unordered
+    # options ("From best to worst: ...") get none
+    dds = p.locator("[data-region=tools] dd").filter(has_text=re.compile(r"^(The (higher|lower|more|fewer)|Best at)"))
+    assert p.locator("[data-region=tools] [data-mark]").count() == dds.count()
+    summary.click()
+    expect(summary).to_have_attribute("aria-expanded", "false")
+    expect(p.get_by_text("What you want on each issue")).to_have_count(0)
+    issue = p.locator("[data-region=tools] select").first
+    options = issue.locator("option").all_inner_texts()
+    issue.select_option(options[-1])
+    p.wait_for_timeout(800)  # the tool re-renders with the other issue
+    expect(summary).to_have_attribute("aria-expanded", "false")

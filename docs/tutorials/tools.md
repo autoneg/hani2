@@ -518,7 +518,8 @@ Every helper in `hani2.tools.ui` returns a plain dict (a `Component`) that the w
 | `badge(text, kind="neutral")` | A small label. `kind`: `primary`, `success`, `warning`, `error` or `neutral`. |
 | `stat(label, value, *, hint=None, kind=None)` | A tile with a label, a large value and an optional hint. `kind` `success`, `error` or `warning` colours the value. |
 | `stats(*items)` | A responsive row of `stat` tiles. |
-| `kv(data, title=None)` | A two-column list of keys and values from a dict or a list of pairs. |
+| `kv(data, title=None, *, marks=None)` | A two-column list of keys and values from a dict or a list of pairs. `marks` (one per row, or a dict by key) puts an icon as tall as the text after a value: `up` (a green arrow up), `down` (a red arrow down) or `target` (two blue arrows meeting at a point); `None` puts none. |
+| `legend(items)` | A colour key that wraps to the pane's width: one `(label, colour)` or `(label, colour, value)` per entry, for example under a plot without its own legend. |
 | `progress(value, label=None, kind=None)` | A progress bar; `value` from 0 to 1. `kind` `success` or `error` changes the colour. |
 | `outcome(values, utility=None, label=None)` | A compact outcome card: one chip per issue, plus a utility gauge (with the participant's value on disagreement marked) when `utility` is given. |
 | `issue(name, *, widget=None, label=None)` | The default editor field of one issue. Only in a scenario's [custom offer controls](../guide/scenarios.md#showing-offers); elsewhere it renders nothing. |

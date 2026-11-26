@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import math
 import os
 import random
 from copy import deepcopy
@@ -241,6 +242,31 @@ def strict_scenarios(ref: Any = None) -> bool:
 
     kw = {} if ref is None else {"ref": ref}
     return bool(projects.setting("strict_scenarios", False, cast=bool, **kw))
+
+
+def forced_reserved_value(ref: Any = None) -> float | None:
+    """The value on disagreement the current (or ``ref``'s) study gives every party in every
+    negotiation: the ``force_reserved_value`` setting of its ``study.yaml``, else of its
+    project's ``project.yaml``; ``None`` (unset, the default) keeps each scenario's own values.
+    The number is on the scenario's utility scale (0 to 1 for normalised scenarios)."""
+    from hani2 import projects
+
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        v = projects.setting("force_reserved_value", None, cast=float, **kw)
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return None
+    return float(v) if v is not None and math.isfinite(float(v)) else None
+
+
+def force_reserved_value(scenario: Any, value: float | None) -> bool:
+    """Set every party's value on disagreement in ``scenario`` to ``value`` (in memory only:
+    saved scenarios are never changed). ``False`` when ``value`` is ``None``."""
+    if value is None:
+        return False
+    for u in getattr(scenario, "ufuns", None) or ():
+        u.reserved_value = float(value)
+    return True
 
 
 def simple_scenarios(ref: Any = None, default: Any = None) -> bool:

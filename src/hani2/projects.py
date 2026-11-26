@@ -42,6 +42,7 @@ DEFAULT_KEYS = (
     "scenario_set", "n_required", "practice", "practice_time_limit", "counted_time_limit", "time_limit",
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
     "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
+    "force_reserved_value",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
