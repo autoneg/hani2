@@ -156,106 +156,11 @@ competition's study:
 
 ## Evaluation criteria and normalisation
 
-A **criterion** is any number HANI2 measures for a negotiation, and that a score can be built
-from:
-
-- every numeric column of every metric (outcomes, behaviour, the judge's ratings, the scales of the
-  bundled questionnaire and the scores themselves);
-- every numeric item (`q_<id>`) and every scale (`scale_<name>`, `scale_<name>_norm`) of the
-  questionnaire a project or study shows after each negotiation;
-- every numeric item and scale of its post-session questionnaire, as `post_q_<id>` and
-  `post_scale_<name>`.
-
-The [Criteria and scores reference](criteria.md) lists every metric column with its direction, its
-default normaliser and its cost. Columns that are labels (`status`, `ended_by`, the factor levels,
-the condition names) cannot be chosen.
-
-**Levels.** Most criteria have one value per game (`negotiation`). A post-session answer has one
-value per person (`participant`). It is credited to the games of that person **only when they used
-one Assistant throughout**, for example in a game or a between-subjects study. When a person used
-several Assistants, as in finals where everyone meets every finalist, the answer cannot be credited
-to any one of them. Such criteria are then marked as not usable for HI scores, with the reason.
-
-**Cost.** `live` criteria are computed when a game ends. `questionnaire` criteria need the
-participant's answers. `judge` criteria need the offline language-model judge (`--llm`). A score
-counts as `judge` as soon as one of its parts does.
-
-### Mapping every value to [0, 1]
-
-Before values are weighted into a score, each one is mapped to $[0, 1]$, where 1 is the best value.
-Every numeric column has a default **normaliser**, and a score may choose another one for any of its
-parts:
-
-| Normaliser | Rule | Default for |
-| --- | --- | --- |
-| `bounded` `[lo, hi]` | $(x - lo)/(hi - lo)$, clipped | columns with known bounds: `[0, 1]`, `0 or 1`, ratings of 1–7, `[−1, 1]`, utilities, every questionnaire item with the bounds of its type (`likert5`, `likert7`, `yes_no`, `select`, `min` / `max`) |
-| `advantage` | clipped to $[0, 1]$: no better than no deal is 0 | `human_advantage`, `opponent_advantage` |
-| `reciprocal` | $s/(s + x)$ | unbounded values where lower is better: counts, seconds, tokens, distances, US dollars |
-| `saturating` | $x/(x + s)$ | unbounded values where higher is better, and unbounded values without a direction |
-| `percentile` | the share of reference games with a lower value (ties count half) | any criterion, on request |
-| `clip` `[lo, hi]` | your own bounds | any criterion, on request |
-
-When the direction is `lower`, each rule is turned around ($1 - \cdot$). `reciprocal` and
-`saturating` are the same rule seen from the two directions, so a count without a direction
-(`n_offers`) becomes `reciprocal` as soon as a score says that fewer is better. Questionnaire items
-marked `reverse: true` are already reversed, so a high value always means more of what the item
-measures. A scale whose items have different ranges has no bounds for its raw mean; use its `_norm`
-column instead.
-
-In project and study files, and in the API, a normaliser is a small mapping:
-
-```yaml
-{kind: bounded, lo: 1, hi: 7}
-{kind: reciprocal, scale: reference_median}    # or a fixed positive number
-{kind: percentile}
-{kind: clip, lo: 0, hi: 600}
-```
-
-### The frozen reference
-
-The scale $s$ of `reciprocal` and `saturating` is the **median** of the criterion in a reference set
-of games, so the median game scores 0.5. When the median is 0 (most games have no error at all),
-the mean is used, and 1 when the mean is 0 too. `percentile` uses the reference's quantiles.
-
-If the reference were simply "all the games so far", every new game would change everyone's past
-scores. A project therefore **freezes** its reference once:
-
-```yaml
-# project.yaml
-defaults:
-  normalisation:
-    reference:
-      studies: [pilot, prolific-01]   # default: every study of the project
-      end: 2027-02-28                 # only games started on or before this day
-```
-
-```bash
-hani2 scores freeze HI2027                       # uses normalisation.reference
-hani2 scores freeze HI2027 --studies pilot --end 2027-02-28
-hani2 scores freeze HI2027 --llm                 # also the judged criteria (may run the judge)
-```
-
-`hani2 scores freeze` evaluates the counted games of those studies: practice rounds and simulated
-participants are left out, unless you add `--include-simulated`. It stores, for every criterion, the
-number of games, the median, the mean, the minimum and maximum, the scale and 101 quantiles in
-`projects/<project>/results/normalisation.json`. The `normalisation` block may also be written at
-the top level of `project.yaml`. Freeze again only when you mean to
-change the scale for everyone. Until a project has a frozen reference, its scales come from the
-current data and are labelled **provisional**.
-
-### Listing the criteria
-
-```bash
-hani2 scores criteria                       # the current study's criteria
-hani2 scores criteria HI2027/play --coverage   # with the share of the study's games that have each value
-```
-
-Admins get the same list from `GET /api/admin/criteria?project=<project>` or
-`?study=<project>/<study>`, with `&coverage=true` for the coverage. Each entry has its `id`, `title`,
-`description`, `source`, `level`, `direction`, `normaliser`, `cost` and `coverage`. The response also
-gives the normaliser kinds and a summary of the project's reference (whether it is frozen, when, from
-which studies and how many games). Coverage is computed from the games without the judge, so judged
-criteria and post-session answers show no coverage (`null`) there.
+Every numeric metric column and every numeric questionnaire answer can be used in a score, after
+it is mapped to $[0, 1]$ (1 = best). How values are mapped, and how a project freezes the reference
+that scales unbounded values, is described in
+[Project management: scores](project-management.md#scores). Every criterion is listed in the
+[Criteria and scores reference](criteria.md).
 
 ## Comparing
 

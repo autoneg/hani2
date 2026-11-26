@@ -326,6 +326,21 @@ the `participant_type` column of every later result. Administrators, playground 
 [simulated participants](simulation.md) never get the pre-questionnaire. A simulated participant's
 type is its persona's difficulty (`simulated-easy`, `simulated-hard`).
 
+### Questionnaire answers in scores
+
+Every numeric answer can be used in a score: `q_<id>` for each item and `scale_<name>` /
+`scale_<name>_norm` for each scale of the per-negotiation questionnaire, and `post_q_<id>` /
+`post_scale_<name>` for the post-session questionnaire. Free-text answers cannot. Each item is mapped to
+$[0, 1]$ using the bounds of its type (`likert5`, `likert7`, `yes_no`, `select`, or `min` / `max`).
+Items marked `reverse: true` are already reversed.
+
+A per-negotiation answer belongs to its game. A post-session answer is given once per person, so it is
+credited to that person's games **only when they used one Assistant throughout**. In a design where
+people meet several Assistants, such as finals where everyone meets every finalist, post-session answers
+cannot be used in HI scores. To rate each Assistant, ask the questions after each negotiation instead.
+See [Project management: scores](project-management.md#scores) and run
+`hani2 scores criteria <project>/<study>` to list a study's criteria.
+
 ## Monitoring
 
 - The admin console's study page (**Projects & Studies**, then the study) shows the number of participants and of recorded negotiations, how many counted humans each Assistant of the pool has, and every assignment (see [Admin console](admin.md#projects-studies)).

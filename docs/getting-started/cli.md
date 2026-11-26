@@ -365,7 +365,7 @@ hani2 replay leaderboard results/ --track hi --llm -o hi.csv   # writes hi_outco
 
 ## `hani2 scores`
 
-The [evaluation criteria](../guide/evaluation.md#evaluation-criteria-and-normalisation) a score can
+The [evaluation criteria](../guide/project-management.md#scores) a score can
 use, and the frozen reference that scales the unbounded ones.
 
 | Command | What it does |

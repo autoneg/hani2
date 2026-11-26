@@ -4,7 +4,7 @@ A **criterion** is any number HANI2 measures for a negotiation: a metric column,
 questionnaire, or a score. Scores combine criteria after mapping each one to $[0, 1]$, where 1 is
 the best value. This page lists every criterion that the built-in metrics provide, with its
 direction, its default normaliser and its cost. How criteria are scaled, and why the reference is
-frozen, is explained in [Evaluation criteria and normalisation](evaluation.md#evaluation-criteria-and-normalisation).
+frozen, is explained in [Project management: scores](project-management.md#scores).
 
 Each criterion has:
 
