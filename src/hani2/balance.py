@@ -10,6 +10,17 @@ plans kept in ``assignments.json``. Its Solo part covers one human per negotiati
 * humans who got one Assistant more than once, humans who completed all K;
 * the crossing rule each human was given (``cross``) and the warnings about the files.
 
+Its Paired part (a study declared ``paired`` or ``mixed``, or one with human-opponent rows or a
+``match_cells.json``) covers the matches between two people:
+
+* the match cells (scenario, Assistant at side 0, Assistant at side 1): completed matches per cell
+  and the planned cells still empty, plus the matches in flight;
+* totals per Assistant (completed matches it played), Assistant × position (from the cell store);
+* pair co-occurrence: how many people used both Assistants of a pair (``used_assistants``);
+* same-Assistant matches, people who used one Assistant more than once;
+* the AI fallbacks (``pairing = fallback``), the Assistants skipped (``fallback: end``) and the
+  people who have not completed K negotiations.
+
 Only the counted humans are included: the people in ``assignments.json`` (not admins, playground
 sessions or simulated participants).
 
@@ -93,6 +104,7 @@ def study_balance(ref: "projects.StudyRef | str") -> dict[str, Any]:
     # the counted humans are the ones assignments.json knows (a study from before it existed: everyone)
     counted_humans = set(data.get("humans", {}))
     people: dict[str, list[dict[str, Any]]] = {}
+    everyone: dict[str, list[dict[str, Any]]] = {}
     paired_rows = 0
     if root.is_dir():
         for d in sorted(p for p in root.iterdir() if p.is_dir()):
@@ -106,6 +118,7 @@ def study_balance(ref: "projects.StudyRef | str") -> dict[str, Any]:
             paired_rows += len(counted) - len(solo)
             if counted:
                 people[d.name] = solo
+                everyone[d.name] = counted
     pool = _pool(r)
     totals: Counter = Counter()
     opp_totals: Counter = Counter()
@@ -169,6 +182,99 @@ def study_balance(ref: "projects.StudyRef | str") -> dict[str, Any]:
         "cross_rules": dict(Counter(str(h.get("cross") or "none") for h in humans.values())),
         "plans": sum(1 for h in humans.values() if isinstance(h.get("assistant_plan"), list)),
         "warnings": list(dict.fromkeys([*errors, *scheduling.study_repeat_problems(r)])),
+        "paired": paired_balance(r, everyone, data, pool, k, paired_rows),
+    }
+
+
+def paired_balance(r: projects.StudyRef, everyone: dict[str, list[dict[str, Any]]], data: dict[str, Any],
+                   pool: list[str], k: int, paired_rows: int) -> dict[str, Any] | None:
+    """The Paired part of the report (``None`` when the study has no Paired side: not declared
+    ``paired`` / ``mixed``, no human-opponent rows and no cell store)."""
+    from hani2 import study_modes
+    from hani2 import scenario_store as store
+
+    try:
+        info = study_modes.resolve(r)
+    except Exception:  # noqa: BLE001
+        info = None
+    cpath = assignment.cells_path(r)
+    mode = info.mode if info is not None else ""
+    if mode not in ("paired", "mixed") and not paired_rows and not cpath.exists():
+        return None
+    pairing = dict(info.pairing_effective) if info is not None else {}
+    cells = assignment.read_cells(r)
+    completed = {key: int(c.get("completed") or 0) for key, c in cells["cells"].items()}
+    same_ok = bool(pairing.get("allow_same_assistant")) or len(pool) < 2
+    expected: list[str] = []
+    if pairing.get("cell_scenario", "type") == "type" and pool:
+        try:
+            with projects.use_study(r):
+                set_name = projects.setting("scenario_set", None, ref=r)
+                types = list(store.scenario_order(set_name))
+        except Exception:  # noqa: BLE001
+            types = []
+        types = types or sorted({assignment.parse_cell(key)[0] for key in completed})
+        for t in types:
+            for a in pool:
+                for b in pool:
+                    if a != b or same_ok:
+                        expected.append(assignment.cell_key(t, a, b))
+    table = {key: completed.get(key, 0) for key in dict.fromkeys([*expected, *sorted(completed)])}
+    totals: Counter = Counter()
+    same = 0
+    for key, n in completed.items():
+        _scen, a0, a1 = assignment.parse_cell(key)
+        totals[a0] += n
+        if a1 != a0:
+            totals[a1] += n
+        elif not assignment.is_no_assistant(a0):
+            same += n
+    assistants = sorted(set(pool) | {a for a in totals if not assignment.is_no_assistant(a)},
+                        key=lambda a: (a not in pool, pool.index(a) if a in pool else 0, a))
+    width = max([k] + [len(v) for v in cells["positions"].values()])
+    positions = {a: [assignment.position_count(cells, a, p) for p in range(width)] for a in assistants}
+    humans = data.get("humans", {})
+    pairs: Counter = Counter()
+    twice: dict[str, list[str]] = {}
+    skipped: dict[str, list[str]] = {}
+    for u, h in humans.items():
+        used = [str(x[0]) for x in h.get("used_assistants") or [] if isinstance(x, (list, tuple)) and x]
+        for x, y in combinations(sorted(set(used)), 2):
+            pairs[(x, y)] += 1
+        rep_ = sorted(a for a, n in Counter(used).items() if n > 1)
+        if rep_:
+            twice[u] = rep_
+        if h.get("skipped_assistants"):
+            skipped[u] = list(h["skipped_assistants"])
+    fallbacks = sum(1 for rows in everyone.values() for x in rows if str(x.get("pairing") or "") == "fallback")
+    with_people = {u: sum(1 for x in rows if str(x.get("opponent_kind") or "") in _HUMAN_KINDS)
+                   for u, rows in everyone.items()}
+    incomplete = sorted(u for u in set(humans) | set(everyone) if len(everyone.get(u, [])) < k)
+    exp_counts = [table[key] for key in expected]
+    return {
+        "mode": mode,
+        "pairing": pairing,
+        "cells": table,
+        "expected_cells": len(expected),
+        "empty_cells": sum(1 for n in exp_counts if n == 0),
+        "matches": sum(completed.values()),
+        "inflight": len(cells["inflight"]),
+        "assistants": assistants,
+        "totals": {a: totals[a] for a in assistants},
+        "positions": positions,
+        "pairs": [{"a": x, "b": y, "n": pairs[(x, y)]} for x, y in combinations(assistants, 2)],
+        "same_assistant_matches": same,
+        "repeats": twice,
+        "skipped": skipped,
+        "fallbacks": fallbacks,
+        "matches_per_person": with_people,
+        "incomplete": incomplete,
+        "spread": {
+            "cells": _spread(exp_counts),
+            "totals": _spread([totals[a] for a in assistants]),
+            "positions": _spread([n for row in positions.values() for n in row[:k]]),
+            "pairs": _spread([pairs[(x, y)] for x, y in combinations(assistants, 2)]),
+        },
     }
 
 
@@ -191,7 +297,65 @@ def _grid(title: str, rows: list[str], cols: list[str], cell) -> list[str]:
 
 
 def render(rep: dict[str, Any]) -> str:
-    """The report as text (``hani2 study balance``)."""
+    """The report as text (``hani2 study balance``): the Solo part, then the Paired part."""
+    out = _render_solo(rep)
+    if rep.get("paired"):
+        out += "\n\n" + render_paired(rep["paired"], rep["study"], rep["k"])
+    return out
+
+
+def render_paired(p: dict[str, Any], study: str, k: int) -> str:
+    """The Paired part as text."""
+    pr = p["pairing"]
+    sp = p["spread"]
+    lines = [f"Study {study}: Paired balance",
+             f"  mode: {p['mode'] or '-'}; pairing: assign {pr.get('assign')}, slack {pr.get('slack')}, "
+             f"cell_scenario {pr.get('cell_scenario')}, allow_same_assistant "
+             f"{str(pr.get('allow_same_assistant')).lower()}, fallback {pr.get('fallback')}",
+             f"  completed matches: {p['matches']}; in flight: {p['inflight']}; AI fallbacks: {p['fallbacks']}; "
+             f"same-Assistant matches: {p['same_assistant_matches']}"]
+    if p["expected_cells"]:
+        lines.append(f"  planned cells: {p['expected_cells']}, still empty: {p['empty_cells']} "
+                     f"(spread over the planned cells: {sp['cells']})")
+    if p["cells"]:
+        lines.append("")
+        lines.append("Match cells (scenario | Assistant at side 0 | Assistant at side 1: completed)")
+        for key, n in p["cells"].items():
+            scen, a0, a1 = assignment.parse_cell(key)
+            lines.append(f"  {scen} | {_short(a0)} | {_short(a1)}: {n}")
+    if p["assistants"]:
+        lines.append("")
+        lines += _grid(f"Completed matches per Assistant (spread {sp['totals']})", p["assistants"], ["n"],
+                       lambda a, _c: p["totals"][a])
+        lines.append("")
+        cols = [str(i + 1) for i in range(len(next(iter(p["positions"].values()), [])))]
+        lines += _grid(f"Assistant x position (spread over positions 1..{k}: {sp['positions']})", p["assistants"],
+                       cols, lambda a, c: p["positions"][a][int(c) - 1])
+    if len(p["assistants"]) > 1:
+        lines.append("")
+        pairs = {(x["a"], x["b"]): x["n"] for x in p["pairs"]}
+        lines += _grid(f"Pair co-occurrence: people who used both (spread {sp['pairs']})", p["assistants"],
+                       p["assistants"], lambda a, b: "-" if a == b else pairs.get((a, b), pairs.get((b, a), 0)))
+    if p["repeats"]:
+        lines.append("")
+        lines.append(f"People who used one Assistant more than once: {len(p['repeats'])}")
+        for u, a in sorted(p["repeats"].items()):
+            lines.append(f"  {u}: {', '.join(_short(x) for x in a)}")
+    if p["skipped"]:
+        lines.append("")
+        lines.append(f"Assistants skipped because nobody could be paired (fallback: end): {len(p['skipped'])} people")
+        for u, a in sorted(p["skipped"].items()):
+            lines.append(f"  {u}: {', '.join(_short(x) for x in a)}")
+    if p["incomplete"]:
+        lines.append("")
+        lines.append(f"People with fewer than {k} counted negotiations (still playing, or left without a partner): "
+                     f"{len(p['incomplete'])}")
+        lines.append("  " + ", ".join(p["incomplete"]))
+    return "\n".join(lines)
+
+
+def _render_solo(rep: dict[str, Any]) -> str:
+    """The Solo part as text."""
     m = rep["methods"]
     lines = [f"Study {rep['study']}: Solo balance",
              f"  methods: assistants {m['assistants']}, opponents {m['opponents']}, scenarios {m['scenarios']}"

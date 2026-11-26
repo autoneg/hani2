@@ -419,3 +419,30 @@ def test_mixed_studies_keep_the_random_lobby(hani2_home):
     assert pairing.settings(a) is None and a._pair_ctx is None
     assert b.match is a.match and a.match.cell is None
     assert not assignment.cells_path(StudyRef("HM", "g")).exists()
+
+
+def test_balance_report_has_a_paired_part(hani2_home):
+    from typer.testing import CliRunner
+
+    from hani2 import balance
+    from hani2.cli import app
+
+    ref = paired_study(assistants=[HELLO, RULES, COACH], scheduling={"assistants": "latin_square"},
+                       n_required=3)
+    a, b = person("alice", ref), person("bob", ref)
+    play_out(a, b)
+    rep = balance.study_balance(ref)
+    p = rep["paired"]
+    assert p["mode"] == "paired" and p["matches"] == 1 and p["inflight"] == 0
+    assert p["cells"][a.match.cell] == 1 and sum(p["cells"].values()) == 1
+    assert p["expected_cells"] == 3 * 3 * 2 and p["empty_cells"] == 17  # S·N(N−1)
+    assert sum(p["totals"].values()) == 2 and p["same_assistant_matches"] == 0
+    assert sorted(p["incomplete"]) == ["alice", "bob"]  # 1 of 3
+    assert sum(x["n"] for x in p["pairs"]) == 0  # each used one Assistant so far
+    text = balance.render(rep)
+    assert "Paired balance" in text and "Match cells" in text
+    out = CliRunner().invoke(app, ["study", "balance", str(ref)])
+    assert out.exit_code == 0, out.output
+    assert "Paired balance" in out.output
+    projects.create_study("HI/solo", type="online", study_mode="solo", opponents=["BoulwareTBNegotiator"])
+    assert balance.study_balance(StudyRef("HI", "solo"))["paired"] is None
