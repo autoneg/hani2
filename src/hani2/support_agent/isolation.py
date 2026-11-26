@@ -229,8 +229,14 @@ def _hidden_paths(workroot: str) -> list[str]:
         if p and os.path.isdir(p) and not any(_under(p, r) for r in runtime):
             out.add(p)
     real = {os.path.realpath(p) for p in out if p}
-    # never a system root (a server started from / would hide Python itself)
-    return sorted(p for p in real if len(Path(p).parts) > 2)
+    # never a system folder (a server started from / would hide Python's own libraries)
+    return sorted(p for p in real if p not in _SYSTEM and os.path.dirname(p) != p)
+
+
+#: folders the sandbox never hides as a whole (the system's libraries live there)
+_SYSTEM = {"/", "/usr", "/lib", "/lib32", "/lib64", "/libx32", "/bin", "/sbin", "/etc", "/opt", "/var", "/tmp",
+           "/dev", "/proc", "/sys", "/run", "/System", "/Library", "/private", "/private/var", "/private/tmp",
+           "/private/etc", "/Applications", "/Volumes", "/nix", "/snap", "/Users", "/home"}
 
 
 def _under(p: str, root: str) -> bool:
@@ -274,11 +280,12 @@ def macos_profile(hidden: list[str], readable: list[str], workdir: str, network:
 def bwrap_args(hidden: list[str], readable: list[str], workdir: str, network: bool) -> list[str]:
     """bubblewrap arguments: the root read-only, the hidden folders replaced by empty ones, what the
     worker must read bound back, its own folder writable, new namespaces (no network unless allowed)."""
-    args = ["--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--die-with-parent", "--new-session",
+    args = ["--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--new-session",  # no --die-with-parent: it fires when the spawning *thread* ends; the worker exits on EOF
             "--unshare-user-try", "--unshare-ipc", "--unshare-pid", "--unshare-uts", "--unshare-cgroup-try"]
     if not network:
         args.append("--unshare-net")
-    for h in sorted(hidden, key=len):
+    tops = [h for h in hidden if not any(o != h and _under(h, o) for o in hidden)]  # a nested one would leave a mount point
+    for h in sorted(tops, key=len):
         if os.path.isdir(h):
             args += ["--tmpfs", h]
     paths = {os.path.abspath(x) for x in readable if x and os.path.lexists(x)}
@@ -301,18 +308,46 @@ def sandbox_prefix(kind: str, hidden: list[str], readable: list[str], workdir: s
     if sys.platform == "darwin" and shutil.which("sandbox-exec"):
         return ["sandbox-exec", "-p", macos_profile(hidden, readable, workdir, network, listable)]
     if sys.platform.startswith("linux") and shutil.which("bwrap"):
-        return ["bwrap", *bwrap_args(hidden, readable, workdir, network)]
+        problem = bwrap_problem(network)
+        if not problem:
+            return ["bwrap", *bwrap_args(hidden, readable, workdir, network)]
+        print(f"[hani2] WARNING: bwrap cannot sandbox an isolated Assistant here: {problem}")
     return None if kind == "required" else []
 
 
-def sandbox_available() -> bool:
+_BWRAP_PROBE: dict[bool, str] = {}
+
+
+def bwrap_problem(network: bool) -> str:
+    """Why bwrap cannot make the worker's namespaces on this host (``""``: it can). Some container
+    hosts refuse a new network namespace; then an Assistant needs ``assistant_network: true`` there."""
+    if network not in _BWRAP_PROBE:
+        args = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--unshare-user-try",
+                "--unshare-pid", *([] if network else ["--unshare-net"]), "true"]
+        try:
+            r = subprocess.run(args, capture_output=True, text=True, timeout=20)
+            _BWRAP_PROBE[network] = "" if r.returncode == 0 else (r.stderr.strip() or f"exit code {r.returncode}")[:300]
+        except (OSError, subprocess.TimeoutExpired) as e:
+            _BWRAP_PROBE[network] = str(e)
+    return _BWRAP_PROBE[network]
+
+
+def sandbox_available(network: bool = False) -> bool:
     return (sys.platform == "darwin" and bool(shutil.which("sandbox-exec"))) or \
-        (sys.platform.startswith("linux") and bool(shutil.which("bwrap")))
+        (sys.platform.startswith("linux") and bool(shutil.which("bwrap")) and not bwrap_problem(network))
 
 
 def _workroot() -> str:
-    root = Path(tempfile.gettempdir()) / "hani2-assistants"
+    """The folder of this OS user's workers: private (0700) and owned by the server's user; refused
+    when someone else made it (they could read or swap a worker's files)."""
+    uid = os.getuid() if hasattr(os, "getuid") else 0
+    root = Path(tempfile.gettempdir()) / f"hani2-assistants-{uid}"
     root.mkdir(mode=0o700, exist_ok=True)
+    st = os.lstat(root)
+    if root.is_symlink() or (hasattr(os, "getuid") and st.st_uid != uid):
+        raise RuntimeError(f"{root} is not this user's own folder")
+    if st.st_mode & 0o077:
+        os.chmod(root, 0o700)
     return str(root.resolve())
 
 
@@ -451,8 +486,9 @@ class IsolatedAssistant(SupportAgent):
         prefix = sandbox_prefix(self.cfg.get("sandbox", "auto"), hidden, readable, self.workdir,
                                 bool(self.cfg.get("network", False)), listable)
         if prefix is None:
+            why = bwrap_problem(bool(self.cfg.get("network", False))) if shutil.which("bwrap") else ""
             raise RuntimeError("assistant_sandbox is 'required' but no sandbox (macOS sandbox-exec, Linux bwrap) "
-                               "is available on this server")
+                               "is available on this server" + (f" (bwrap: {why})" if why else ""))
         self.sandboxed = bool(prefix)
         if not prefix:
             print(f"[hani2] WARNING: the isolated Assistant {self.spec!r} runs without a file-system sandbox "

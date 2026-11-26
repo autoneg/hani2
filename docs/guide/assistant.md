@@ -332,6 +332,12 @@ the server.
       worker is a separate process with a private folder, but it runs as the server's operating-system
       user. It can read any file that user can read and use the network. Keep the default,
       `assistant_sandbox: required`, and install bubblewrap on Linux.
+    - On Linux, bubblewrap needs user namespaces for an unprivileged server user. Ubuntu 23.10 and
+      later restrict them with AppArmor: add an AppArmor profile for `/usr/bin/bwrap` that allows
+      `userns`, or set `kernel.apparmor_restrict_unprivileged_userns=0`. Some container hosts also refuse
+      a new network namespace. HANI2 tries bwrap once and, when it fails, names the reason in the
+      Assistant's error (it never runs the worker unsandboxed under `required`). There,
+      `assistant_network: true` may be the only way to run the sandbox at all.
     - The sandbox lets Python list the names in the folder that holds HANI2's own package.
     - Opponent agents (the AI pool) and tools still run in the server. Use only opponents and tools you
       trust.

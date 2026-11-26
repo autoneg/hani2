@@ -95,6 +95,11 @@ class Helper(Assistant):
 '''
 
 
+def _hidden(listing):
+    """A folder the sandbox hid: unreadable (macOS) or an empty stand-in (Linux bwrap)."""
+    return str(listing).startswith("denied") or listing == []
+
+
 def _write(tmp_path, name, code):
     d = tmp_path / "code" / uuid.uuid4().hex[:8]
     d.mkdir(parents=True)
@@ -289,11 +294,11 @@ def test_an_assistant_cannot_peek_at_the_other_participant(tmp_path, hani2_home,
         assert found["secret"].startswith("denied")
         assert found["other_notes"].startswith("denied")
         assert found["server_code"].startswith("denied") or "hani2" in found["server_code"]
-        assert str(found["home_db"]).startswith("denied")
+        assert _hidden(found["home_db"])
         assert found["other_submission"].startswith("denied") and found["own_original"].startswith("denied")
-        assert str(found["submissions"]).startswith("denied")
+        assert _hidden(found["submissions"])
         assert found["projects"].startswith("denied")
-        assert str(found["user_home"]).startswith("denied")
+        assert _hidden(found["user_home"])
         assert found["network"].startswith("denied") and listener.hits == 0
     else:  # pragma: no cover - a server without sandbox-exec / bwrap
         pytest.skip("no file-system sandbox on this machine: only the process boundary was checked")
@@ -310,7 +315,7 @@ def test_the_profile_hides_home_and_keeps_python(tmp_path):
     root = isolation._workroot()
     hidden = isolation._hidden_paths(root)
     assert os.path.realpath(os.path.expanduser("~")) in hidden
-    assert all(len(p.split("/")) > 2 for p in hidden)
+    assert "/" not in hidden and "/usr" not in hidden
     readable = isolation._runtime_paths()
     import hani2
 
