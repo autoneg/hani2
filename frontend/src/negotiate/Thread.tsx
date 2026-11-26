@@ -26,10 +26,11 @@ function Bubble({ h, reserved, last, display }: { h: HistoryItem; reserved: numb
   const mine = h.by === "human";
   const tone = mine ? "you" : "opponent";
   const role = useStore((s) => (mine ? s.state?.scenario?.role : s.state?.scenario?.opponent_role));
+  const humanOpponent = useStore((s) => !!s.state?.opponent_kind && s.state.opponent_kind !== "agent");
   return (
     <Anchor id={last ? "history:last" : `history:${h.id}`} className={`enter flex gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
       <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${mine ? "bg-you text-white" : "bg-opponent text-white"}`} aria-hidden>
-        {mine ? <UserRound size={15} /> : <Bot size={15} />}
+        {mine || humanOpponent ? <UserRound size={15} /> : <Bot size={15} />}
       </div>
       <div className={`flex max-w-[min(34rem,85%)] flex-col gap-1.5 rounded-xl border px-3 py-2 ${mine ? "rounded-tr-sm border-you/20 bg-you/[0.04]" : "rounded-tl-sm border-opponent/25 bg-opponent/[0.05]"}`}>
         <div className="flex items-center gap-2 text-[11px] text-muted">
@@ -76,7 +77,11 @@ export function Thread() {
   const items = st?.history ?? [];
   const newestFirst = !!st?.prefs.last_offer_on_top;
   const showHistory = st?.prefs.show_history !== false;
-  const thinking = st?.negotiation.thinking && (st.phase === "running" || st.phase === "starting");
+  const humanOpponent = !!st && !!st.opponent_kind && st.opponent_kind !== "agent";
+  const waitingToStart = !!st?.waiting_for_opponent && st.phase === "starting";
+  // a human opponent deciding is shown like an AI opponent thinking
+  const humanTurn = humanOpponent && st?.phase === "running" && !st.negotiation.is_my_turn && !st.negotiation.thinking;
+  const thinking = (st?.negotiation.thinking && (st.phase === "running" || st.phase === "starting")) || waitingToStart || humanTurn;
   // Keep the newest message in view: scroll to the end (or the top when the
   // newest-first option is on) whenever something is added.
   useEffect(() => {
@@ -94,14 +99,20 @@ export function Thread() {
   const typing = thinking && (
     <div className="flex items-center gap-2.5 text-sm text-muted" role="status">
       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-opponent/15 text-opponent">
-        <Bot size={15} />
+        {humanOpponent ? <UserRound size={15} /> : <Bot size={15} />}
       </div>
       <span className="inline-flex gap-1" aria-hidden>
         <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
         <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
         <span className="dot h-1.5 w-1.5 rounded-full bg-opponent" />
       </span>
-      {st.phase === "starting" ? "Setting up the negotiation…" : "Your opponent is thinking…"}
+      {waitingToStart
+        ? "Waiting for the other participant…"
+        : st.phase === "starting"
+          ? "Setting up the negotiation…"
+          : humanOpponent
+            ? "Your opponent is deciding…"
+            : "Your opponent is thinking…"}
     </div>
   );
   return (

@@ -898,7 +898,7 @@ class ProlificStudy(Study):
         elif status == "broken" and ended_by == "human":
             phrase = "was ended by you"
         elif status == "broken":
-            phrase = "was ended by the AI agent"
+            phrase = "was ended by your opponent"
         elif status == "success":
             phrase = "reached an agreement"
         else:

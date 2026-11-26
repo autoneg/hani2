@@ -99,6 +99,7 @@ nav:
       - Models and connections: guide/models.md
       - Language models: guide/llms.md
       - Opponents: guide/opponents.md
+      - Human opponents: guide/human-opponents.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
       - Compositional scenarios: guide/compositional.md

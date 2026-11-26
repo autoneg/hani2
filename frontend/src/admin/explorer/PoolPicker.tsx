@@ -21,10 +21,17 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
     load();
   }, [layer.id]);
   const opts = useMemo(() => {
-    const all = [...choices.filter((c) => c.group), ...choices.filter((c) => !c.group)];
+    // opponents may also be other participants: alone, or with their own Assistant
+    const humans: Choice[] = kind === "opponent"
+      ? [
+          { value: "human", label: "human", hint: "Another participant (without an Assistant)" },
+          { value: "human+assistant", label: "human+assistant", hint: "Another participant with an Assistant" },
+        ]
+      : [];
+    const all = [...humans, ...choices.filter((c) => c.group), ...choices.filter((c) => !c.group)];
     const extra: Choice[] = sel.filter((s) => !all.some((c) => c.value === s)).map((s) => ({ value: s, label: s }));
     return [...extra, ...all].filter((c) => !q || `${c.value} ${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q.toLowerCase()));
-  }, [choices, q, sel]);
+  }, [choices, q, sel, kind]);
   if (d === undefined) return null;
   if (d === null) return null;
   const toggle = (v: string) => (setSel(sel.includes(v) ? sel.filter((x) => x !== v) : [...sel, v]), setDirty(true));

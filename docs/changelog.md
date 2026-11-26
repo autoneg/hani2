@@ -11,6 +11,13 @@
   defaults, and `set_interface` (capability `interface`) changes the participant's display settings
   and adds a checked style sheet. A new tutorial, [Shape the interface](tutorials/interface.md), and
   level 11 of the [Assistant tutorial](tutorials/assistant.md#level-11-the-interface-they-ask-for) show how.
+- **Human opponents.** A project or study can have its participants negotiate with each other: the
+  opponent entries `human` (another participant without an Assistant) and `human+assistant` (with one)
+  pair participants as their scenario loads, within a project or by `?match=<code>`. This covers team
+  against team, human against human, and a team against a human alone (two studies). Each side keeps
+  its own page, tools and Assistant. If nobody joins, an AI opponent takes over after
+  `human_opponent_wait` seconds. A participant who leaves ends the negotiation. Results record
+  `opponent_kind`, `match_id`, `opponent_user` and `abandoned`. See [Human opponents](guide/human-opponents.md).
 - **Participants can choose the scenario, the opponent and the Assistant** when the admin allows it.
   Each negotiation starts with HANI2's usual pick; participants may then choose another from the
   allowed set (any of the pool, or a list). The playground's setting (`playground.choices`) never

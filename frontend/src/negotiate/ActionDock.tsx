@@ -355,7 +355,9 @@ function Running({ st }: { st: SessionState }) {
           </div>
         </Anchor>
       )}
-      {!myTurn && st.phase === "running" && !st.negotiation.thinking && <div className="text-xs text-muted">Waiting…</div>}
+      {!myTurn && st.phase === "running" && !st.negotiation.thinking && (
+        <div className="text-xs text-muted">{st.opponent_kind && st.opponent_kind !== "agent" ? "Waiting for your opponent…" : "Waiting…"}</div>
+      )}
     </div>
   );
 }

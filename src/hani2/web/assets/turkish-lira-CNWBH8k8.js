@@ -1,0 +1,1 @@
+import{c as e}from"./index-BsvQV73b.js";const a={name:"turkish-lira",size:24,node:[["path",{d:"m14 10-8 4",key:"q2jxyq"}],["path",{d:"M14 5 6 9",key:"3luqa0"}],["path",{d:"M18 12a8 8 0 01-7.003 7.937c-.547.07-.997-.385-.997-.937V4",key:"18c6as"}]]};a.node;const c=e(a);export{a as __iconData,c as default};

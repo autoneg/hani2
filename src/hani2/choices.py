@@ -148,10 +148,13 @@ def opponent_options(session: "NegotiationSession", allowed: bool | list[str]) -
         return []
     with projects.use_study(session.study_ref):
         pool = list(session.opponent_pool()) if allowed is True else expand_agents(allowed)
+    from hani2.matches import is_human
+
     out, seen = [], set()
     for p in pool:
         k = spec_key(p)
-        if k not in seen and client_spec_allowed(k):
+        # another participant (human / human+assistant) comes through pairing, not as a pick
+        if k not in seen and client_spec_allowed(k) and not is_human(p):
             seen.add(k)
             out.append(p)
     return out

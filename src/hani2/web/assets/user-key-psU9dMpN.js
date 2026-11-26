@@ -1,1 +1,0 @@
-import{c}from"./index-C0SZhvfU.js";const e={name:"user-key",size:24,node:[["path",{d:"M20 11v6",key:"d77pzp"}],["path",{d:"M20 13h2",key:"16rner"}],["path",{d:"M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578",key:"1yxgtw"}],["circle",{cx:"10",cy:"7",r:"4",key:"e45bow"}],["circle",{cx:"20",cy:"19",r:"2",key:"1obnsp"}]]};e.node;const r=c(e);export{e as __iconData,r as default};

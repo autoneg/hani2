@@ -305,6 +305,12 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             orientation=ss.get("orientation", ""),
             support_agent=bool(ss.get("support_agent_used", False)),
             autopilot=bool(ss.get("autopilot_used", False)),
+            # a human opponent (hani2.matches): both participants' rows share match_id and mechanism_id
+            opponent_kind=str(ss.get("last_partner_type") or "human") if ss.get("match_id") else "agent",
+            match_id=ss.get("match_id") or "",
+            opponent_user=ss.get("opponent_user") or "",
+            # who left a human-opponent negotiation: "self", "opponent" or ""
+            abandoned=ss.get("match_abandoned") or "",
         )
         | _condition(ss)
         | _attribution(ss)

@@ -41,6 +41,7 @@ from negmas.sao import SAOMechanism, SAONegotiator, SAOState
 
 from hani2 import events as ev
 from hani2 import information
+from hani2 import matches
 from hani2 import projects
 from hani2 import scenario_store as store
 from hani2.recording import recorder as rec
@@ -153,6 +154,12 @@ ADMIN_PREFS: dict[str, Any] = {
     "human_roles": [],
     "show_opponent_type": False,
     "opponent_types": [],
+    # Human opponents (pool entries "human" / "human+assistant", see hani2.matches): seconds to wait
+    # for another participant (0: forever) and whether an AI opponent takes over after that.
+    "human_opponent_wait": 120,
+    "human_opponent_fallback": True,
+    # seconds without an open page before a participant counts as having left
+    "human_opponent_absent": 60,
 }
 
 #: Set while the Assistant operates a tool (see ``acting_for_agent``).
@@ -204,6 +211,9 @@ class HumanPlaceholder(SAONegotiator):
 
     def __call__(self, state: SAOState, dest: str | None = None) -> SAOResponse:
         s = self._session
+        if s is not None and ((s.closed and getattr(s, "_left_match_id", None))
+                              or (s.match is not None and s.match.has_left(s))):
+            return SAOResponse(ResponseType.END_NEGOTIATION, None)  # the participant left a human opponent
         if s is not None and s.autopilot_active and self._driver is not None:
             response = self._driver(state, dest=dest)
         else:
@@ -337,6 +347,8 @@ class NegotiationSession:
         self._opponent_estimate_seen: int | None = None
         self.opponent_estimate_version = 0
         self._timer: threading.Timer | None = None
+        #: the human-opponent match of this round (see hani2.matches), else None
+        self.match: matches.Match | None = None
         #: set by close(); late timer callbacks check it and do nothing
         self.closed = False
         self.autopilot_active = False
@@ -1528,7 +1540,7 @@ class NegotiationSession:
     @_in_own_study
     def load(self, scenario_type: str | None = None, name: str | None = None) -> None:
         """Load the next scenario (no negotiation is started)."""
-        with self.lock:
+        with self.lock, contextlib.ExitStack() as hold:
             if self.phase in ("running", "starting", "questionnaire"):
                 return
             self._reset_choices_if_due()
@@ -1562,21 +1574,38 @@ class NegotiationSession:
                 idx = store.next_index(self.ss["user_path"])
             stype = plan.get("type") or store.pick_type(idx, bool(self.admin_prefs.get("predefined_order", True)),
                                                         self.admin_prefs.get("scenario_set"))
+            self._leave_match()
+            joined, hosting = None, False
+            if self._plans_human(plan):
+                # a human opponent: join a participant waiting for one (and take their scenario). Who
+                # has an Assistant decides who fits whom, so settle this round's Assistant first.
+                self.refresh_assistant(plan)
+                want, has = matches.wants_assistant(plan["partner"]), self.support_agent is not None
+                self._warn_unpairable(want, has)
+                # one load at a time per match key, from looking for a partner to waiting: two
+                # participants loading together must not both end up waiting
+                hold.enter_context(matches.LOBBY.loading(self))
+                joined = matches.LOBBY.pair(self, want, has)
+                hosting = joined is None
             try:
-                scenario, info, sdir = store.load_scenario(
-                    stype,
-                    idx,
-                    load_existing=bool(plan.get("load_existing", self.admin_prefs.get("load_existing", True))),
-                    generate_on_failure=bool(self.admin_prefs.get("generate_on_failure", True)),
-                    name=plan.get("name"),
-                    strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
-                )
+                if joined is not None:
+                    scenario, info, sdir = joined.scenario, dict(joined.info or {}), joined.sdir
+                else:
+                    scenario, info, sdir = store.load_scenario(
+                        stype,
+                        idx,
+                        load_existing=bool(plan.get("load_existing", self.admin_prefs.get("load_existing", True))),
+                        generate_on_failure=bool(self.admin_prefs.get("generate_on_failure", True)),
+                        name=plan.get("name"),
+                        strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
+                    )
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
             self.round_plan = plan
-            self.ss["scenario_type"] = stype
+            # a participant who joined plays the waiting participant's scenario (and its type)
+            self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype
             self.refresh_assistant(plan)  # a schedule slot or a new ?group= may name another Assistant
             self.ss["is_practice_round"] = bool(plan.get("practice", False))
             # the scenario's evaluation criteria are for evaluation only: keep them out of what the
@@ -1584,6 +1613,8 @@ class NegotiationSession:
             criteria = (scenario.info or {}).get("evaluation")
             if criteria is not None:
                 scenario.info = {k: v for k, v in (scenario.info or {}).items() if k != "evaluation"}
+            if joined is not None:
+                criteria = joined.evaluation  # the host already took them out of the shared scenario
             self.ss["scenario_evaluation"] = criteria
             self._opponent_estimate, self._opponent_estimate_by = None, None  # it was for the last scenario
             self.ss["scenario"] = scenario
@@ -1591,13 +1622,16 @@ class NegotiationSession:
             self.ss["scenario_dir"] = sdir
             self.ss["outcome_display"] = store.display_for(scenario, sdir)
             self.display_overrides = {}  # overrides name the previous scenario's issues
-            hi = store.assign_human(
-                scenario,
-                rule=str(self.admin_prefs.get("role_rule") or "auto"),
-                human_index=int(self.admin_prefs.get("human_index", 1)),
-                preferred_roles=list(self.admin_prefs.get("human_roles") or []),
-                counter=self.round_number,
-            )
+            if joined is not None:
+                hi = int(joined.index_of(self))  # the side the waiting participant left free
+            else:
+                hi = store.assign_human(
+                    scenario,
+                    rule=str(self.admin_prefs.get("role_rule") or "auto"),
+                    human_index=int(self.admin_prefs.get("human_index", 1)),
+                    preferred_roles=list(self.admin_prefs.get("human_roles") or []),
+                    counter=self.round_number,
+                )
             self.ss["human_index"] = hi
             self.ss["human_ufun"] = scenario.ufuns[hi]
             self.ss["human_id"] = f"{scenario.ufuns[hi].name} (You)"
@@ -1607,6 +1641,8 @@ class NegotiationSession:
             self.ss["start_at_dt"] = None
             self.ss["negotiation_running"] = False
             self.ss["human_ended_negotiation"] = False
+            self.ss["match_abandoned"] = ""
+            self.ss["opponent_user"] = None
             self.ss["support_agent_used"] = False
             self.ss["autopilot_used"] = self.autopilot_active
             self.history = []
@@ -1625,6 +1661,18 @@ class NegotiationSession:
             self.board = ""
             self.pins = []
             self.phase = "ready"
+            if joined is not None:
+                self.match = joined
+                self.ss["match_id"] = joined.id
+            elif hosting:
+                matches.LOBBY.host(self, hi, scenario, info, sdir, criteria, want, has)
+                self.ss["match_id"] = self.match.id if self.match is not None else None
+            else:
+                self.ss["match_id"] = None
+        if joined is not None:
+            host = joined.other(self)
+            if host is not None:
+                host.submit(host._match_paired)
         self._update_choices()
         if self.recorder is not None:
             self.recorder.begin()
@@ -1802,7 +1850,12 @@ class NegotiationSession:
                 if pick is None:
                     return {"ok": False, "error": "That opponent is not one you may choose."}
             self.chosen_opponent = pick
+            if pick is not None and self.match is not None:  # an AI opponent instead of a waiting room
+                self._leave_match()
+                self.ss["match_id"] = None
         else:
+            if self.match is not None:  # the pairing depends on whether this side has an Assistant
+                return {"ok": False, "error": "You cannot change the Assistant while paired with another participant."}
             if value is not None and value not in choices.assistant_options(self, pol):
                 return {"ok": False, "error": "That Assistant is not one you may choose."}
             self.chosen_assistant = value
@@ -1876,7 +1929,19 @@ class NegotiationSession:
                 return
             self.phase = "starting"
             self.thinking = True
+            match = self.match
         self.push_state()
+        if match is not None:
+            # a human opponent: the negotiation begins once both sides are ready
+            if not match.seat_ready(self):
+                with self.lock:
+                    if self.phase == "starting" and self.match is match and not match.began:
+                        self.thinking = False
+                self.push_state()
+            return
+        self._start_with_agent()
+
+    def _start_with_agent(self) -> None:
         try:
             self._make_mechanism()
         except Exception as e:  # noqa: BLE001
@@ -1886,6 +1951,12 @@ class NegotiationSession:
                 self.thinking = False
             self.toast(f"Could not start the negotiation: {e}", "error")
             self.push_state()
+            return
+        self._start_running()
+
+    def _start_running(self) -> None:
+        """The mechanism exists (an AI opponent's, or a match's): the negotiation runs."""
+        if self.closed:
             return
         with self.lock:
             self.round_number += 1
@@ -1908,7 +1979,225 @@ class NegotiationSession:
         self._schedule_timeout()
         self._agent_event("negotiation_started")
         self.push_state()
+        if self.match is not None:
+            self._match_turn()
+            return
         self._step_to_human(wait=30.0)  # a step of the previous round may still be finishing
+
+    # ------------------------------------------------------------------ #
+    # Human opponents (see hani2.matches)                                 #
+    # ------------------------------------------------------------------ #
+    @property
+    def opponent_is_human(self) -> bool:
+        return self.match is not None
+
+    @property
+    def waiting_for_opponent(self) -> bool:
+        """Waiting for another participant to join, or to press Start."""
+        m = self.match
+        return m is not None and not m.began and self.phase in ("ready", "starting")
+
+    def _opponent_kind(self) -> str:
+        """``agent``, ``human`` (another participant alone) or ``human+assistant``."""
+        m = self.match
+        if m is None:
+            return "agent"
+        i = m.index_of(self)
+        if i is None:
+            return matches.HUMAN
+        o = 1 - i
+        has = m.has.get(o, m.wants.get(i, False))  # before pairing: what this side asked for
+        return matches.HUMAN_ASSISTED if has else matches.HUMAN
+
+    def _plans_human(self, plan: dict) -> bool:
+        """Whether the coming round's opponent is another participant. When the pool contains
+        ``human``, the opponent is drawn now (into ``plan``) so the session can be paired as it loads."""
+        if self.chosen_opponent is not None:  # the human's own pick (hani2.choices offers no human entries)
+            return matches.is_human(self.chosen_opponent)
+        if plan.get("partner") is not None:
+            return matches.is_human(plan["partner"])
+        if self.admin_mode and self.next_opponent:
+            return matches.is_human(self.next_opponent)
+        pool = self.opponent_pool()
+        if not any(matches.is_human(x) for x in pool):
+            return False
+        plan["partner"] = random.choice(pool)
+        plan.setdefault("opponent_group", self.opponent_group)
+        return matches.is_human(plan["partner"])
+
+    def _warn_unpairable(self, want: bool, has: bool) -> None:
+        """A side that wants the same kind of opponent as it is (``human`` with an Assistant, or
+        ``human+assistant`` without one) can only meet another study's participants: say so once."""
+        if want == has or getattr(self, "_warned_unpairable", False):
+            return
+        self._warned_unpairable = True
+        need = "with" if want else "without"
+        msg = (f"{self.user} has {'an' if has else 'no'} Assistant and wants a human opponent {need} one: "
+               f"only participants of another study in this project (or with the same ?match= code) fit; "
+               f"otherwise the fallback applies after human_opponent_wait seconds")
+        print(f"[hani2] WARNING: {msg}")
+        try:
+            ev.log_event(self.sid, ev.EventType.ERROR, user=self.user, component="matches",
+                         action="unpairable_alone", value={"error": msg})
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _leave_match(self) -> None:
+        m, self.match = self.match, None
+        if m is not None:
+            self._left_match_id = m.id
+            m.leave(self)
+
+    def _match_paired(self) -> None:
+        if self.closed or self.match is None:
+            return
+        self.toast("Another participant joined: you will negotiate with them.", "success")
+        self.push_state()
+
+    def _match_partner_left(self, began: bool) -> None:
+        if self.closed or self.match is None:
+            return
+        if not began:
+            self.toast("The other participant left before the negotiation started. Waiting for someone else…",
+                       "warning")
+            self.push_state()
+            return
+        m = self.mechanism
+        if m is None or m.state.done:
+            return
+        self.toast("The other participant left the negotiation.", "warning")
+        if not self.is_my_turn():
+            self._step_absent_seat()
+
+    def _match_kicked(self, match, index: int, want: bool, has: bool) -> None:
+        """The other participant pressed Start and this one did not in time (or its page was
+        closed): wait for someone else with the same scenario and side."""
+        if self.closed or self.match is not match:
+            return
+        with self.lock:
+            self.match = None
+            if self.phase == "starting":
+                self.phase, self.thinking = "ready", False
+            if self.phase in ("ready", "questionnaire") and self.scenario is not None:
+                matches.LOBBY.host(self, index, self.scenario, dict(self.ss.get("scenario_info") or {}),
+                                   self.ss.get("scenario_dir"), self.ss.get("scenario_evaluation"), want, has)
+                self.ss["match_id"] = self.match.id if self.match is not None else None
+        self.toast("The other participant could not wait: you will be paired with someone else.", "warning")
+        self.push_state()
+
+    def _no_human_opponent(self, match) -> None:
+        """Nobody joined in time: an AI opponent from the rest of the pool (unless the admin
+        setting ``human_opponent_fallback`` is off: then keep waiting)."""
+        if self.closed or self.match is not match or match.paired or match.began:
+            return
+        if not self.admin_prefs.get("human_opponent_fallback", True):
+            matches.LOBBY.requeue(match)
+            return
+        partner = matches.fallback_opponent(self.opponent_pool())
+        with self.lock:
+            self.match = None
+            self.ss["match_id"] = None
+            self.round_plan = dict(getattr(self, "round_plan", {}) or {}, partner=partner)
+            starting = self.phase == "starting"
+        self.toast("No other participant is available right now: you will negotiate with an AI opponent.",
+                   "info", duration=10000)
+        if starting:
+            self._start_with_agent()
+        else:
+            self.push_state()
+
+    def _make_match_mechanism(self, match) -> SAOMechanism:
+        """Build the shared mechanism of ``match`` (called on its host, with both seats ready)."""
+        from hani2.support_agent import autopilot as ap
+
+        scenario = match.scenario
+        seats = dict(match.seats)
+        negotiators: list = [None, None]
+        drivers = {}
+        for i, s in seats.items():
+            with projects.use_study(s.study_ref):
+                driver = ap.make_negotiator_driver(s)
+            drivers[i] = driver
+            est = s._opponent_estimate
+            hid = str(s.ss.get("human_id") or f"{scenario.ufuns[i].name} (You)")
+            if i == 1 and hid == str(seats[0].ss.get("human_id")):
+                hid = f"{scenario.ufuns[i].name} (You 2)"  # two sides with the same role name
+                s.ss["human_id"] = hid
+            negotiators[i] = HumanPlaceholder(name=hid, id=hid, session=s, driver=driver,
+                                              private_info={"opponent_ufun": est} if est is not None else None)
+        scenario.mechanism_params = dict(scenario.mechanism_params or {}) | self._mechanism_params()
+        m = scenario.make_session(negotiators=negotiators)
+        # negmas starts its clock at the first step, and nobody steps here until a side acts: the
+        # clock is set back to this moment after each step (see _rewind_clock), so the time limit
+        # runs from the start, as the participants' countdown does
+        match.start_ns = time.perf_counter_ns()
+        for i, s in seats.items():
+            with s.lock:
+                s._trace_seen = 0
+                s.ss["mechanism"] = m
+                s.ss["human_ufun"] = scenario.ufuns[i]
+                s.ss["autopilot_driver"] = drivers[i]
+                s.ss["match_id"] = match.id
+                other = seats[1 - i]
+                s.ss["last_partner_type"] = matches.HUMAN_ASSISTED if match.has.get(1 - i) else matches.HUMAN
+                s.ss["opponent_user"] = other.user
+                s.ss["opponent_group"] = s.opponent_group
+                with projects.use_study(s.study_ref):
+                    s.ss["assistant_attribution"] = s.assistant_attribution()
+                plan = getattr(s, "round_plan", {}) or {}
+                s.ss["opponent_scheduling"] = str(plan.get("opponent_scheduling") or "")
+                s.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
+        return m
+
+    @staticmethod
+    def _rewind_clock(match, m) -> None:
+        start = getattr(match, "start_ns", None)
+        cur = getattr(m, "_start_time", None)
+        if start is not None and cur is not None and cur > start:
+            m._start_time = start
+
+    def _match_failed(self, error: str) -> None:
+        with self.lock:
+            if self.phase == "starting":
+                self.phase = "ready"
+            self.thinking = False
+        self.toast(f"Could not start the negotiation: {error}", "error")
+        self.push_state()
+
+    def _match_turn(self) -> None:
+        """The shared mechanism moved (or the negotiation started): show it, and take the turn
+        when it is ours."""
+        if self.closed:
+            return
+        m = self.mechanism
+        if m is None or self.match is None:
+            return
+        with self.lock:
+            self._record_new_trace()
+            self.thinking = False
+        if m.state.done:
+            self._finish()
+            return
+        if self.is_my_turn():
+            self._on_human_turn()
+        else:
+            self.push_state()
+
+    def _step_absent_seat(self) -> None:
+        """Step the seat of a participant who left (it ends the negotiation)."""
+        match = self.match
+        m = self.mechanism
+        if match is None or m is None:
+            return
+        with match.step_lock:
+            while not m.state.done and m.next_negotitor_ids()[0] not in match.seat_ids():
+                with rec.llm_role("opponent"):
+                    m.step()
+                self._rewind_clock(match, m)
+        absent = match.other(self)
+        if absent is not None and not absent.closed:
+            absent.submit(absent._match_turn)  # its page shows the end (and its row is saved)
+        self._match_turn()
 
     def _pin_briefings(self) -> None:
         """Pin the participant's private briefings above the negotiation (see hani2.information)."""
@@ -1968,7 +2257,6 @@ class NegotiationSession:
 
     def _make_mechanism(self) -> None:
         scenario = self.scenario
-        p = self.admin_prefs
         plan = getattr(self, "round_plan", {}) or {}
         hi = self.human_index
         partner = self.choose_partner()
@@ -1980,6 +2268,28 @@ class NegotiationSession:
         self.ss["opponent_scheduling"] = ("user" if self.chosen_opponent is not None else
                                           str(plan.get("opponent_scheduling") or "") if plan.get("partner") else "")
         self.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
+        if matches.is_human(partner):  # an admin's pick after loading, or the pool changed: nobody to pair with
+            partner = matches.fallback_opponent(self.opponent_pool())
+            self.ss["last_partner_type"] = partner if isinstance(partner, str) else getattr(partner, "__name__", str(partner))
+            self.toast("No other participant is waiting for this scenario: you will negotiate with an AI opponent.",
+                       "info")
+        scenario.mechanism_params = dict(scenario.mechanism_params or {}) | self._mechanism_params()
+        human_name = f"{scenario.ufuns[hi].name} (You)"
+        agent_name = f"{scenario.ufuns[1 - hi].name} (AI)"
+        agent = make_agent(
+            partner,
+            {"name": agent_name, "id": agent_name},
+            practice=bool(self.ss.get("is_practice_round")),
+            verbose=os.environ.get("HANI2_VERBOSE") == "1",
+            models=self.models,
+        )
+        self.ss["opponent_user"] = None
+        self._finish_make_mechanism(scenario, hi, agent, human_name)
+
+    def _mechanism_params(self) -> dict[str, Any]:
+        """The negotiation's mechanism parameters (admin settings and the round's time limit)."""
+        p = self.admin_prefs
+        plan = getattr(self, "round_plan", {}) or {}
         time_limit = plan.get("time_limit", p.get("time_limit"))
         mech_params = dict(
             n_steps=p.get("n_steps") or None,
@@ -1996,16 +2306,9 @@ class NegotiationSession:
         )
         if p.get("allow_text_only_offers", True):
             mech_params["allow_none_with_data"] = True
-        scenario.mechanism_params = dict(scenario.mechanism_params or {}) | mech_params
-        human_name = f"{scenario.ufuns[hi].name} (You)"
-        agent_name = f"{scenario.ufuns[1 - hi].name} (AI)"
-        agent = make_agent(
-            partner,
-            {"name": agent_name, "id": agent_name},
-            practice=bool(self.ss.get("is_practice_round")),
-            verbose=os.environ.get("HANI2_VERBOSE") == "1",
-            models=self.models,
-        )
+        return mech_params
+
+    def _finish_make_mechanism(self, scenario, hi: int, agent, human_name: str) -> None:
         from hani2.support_agent import autopilot as ap
 
         driver = ap.make_negotiator_driver(self)
@@ -2123,6 +2426,9 @@ class NegotiationSession:
         return True
 
     def _advance(self, response: SAOResponse) -> None:
+        if self.match is not None:
+            self._advance_match(response)
+            return
         if not self.step_lock.acquire(blocking=False):
             return
         try:
@@ -2142,6 +2448,33 @@ class NegotiationSession:
             self._finish()
             return
         self._step_to_human()
+
+    def _advance_match(self, response: SAOResponse) -> None:
+        """Our action against a human opponent: step the shared mechanism once (our seat), then
+        wake the other side. Only the side whose turn it is ever steps."""
+        match = self.match
+        m = self.mechanism
+        if match is None or m is None:
+            return
+        with match.step_lock:
+            if m.state.done or m.next_negotitor_ids()[0] != self.ss.get("human_id"):
+                with self.lock:
+                    self.thinking = False
+                self.push_state()
+                return
+            self.human_action = response
+            m.step()
+            self._rewind_clock(match, m)
+            with self.lock:
+                self._record_new_trace()
+        self._tools_hook("action_executed", response)
+        if m.state.done:
+            self._finish()
+        else:
+            with self.lock:
+                self.thinking = False
+            self.push_state()
+        match.after_step(self)
 
     def _step_to_human(self, wait: float | None = None) -> None:
         """Step the opponent until it is the human's turn. ``wait`` seconds to
@@ -3077,6 +3410,9 @@ class NegotiationSession:
                 )
                 if show_partner and self.ss.get("last_partner_type")
                 else None,
+                # another participant is the opponent (they may or may not have an Assistant)
+                "opponent_kind": self._opponent_kind(),
+                "waiting_for_opponent": self.waiting_for_opponent,
                 "negotiation": dict(
                     running=self.phase == "running",
                     thinking=self.thinking,
@@ -3203,6 +3539,10 @@ class NegotiationSession:
     @_in_own_study
     def close(self) -> None:
         self.closed = True
+        try:
+            self._leave_match()
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
         self.study.close()
         if self.recorder is not None:
             self.recorder.close()
