@@ -302,7 +302,8 @@ The worker runs:
 
 - from an empty private folder (also its `HOME` and `TMPDIR`), with a scrubbed environment (no keys,
   no `HANI2_*` settings) and a copy of **only its own package** (the top-level package of its class,
-  or the folder of a `file.py:Class`), never the folder all submissions were unpacked into;
+  or the folder of a `file.py:Class`, at most 200 MB, symbolic links left out), never the folder all
+  submissions were unpacked into;
 - with limits: `assistant_cpu_seconds` (default 3600 CPU seconds), `assistant_memory_mb` (default
   2048, Linux only), 64 MB per file, 256 open files. A call that takes more than
   `assistant_call_timeout` seconds (default 600) ends the worker; one that does not start within
@@ -311,25 +312,26 @@ The worker runs:
 
 | `assistant_sandbox` | Meaning |
 | --- | --- |
-| `auto` (default) | Use the sandbox when this server has one (macOS `sandbox-exec`, Linux `bwrap` from bubblewrap), else run without one and log a warning. |
-| `required` | No sandbox, no Assistant. Use this for participant-written Assistants. |
+| `required` (default) | No sandbox, no Assistant. The sandbox is macOS `sandbox-exec` or Linux `bwrap` (bubblewrap: `apt install bubblewrap`). |
+| `auto` | Use the sandbox when this server has one, else run without one and log a warning. |
 | `off` | Never use one (a separate process only). |
 
-The sandbox hides the server user's home folder, HANI2's home, the folder the server was started
-from, the code folders on the server's `sys.path` (other participants' agents) and the other
-workers' folders. It leaves readable only Python, the installed packages, HANI2's own package and
+The sandbox hides the server user's home folder, HANI2's home, the projects folder, every folder named
+by a `HANI2_*`, `HANI_*`, `PROLIFIC_*` or `SCMLWEB_*` environment variable, the folder the server was
+started from, the code folders on the server's `sys.path` and in the Assistant's group file (other
+participants' agents) and the other workers' folders. It leaves readable only Python, the installed packages, HANI2's own package and
 the worker's private folder. It also cuts the network unless `assistant_network` is `true`.
 
-It fails closed. An isolated Assistant that cannot start, crashes, sends a malformed message or
-times out leaves the session without an Assistant, with the error shown as for any
+It fails closed. An isolated Assistant that cannot start, crashes, sends a malformed or oversized
+message, or times out leaves the session without an Assistant, with the error shown as for any
 [Assistant that does not load](#when-an-assistant-does-not-load). It never falls back to running in
 the server.
 
 !!! warning "What isolation does not cover"
     - Without a sandbox (`auto` on a server with neither `sandbox-exec` nor `bwrap`, or `off`) the
       worker is a separate process with a private folder, but it runs as the server's operating-system
-      user. It can read any file that user can read and use the network. Install bubblewrap and set
-      `assistant_sandbox: required`.
+      user. It can read any file that user can read and use the network. Keep the default,
+      `assistant_sandbox: required`, and install bubblewrap on Linux.
     - The sandbox lets Python list the names in the folder that holds HANI2's own package.
     - Opponent agents (the AI pool) and tools still run in the server. Use only opponents and tools you
       trust.

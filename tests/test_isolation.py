@@ -239,7 +239,12 @@ def test_an_assistant_cannot_peek_at_the_other_participant(tmp_path, hani2_home,
         (shared / pkg).mkdir(parents=True)
         (shared / pkg / "__init__.py").write_text("")
         (shared / pkg / "agent.py").write_text(textwrap.dedent(body))
+    (shared / "a1" / "stolen.py").symlink_to(shared / "a2" / "agent.py")  # a link to a sibling submission
     monkeypatch.syspath_prepend(str(shared))
+    projects_root = tmp_path / "elsewhere" / "projects"  # a projects root outside every other hidden folder
+    (projects_root / "p" / "results").mkdir(parents=True)
+    (projects_root / "p" / "results" / "keys.txt").write_text("group keys")
+    monkeypatch.setenv("HANI2_PROJECTS", str(projects_root))
     code = uuid.uuid4().hex[:6]
     a = make_session(user="alice", opponent="human+assistant", query={"match": code}, agent_class="a1.agent:Peek",
                      n_steps=10)
@@ -259,7 +264,9 @@ def test_an_assistant_cannot_peek_at_the_other_participant(tmp_path, hani2_home,
     probe = {"files": {"secret": str(secret), "other_notes": str(other_results / "notes.txt"),
                        "server_code": str(isolation.__file__),
                        "other_submission": str(shared / "a2" / "agent.py"),
-                       "own_original": str(shared / "a1" / "agent.py")},
+                       "own_original": str(shared / "a1" / "agent.py"),
+                       "projects": str(projects_root / "p" / "results" / "keys.txt"),
+                       "linked_copy": "code/a1/stolen.py"},
              "dirs": {"submissions": str(shared), "home_db": str(hani2_home / "db"), "user_home": os.path.expanduser("~")},
              "port": listener.port}
     second.user_chat(json.dumps(probe))
@@ -277,6 +284,7 @@ def test_an_assistant_cannot_peek_at_the_other_participant(tmp_path, hani2_home,
     assert first.user not in blob and "match" not in json.dumps(found["context"]).lower()
     assert found["opponent_view"].get("ok") is False
     assert "first offer" in json.dumps(found["context"])  # its own negotiation it does see
+    assert found["linked_copy"].startswith("denied")  # the link was not copied into its folder
     if second.support_agent.sandboxed:
         assert found["secret"].startswith("denied")
         assert found["other_notes"].startswith("denied")
@@ -284,6 +292,7 @@ def test_an_assistant_cannot_peek_at_the_other_participant(tmp_path, hani2_home,
         assert str(found["home_db"]).startswith("denied")
         assert found["other_submission"].startswith("denied") and found["own_original"].startswith("denied")
         assert str(found["submissions"]).startswith("denied")
+        assert found["projects"].startswith("denied")
         assert str(found["user_home"]).startswith("denied")
         assert found["network"].startswith("denied") and listener.hits == 0
     else:  # pragma: no cover - a server without sandbox-exec / bwrap
@@ -310,3 +319,25 @@ def test_the_profile_hides_home_and_keeps_python(tmp_path):
     assert "(deny network*)" in prof
     args = isolation.bwrap_args(hidden, readable, str(tmp_path), False)
     assert "--unshare-net" in args and args.count("--tmpfs") >= 1
+
+
+def test_a_group_file_assistant_is_never_imported_by_the_server(tmp_path, monkeypatch, hani2_home):
+    import sys
+
+    code = tmp_path / "subs"
+    (code / "a77").mkdir(parents=True)
+    (code / "a77" / "__init__.py").write_text("")
+    (code / "a77" / "agent.py").write_text(textwrap.dedent(WORKER))
+    groups = hani2_home / "settings" / "groups"
+    groups.mkdir(parents=True, exist_ok=True)
+    (groups / "test_hi_77.json").write_text(json.dumps({"syspath": [str(code)], "agents": ["BoulwareTBNegotiator"],
+                                                       "support_agent": "a77.agent.Helper"}))
+    s = make_session(query={"group": "test_hi_77"}, opponent=None, partner=None)
+    sa = _ready(s)
+    assert sa.name == "Helper"
+    assert "a77" not in sys.modules and "a77.agent" not in sys.modules
+    s.user_chat("hi")
+    assert "doubled=42" in _chat_reply(s, "names=")
+    assert "a77" not in sys.modules
+    snap = s.snapshot()
+    assert "a77" not in sys.modules and snap["support"]["name"] == "Helper"

@@ -192,7 +192,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `human_opponent_choice` | `false` | Before pairing, the participant chooses *Play a person* or *Play an AI opponent now* (also `?opponent_choice=1`). See [Choosing a person or an AI](human-opponents.md#choosing-a-person-or-an-ai). |
 | `human_opponent_codes` | `true` | Whether `?match=<code>` pairs non-admins (false: pairing is only random among those waiting). |
 | `assistant_isolation` | `"none"` | `process`: participant-written Assistants run in a sandboxed worker process (also `HANI2_ASSISTANT_ISOLATION=process`). See [Isolated Assistants](assistant.md#isolated-assistants). |
-| `assistant_sandbox` | `"auto"` | The isolated worker's sandbox: `auto`, `required` or `off`. |
+| `assistant_sandbox` | `"required"` | The isolated worker's sandbox: `required`, `auto` or `off`. |
 | `assistant_network` | `false` | Whether an isolated worker may use the network. |
 | `assistant_call_timeout`, `assistant_start_timeout` | `600`, `90` | Seconds an isolated Assistant may take for one call, and to start. |
 | `assistant_cpu_seconds`, `assistant_memory_mb` | `3600`, `2048` | Its CPU-time and (Linux) memory limits. |

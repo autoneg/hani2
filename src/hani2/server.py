@@ -543,6 +543,8 @@ def _guest_session(request: Request, response: Response, body: dict, query: dict
     """The session of an invited guest: one per browser (several people may share one invitation, hence
     one account), results in ``<account>~<browser>``, never admin, no URL overrides for admins."""
     meta = auth.get_meta(account)
+    if get_env("auth.enforce_consent", False) and not _has_consent(account):
+        raise HTTPException(403, "consent_required")
     gid = _guest_id(request, response)
     user, sid = f"{account}~{gid}", _session_sid(f"main:{account}~{gid}", ref)
     display = meta.get("full_name") or "Guest"
@@ -759,6 +761,9 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 user = None
         if auth_mode() != "none" and user != (getattr(s, "account", None) or getattr(s, "admin_viewer", None) or s.user):
             await websocket.close(code=4401)
+            return
+        if getattr(s, "account", None) and websocket.cookies.get(GUEST_COOKIE) != s.user.rsplit("~", 1)[-1]:
+            await websocket.close(code=4401)  # a guest's session belongs to one browser
             return
     elif sid.startswith("guest:"):
         if websocket.cookies.get(GUEST_COOKIE) != sid.split("::", 1)[0].split(":", 1)[1]:

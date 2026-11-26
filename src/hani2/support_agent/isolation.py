@@ -98,9 +98,9 @@ def trusted(spec: str | None) -> bool:
 
 
 def config(session: Any) -> dict[str, Any]:
-    sb = str(_pref(session, "assistant_sandbox", "auto") or "auto").strip().lower()
+    sb = str(_pref(session, "assistant_sandbox", "required") or "required").strip().lower()
     return {
-        "sandbox": sb if sb in SANDBOXES else "auto",
+        "sandbox": sb if sb in SANDBOXES else "required",
         "network": bool(_pref(session, "assistant_network", False)),
         "start_timeout": float(_pref(session, "assistant_start_timeout", 90)),
         "call_timeout": float(_pref(session, "assistant_call_timeout", 600)),
@@ -216,6 +216,14 @@ def _hidden_paths(workroot: str) -> list[str]:
         out.add(str(cfg.settings_dir()))
     with contextlib.suppress(Exception):
         out.add(str(cfg.results_root()))
+    with contextlib.suppress(Exception):
+        from hani2 import projects
+
+        out.add(str(projects.projects_root()))
+    # every folder HANI2 or an outside system is told about (projects, scenario bases, results, ...)
+    for k, v in os.environ.items():
+        if k.startswith(("HANI2_", "HANI_", "PROLIFIC_", "SCMLWEB_")) and v and os.path.isabs(v) and os.path.isdir(v):
+            out.add(v)
     runtime = _runtime_paths()
     for p in sys.path:
         if p and os.path.isdir(p) and not any(_under(p, r) for r in runtime):
@@ -273,8 +281,13 @@ def bwrap_args(hidden: list[str], readable: list[str], workdir: str, network: bo
     for h in sorted(hidden, key=len):
         if os.path.isdir(h):
             args += ["--tmpfs", h]
-    for r in sorted({os.path.realpath(x) for x in readable if x and os.path.exists(x)}, key=len):
-        args += ["--ro-bind", r, r]
+    paths = {os.path.abspath(x) for x in readable if x and os.path.lexists(x)}
+    paths |= {os.path.realpath(x) for x in paths}
+    for r in sorted(paths, key=len):
+        if os.path.islink(r):  # recreate the link inside the hidden folders (uv's interpreters are behind links)
+            args += ["--symlink", os.readlink(r), r]
+        else:
+            args += ["--ro-bind", r, r]
     args += ["--bind", workdir, workdir, "--chdir", workdir]
     return args
 
@@ -301,6 +314,38 @@ def _workroot() -> str:
     root = Path(tempfile.gettempdir()) / "hani2-assistants"
     root.mkdir(mode=0o700, exist_ok=True)
     return str(root.resolve())
+
+
+#: the most an Assistant's own package may hold (it is copied for every worker)
+MAX_COPY = 200 * 1024 * 1024
+
+
+def _copy_own(src: str, dest: str) -> None:
+    """Copy the Assistant's own code without following or keeping any symbolic link (a link could
+    point at another participant's code or at HANI2's data, and the copy is made by the server)."""
+    total = 0
+
+    def one(a: str, b: str) -> None:
+        nonlocal total
+        total += os.path.getsize(a)
+        if total > MAX_COPY:
+            raise RuntimeError(f"the Assistant's package is larger than {MAX_COPY // 2**20} MB")
+        shutil.copyfile(a, b, follow_symlinks=False)
+
+    if os.path.islink(src):
+        raise RuntimeError(f"the Assistant's code {src} is a symbolic link")
+    if os.path.isfile(src):
+        one(src, dest)
+        return
+    for root, dirs, files in os.walk(src, followlinks=False):
+        dirs[:] = [d for d in dirs if d != "__pycache__" and not os.path.islink(os.path.join(root, d))]
+        out = os.path.join(dest, os.path.relpath(root, src))
+        os.makedirs(out, exist_ok=True)
+        for f in files:
+            a = os.path.join(root, f)
+            if os.path.islink(a) or f.endswith(".pyc") or not os.path.isfile(a):
+                continue  # links are skipped, never followed
+            one(a, os.path.join(out, f))
 
 
 def _clean_settings(settings: dict) -> dict:
@@ -390,11 +435,7 @@ class IsolatedAssistant(SupportAgent):
         code = os.path.join(self.workdir, "code")
         os.makedirs(code)
         for loc in own:
-            dest = os.path.join(code, os.path.basename(loc))
-            if os.path.isdir(loc):
-                shutil.copytree(loc, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"), symlinks=False)
-            elif os.path.isfile(loc):
-                shutil.copy2(loc, dest)
+            _copy_own(loc, os.path.join(code, os.path.basename(loc)))
         if own:
             syspath = [code]
         spec = self.spec
@@ -420,7 +461,8 @@ class IsolatedAssistant(SupportAgent):
         env = {"PATH": "/usr/bin:/bin", "HOME": self.workdir, "TMPDIR": self.workdir, "LANG": "C.UTF-8",
                "LC_ALL": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
                "PYTHONHASHSEED": str(uuid.uuid4().int % 4_000_000_000),
-               "HANI2_HOME": os.path.join(self.workdir, "hani2"), "LITELLM_LOCAL_MODEL_COST_MAP": "True"}
+               "HANI2_HOME": os.path.join(self.workdir, "hani2"), "LITELLM_LOCAL_MODEL_COST_MAP": "True",
+               "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
         cmd = [*prefix, sys.executable, "-I", "-m", "hani2.support_agent.worker"]
         self._proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                       cwd=self.workdir, env=env, close_fds=True, start_new_session=True)
@@ -533,9 +575,10 @@ class IsolatedAssistant(SupportAgent):
                 try:
                     msg = json.loads(line)
                 except (ValueError, UnicodeDecodeError):
-                    continue
+                    msg = None
                 if not isinstance(msg, dict):
-                    continue
+                    self._fail("the isolated Assistant sent a malformed message")
+                    return
                 t = msg.get("t")
                 if t == "ready":
                     self._on_ready(msg)

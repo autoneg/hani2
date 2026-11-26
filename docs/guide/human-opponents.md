@@ -160,7 +160,7 @@ full_name: Negotiation arena
 kind: none                 # not an evaluation
 defaults:
   practice: false
-  counted_time_limit: 600  # every game ends, also when one side stops acting
+  time_limit: 600          # every game ends, also when one side stops acting
   opponents: [human+assistant, human, ":pan"]
   questionnaires: false    # no questionnaire, whatever the server's environment names
 ```
@@ -180,7 +180,6 @@ title: Arena
     "human_opponent_fallback": true,
     "human_opponent_absent": 60,
     "assistant_isolation": "process",
-    "assistant_sandbox": "required",
     "show_opponent_type": false
   }
 }
@@ -194,5 +193,7 @@ title: Arena
   choose between a person and an AI, and play with the inviter's Assistant.
 - Logged-in accounts play as many games as they like. After a game, *Next negotiation* starts another,
   and so does a new hand-off from the website.
-- `assistant_isolation: process` runs participant-written Assistants in a sandboxed worker process.
-  `assistant_sandbox: required` refuses to run one where no sandbox is available.
+- `assistant_isolation: process` runs participant-written Assistants in a sandboxed worker process,
+  and refuses to run one where no sandbox is available (`assistant_sandbox` stays `required`).
+- `time_limit` (not `counted_time_limit`, which only Prolific and `?pid=` participants use) limits
+  each game of a logged-in account; `n_required` and `end_text` do not apply to them.
