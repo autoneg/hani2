@@ -300,6 +300,22 @@ moves, but your offer stays as it is.
 to the status board, or remove the compass with `self.remove_tool("Deal Compass")` once the
 negotiation ends.
 
+## What you built, and where next
+
+Starting from an echo, you added rules that read the negotiation (levels 1-2), a language model
+with your persona and your own functions (3-4), proactive advice (5), control over the tools, the
+participant's attention and the layout (6-9), and finally your own tools and the use of the
+participant's tools (10). A real Assistant usually combines a few of these.
+
+- The [Assistant guide](../guide/assistant.md) lists every setting, capability, helper and function.
+- [Build a tool](tools.md) shows how to write the tools your Assistant can bring or use.
+- [Who knows what](../guide/information.md) gives the Assistant information the participant does not
+  have, and the other way round, and [estimating the opponent](../guide/assistant.md#estimating-the-opponent)
+  lets it share its picture of the opponent through the participant's tools.
+- [Studies and results](../guide/studies.md) and [Evaluation metrics](../guide/evaluation.md)
+  explain how to compare Assistants with real participants, and
+  [Simulated participants](../guide/simulation.md) how to test them before that.
+
 ## Testing agents offline
 
 `hani2.testing.make_session` builds a complete headless session, with a scenario, an opponent and your agent, without a browser or a server. It writes everything to a temporary `HANI2_HOME` unless you pass `home=`.

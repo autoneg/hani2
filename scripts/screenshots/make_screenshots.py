@@ -308,7 +308,7 @@ def take_tools(browser, use_llm: bool) -> None:
             def ask_llm(d):
                 type_into(d.locator("textarea"), "Propose a fair middle ground on the rent and keep the lease short.")
                 d.get_by_role("button", name="Generate").click()
-            shot_tool(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Apply to my offer")
+            shot_tool(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Suggested offer")
 
             def answered(d, button: str, empty: str) -> None:
                 d.get_by_role("button", name=button, exact=True).click()

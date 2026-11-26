@@ -726,6 +726,46 @@ Return JSON with: {{"text": "message", "outcome": {{"issue": value}} or null, "r
         )
 
 
+def _number(value: Any) -> float | None:
+    """A number from a model's value: 3200, "3200", "$3,200/month"."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    m = re.search(r"-?\d+(?:\.\d+)?", str(value).replace(",", ""))
+    return float(m.group()) if m else None
+
+
+def _match_issue_value(issue: Issue, value: Any) -> Any:
+    """The issue's own option for a value a model wrote, or ``None`` when it has none.
+
+    Discrete issues (numeric or categorical) match exactly, then by text (ignoring case and
+    spaces), then by number. Continuous issues take the number, clipped to the issue's range."""
+    try:
+        options = list(issue.all)
+    except Exception:  # noqa: BLE001 - a continuous issue
+        options = None
+    if options is None:
+        x = _number(value)
+        if x is None:
+            return None
+        lo, hi = float(issue.min_value), float(issue.max_value)
+        x = min(max(x, lo), hi)
+        return round(x) if isinstance(issue.min_value, int) else x
+    if value in options:
+        return value
+    key = " ".join(str(value).split()).lower()
+    for o in options:
+        if " ".join(str(o).split()).lower() == key:
+            return o
+    x = _number(value)
+    if x is not None:
+        for o in options:
+            if isinstance(o, (int, float)) and not isinstance(o, bool) and float(o) == x:
+                return o
+    return None
+
+
 def _parse_instruction_response(
     response: str, issues: list[Issue], output_mode: str
 ) -> InstructionResult:
@@ -806,16 +846,10 @@ def _parse_instruction_response(
                 all_found = False
                 break
 
-            # Convert value to appropriate type
-            if hasattr(issue, "min_value"):
-                try:
-                    if isinstance(issue.min_value, int):
-                        value = int(float(value))
-                    else:
-                        value = float(value)
-                except (ValueError, TypeError):
-                    all_found = False
-                    break
+            value = _match_issue_value(issue, value)
+            if value is None:
+                all_found = False
+                break
 
             outcome_values.append(value)
 

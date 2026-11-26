@@ -38,7 +38,7 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Briefing | upper | load | yes | when the participant has a private briefing or decisions only they make ([Who knows what](information.md)) | The participant's private instructions and limits, and which issues and actions only they decide. |
 | Past Negotiations | upper | load | yes | when the participant holds past negotiations ([Who knows what](information.md)) | The past negotiations in this scenario that the participant holds: a table of them, and for the one picked its offers in a chart and a table. It says how many more the Assistant holds. |
 | Market Research | upper | load | yes | when the participant gets market research ([Who knows what](information.md)) | What parties like the opponent usually want: typical issue weights, the option of each issue most often liked best, the most likely best deal and the usual value on disagreement. |
-| My Results | upper | always | yes (permanent) | logged-in users (not guests) | Your score (the average of your best result per scenario), the number of negotiations and agreements, a per-scenario score table and a searchable table of every negotiation you finished, with a column picker. Practice rounds appear in the table but not in the score or counts. |
+| My Results | upper | always | yes (permanent) | logged-in users (not guests) | Your score (per scenario, your best results without the worst, averaged over scenarios), the number of negotiations and agreements, a per-scenario score table and a searchable table of every negotiation you finished, with a column picker. Practice rounds appear in the table but not in the score or counts. |
 | Value Histogram | lower | start | yes | everyone | How often each value of the selected issues was offered by you and by the opponent. Bar charts for discrete issues with at most 25 values, histograms otherwise. Options: which issues, include your offers, two columns. |
 | Utility Plot | lower | start | no | everyone | The utility (for you) of every offer over time, one line per party, with a dotted line labelled *No deal* at your value on disagreement. You can choose the X axis (relative time, step, time) and Y axis. Admins (or everyone, see below) can also plot the opponent's utility. |
 | Negotiation Plot | lower | load | yes | admins only; everyone while an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
@@ -153,11 +153,15 @@ value on disagreement. See [Market research](information.md#market-research).
 
 ### My Results
 
-**Logged-in users (not guests and Prolific participants).** Your score (the average of your best
-result in each scenario), the number of negotiations and agreements, a table of scores per scenario
+**Logged-in users (not guests and Prolific participants).** Your score, the number of negotiations and
+agreements, a table of scores per scenario
 and a searchable table of every negotiation you finished. **Columns** picks the columns of the last
 table (the [results columns](studies.md)). Practice rounds appear in the table but not in the score
 or the counts.
+
+The score takes, for every scenario, the mean of your best results (up to three) leaving out your
+worst one, so a scenario counts only from your second negotiation in it, and averages that over the
+scenarios, times 100. With one negotiation per scenario the score is 0.
 
 ![The My Results tool](../assets/screens/tool-my-results.png)
 

@@ -686,7 +686,7 @@ def _results_view(tool: Tool, df, *, leaderboard: bool) -> list[ui.Component]:
     score, per = scenario_scores(df)
     comps: list[ui.Component] = [
         ui.stats(
-            ui.stat("Score", f"{score:.1f}", hint="Average of your best results per scenario"),
+            ui.stat("Score", f"{score:.1f}", hint="Per scenario: your best results without the worst (counts from 2 negotiations)"),
             ui.stat("Negotiations", len(df)),
             ui.stat("Agreements", int((df.get("status") == "success").sum()) if "status" in df else "—"),
         )

@@ -176,6 +176,16 @@ While autopilot runs, the dock shows "Autopilot is negotiating for you", the dri
 
 The dock shows "Agreement reached" and the deal, or "No agreement" and the reason, a gauge of your final utility, any study notice, and **Next negotiation**.
 
+The history ends with a line that says how the negotiation ended:
+
+| Line | When |
+|------|------|
+| Agreement reached: *the deal* | Someone accepted an offer. |
+| You ended the negotiation without agreement. | You pressed **End**. |
+| Your opponent ended the negotiation without agreement. | The opponent left. |
+| The negotiation timed out without agreement. | The time or round limit ran out. |
+| The AI agent failed; the negotiation ended without agreement. | The opponent stopped with an error. |
+
 ## Confirmation dialogs
 
 Accepting and ending always go through a dialog.
