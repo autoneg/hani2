@@ -46,8 +46,8 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins (or everyone, see below) can add an "Opponent utility" column. |
 | Utility Bar | side | start | yes | everyone | The first offer generator. Click or drag on a bar of your utility (0-100%, with how many deals there are at each value and marks at your value on disagreement, the opponent's offer and your offer) and get one deal from that part, up to ten, all of them, or (with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences), or for admins) the best or the top ten for the opponent. A click gives the deals nearest to that value. Clicking a row puts it into your counter-offer; **Send offer** sends it. See [Utility Bar](offer-generators.md#utility-bar). |
 | Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer, and **Send offer** sends the picked deal as your offer. While an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set, it can also show the opponent's estimated utility and choose deals by it. |
-| LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
-| Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
+| LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Set offer** copies them into the counter-offer; **Send offer** sends them. |
+| Random | side | start | yes | admins only | **Generate** fills the counter-offer with a random outcome; **Send offer** sends it. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table (practice rounds are not scored or ranked). |
 | Opponent Preferences | upper | load | yes | admins only | The opponent's private preferences, in the same layout as Preferences. |
 
@@ -257,16 +257,17 @@ scenario, a leaderboard of the human participants and the full results table wit
 ### LLM
 
 **Admins only.** Write an instruction in plain words ("propose a fair middle ground on the rent"),
-choose **Text & offer**, **Text only** or **Offer only**, and press **Generate**: the configured
-language model suggests an offer and a message, shown with what the offer is worth to you. **Apply
-to my offer** copies them into your counter-offer. Without a configured model the tool shows a
+or nothing for **Recommend an offer**, choose **Text & offer**, **Text only** or **Offer only**, and
+press **Generate**: your Assistant (when you have one) or the configured language model suggests an
+offer and a message, shown with what the offer is worth to you. **Set
+offer** copies them into your counter-offer; **Send offer** sends them as your offer right away. Without a configured model the tool shows a
 warning. See [Offer generators](offer-generators.md#llm) and [Language models](llms.md).
 
 ![The LLM tool after generating a suggestion](../assets/screens/tool-llm.png)
 
 ### Random
 
-**Admins only.** **Set Offer** fills your counter-offer with a random deal. Useful to explore the
+**Admins only.** **Generate** fills your counter-offer with a random deal, and **Send offer** sends it. Useful to explore the
 outcome space or to test an opponent.
 
 ![The Random tool](../assets/screens/tool-random.png)

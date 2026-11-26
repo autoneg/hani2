@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-- **Send offer in the Utility Bar and the Utility-based Selector.** Picking a row already puts the
-  deal into the counter-offer, so their **Set Offer** button did nothing visible. It is now **Send
-  offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
+- **Send offer in the offer generators.** Picking a row in the Utility Bar or the Utility-based
+  Selector already puts the deal into the counter-offer, so their **Set Offer** button did nothing
+  visible. It is now **Send offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
   does (same checks, with the message typed in the message box, which then empties). It is disabled
   while the participant cannot send (the negotiation is not running, not their turn, the autopilot
   is on, text-only mode,
@@ -12,8 +12,17 @@
   only fills the counter-offer. An Assistant operating these tools picks a row (action `pick`) to
   fill the offer, and presses `send_offer` only with *Send counter-offers*; the `set_offer` action is
   no longer offered on them (code calling `on_action("set_offer", ...)` still fills the offer).
-  Random, the LLM tool's **Apply to my offer** and custom `OutcomeSelector`s keep filling the offer;
-  a custom one opts in with `sends_offer = True` and `pick()`. See [Sending from the
+  **Random** gets **Generate** (fills the counter-offer with a random deal, shown in the tool) and
+  **Send offer** (sends it). The **LLM** tool's **Apply to my offer** is now **Set offer** (copies the
+  suggestion), next to **Send offer** (sends the suggested offer with its message). With an empty
+  instruction its button reads **Recommend an offer** (**Write a message** with *Text only*) and asks
+  for that (`ui.button(..., empty_label=, empty_input=)` switches a button's text in the browser
+  while an input is empty). When the participant has an Assistant, the LLM tool asks the Assistant
+  (`Assistant.suggest_offer`: its own model, instructions and conversation, no functions called)
+  instead of the tool's own prompt, which stays for no Assistant, an Assistant switched off or
+  without *Fill the offer* / *Write the message* for the mode, a harness model, and Generate pressed
+  by the Assistant itself. Custom
+  `OutcomeSelector`s keep **Set Offer**; one opts in with `sends_offer = True` and `pick()`. See [Sending from the
   tool](guide/offer-generators.md#sending-from-the-tool).
 - **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
   participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no

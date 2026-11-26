@@ -281,9 +281,14 @@ def button(
     disabled: bool = False,
     full: bool = False,
     tooltip: str | None = None,
+    empty_label: str | None = None,
+    empty_input: str | None = None,
 ) -> Component:
     """``variant``: primary | secondary | success | danger | ghost.
-    ``icon``: a lucide icon name in kebab case (e.g. ``"sparkles"``)."""
+    ``icon``: a lucide icon name in kebab case (e.g. ``"sparkles"``).
+    ``empty_label``: the text shown instead of ``label`` while the input named ``empty_input`` is
+    empty (it follows the typing in the browser, with no round trip)."""
+    extra = {"empty_label": empty_label, "empty_input": empty_input} if empty_label and empty_input else {}
     return _c(
         "button",
         label=label,
@@ -294,6 +299,7 @@ def button(
         disabled=disabled,
         full=full,
         tooltip=tooltip,
+        **extra,
     )
 
 

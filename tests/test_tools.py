@@ -205,6 +205,7 @@ def test_llm_tool_generates_and_applies(monkeypatch):
     monkeypatch.setattr(llm, "is_llm_configured", lambda: True)
     monkeypatch.setattr(llm, "_call_llm", lambda prompt, settings=None: _json.dumps(
         {"text": "How about this?", "outcome": outcome, "reasoning": "fair"}))
+    s.support_agent.user_enabled = False  # the tool's own prompt (with an Assistant on, it answers)
     tool = s.tool_controller.find("LLM")
     tool.on_action("generate", {"instruction": "be fair"})
     assert s.wait(lambda: not tool.busy, 10)

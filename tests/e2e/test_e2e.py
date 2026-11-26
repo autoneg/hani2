@@ -546,3 +546,49 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
         counter.first.click()
     expect(box).to_be_enabled()
     expect(box).to_have_value("")
+
+
+def test_random_generates_a_deal_and_send_offer_sends_it(new_page):
+    """The Random generator (admins): Generate fills the counter-offer, its Send offer sends that deal."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.goto("/app")
+    start(p)
+    side = p.locator('[data-anchor="pane:side"]')
+    side.get_by_role("tab", name="Random").click()
+    panel = side.get_by_role("tabpanel")
+    tool_send = panel.get_by_role("button", name="Send offer")
+    expect(tool_send).to_have_attribute("title", "Generate a deal first.")
+    expect(panel.get_by_role("button", name="Set Offer")).to_have_count(0)
+    accept = p.get_by_role("button", name=ACCEPT).first
+    dock_send = p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
+    for _ in range(300):  # our turn: the opponent may move first
+        if (accept.count() and accept.is_enabled()) or (dock_send.count() and dock_send.is_enabled()):
+            break
+        p.wait_for_timeout(100)
+    expect(p.locator('[data-anchor="history"]').get_by_text("You", exact=True)).to_have_count(0)
+    panel.get_by_role("button", name="Generate").click()
+    expect(panel.get_by_text("Generated deal")).to_be_visible()
+    expect(tool_send).to_be_enabled()
+    tool_send.click()
+    expect(tool_send).to_be_disabled()
+    expect(panel.get_by_text("Generated deal")).to_have_count(0)
+    expect(p.locator('[data-anchor="history"]').get_by_text("You", exact=True).first).to_be_visible()
+
+
+def test_the_llm_tool_recommends_an_offer_when_nothing_is_typed(new_page):
+    """With an empty instruction the LLM tool's button reads Recommend an offer; typing makes it Generate."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.goto("/app")
+    start(p)
+    side = p.locator('[data-anchor="pane:side"]')
+    side.get_by_role("tab", name="LLM").click()
+    panel = side.get_by_role("tabpanel")
+    expect(panel.get_by_role("button", name="Recommend an offer")).to_be_visible()
+    panel.locator("textarea").fill("hold firm on the price")
+    expect(panel.get_by_role("button", name="Generate")).to_be_visible()
+    panel.locator("textarea").fill("")
+    expect(panel.get_by_role("button", name="Recommend an offer")).to_be_visible()
+    panel.get_by_text("Text only").click()
+    expect(panel.get_by_role("button", name="Write a message")).to_be_visible()

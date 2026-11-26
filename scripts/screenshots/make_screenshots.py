@@ -295,11 +295,14 @@ def take_tools(browser, use_llm: bool) -> None:
             ("Utility Plot", "tool-utility-plot"), ("Outcome Plot", "tool-outcome-plot"), ("Trace", "tool-trace"),
             ("Opponent Preferences", "tool-opponent-preferences"), ("Utility Bar", "tool-utility-bar"),
             ("Utility-based Selector", "tool-utility-selector"),
-            ("Random", "tool-random"), ("Deal Compass", "tool-deal-compass"),
+            ("Deal Compass", "tool-deal-compass"),
             ("Offer Counter", "tool-offer-counter"), ("What If", "tool-what-if"),
             ("Concession Tracker", "tool-concession-tracker"),
         ]:
             shot_tool(page, name, file)
+        # Random after Generate: the generated deal and its Send offer button
+        shot_tool(page, "Random", "tool-random",
+                  prepare=lambda d: d.get_by_role("button", name="Generate").click(), wait_for="Generated deal")
         # the Negotiation Plot of an admin: the estimate by default, the real preferences on request
         shot_tool(page, "Negotiation Plot", "tool-negotiation-plot-estimate-admin")
         shot_tool(page, "Negotiation Plot", "tool-negotiation-plot",

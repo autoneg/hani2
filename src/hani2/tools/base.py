@@ -393,6 +393,8 @@ class OutcomeSelector(Tool):
     #: True: picking a deal fills the counter-offer, and the button sends the picked deal
     sends_offer = False
     send_label = "Send offer"
+    #: the tooltip of the disabled **Send offer** button while nothing is picked
+    nothing_picked = "Pick a deal first."
 
     def get_outcome(self) -> Outcome | None:
         s = self.scenario
@@ -439,7 +441,7 @@ class OutcomeSelector(Tool):
         if sess is not None and sess.admin_prefs.get("text_only_mode"):
             return "Offers are sent as messages only here: use the message box."
         if self.picked_outcome() is None:
-            return "Pick a deal first."
+            return self.nothing_picked
         return None
 
     def send_outcome(self) -> dict:

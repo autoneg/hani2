@@ -225,7 +225,7 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
           onClick={() => ctx.onAction(c.action, c.payload || {})}
         >
           {c.icon && <Icon name={c.icon} size={15} />}
-          {c.label}
+          {c.empty_label && c.empty_input && !String(ctx.values[c.empty_input] ?? "").trim() ? c.empty_label : c.label}
         </button>
       );
     case "select":

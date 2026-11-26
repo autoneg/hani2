@@ -560,7 +560,7 @@ Every input has a `name`. Changing it calls the tool's `on_input(name, value)`.
 
 | Function | Renders |
 |----------|---------|
-| `button(label, action, *, payload=None, variant="secondary", icon=None, disabled=False, full=False, tooltip=None)` | A button that calls `on_action(action, payload)`, with the current input values merged into `payload`. `variant`: `primary`, `secondary`, `success`, `danger` or `ghost`. `icon` is a lucide icon name. `full` stretches it to the full width. |
+| `button(label, action, *, payload=None, variant="secondary", icon=None, disabled=False, full=False, tooltip=None, empty_label=None, empty_input=None)` | A button that calls `on_action(action, payload)`, with the current input values merged into `payload`. `variant`: `primary`, `secondary`, `success`, `danger` or `ghost`. `icon` is a lucide icon name. `full` stretches it to the full width. `tooltip` is shown on hover (also while disabled, for example to say why). `empty_label` is shown instead of `label` while the input named `empty_input` is empty; it follows the typing in the browser (the LLM tool's **Recommend an offer**). |
 
 ### Layout
 

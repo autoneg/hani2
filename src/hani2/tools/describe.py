@@ -119,7 +119,10 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
             desc += f"; range {_fmt(c.get('min'))}–{_fmt(c.get('max'))}"
         out.append(pad + desc)
     elif t == "button":
-        out.append(pad + f"Button {c.get('label')!r} → action {c.get('action')!r}" + (" (disabled)" if c.get("disabled") else ""))
+        empty = (f" (reads {c['empty_label']!r} while input {c['empty_input']!r} is empty)"
+                 if c.get("empty_label") and c.get("empty_input") else "")
+        out.append(pad + f"Button {c.get('label')!r} → action {c.get('action')!r}" + empty
+                   + (" (disabled)" if c.get("disabled") else ""))
     elif t in ("card", "row", "column", "grid", "stats", "tabs", "section"):
         if c.get("title"):
             out.append(pad + f"## {c['title']}")
