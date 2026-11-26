@@ -760,6 +760,123 @@ def check(project: str | None = None, study: str | None = None, **kw: Any) -> li
     return resolve(project, study, strict=True, **kw).problems
 
 
+# --------------------------------------------------------------------------- #
+# Saving: what the admin API and ``hani2 scores set`` write                    #
+# --------------------------------------------------------------------------- #
+def _layer_file(project: str, study: str | None):
+    from hani2 import projects
+
+    if study:
+        ref = projects.StudyRef(project, study)
+        return projects.study_dir(ref) / projects.STUDY_FILE, "overrides"
+    return projects.project_dir(project) / projects.PROJECT_FILE, "defaults"
+
+
+def _layer(project: str, study: str | None) -> dict:
+    """The settings of one file (top level and nested, as :func:`hani2.projects.load_project` reads them)."""
+    from hani2 import projects
+
+    if study:
+        return projects.load_study(projects.StudyRef(project, study)).overrides
+    return projects.load_project(project).defaults
+
+
+def change_problems(project: str, study: str | None = None, *, scores: Any = ..., enabled: Any = ...,
+                    side: str | None = None) -> list[str]:
+    """The problems that a change of one file's ``scores`` / ``scores_enabled`` (``side``: the
+    project's, or the study's; default: the study's when ``study`` is given) would add. Problems
+    that are there already (in other scores) do not block a change; weights that do not sum to 1
+    always do."""
+    kw_before: dict[str, Any] = {}
+    kw_after: dict[str, Any] = {}
+    side = side or ("study" if study else "project")
+    if scores is not ...:
+        p, w = file_problems(scores, "scores", strict=True)
+        if p:
+            return p
+        kw_after[f"{side}_scores"] = scores or {}
+    if enabled is not ...:
+        p = enabled_problems(enabled)
+        if p:
+            return p
+        kw_after[f"{side}_enabled"] = enabled
+    before = set(resolve(project, study, strict=True, **kw_before).problems)
+    after = resolve(project, study, strict=True, **kw_after).problems
+    return [p for p in after if p not in before]
+
+
+def _write(project: str, study: str | None, key: str, value: Any) -> None:
+    """Set (``value``) or remove (``...``) ``key`` in a file, where the file has it: at the top level,
+    else under ``defaults:`` / ``overrides:`` when it is there."""
+    from hani2 import projects
+
+    path, nested = _layer_file(project, study)
+    data = projects.read_yaml(path)
+    inner = data.get(nested) if isinstance(data.get(nested), dict) else None
+    target = inner if inner is not None and key in inner and key not in data else data
+    if value is ...:
+        target.pop(key, None)
+    else:
+        target[key] = value
+    if inner is not None and not inner:
+        data.pop(nested, None)
+    projects.write_yaml(path, data)
+
+
+def save_score(project: str, study: str | None, key: str, data: Any) -> Score:
+    """Add or replace a defined score in ``project.yaml`` (or ``study.yaml``), after every check:
+    a ValueError names what is wrong. Weights must sum to 1."""
+    sc, p, _ = parse_definition(key, data, strict=True, origin="study" if study else "project")
+    if p:
+        raise ValueError("; ".join(p))
+    current = _file_scores(_layer(project, study))
+    p = change_problems(project, study, scores={**current, key: data})
+    if p:
+        raise ValueError("; ".join(p))
+    _write(project, study, "scores", {**current, key: data})
+    return resolve(project, study).scores.get(key, sc)
+
+
+def delete_score(project: str, study: str | None, key: str) -> None:
+    """Remove a defined score; refused while another score contains it or ``scores_enabled`` names it."""
+    current = _file_scores(_layer(project, study))
+    if key not in current:
+        raise KeyError(key)
+    rest = {k: v for k, v in current.items() if k != key}
+    p = change_problems(project, study, scores=rest)
+    if p:
+        raise ValueError("; ".join(p))
+    _write(project, study, "scores", rest if rest else ...)
+
+
+def save_enabled(project: str, study: str | None, enabled: list[str] | None) -> list[str]:
+    """Set ``scores_enabled`` of the project (or study); ``None`` goes back to the default (the
+    study: the project's choice; the project: every score)."""
+    if enabled is not None:
+        p = change_problems(project, study, enabled=list(enabled))
+        if p:
+            raise ValueError("; ".join(p))
+    _write(project, study, "scores_enabled", ... if enabled is None else list(enabled))
+    return resolve(project, study).enabled
+
+
+def duplicate(project: str, study: str | None, source: str, key: str) -> Score:
+    """Copy a score (a built-in, or one the project or study can see) under a new key, where it can be
+    edited. A built-in's weights are copied rescaled to sum to 1; its rules for failed opponents and
+    sessions without an Assistant (``zero_if``, ``needs_assistant``) are not part of the format."""
+    ss = resolve(project, study)
+    if source not in ss.scores:
+        raise KeyError(source)
+    d = definition(ss.scores[source])
+    for k in ("builtin", "board", "zero_if", "needs_assistant"):
+        d.pop(k, None)
+    w = [c["weight"] for c in d["components"]]
+    if w and abs(sum(w) - 1) > 0:  # the rounding of definition(): make the copy sum to exactly 1
+        d["components"][-1]["weight"] = 1 - sum(w[:-1])
+    d["title"] = f"{d['title']} (copy)"
+    return save_score(project, study, key, d)
+
+
 def score_rows(rows: list[dict], scores: ScoreSet | Iterable[Score], *, names: Iterable[str] | None = None,
                group: Callable[[dict], Any] | None = None, reference: dict | None = None,
                options: dict | None = None) -> list[dict]:

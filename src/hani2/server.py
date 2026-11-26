@@ -990,6 +990,143 @@ def admin_criteria(project: str | None = None, study: str | None = None, coverag
     return jsonable(criteria.api_payload(project, name, rows))
 
 
+# --------------------------------------------------------------------------- #
+# Scores (defined in project.yaml and study.yaml)                              #
+# --------------------------------------------------------------------------- #
+def _score_target(project: str, study: str | None = None) -> tuple[str, str | None]:
+    try:
+        projects.check_name(project, "project")
+        if study is not None:
+            projects.check_name(study, "study")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if not projects.project_exists(project):
+        raise HTTPException(404, f"no project {project!r}")
+    if study is not None and not projects.study_exists(projects.StudyRef(project, study)):
+        raise HTTPException(404, f"no study {project}/{study}")
+    return project, study
+
+
+@app.get("/api/admin/scores")
+def admin_scores(project: str | None = None, study: str | None = None, _: str = Depends(require_admin)):
+    """The scores of ``project`` (or of ``study`` = ``project/study``): the built-ins (read-only), the
+    project's and the study's definitions with their weights in effect (summing to 1) and flattened down
+    to criteria, ``scores_enabled``, and the problems and warnings of the files."""
+    from hani2.evaluation import scores as S
+
+    try:
+        ref = projects.parse_ref(study) if study else None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if ref is not None and project and ref.project != project:
+        raise HTTPException(400, f"study {ref} is not in project {project!r}")
+    if ref is None and not project:
+        raise HTTPException(400, "give a project or a study (project/study)")
+    project, name = _score_target(ref.project if ref is not None else str(project), ref.study if ref else None)
+    return jsonable(S.resolve(project, name).to_dict())
+
+
+def _save_score(project: str, study: str | None, key: str, body: Any) -> dict:
+    from hani2.evaluation import scores as S
+
+    if not isinstance(body, dict):
+        raise HTTPException(400, "send the score's definition as a JSON object")
+    body = {k: v for k, v in body.items() if k not in ("key", "origin", "enabled", "flattened")}
+    try:
+        S.save_score(project, study, key, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"ok": True, **jsonable(S.resolve(project, study).to_dict())}
+
+
+def _delete_score(project: str, study: str | None, key: str) -> dict:
+    from hani2.evaluation import scores as S
+
+    try:
+        S.delete_score(project, study, key)
+    except KeyError:
+        raise HTTPException(404, f"no score {key!r} defined here") from None
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
+    return {"ok": True}
+
+
+def _save_enabled(project: str, study: str | None, body: Any) -> dict:
+    from hani2.evaluation import scores as S
+
+    enabled = body.get("enabled") if isinstance(body, dict) else body
+    if enabled is not None and not isinstance(enabled, list):
+        raise HTTPException(400, 'send {"enabled": [score, ...]} or {"enabled": null} for the default')
+    try:
+        return {"ok": True, "enabled": S.save_enabled(project, study, enabled)}
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+def _duplicate_score(project: str, study: str | None, key: str, body: Any) -> dict:
+    from hani2.evaluation import scores as S
+
+    source = body.get("from") if isinstance(body, dict) else None
+    if not isinstance(source, str) or not source:
+        raise HTTPException(400, 'send {"from": "<score to copy>"}')
+    try:
+        S.duplicate(project, study, source, key)
+    except KeyError:
+        raise HTTPException(404, f"no score {source!r}") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"ok": True, **jsonable(S.resolve(project, study).to_dict())}
+
+
+@app.put("/api/admin/projects/{project}/scores/{key}")
+def admin_put_project_score(project: str, key: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Add or replace a score in ``project.yaml``. 400 unless the weights are ≥ 0 and sum to 1 and every
+    check passes (known criteria, directions, normalisers, no cycles, no key clashes)."""
+    return _save_score(*_score_target(project), key, body)
+
+
+@app.delete("/api/admin/projects/{project}/scores/{key}")
+def admin_delete_project_score(project: str, key: str, _: str = Depends(require_admin)):
+    """Remove a score from ``project.yaml`` (409 while another score contains it or ``scores_enabled``
+    names it)."""
+    return _delete_score(*_score_target(project), key)
+
+
+@app.post("/api/admin/projects/{project}/scores/{key}/duplicate")
+def admin_duplicate_project_score(project: str, key: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Copy a score (``{"from": "hi_team"}``, for example a read-only built-in) into ``project.yaml`` as ``key``."""
+    return _duplicate_score(*_score_target(project), key, body)
+
+
+@app.put("/api/admin/projects/{project}/scores_enabled")
+def admin_put_project_enabled(project: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Set the project's ``scores_enabled`` (``{"enabled": [...]}``; ``null``: every score)."""
+    return _save_enabled(*_score_target(project), body)
+
+
+@app.put("/api/admin/projects/{project}/studies/{study}/scores/{key}")
+def admin_put_study_score(project: str, study: str, key: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Add a score to ``study.yaml``, or redefine one of the project's by key."""
+    return _save_score(*_score_target(project, study), key, body)
+
+
+@app.delete("/api/admin/projects/{project}/studies/{study}/scores/{key}")
+def admin_delete_study_score(project: str, study: str, key: str, _: str = Depends(require_admin)):
+    return _delete_score(*_score_target(project, study), key)
+
+
+@app.post("/api/admin/projects/{project}/studies/{study}/scores/{key}/duplicate")
+def admin_duplicate_study_score(project: str, study: str, key: str, body: Any = Body(...),
+                                _: str = Depends(require_admin)):
+    return _duplicate_score(*_score_target(project, study), key, body)
+
+
+@app.put("/api/admin/projects/{project}/studies/{study}/scores_enabled")
+def admin_put_study_enabled(project: str, study: str, body: Any = Body(...), _: str = Depends(require_admin)):
+    """Set the study's ``scores_enabled`` (``{"enabled": [...]}``; ``null``: the project's choice)."""
+    return _save_enabled(*_score_target(project, study), body)
+
+
 def _ref_or_404(project: str, study: str) -> "projects.StudyRef":
     try:
         ref = projects.StudyRef(projects.check_name(project, "project"), projects.check_name(study, "study"))
@@ -1062,6 +1199,20 @@ def _writable(data: dict, nested: str) -> dict:
     return out
 
 
+def _check_scores_change(project: str, study: str | None, data: dict, nested: str) -> None:
+    """A ValueError when the ``scores`` / ``scores_enabled`` of a whole project.yaml
+    (``nested="defaults"``) or study.yaml (``"overrides"``; ``study`` is ``None`` for a new one) being
+    saved would add a problem (an unknown criterion, a missing direction, …)."""
+    from hani2.evaluation import scores as S
+
+    inner = data.get(nested) if isinstance(data.get(nested), dict) else {}
+    layer = {**inner, **{k: data[k] for k in ("scores", "scores_enabled") if k in data}}
+    p = S.change_problems(project, study, scores=layer.get("scores") or {}, enabled=layer.get("scores_enabled"),
+                          side="project" if nested == "defaults" else "study")
+    if p:
+        raise ValueError("; ".join(p))
+
+
 @app.put("/api/admin/projects/{project}")
 def admin_put_project(project: str, body: dict = Body(...), _: str = Depends(require_admin)):
     """Create or replace ``project.yaml``: ``{"data": {...}}`` or ``{"yaml": "..."}``."""
@@ -1071,6 +1222,7 @@ def admin_put_project(project: str, body: dict = Body(...), _: str = Depends(req
         if data.get("kind", "none") not in projects.KINDS:
             raise HTTPException(400, f"kind must be one of {', '.join(projects.KINDS)}")
         projects.check_file_data(data, "defaults", project=project)
+        _check_scores_change(project, None, data, "defaults")
         projects.write_yaml(projects.project_dir(project) / projects.PROJECT_FILE, data)
         (projects.project_dir(project) / "studies").mkdir(exist_ok=True)
     except ValueError as e:
@@ -1096,6 +1248,7 @@ def admin_put_study(project: str, study: str, body: dict = Body(...), _: str = D
         raise HTTPException(400, f"type must be one of {', '.join(projects.STUDY_TYPES)}")
     try:
         projects.check_file_data(data, "overrides", ref=ref)
+        _check_scores_change(ref.project, ref.study if projects.study_exists(ref) else None, data, "overrides")
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     if ref.project != projects.DEFAULT_PROJECT and not projects.project_dir(ref.project).is_dir():

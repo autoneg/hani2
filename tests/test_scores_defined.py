@@ -399,3 +399,177 @@ def test_score_rows_with_a_reference(proj):
     out = S.score_rows([row], ss, names=["hi_score"], reference=ref)[0]
     assert out["hi_score"] == pytest.approx(0.5 + 0.3 + 0.2 * 0.5)
     assert not math.isnan(out["hi_score_coverage"])
+
+
+# --------------------------------------------------------------------------- #
+# Saving, the command line and the admin API                                   #
+# --------------------------------------------------------------------------- #
+def test_save_delete_enable_duplicate(proj):
+    S.save_score("HI2027", None, "two", {"components": [{"criterion": "agreement", "weight": 1}]})
+    assert "two" in S.resolve("HI2027").scores
+    with pytest.raises(ValueError, match="not 1"):
+        S.save_score("HI2027", None, "two", {"components": [{"criterion": "agreement", "weight": 0.9}]})
+    with pytest.raises(ValueError, match="no direction"):
+        S.save_score("HI2027", None, "two", {"components": [{"criterion": "n_offers", "weight": 1}]})
+    with pytest.raises(ValueError, match="read-only"):
+        S.save_score("HI2027", None, "hi_team", {"components": [{"criterion": "agreement", "weight": 1}]})
+    # a score that another contains, or that is enabled, cannot be removed
+    S.save_score("HI2027", None, "outer", {"components": [{"criterion": "two", "weight": 1}]})
+    with pytest.raises(ValueError, match="'outer', component 'two'"):
+        S.delete_score("HI2027", None, "two")
+    assert S.save_enabled("HI2027", None, ["outer", "utility"]) == ["outer", "utility"]
+    with pytest.raises(ValueError, match="unknown score"):
+        S.save_enabled("HI2027", None, ["outer", "nope"])
+    with pytest.raises(ValueError, match="unknown score"):
+        S.delete_score("HI2027", None, "outer")
+    S.save_enabled("HI2027", None, None)
+    S.delete_score("HI2027", None, "outer")
+    S.delete_score("HI2027", None, "two")
+    with pytest.raises(KeyError):
+        S.delete_score("HI2027", None, "two")
+    # a problem that is there already does not block another change
+    f = projects.project_dir("HI2027") / projects.PROJECT_FILE
+    data = yaml.safe_load(f.read_text())
+    data["scores"]["broken"] = {"components": [{"criterion": "nope", "weight": 1}]}
+    f.write_text(yaml.safe_dump(data))
+    S.save_score("HI2027", None, "three", {"components": [{"criterion": "agreement", "weight": 1}]})
+    # a study's file: under overrides when it keeps them there
+    sf = projects.study_dir(projects.StudyRef("HI2027", "play")) / projects.STUDY_FILE
+    sd = yaml.safe_load(sf.read_text())
+    sd["overrides"] = {"scores": {}}
+    sf.write_text(yaml.safe_dump(sd))
+    S.save_score("HI2027", "play", "local", {"components": [{"criterion": "agreement", "weight": 1}]})
+    assert "local" in yaml.safe_load(sf.read_text())["overrides"]["scores"]
+    # duplicating a built-in: editable, rescaled to sum to 1, same values where its extra rules do not apply
+    S.duplicate("HI2027", None, "hi_assistant", "my_assistant")
+    ss = S.resolve("HI2027")
+    mine = ss.scores["my_assistant"]
+    assert mine.origin == "project" and sum(c.weight for c in mine.components) == pytest.approx(1, abs=1e-9)
+    row = {"support_agent": "A", "ja_overall": 6, "assistant_critical_errors": 1, "fn_success_rate": 0.5}
+    assert S.score_row(row, scores=ss.needed(["my_assistant"]))["my_assistant"] == pytest.approx(S.score_row(row)["hi_assistant"])
+    with pytest.raises(KeyError):
+        S.duplicate("HI2027", None, "nope", "x")
+
+
+def test_scores_cli(proj, tmp_path):
+    from typer.testing import CliRunner
+
+    from hani2 import cli
+
+    run = CliRunner().invoke
+    r = run(cli.app, ["scores", "list", "HI2027"])
+    assert r.exit_code == 0, r.output
+    assert "* hi_score" in r.output and "project" in r.output and "* hi_team" in r.output
+    r = run(cli.app, ["scores", "show", "HI2027", "hi_score"])
+    assert r.exit_code == 0, r.output
+    assert "50.00 %  human_advantage" in r.output and "advantage" in r.output and "components:" in r.output
+    r = run(cli.app, ["scores", "show", "HI2027", "hi_interaction"])
+    assert "flattened to criteria" in r.output
+    assert run(cli.app, ["scores", "show", "HI2027", "nope"]).exit_code == 1
+    r = run(cli.app, ["scores", "check", "HI2027/play"])
+    assert r.exit_code == 0 and "ok:" in r.output
+    # set: refused unless the weights sum to 1
+    r = run(cli.app, ["scores", "set", "HI2027", "x", "--json",
+                      '{"components": [{"criterion": "agreement", "weight": 0.4}]}'])
+    assert r.exit_code == 1 and "not 1 (100 %)" in r.output
+    f = tmp_path / "d.yaml"
+    f.write_text(yaml.safe_dump({"title": "X", "components": [{"criterion": "agreement", "weight": 1}]}))
+    r = run(cli.app, ["scores", "set", "HI2027/play", "x", "-f", str(f)])
+    assert r.exit_code == 0, r.output
+    assert "x" in S.resolve("HI2027", "play").scores and "x" not in S.resolve("HI2027").scores
+    r = run(cli.app, ["scores", "enable", "HI2027/play", "x,utility"])
+    assert r.exit_code == 0 and "x, utility" in r.output
+    assert run(cli.app, ["scores", "enable", "HI2027/play", "nope"]).exit_code == 1
+    assert run(cli.app, ["scores", "remove", "HI2027/play", "x"]).exit_code == 1  # still enabled
+    assert run(cli.app, ["scores", "enable", "HI2027/play", "--default"]).exit_code == 0
+    assert run(cli.app, ["scores", "remove", "HI2027/play", "x"]).exit_code == 0
+    assert run(cli.app, ["scores", "remove", "HI2027/play", "x"]).exit_code == 1
+    r = run(cli.app, ["scores", "duplicate", "HI2027", "hi_team", "my_team"])
+    assert r.exit_code == 0, r.output
+    # check fails on a hand-edited file whose weights do not sum to 1 (loading rescales it)
+    pf = projects.project_dir("HI2027") / projects.PROJECT_FILE
+    data = yaml.safe_load(pf.read_text())
+    data["scores"]["hand"] = {"components": [{"criterion": "agreement", "weight": 3}]}
+    pf.write_text(yaml.safe_dump(data))
+    r = run(cli.app, ["scores", "check", "HI2027"])
+    assert r.exit_code == 1 and "'hand'" in r.output and "not 1" in r.output
+    out = tmp_path / "s.json"
+    assert run(cli.app, ["scores", "list", "HI2027", "-o", str(out)]).exit_code == 0
+    import json
+
+    body = json.loads(out.read_text())
+    assert any(s["key"] == "hand" for s in body["scores"]) and body["warnings"]
+
+
+@pytest.fixture
+def client(hani2_home):
+    from fastapi.testclient import TestClient
+
+    from hani2.server import app
+
+    with TestClient(app) as c:
+        yield c
+
+
+def test_admin_score_endpoints(client, proj):
+    assert client.get("/api/admin/scores", params={"project": "HI2027"}).status_code in (401, 403)
+    assert client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
+    r = client.get("/api/admin/scores", params={"project": "HI2027"})
+    assert r.status_code == 200, r.text
+    by = {s["key"]: s for s in r.json()["scores"]}
+    assert by["hi_team"]["builtin"] and by["hi_team"]["origin"] == "builtin"
+    assert sum(c["weight"] for c in by["hi_team"]["components"]) == pytest.approx(1)
+    assert by["hi_score"]["origin"] == "project" and by["hi_score"]["enabled"]
+    assert client.get("/api/admin/scores", params={"project": "nope"}).status_code == 404
+    assert client.get("/api/admin/scores", params={"study": "HI2027/nope"}).status_code == 404
+    assert client.get("/api/admin/scores", params={"project": "../x"}).status_code == 400
+    # save: 400 unless the weights sum to 1 and every check passes
+    bad = {"components": [{"criterion": "agreement", "weight": 0.5}]}
+    r = client.put("/api/admin/projects/HI2027/scores/mine", json=bad)
+    assert r.status_code == 400 and "not 1 (100 %)" in r.json()["detail"]
+    r = client.put("/api/admin/projects/HI2027/scores/agreement", json={"components": [{"criterion": "human_advantage", "weight": 1}]})
+    assert r.status_code == 400 and "name of a column" in r.json()["detail"]
+    r = client.put("/api/admin/projects/HI2027/scores/mine",
+                   json={"components": [{"criterion": "n_offers", "weight": 1}]})
+    assert r.status_code == 400 and "no direction" in r.json()["detail"]
+    good = {"title": "Mine", "components": [{"criterion": "agreement", "weight": 0.25},
+                                            {"criterion": "hi_score", "weight": 0.75}]}
+    r = client.put("/api/admin/projects/HI2027/scores/mine", json=good)
+    assert r.status_code == 200, r.text
+    assert any(s["key"] == "mine" for s in r.json()["scores"])
+    # a cycle
+    r = client.put("/api/admin/projects/HI2027/scores/hi_score",
+                   json={"components": [{"criterion": "mine", "weight": 1}]})
+    assert r.status_code == 400 and "cycle" in r.json()["detail"]
+    # study: add, redefine by key, enable, delete
+    r = client.put("/api/admin/projects/HI2027/studies/play/scores/hi_score",
+                   json={"title": "Play's", "components": [{"criterion": "agreement", "weight": 1}]})
+    assert r.status_code == 200, r.text
+    r = client.get("/api/admin/scores", params={"study": "HI2027/play"})
+    assert {s["key"]: s for s in r.json()["scores"]}["hi_score"]["origin"] == "study"
+    r = client.put("/api/admin/projects/HI2027/studies/play/scores_enabled", json={"enabled": ["mine", "utility"]})
+    assert r.status_code == 200 and r.json()["enabled"] == ["mine", "utility"]
+    r = client.put("/api/admin/projects/HI2027/studies/play/scores_enabled", json={"enabled": ["nope"]})
+    assert r.status_code == 400
+    r = client.put("/api/admin/projects/HI2027/scores_enabled", json={"enabled": None})
+    assert r.status_code == 200
+    # removing a score that another contains: 409
+    assert client.delete("/api/admin/projects/HI2027/scores/hi_score").status_code == 409
+    assert client.delete("/api/admin/projects/HI2027/studies/play/scores/hi_score").status_code == 200
+    assert client.delete("/api/admin/projects/HI2027/studies/play/scores/hi_score").status_code == 404
+    # duplicate a built-in
+    r = client.post("/api/admin/projects/HI2027/scores/my_han/duplicate", json={"from": "han_interaction"})
+    assert r.status_code == 200, r.text
+    assert client.post("/api/admin/projects/HI2027/scores/x/duplicate", json={"from": "nope"}).status_code == 404
+    # whole-file saves get the same checks
+    r = client.get("/api/admin/projects/HI2027").json()
+    data = {k: v for k, v in r.items() if k in ("name", "kind", "defaults")}
+    data["defaults"]["scores"]["mine"]["components"][0]["criterion"] = "nope"
+    r = client.put("/api/admin/projects/HI2027", json={"data": data})
+    assert r.status_code == 400 and "unknown criterion" in r.json()["detail"]
+    r = client.put("/api/admin/projects/HI2027/studies/play", json={"yaml": "type: online\nscores:\n  s1:\n    components:\n"
+                                                                          "      - {criterion: n_offers, weight: 1}\n"})
+    assert r.status_code == 400 and "no direction" in r.json()["detail"]
+    r = client.put("/api/admin/projects/HI2027/studies/newone", json={"yaml": "type: online\nscores:\n  s1:\n    components:\n"
+                                                                            "      - {criterion: agreement, weight: 0.5}\n"})
+    assert r.status_code == 400 and "not 1" in r.json()["detail"]
