@@ -81,9 +81,112 @@ A study starts from its project:
 
 ## Defaults for its studies
 
-The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), and `scheduling` (how each study assigns them, see [Assignment](#assignment)).
+The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), `scheduling` (how each study assigns them, see [Assignment](#assignment)), `study_mode` (Solo, Paired or Mixed, see [Mode](#mode-solo-paired-or-mixed)) and `pairing` (how people are paired, see [Pairing defaults](#pairing-defaults)).
 
 A study changes any of them under `overrides:` in its `study.yaml`.
+
+### Mode: Solo, Paired or Mixed
+
+`study_mode` says who negotiates with whom. It takes one of three values:
+
+| Mode | Meaning | In an HI project (`kind: assistant`) | In a HAN project (`kind: opponent`) |
+|---|---|---|---|
+| `solo` | One person per negotiation, against an AI opponent | The human has an Assistant; the opponent is an agent (built-in, `:pan` or HAN entrants) | A human without an Assistant against the entrant agents |
+| `paired` | Two people negotiate with each other | Each side has its own Assistant (`opponents: [human+assistant]`) | Two people without Assistants (`opponents: [human]`). It tests no HAN agent, so its results are not ranked |
+| `mixed` | A person when someone fits, otherwise an AI opponent | For example a game open to everyone | Rarely useful |
+
+`study_mode` does not replace `opponents`: `opponents` still decides who plays (the human entries
+`human` and `human+assistant` are described in [Human opponents](human-opponents.md)). The mode is
+your declared intent, and HANI2 checks it against the pool, the Assistant and the project's `kind`:
+
+| `study_mode` | `opponents` must be | Assistant | When `opponents` is missing |
+|---|---|---|---|
+| `solo` | no `human` / `human+assistant` entry | any (HI: not `[none]` only) | the default pool |
+| `paired`, `kind: assistant` | exactly `[human+assistant]` | required, not `[none]` | HANI2 fills in `[human+assistant]` |
+| `paired`, `kind: opponent` | exactly `[human]` | `[none]` | HANI2 fills in `[human]` and `assistants: [none]` |
+| `paired`, `kind: none` | human entries only | either | `[human]` with `assistants: [none]`, else `[human+assistant]` |
+| `mixed` | at least one human entry and one AI entry | any | refused: name the pool |
+
+**When `study_mode` is not set**, the mode is *derived* from `opponents`: no human entry is
+`solo`, only human entries is `paired`, both is `mixed`. Projects that never set it keep working
+exactly as before; `hani2 project show` and `hani2 study show` print the derived mode with
+"(derived from opponents)".
+
+**When the mode and the pool disagree**, a file you save through the command line or the admin
+API is refused, and the message names both keys and the pool the mode needs, for example:
+
+```text
+study_mode is 'paired' but opponents is [human, :pan]; a Paired HI study (kind: assistant)
+needs opponents: [human+assistant]
+```
+
+A file edited by hand that disagrees is reported in the server log, in `hani2 study show` and in
+the study's `errors` on the admin console, and **`opponents` wins**: the study runs with the
+derived mode. The session's events record that mode, with `study_mode_error: true`. How a study
+overrides the mode, and the checks made for each session, are in
+[Mode](study-management.md#mode).
+
+```yaml title="projects/HI2027/project.yaml"
+kind: assistant
+year: 2027
+defaults:
+  study_mode: solo
+  opponents: [":han2027-finalists", ":pan"]
+```
+
+### Pairing defaults
+
+The `pairing` block holds the options of studies where people meet (`paired` and `mixed`). A
+study's block is merged key by key with its project's, so a study changes only the keys it names:
+
+```yaml
+pairing:
+  scope: study            # study | project | code: where people meet
+  assign: cells           # cells | order | random: how a match is formed
+  slack: 1                # a whole number ≥ 0
+  cell_scenario: type     # type | name
+  allow_same_assistant: false   # may both sides use the same Assistant?
+  fallback: ai            # ai | wait | end: when nobody fits in human_opponent_wait seconds
+  fallback_opponents: null      # the AI pool of the fallback (AI entries only)
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `scope` | `study` in a study that declares `study_mode: paired`, else `project` | Where people meet. `study`: only people of the same study meet. `project`: people of every study of the project meet, so two studies can be paired with each other. `code`: people meet only through a shared `?match=<code>` link; without a code a participant meets nobody (the wait-time fallback applies). A `?match=<code>` link pairs those who share it in every scope, unless `human_opponent_codes` is `false`. |
+| `assign` | `cells` in a declared Paired study, else `random` | How the two people of a match are chosen. |
+| `slack` | `1` | How strictly the match is balanced. |
+| `cell_scenario` | `type` | Whether balancing counts scenario types or single scenarios. |
+| `allow_same_assistant` | `false` | Whether both sides of a match may use the same Assistant. |
+| `fallback` | `ai` | What happens when nobody fits: play an AI opponent (`ai`), keep waiting (`wait`, the same as `human_opponent_fallback: false`) or skip the slot (`end`). When `human_opponent_fallback` is also set in an `env.json` and the two disagree, the file is refused. |
+| `fallback_opponents` | the study's AI pool | The AI opponents of the fallback. Human entries are refused. |
+
+Every key is checked when a file is saved (unknown keys and values not listed above are refused)
+and reported when a hand-edited file has a problem. This version uses `scope` to decide where
+people meet; the other keys are checked and kept for the balanced pairing of matches, which a
+later version adds.
+
+### HAN agents by year
+
+The opponents of a study can be the entrant agents of a HAN league, by year and set:
+`:han<year>-all`, `:han<year>-qualified`, `:han<year>-finalists` and `:han<year>-winners` (see
+[Group tokens](opponents.md#group-tokens)). An HI study can name several years, for example
+`opponents: [":han2026-finalists", ":han2027-finalists"]`. Always write the year itself: a project
+of `year: 2027` that wants last year's finalists writes `:han2026-finalists`.
+
+Where a year's agents come from:
+
+- the **current year**, set explicitly as `han.current_year` in `env.json` (never taken from the
+  clock), comes from that year's **submitted zips** (see
+  [HAN agents of the current year](opponents.md#han-agents-of-the-current-year));
+- **every other year** comes from the installed `han-agents` package;
+- a year that neither covers has no agents: a file naming it is refused when saved ("no agents
+  for 2025"), and a hand-edited one is reported, the group expanding to nothing.
+
+When a year's agents have been packaged into `han-agents`, raise `han.current_year` to the next
+year: from then on the earlier year comes from the package. Games already played keep the source
+and version they recorded (`opponent_han_year`, `opponent_han_source`, `opponent_han_version`, see
+[`results.csv` columns](study-management.md#resultscsv-columns)). `hani2 study show` prints where
+each `:han<year>-<set>` entry of a study's pool comes from.
 
 ### Pools of opponents and Assistants
 
@@ -249,8 +352,11 @@ hani2 --host 0.0.0.0 --no-browser
 ```bash
 hani2 project create NAME [--full-name TEXT] [--kind opponent|assistant|none] [--description TEXT]
                           [--link URL] [--year N] [--organizer TEXT] [--contact TEXT]
+                          [--study-mode solo|paired|mixed] [--opponents LIST]
 hani2 project list
-hani2 project show NAME
+hani2 project show NAME             # its settings, the mode in use, pairing keys and errors
+hani2 han import [--year Y] [--no-check]        # unpack the current year's submitted zips
+hani2 han check [--year Y] [--no-import-check]  # list the entries, their sets and whether each imports
 hani2 groups list [--project P | --study P/S] [--kind opponent|assistant] [--no-builtin]
 hani2 scheduling list [--details]   # the scheduling methods
 hani2 scores criteria [P[/S]] [--coverage] [-o file.json]   # the criteria a score can use
@@ -268,8 +374,8 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | Endpoint | Does |
 |---|---|
 | `GET /api/admin/projects` | The projects with their settings and study names, and the server's default study. |
-| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, and its studies (with participant counts and links). |
-| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. |
+| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`) and `errors`. |
+| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block or a HAN year no source covers is a 400 naming the problem. |
 | `GET /api/admin/layers` | The layers (`settings`, `project:P`, `study:P/S`) with their folders, and the study the request is bound to (`bound`). |
 | `GET /api/admin/settings/{kind}?layer=L` | `kind`: `env`, `llm`, `assistant`, `autopilot` or a text (`consent`, `announcements`, `scenario_sets`, `scenario_order`). JSON kinds: `{"own", "effective", "inherited"}` (the layer's own file, the values in effect at that layer, and those without its file). Texts: `{"text", "exists", "effective", "source", "source_path"}` (`source`: the layer the text in effect comes from). The old `?study=P/S` / `?project=P` return the layer's raw file, and no parameter the effective settings, as before. |
 | `PATCH /api/admin/settings/{kind}?layer=L` | JSON kinds: merge the body into the layer's own file. |

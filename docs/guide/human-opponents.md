@@ -57,7 +57,7 @@ One study whose participants all have an Assistant and want `human` opponents, o
 A participant who is still answering the consent form or pre-questionnaire of their first negotiation
 can be joined. The other side waits until they press **Start**.
 
-People are paired within a project, so its studies can be paired with each other. When several
+People are paired within a project by default, so its studies can be paired with each other. A study's `pairing.scope` changes this: `study` keeps its people among themselves (the default of a study that declares `study_mode: paired`), and `code` pairs only through `?match=` links (see [Pairing defaults](project-management.md#pairing-defaults)). When several
 people who fit are waiting, the newcomer joins one of them at random, so nobody can aim at a
 particular person. Links with `?match=<code>` pair only people who share that code, whatever their
 project. Use this for sessions arranged in advance or for testing. A study that sets

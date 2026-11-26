@@ -70,7 +70,56 @@ pip install "hani2[han]"      # or: uv pip install -e ".[han]" in a checkout
 hani2 --opponents :han2026-finalists
 ```
 
-Without the package these tokens are unknown. The groups list class paths only, so an agent is imported only when a session uses it. Some agents use a language model and need a reachable model backend (see [LLM model injection](#llm-model-injection) below).
+Without the package, and for a year it does not cover, these tokens have no agents (a project or study naming such a year is refused when saved). The current year is the exception: it comes from the submitted zips (below). The groups list class paths only, so an agent is imported only when a session uses it. Some agents use a language model and need a reachable model backend (see [LLM model injection](#llm-model-injection) below).
+
+### HAN agents of the current year
+
+While a league runs, its agents are not packaged yet. `han.current_year` in `env.json` names that year (it is never taken from the clock), and `han.submissions` names the folder of its submissions:
+
+```json title="settings/env.json"
+{
+  "han": {
+    "current_year": 2027,
+    "submissions": {"2027": {"dir": "~/league/han/2027"}}
+  }
+}
+```
+
+Then `:han2027-<set>` comes from that folder, and every other year still comes from `han-agents`. The folder holds the submitted zips and an `index.json` (usually written by a trusted website, for example the competition's site), with one entry per submission:
+
+```json title="~/league/han/2027/index.json"
+[
+  {"entrant": "sub_0981", "team": "t17", "zip": "t17.zip",
+   "class": "t17_agent.agent:MyNegotiator",
+   "qualified": true, "finalist": false, "winner": false},
+  {"entrant": "sub_0982", "team": "t18", "zip": "t18.zip",
+   "class": "t18_agent.agent:MyNegotiator",
+   "qualified": true, "finalist": true, "winner": false}
+]
+```
+
+| Key | Meaning | Also accepted |
+|---|---|---|
+| `entrant` | The submission's id; it names the agent's folder. Characters other than letters, digits, `.`, `_` and `-` become `_`. Missing: the zip's name, else the team | `entrant_id`, `id`, `submission`, `submission_id`, `entry`, `entry_id` |
+| `team` | The team's id (informative) | `team_id`, `team_name` |
+| `zip` | The zip's file name, inside the folder | `zip_file`, `file`, `filename`, `archive`, `path` |
+| `class` | The negotiator class, `package.module:Class` or `package.module.Class` | `class_name`, `agent_class`, `agent_class_name`, `negotiator`, `spec` |
+| `qualified`, `finalist`, `winner` | The entry's placement: `true`/`false`, or `yes`/`no`, `1`/`0` | `finalists`, `winners`, `is_qualified`, … |
+| `sha256` | Optional: the zip's hash. When given, an import refuses a zip that does not match | `hash`, `zip_sha256` |
+| `name` | Optional label | `label`, `agent_name`, `title` |
+
+The file may also be a mapping with the list under `entries`, `submissions` or `agents`, or a mapping of entrant id to entry. Other keys are ignored. An entry without an id is skipped, and an id listed twice keeps its last entry. The sets follow the flags: `all` is every entry, `qualified` the entries flagged qualified, finalist or winner, `finalists` those flagged finalist or winner, and `winners` those flagged winner.
+
+Import the zips before a study uses them, and again after new uploads:
+
+```bash
+hani2 han import                 # the current year; --year 2027 for another
+hani2 han check                  # entries, sets, imported version, whether each class imports
+```
+
+`hani2 han import` unpacks each zip into its own new folder, `<HANI2_HOME>/han_submissions/<year>/<entrant>/<sha256 of the zip>/`, and runs nothing while unpacking: archives with absolute paths, `..`, symbolic links or more than the size limit are refused. It then checks, in a separate Python process, that the class imports, and makes that folder the entrant's current version. An entry whose class does not import is left out of the groups, with a warning in the server log. A new upload has a new hash and so gets a new folder; the earlier one is kept, so past games keep their meaning, and every game records the version it played (`opponent_han_version`, next to `opponent_han_year` and `opponent_han_source`, see [`results.csv` columns](study-management.md#resultscsv-columns)).
+
+`hani2 han check` also reports zips the index does not list, zips that changed since they were imported, entries not imported yet, and module names two entrants share. Python loads a module once per process, so of two entries with the same top-level package only the first one used can run until the server restarts; the same holds for a new version of an agent that already ran (restart the server after importing new uploads).
 
 Unknown tokens print a warning in the server log and expand to nothing. Lists are de-duplicated and keep their order, so `:notext,BoulwareTBNegotiator` has `BoulwareTBNegotiator` only once.
 
