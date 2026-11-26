@@ -61,8 +61,13 @@ def judge_reliability(*args, **kwargs):
     return f(*args, **kwargs)
 
 #: fields copied from the recording into every row (used to group and filter)
+#: the Paired columns of a results row (see hani2.results.PAIRED_COLUMNS), copied into evaluation rows
+PAIRED_FIELDS = ("study_mode", "opponent_kind", "pairing", "match_id", "match_cell", "side", "opponent_assistant",
+                 "opponent_assistant_entrant", "opponent_participant", "assistant_entrant", "own_assistant",
+                 "assistant_position", "plan_size", "opponent_han_year", "cross_study")
 ID_FIELDS = ("key", "id", "user", "mode", "participant_type", "persona", "scenario", "opponent", "support_agent",
-             "support_model", "experiment", "started", "practice", "judge_model", "assistant", "human_index")
+             "support_model", "experiment", "started", "practice", "judge_model", "assistant", "human_index",
+             *PAIRED_FIELDS)
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -113,6 +118,8 @@ def _ident(rec: Recording, key: str | None) -> dict:
         started=rec.header.get("created"), practice=bool(st.get("practice")),
         # the Assistant as assigned (``none`` for the no-Assistant arm), and the human's side (part of a cell)
         assistant=(st.get("assignment") or {}).get("assistant") or None, human_index=st.get("human_index"),
+        # the study's mode and the pairing (from the results row; empty in recordings made without one)
+        **{k: (row.get(k) if row.get(k) not in (None, "") else None) for k in PAIRED_FIELDS},
     )
 
 

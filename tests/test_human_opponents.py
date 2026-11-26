@@ -483,7 +483,9 @@ def test_new_columns_append_to_an_old_results_file(hani2_home):
     f = s.ss["user_path"] / "results.csv"
     with open(f, newline="") as fh:
         old = list(csv.DictReader(fh))
-    keep = [k for k in old[0] if not k.startswith("opponent_han_")]
+    from hani2.results import PAIRED_COLUMNS
+
+    keep = [k for k in old[0] if not k.startswith("opponent_han_") and k not in PAIRED_COLUMNS]
     with open(f, "w", newline="") as fh:  # the file as an earlier version wrote it
         w = csv.DictWriter(fh, fieldnames=keep, extrasaction="ignore")
         w.writeheader()
@@ -496,3 +498,4 @@ def test_new_columns_append_to_an_old_results_file(hani2_home):
         rows = list(csv.DictReader(fh))
     assert len(rows) == 2 and all(None not in r for r in rows)
     assert "opponent_han_year" in rows[-1] and rows[0]["mechanism_id"] != rows[1]["mechanism_id"]
+    assert all(c in rows[-1] for c in PAIRED_COLUMNS) and rows[0]["match_cell"] == ""
