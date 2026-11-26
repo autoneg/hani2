@@ -10,7 +10,9 @@ A project or study chooses who its participants negotiate against:
 
 Write the entry in the pool like any opponent: in `study.yaml` or `project.yaml`
 (`opponents: [human+assistant]`), in the admin console (**Opponents → Opponents participants face**,
-where both entries are listed first), with `--opponents human` or, for admins, `?opponents=human`. A
+where both entries are listed first), with `--opponents human` or, for admins, `?opponents=human`. In a URL, `?opponents=human+assistant` works
+as written: the `+` becomes a space there, and `human assistant`, `human_assistant` and
+`Human + Assistant` all mean the same entry. A
 pool can mix them with agents (`opponents: [human, :pan]`); every negotiation then draws one entry as usual,
 and scheduling methods treat `human` like any other pool member.
 
@@ -37,6 +39,13 @@ without an Assistant, and one who asked for `human+assistant` needs someone with
 | Human against human | One study without an Assistant and `opponents: [human]` |
 | Team against a human alone | Two studies of one project. The team study has an Assistant and `opponents: [human]`. The solo study has no Assistant and `opponents: [human+assistant]` |
 
+One study whose participants all have an Assistant and want `human` opponents, or all lack one and want
+`human+assistant`, cannot pair its participants with each other. HANI2 logs a warning (an `error` event
+`unpairable_alone`). Its participants meet only another study's, and otherwise get the fallback below.
+
+A participant who is still answering the consent form or pre-questionnaire of their first negotiation
+can be joined. The other side waits until they press **Start**.
+
 People are paired within a project, so its studies can be paired with each other. Links with
 `?match=<code>` pair only people who share that code, whatever their project. Use this for sessions
 arranged in advance or for testing.
@@ -51,10 +60,15 @@ arranged in advance or for testing.
   forever), the participant gets an AI opponent from the rest of the pool, or from the default pool when the
   pool holds only human entries. A notification tells them. Set `human_opponent_fallback` to `false` to
   keep waiting instead.
+- **Someone does not press Start.** When one side has pressed **Start** and the other has not within
+  `human_opponent_wait` seconds, they are separated. The side that pressed waits for someone else. The
+  other keeps its scenario and side, and waits for a new partner.
 - **Someone leaves before the start.** The other participant waits for someone else.
-- **Someone leaves during the negotiation.** When their session closes, their side ends the negotiation
-  on its next turn. The other participant sees *The other participant left the negotiation* and the
-  negotiation ends without agreement. A time limit (`time_limit`) also ends negotiations where one side
+- **Someone leaves during the negotiation.** A participant has left when their session closes, or when
+  they have had no open page for `human_opponent_absent` seconds (an admin setting, default `60`). A reload
+  or a short network drop does not count. Their side then ends the negotiation on its next turn. The other
+  participant sees *The other participant left the negotiation*, and the negotiation ends without
+  agreement. A time limit (`time_limit`) also ends negotiations where one side stays on the page but
   stops acting. Use one for studies with human opponents.
 
 ## Turns and time
@@ -75,6 +89,11 @@ Each participant gets their own row in `results.csv`, from their own side:
 | `opponent_user` | The other participant's user name |
 | `mechanism_id` | Shared by both rows too, as are the negotiation log and the trace |
 | `agent_utility` | The other participant's utility |
+| `abandoned` | `self` (this participant left), `opponent` (the other one left), else empty. `ended_by` stays `human` / `agent` as for AI opponents |
+
+The participant who joined keeps their own plan columns (such as `scenario_scheduling`), although the
+scenario is the one the waiting participant loaded. A study that falls back to AI opponents has rows with
+`opponent_kind` `agent`. A participant whose session was closed gets no row.
 
 When you analyse a study, count each `match_id` once for negotiation-level measures (agreement rate,
 welfare). Use both rows for participant-level measures.

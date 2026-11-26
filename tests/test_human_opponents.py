@@ -23,6 +23,11 @@ def rows(home, user):
         return list(csv.DictReader(fh))
 
 
+def own_rows(s):
+    with open(s.ss["user_path"] / "results.csv") as fh:
+        return list(csv.DictReader(fh))
+
+
 def pair(code=None, **kw):
     """Two participants with an Assistant each, who asked for human+assistant opponents."""
     code = code or uuid.uuid4().hex[:6]
@@ -183,3 +188,78 @@ def test_human_opponents_pair_across_studies_of_a_project(hani2_home):
 
     assert mm.match_key(S("team")) == mm.match_key(S("solo")) == "project:hi"
     assert mm.is_human("Human + Assistant") and mm.wants_assistant("human_assistant") and not mm.wants_assistant("human")
+
+
+def test_plus_in_a_url_decodes_to_a_space_and_still_means_human_assistant():
+    from urllib.parse import parse_qs
+
+    v = parse_qs("opponents=human+assistant")["opponents"][0]
+    assert v == "human assistant"
+    assert matches.is_human(v) and matches.wants_assistant(v)
+    assert not matches.is_human("humanoid") and not matches.wants_assistant("human")
+
+
+def test_a_host_answering_its_pre_questionnaire_can_still_be_joined(hani2_home):
+    code = uuid.uuid4().hex[:6]
+    a = make_session(user="alice", opponent="human+assistant", query={"match": code})
+    a.phase = "questionnaire"
+    b = make_session(user="bob", opponent="human+assistant", query={"match": code})
+    assert b.match is a.match and a.match.paired
+
+
+def test_a_partner_who_never_starts_is_replaced(hani2_home):
+    a, b = pair()
+    a.admin_prefs["human_opponent_wait"] = 0.2
+    old = a.match
+    a.start()
+    # bob never presses Start: after the wait alice is back in the lobby, bob gets a match of his own
+    assert a.wait(lambda: b.match is not old and b.match is not None, 10)
+    assert a.match is old and not old.paired and b.match.paired is False
+    assert b.phase == "ready" and a.phase == "starting"
+    c = make_session(user="carol", opponent="human+assistant", query={"match": a.query["match"]})
+    assert c.match in (old, b.match)
+
+
+def test_a_page_closed_for_good_ends_the_negotiation(hani2_home):
+    a, b = pair()
+    for s in (a, b):
+        s.admin_prefs["human_opponent_absent"] = 0.2
+    a.start()
+    b.start()
+    assert a.wait(lambda: a.phase == "running" and b.phase == "running")
+    b.hub.n_connections = lambda sid: 0  # bob's tab is gone (his session stays, as in the server)
+    a.hub.n_connections = lambda sid: 1
+    assert a.wait_until_done(15) and b.wait_until_done(15)
+    assert a.result["status"] == "broken"
+    ra, rb = rows(hani2_home, "alice")[-1], rows(hani2_home, "bob")[-1]
+    assert ra["abandoned"] == "opponent" and rb["abandoned"] == "self"
+
+
+def test_studies_of_one_project_pair_a_team_with_a_participant_alone(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HH")
+    projects.create_study("HH/team", opponents=["human"])
+    projects.create_study("HH/solo", opponents=["human+assistant"])
+    a = make_session(user="alice", partner=None, study="HH/team", n_steps=10)
+    b = make_session(user="bob", partner=None, study="HH/solo", n_steps=10, assistant_settings={"mode": "off"})
+    assert a.support_agent is not None and b.support_agent is None
+    assert a.match is not None and a.match is b.match
+    a.start()
+    b.start()
+    assert a.wait(lambda: a.phase == "running" and b.phase == "running")
+    first = a if a.wait_for_turn(2) and a.is_my_turn() else b
+    first.end()
+    assert a.wait_until_done() and b.wait_until_done()
+    assert own_rows(a)[-1]["opponent_kind"] == "human"
+    assert own_rows(b)[-1]["opponent_kind"] == "human+assistant"
+
+
+def test_one_study_whose_participants_cannot_fit_each_other_is_never_paired(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HX")
+    projects.create_study("HX/s", opponents=["human"])  # with an Assistant, wanting opponents without one
+    a = make_session(user="alice", partner=None, study="HX/s")
+    b = make_session(user="bob", partner=None, study="HX/s")
+    assert a.match is not None and b.match is not None and a.match is not b.match

@@ -88,6 +88,7 @@ export const NEGOTIATION: FieldGroup[] = [
       { id: "opponent-types", path: "negotiation.opponent_types", label: "Opponent agents", hint: "Empty: the opponent pool (Opponents page)", type: "tags", placeholder: "BoulwareTBNegotiator" },
       { id: "human-opponent-wait", path: "negotiation.human_opponent_wait", label: "Wait for a human opponent (seconds)", hint: "Pool entries human / human+assistant; 0 waits forever", type: "stepper", min: 0, step: 30 },
       { id: "human-opponent-fallback", path: "negotiation.human_opponent_fallback", label: "AI opponent when nobody joins", type: "toggle" },
+      { id: "human-opponent-absent", path: "negotiation.human_opponent_absent", label: "A human opponent has left after (seconds)", hint: "Without an open page", type: "stepper", min: 5, step: 15 },
     ],
   },
 ];
