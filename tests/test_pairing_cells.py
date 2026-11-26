@@ -51,6 +51,12 @@ def spec(s):
     return s.assistant_choice.spec if s.assistant_choice is not None else None
 
 
+def end_on_my_turn(s):
+    """End an AI negotiation: ``end()`` is refused while it is not the human's turn (the opponent may
+    move first), so wait for the turn and check that it was taken."""
+    assert s.wait_for_turn() and s.end()
+
+
 def play_out(a, b):
     """Both press Start, the first to move ends the negotiation (a completed match: no deal)."""
     a.start()
@@ -316,12 +322,13 @@ def test_nobody_fits_ai_fallback(hani2_home):
     a.admin_prefs["human_opponent_wait"] = 0.3
     a.load()
     first = spec(a)
-    assert a.ss.get("match_id") or a.ss["pairing"] == "fallback"  # it waited (the timer may have fired already)
+    with a.lock:  # the fallback sets both under the lock: it waited, or the timer fired already
+        assert a.ss.get("match_id") or a.ss["pairing"] == "fallback"
     a.start()
     assert a.wait(lambda: a.phase == "running", 10)
     assert a.match is None and a.ss["last_partner_type"] == "BoulwareTBNegotiator"
     assert spec(a) == first  # the committed Assistant plays the AI
-    a.end()
+    end_on_my_turn(a)
     assert a.wait_until_done()
     r = rows(a)[-1]
     assert (r["study_mode"], r["opponent_kind"], r["pairing"], r["match_cell"]) == ("paired", "agent", "fallback", "")
@@ -394,14 +401,14 @@ def test_solo_rows_carry_position_and_plan_size(hani2_home):
                           n_required=4)
     s = make_session(user="sam", partner=None, study="HS/s", n_steps=4)
     s.start()
-    s.end()
+    end_on_my_turn(s)
     assert s.wait_until_done()
     r = rows(s)[-1]
     assert (r["study_mode"], r["pairing"], r["assistant_position"], r["plan_size"]) == ("solo", "", "0", "4")
     assert r["match_cell"] == "" and r["opponent_assistant"] == ""
     out = make_session(user="nobody", n_steps=4)  # outside a study: empty
     out.start()
-    out.end()
+    end_on_my_turn(out)
     assert out.wait_until_done()
     r = rows(out)[-1]
     assert (r["study_mode"], r["assistant_position"], r["plan_size"]) == ("", "", "")
@@ -481,7 +488,7 @@ def test_the_two_people_left_with_the_same_assistant_both_fall_back(hani2_home):
     assert a.wait(lambda: a.phase == "running" and c.phase == "running", 10)
     assert a.match is None and c.match is None
     for s in people:
-        s.end()
+        end_on_my_turn(s)
         assert s.wait_until_done()
         assert rows(s)[-1]["pairing"] == "fallback"
     d = assignment.read_cells(ref)
