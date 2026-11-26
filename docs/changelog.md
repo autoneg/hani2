@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Games: people play each other whenever they like.** `human_opponents_first` makes every
+  negotiation look for a person first, of any human kind the pool lists, with the AI entries as the
+  fallback. `human_opponent_choice` (or `?opponent_choice=1`) lets the participant choose *Play a
+  person* (the page shows how many people are waiting) or *Play an AI opponent now*. While waiting,
+  *Play an AI opponent instead* is always offered. Pairing is random among those waiting, and
+  `human_opponent_codes: false` ignores `?match=` codes. See [A game](guide/human-opponents.md#a-game).
+- **Nothing about the other participant.** With a human opponent, the page, the tools and the
+  Assistant never get the other side's preferences, utility, user name or the match id. *My Results*
+  leaves them out too; `results.csv` keeps them.
+- **Isolated Assistants.** `assistant_isolation: process` runs participant-written Assistants in a
+  worker process of their own, with a copy of only their own package, a scrubbed environment, limits,
+  and an operating-system sandbox (`sandbox-exec` on macOS, bubblewrap on Linux) that hides other
+  participants' code and HANI2's data and cuts the network. It fails closed. See
+  [Isolated Assistants](guide/assistant.md#isolated-assistants).
+- **Guests from the sign-in hand-off.** A token with `guest: true` (plus `invited_by`, `name`) signs in
+  someone without an account on the website, bound to one study the provider lists in
+  `guest_studies`, with one session per browser. Results record `invited_by`. A new hand-off after a
+  finished negotiation starts a new one. See [Guests](guide/authentication.md#guests).
+- **`questionnaires: false`** in a study switches every questionnaire off, whatever the environment
+  variables name.
 - **A bare view with no tools, and studies that fix the view.** The fourth view, `bare`, shows the
   history, the offer area and the Assistant, and no tools on any device. `env.json` →
   `interface.view` sets the starting view and `interface.view_locked` keeps participants and the

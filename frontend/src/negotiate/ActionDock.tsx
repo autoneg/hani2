@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Check, CircleCheck, CircleX, FileText, Handshake, Loader2, Plane, Play, RefreshCw, Send, Sparkles, Wand2, X } from "lucide-react";
+import { ArrowRight, Bot, Check, CircleCheck, CircleX, FileText, Handshake, Loader2, Plane, Play, RefreshCw, Send, Sparkles, UsersRound, Wand2, X } from "lucide-react";
 import { api } from "../api";
 import { send, sendOrWarn, useStore, useUiState } from "../store";
 import { now as clockNow } from "../clock";
@@ -355,6 +355,11 @@ function Running({ st }: { st: SessionState }) {
           </div>
         </Anchor>
       )}
+      {st.phase === "starting" && st.can_play_ai_instead && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+          Waiting for another participant… <AiInstead />
+        </div>
+      )}
       {!myTurn && st.phase === "running" && !st.negotiation.thinking && (
         <div className="text-xs text-muted">{st.opponent_kind && st.opponent_kind !== "agent" ? "Waiting for your opponent…" : "Waiting…"}</div>
       )}
@@ -553,18 +558,49 @@ function Intro({ st }: { st: SessionState }) {
         </div>
       )}
       {st.admin_mode ? <AdminPickers st={st} /> : st.choices ? <ChoicePickers st={st} /> : null}
+      {st.opponent_choice ? (
+        <OpponentChoice waiting={st.opponent_choice.people_waiting} />
+      ) : (
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary px-5 py-2.5 text-base" onClick={() => sendOrWarn({ type: "start" })} disabled={!st.scenario}>
           <Play size={17} /> Start negotiation
         </button>
-        {!prolific && (
+        {st.can_play_ai_instead && <AiInstead />}
+        {!prolific && !st.waiting_for_opponent && (
           <button className="btn-ghost" onClick={() => send({ type: "load" })} title="Load a different scenario">
             <RefreshCw size={15} /> Different scenario
           </button>
         )}
         <AutoCountdown st={st} />
       </div>
+      )}
     </div>
+  );
+}
+
+/** Before pairing: another participant (joined at once when one is waiting) or an AI opponent now. */
+function OpponentChoice({ waiting }: { waiting: number }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2" data-testid="opponent-choice">
+      <button className="btn-primary flex-col items-start gap-1 px-4 py-3 text-left" onClick={() => send({ type: "opponent_choice", kind: "person" })}>
+        <span className="inline-flex items-center gap-2 text-base"><UsersRound size={17} /> Play a person</span>
+        <span className="text-xs font-normal opacity-90" data-testid="people-waiting">
+          {waiting === 0 ? "Nobody is waiting right now: you wait for the next person." : waiting === 1 ? "1 person is waiting now." : `${waiting} people are waiting now.`}
+        </span>
+      </button>
+      <button className="btn-ghost flex-col items-start gap-1 border border-line px-4 py-3 text-left" onClick={() => send({ type: "opponent_choice", kind: "ai" })}>
+        <span className="inline-flex items-center gap-2 text-base"><Bot size={17} /> Play an AI opponent now</span>
+        <span className="text-xs font-normal text-muted">No waiting.</span>
+      </button>
+    </div>
+  );
+}
+
+function AiInstead() {
+  return (
+    <button className="btn-ghost" data-testid="ai-instead" onClick={() => send({ type: "opponent_choice", kind: "ai" })}>
+      <Bot size={15} /> Play an AI opponent instead
+    </button>
   );
 }
 

@@ -143,6 +143,10 @@ export interface SessionState {
   opponent_kind?: "agent" | "human" | "human+assistant";
   /** waiting for another participant to join or to start */
   waiting_for_opponent?: boolean;
+  /** before pairing: the participant chooses a person (how many fit right now) or an AI opponent */
+  opponent_choice?: null | { people_waiting: number };
+  /** waiting for a person: an AI opponent may be played instead */
+  can_play_ai_instead?: boolean;
   negotiation: {
     running: boolean;
     thinking: boolean;

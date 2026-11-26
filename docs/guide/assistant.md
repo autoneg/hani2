@@ -265,6 +265,75 @@ HANI2 re-checks the Assistant before every negotiation: a `schedule.json` slot w
 next negotiation (never during one). The practice round uses the top-level `assistant` of the
 schedule, else the pool.
 
+## Isolated Assistants
+
+An Assistant that participants write is code you did not write. Normally it runs inside the HANI2
+server, where it could read other sessions, the other participant of a
+[human-opponent](human-opponents.md) negotiation, both sides' preferences, or other participants'
+files. With `assistant_isolation: process` it runs in a worker process of its own instead, and
+sees only what the Assistant's functions show it.
+
+```json title="studies/<study>/env.json"
+{"negotiation": {"assistant_isolation": "process", "assistant_sandbox": "required"}}
+```
+
+The setting comes from `env.json` (`negotiation`, any layer: the study, the project, the settings
+folder) or from the environment variable `HANI2_ASSISTANT_ISOLATION=process`, which turns it on for
+the whole server. A page URL or a group file cannot change it. HANI2's own Assistants (`hani2.…`)
+stay in the server.
+
+How it works:
+
+- The session keeps a stock Assistant. The participant's class runs in the worker
+  (`python -I -m hani2.support_agent.worker`), and the two exchange JSON messages over pipes.
+- The worker's Assistant has no `self.session`. Everything it does goes to the stock Assistant on
+  the server: `context()`, `post()`, `toast()`, `ask_user()`, `use_tool()`, `private_information()`, the
+  [dispatcher's functions](#the-function-dispatcher), `self.session_state["actions"]`, and so on.
+  Capabilities, the information split, the recording and the attribution apply as usual, and the
+  context is always the Assistant's view.
+- Its own functions (`register_extra_tools`) and overridden methods (`handle_user_message`,
+  `on_event`, `build_system_prompt`, …) run in the worker. `on_event` gets `nmi=None`.
+- Language-model calls (`_complete`, agent harnesses) are made by the server with the study's model
+  chain. The worker has no API keys.
+- Tool classes the Assistant brings (`tools = [...]`) are not added, because tools run in the
+  server. It can still add tools by name from the admin's `toolbox` and the registered tools.
+
+The worker runs:
+
+- from an empty private folder (also its `HOME` and `TMPDIR`), with a scrubbed environment (no keys,
+  no `HANI2_*` settings) and a copy of **only its own package** (the top-level package of its class,
+  or the folder of a `file.py:Class`), never the folder all submissions were unpacked into;
+- with limits: `assistant_cpu_seconds` (default 3600 CPU seconds), `assistant_memory_mb` (default
+  2048, Linux only), 64 MB per file, 256 open files. A call that takes more than
+  `assistant_call_timeout` seconds (default 600) ends the worker; one that does not start within
+  `assistant_start_timeout` seconds (default 90) too;
+- in an operating-system sandbox, per `assistant_sandbox`:
+
+| `assistant_sandbox` | Meaning |
+| --- | --- |
+| `auto` (default) | Use the sandbox when this server has one (macOS `sandbox-exec`, Linux `bwrap` from bubblewrap), else run without one and log a warning. |
+| `required` | No sandbox, no Assistant. Use this for participant-written Assistants. |
+| `off` | Never use one (a separate process only). |
+
+The sandbox hides the server user's home folder, HANI2's home, the folder the server was started
+from, the code folders on the server's `sys.path` (other participants' agents) and the other
+workers' folders. It leaves readable only Python, the installed packages, HANI2's own package and
+the worker's private folder. It also cuts the network unless `assistant_network` is `true`.
+
+It fails closed. An isolated Assistant that cannot start, crashes, sends a malformed message or
+times out leaves the session without an Assistant, with the error shown as for any
+[Assistant that does not load](#when-an-assistant-does-not-load). It never falls back to running in
+the server.
+
+!!! warning "What isolation does not cover"
+    - Without a sandbox (`auto` on a server with neither `sandbox-exec` nor `bwrap`, or `off`) the
+      worker is a separate process with a private folder, but it runs as the server's operating-system
+      user. It can read any file that user can read and use the network. Install bubblewrap and set
+      `assistant_sandbox: required`.
+    - The sandbox lets Python list the names in the folder that holds HANI2's own package.
+    - Opponent agents (the AI pool) and tools still run in the server. Use only opponents and tools you
+      trust.
+
 ## Settings
 
 The agent reads `assistant_settings.json` from the settings folder (`~/negmas/hani2/settings` by default, or the active experiment folder). Your file is merged over the bundled defaults, so it only needs the keys you change. You can also edit these settings in the admin console under **Assistant settings**, for the settings folder, a project or a study. See the [configuration reference](configuration.md) for how settings files are found.

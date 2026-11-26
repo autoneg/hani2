@@ -50,9 +50,38 @@ One study whose participants all have an Assistant and want `human` opponents, o
 A participant who is still answering the consent form or pre-questionnaire of their first negotiation
 can be joined. The other side waits until they press **Start**.
 
-People are paired within a project, so its studies can be paired with each other. Links with
-`?match=<code>` pair only people who share that code, whatever their project. Use this for sessions
-arranged in advance or for testing.
+People are paired within a project, so its studies can be paired with each other. When several
+people who fit are waiting, the newcomer joins one of them at random, so nobody can aim at a
+particular person. Links with `?match=<code>` pair only people who share that code, whatever their
+project. Use this for sessions arranged in advance or for testing. A study that sets
+`human_opponent_codes: false` ignores `?match=` for everyone but admins.
+
+### A person first, any person
+
+By default each negotiation draws one entry from the pool, so a pool such as
+`[human+assistant, human, :pan]` gives an AI opponent in most negotiations. A participant who
+drew `human` also never meets someone with an Assistant. With `human_opponents_first: true`
+(a study or admin setting), every negotiation looks for a person first:
+
+- the participant takes **any** human kind the pool lists. With `[human+assistant, human, :pan]`
+  that is someone with or without an Assistant. The other side's wishes still apply: someone who
+  takes only `human+assistant` opponents meets only a participant with an Assistant;
+- the pool's AI entries are used only for the fallback after `human_opponent_wait` seconds, and for
+  *Play an AI opponent now* (below).
+
+### Choosing a person or an AI
+
+With `human_opponent_choice: true` (a study or admin setting), or `?opponent_choice=1` on the page,
+a participant whose next opponent may be a person first chooses:
+
+- **Play a person.** The button shows how many people who fit are waiting right now. The participant
+  joins one of them directly when someone fits, and otherwise waits as described above.
+- **Play an AI opponent now.** An opponent from the rest of the pool, with no waiting.
+
+Nobody is paired before the choice, and the negotiation cannot start until it is made. While
+waiting for a person, the page offers **Play an AI opponent instead** (also without the choice
+screen, unless `human_opponent_fallback` is `false`). It leaves the waiting room and starts with an
+AI opponent.
 
 !!! note "One server process"
     The waiting room lives in the server's memory. HANI2 runs a single server process (`hani2` starts
@@ -76,6 +105,15 @@ arranged in advance or for testing.
   stops acting. Use one for studies with human opponents.
 
 ## What participants see
+
+Each participant sees only their own side. The page, the tools and the Assistant never get the other
+participant's preferences, value on disagreement or utility (the `opponent_utility` capability, the
+opponent's preferences tool and the real-utility views of the negotiation plot give nothing while the
+opponent is a person). They also never get the other participant's user name, chats, Assistant output
+or the match id. The result of the negotiation leaves out the other side's utility. **My Results** drops
+`opponent_user` and `match_id` and blanks the other side's values in those rows. All of these stay in
+`results.csv` for analysis. To keep participant-written Assistants from reading any of this in the
+server's memory or files, run them [isolated](assistant.md#isolated-assistants).
 
 The page says when the opponent is another participant: the waiting messages, a person icon instead
 of a robot, and `opponent_kind` in the page state. This holds whatever `show_opponent_type` says. While
@@ -102,6 +140,7 @@ Each participant gets their own row in `results.csv`, from their own side:
 | `mechanism_id` | Shared by both rows too, as are the negotiation log and the trace |
 | `agent_utility` | The other participant's utility |
 | `abandoned` | `self` (this participant left), `opponent` (the other one left), else empty. `ended_by` stays `human` / `agent` as for AI opponents |
+| `invited_by` | For a guest who came through an invitation (see [Guests](authentication.md#guests)): who invited them, else empty |
 
 The participant who joined keeps their own plan columns (such as `scenario_scheduling`), although the
 scenario is the one the waiting participant loaded. A study that falls back to AI opponents has rows with
@@ -109,3 +148,51 @@ scenario is the one the waiting participant loaded. A study that falls back to A
 
 When you analyse a study, count each `match_id` once for negotiation-level measures (agreement rate,
 welfare). Use both rows for participant-level measures.
+
+## A game
+
+A *game* is a study, outside any evaluation, where people play each other with their Assistants
+whenever they like, and may invite friends. Its results are kept apart from the study the
+participants' Assistants were submitted to. A complete configuration:
+
+```yaml title="projects/arena/project.yaml"
+full_name: Negotiation arena
+kind: none                 # not an evaluation
+defaults:
+  practice: false
+  counted_time_limit: 600  # every game ends, also when one side stops acting
+  opponents: [human+assistant, human, ":pan"]
+  questionnaires: false    # no questionnaire, whatever the server's environment names
+```
+
+```yaml title="projects/arena/studies/play/study.yaml"
+type: online
+title: Arena
+```
+
+```json title="projects/arena/studies/play/env.json"
+{
+  "negotiation": {
+    "human_opponents_first": true,
+    "human_opponent_choice": false,
+    "human_opponent_codes": false,
+    "human_opponent_wait": 120,
+    "human_opponent_fallback": true,
+    "human_opponent_absent": 60,
+    "assistant_isolation": "process",
+    "assistant_sandbox": "required",
+    "show_opponent_type": false
+  }
+}
+```
+
+- Participants come from a trusted website through the [sign-in hand-off](authentication.md#sign-in-from-a-trusted-website),
+  with `next=/app?study=arena/play&group=<key>`. The group file names their Assistant (`"assistant":
+  "<spec>"`, or `"none"` for no Assistant) and the pool. When the group file lists `agents`, they
+  replace the study's `opponents`, so write the human entries there too.
+- People they invite get a [guest](authentication.md#guests) hand-off with `&opponent_choice=1`. They
+  choose between a person and an AI, and play with the inviter's Assistant.
+- Logged-in accounts play as many games as they like. After a game, *Next negotiation* starts another,
+  and so does a new hand-off from the website.
+- `assistant_isolation: process` runs participant-written Assistants in a sandboxed worker process.
+  `assistant_sandbox: required` refuses to run one where no sandbox is available.

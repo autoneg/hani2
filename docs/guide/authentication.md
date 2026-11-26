@@ -105,7 +105,8 @@ sends the browser to HANI2 with it.
         "login_url": "https://anac.example.org/hani2/sso",
         "label": "ANAC account",
         "prefix": "anac_",
-        "issuer": "scmlweb"
+        "issuer": "scmlweb",
+        "guest_studies": ["arena/play"]
       }
     }
   }
@@ -147,6 +148,34 @@ An HS256 JSON Web Token signed with the shared secret. Its claims:
 Any JWT library can make these tokens. Accounts made this way are marked with the provider's
 name, and names with their prefix cannot be registered by hand. The website's emails are not
 checked by HANI2, so these accounts never become admins through `admin.emails`.
+
+A participant who already has a session in the study and comes back through a new hand-off (a new
+"play" click on the website) after a finished negotiation gets a new negotiation. A reload of the
+page keeps showing the result.
+
+### Guests
+
+A website can also send people who have no account there, for example someone a participant
+invited, into one study. It mints the same token with these extra claims:
+
+| Claim | Value |
+| --- | --- |
+| `guest` | `true` |
+| `sub` | An id for the invitation, for example `invite-42`. The account is `<prefix><sub>`, for example `anac_invite-42`. |
+| `invited_by` | Optional: who invited them (a number or a string), recorded in the `invited_by` results column. |
+| `name` | Optional: the name the guest typed, shown on their page. |
+
+HANI2 accepts a guest token only when `next` names a study (`?study=<project>/<study>` or a
+`/s/<project>/<study>/` path) that the provider lists in `guest_studies`. Any other `next` opens
+`/login?error=sso_guest`. The guest account:
+
+- has no password and can open only that study, as a participant. Every other study, the default
+  study, the playground, the admin console, results and replays answer *403*;
+- stays a guest. A guest token for a normal account, or a normal token for a guest account, is
+  refused (`sso_conflict`);
+- gets one session per browser, because several people may use one invitation. Their results go
+  to `<account>~<browser id>` (for example `anac_invite-42~3f2a9c1b0d4e`), and every row records
+  `invited_by`.
 
 ## Admins
 

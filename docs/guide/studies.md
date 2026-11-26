@@ -114,7 +114,9 @@ Likert and yes/no questions start with nothing selected, so the participant must
 
 ### Where the questionnaire is looked up
 
-HANI2 uses the first of these files that exists and has questions (a file with `enabled: false` switches the questionnaire off and ends the search; see [Study forms](study-forms.md#switching-a-form-off)):
+A study (or project) with `questionnaires: false` in `study.yaml` / `project.yaml`, or `"questionnaires": false` in its `env.json`, shows no questionnaire at all: no pre-questionnaire, no per-negotiation one and no post-session one, whatever the environment variables below name.
+
+Otherwise HANI2 uses the first of these files that exists and has questions (a file with `enabled: false` switches the questionnaire off and ends the search; see [Study forms](study-forms.md#switching-a-form-off)):
 
 1. The file in the `HANI2_PER_NEG_YAML` environment variable.
 2. The file in the `PROLIFIC_PER_NEG_YAML` environment variable.
