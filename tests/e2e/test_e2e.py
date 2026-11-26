@@ -309,6 +309,78 @@ def test_participant_hides_the_character_and_gets_the_header_button(e2e_browser,
         ctx.close()
 
 
+def test_assistant_opens_over_the_tool_area_and_gives_the_tool_back(e2e_browser, over_tools_server):
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, over_tools_server, viewport={"width": 1400, "height": 900})
+    p = Page(ctx.new_page(), over_tools_server)
+    try:
+        name = "e2e" + uuid.uuid4().hex[:8]
+        r = p.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                       "consent": True})
+        assert r.ok, r.text()
+        p.goto("/app?view=simple")
+        tools = p.locator("[data-region=tools]")
+        expect(tools).to_have_count(1)
+        tablist = tools.get_by_role("tablist")
+        expect(tablist).to_be_visible()
+        open_tab = tablist.get_by_role("tab", selected=True).first
+        tab_name = open_tab.inner_text()
+        p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True).click()
+        # the Assistant sits in the tool area, in the open tool's place, and nowhere else
+        assistant = p.locator("aside[aria-label=Assistant]")
+        expect(assistant).to_have_count(1)
+        expect(tools.locator("aside[aria-label=Assistant]")).to_be_visible()
+        expect(tablist).to_be_hidden()
+        expect(tools).to_have_count(1)
+        # closing it brings the same tool back
+        p.get_by_role("button", name="Close assistant").click()
+        expect(assistant).to_have_count(0)
+        expect(tablist).to_be_visible()
+        expect(tablist.get_by_role("tab", selected=True).first).to_have_text(tab_name)
+        # the character opens it in the same place
+        p.locator("[data-persona]").click()
+        expect(assistant).to_have_count(1)
+        expect(tools.locator("aside[aria-label=Assistant]")).to_be_visible()
+        p.get_by_role("button", name="Close assistant").click()
+        expect(p.locator("[data-persona]")).to_be_visible()
+        # the full view: it fills the tools column
+        p.get_by_role("button", name="Layout").click()
+        p.get_by_role("menuitem", name=re.compile("^Full")).or_(p.get_by_role("button", name=re.compile("^Full"))).first.click()
+        p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True).click()
+        expect(assistant).to_have_count(1)
+        expect(tools.first.locator("aside[aria-label=Assistant]")).to_be_visible()
+        # starting a negotiation reveals the participant's preferences, so the Assistant makes way
+        start(p)
+        expect(assistant).to_have_count(0)
+        # a tool in a popup is the tool in front: the Assistant takes its window and gives it back
+        p.get_by_role("button", name="Layout").click()
+        p.get_by_role("menuitem", name=re.compile("^Focus")).or_(p.get_by_role("button", name=re.compile("^Focus"))).first.click()
+        expect(tools).to_have_count(0)
+        p.get_by_test_id("launch-generator").click()
+        popup = p.get_by_test_id("tool-popup")
+        bar = popup.get_by_test_id("range-bar-area")
+        expect(bar).to_be_visible()
+        p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True).click()
+        expect(assistant).to_have_count(1)
+        expect(popup.locator("aside[aria-label=Assistant]")).to_be_visible()
+        expect(bar).to_be_hidden()
+        p.get_by_role("button", name="Close assistant").click()
+        expect(assistant).to_have_count(0)
+        expect(bar).to_be_visible()
+        popup.press("Escape")
+        expect(popup).to_have_count(0)
+        # in the bare view there is no tool area: it opens beside the page as before
+        p.get_by_role("button", name="Layout").click()
+        p.get_by_role("menuitem", name=re.compile("^Bare")).or_(p.get_by_role("button", name=re.compile("^Bare"))).first.click()
+        expect(tools).to_have_count(0)
+        p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True).click()
+        expect(assistant).to_be_visible()
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()
+
+
 def test_bare_view_shows_no_tools_on_desktop_and_phone(new_page):
     p = new_page(viewport={"width": 1400, "height": 900})
     p.goto("/play?view=bare")

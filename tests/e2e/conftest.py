@@ -120,6 +120,26 @@ def character_server(tmp_path_factory):
     _stop(proc, log)
 
 
+def _over_tools_settings(home: Path) -> None:
+    import json
+
+    p = home / "settings" / "assistant_settings.json"
+    s = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    s["presentation"] = {"style": "both", "place": "tools"}
+    p.write_text(json.dumps(s), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def over_tools_server(tmp_path_factory):
+    """A server whose Assistant (the level 1 agent, no model needed; header button and character) opens over the tool area."""
+    home = tmp_path_factory.mktemp("e2e_over_tools_home")
+    hello = Path(__file__).resolve().parents[2] / "examples" / "support_agent_tutorial" / "level1_hello.py"
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--assistant", f"{hello}:HelloAgent"],
+                            setup_home=_over_tools_settings)
+    yield url
+    _stop(proc, log)
+
+
 @pytest.fixture(scope="session")
 def css_server(tmp_path_factory):
     """A server whose Assistant (tests/e2e/css_agent.py, no model needed) sets style sheets."""

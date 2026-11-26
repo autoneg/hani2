@@ -1,1 +1,0 @@
-import{c as t}from"./index-b5LEevyu.js";const e={name:"ungroup",size:24,node:[["rect",{x:"11",y:"14",width:"10",height:"7",rx:"2",key:"nfm8rk"}],["rect",{x:"3",y:"3",width:"10",height:"7",rx:"2",key:"1ljebb"}]]};e.node;const r=t(e);export{e as __iconData,r as default};

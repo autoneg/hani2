@@ -316,7 +316,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `layout` | Change the layout | Switch between the full, simple, focus and bare (no tools) views, and resize or collapse regions | `set_layout` |
 | `offer_display` | Change how offers read | Rewrite how offers are shown: the offer sentence, number formats, value names and the control of each issue | `set_offer_display` |
 | `interface` | Adjust the interface | Change the participant's display settings (text size, history, offer order) and restyle the page | `set_interface` |
-| `presentation` | Choose how it appears | Appear as a panel, a character or both, and decide whether the participant can hide the character | `set_presentation` |
+| `presentation` | Choose how it appears | Appear as a panel, a character or both, open beside the page or over the tool area, and decide whether the participant can hide the character | `set_presentation` |
 | `panels` | Custom panels | Show interactive panels (cards, tables, buttons) | `show_panel`, `close_panel` |
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
@@ -395,7 +395,7 @@ Every notification (`toast`, `send_toast`, and the server's own) is also kept fo
 
 ## How the Assistant appears
 
-`presentation.style` in `assistant_settings.json` (per layer) shows the Assistant as a panel opened from the header (`panel`), as a movable character in a corner of the screen that its notifications come out of (`persona`), as both, or lets the participant choose (`choice`). The participant can hide the character; the header's **Assistant** button then shows instead. See [The Assistant as a character](interface.md#the-assistant-as-a-character).
+`presentation.style` in `assistant_settings.json` (per layer) shows the Assistant as a panel opened from the header (`panel`), as a movable character in a corner of the screen that its notifications come out of (`persona`), as both, or lets the participant choose (`choice`). The participant can hide the character; the header's **Assistant** button then shows instead. See [The Assistant as a character](interface.md#the-assistant-as-a-character). `presentation.place` decides where the open conversation goes: `beside` the page (the default) or `tools`, in the tool area in the open tool's place, so that closing it brings the tool back (see [The Assistant in the tool area](interface.md#the-assistant-in-the-tool-area)).
 
 With the `presentation` capability the agent decides for itself. It can do this from the start with a class attribute, applied when the agent is created and so before the page first shows it:
 
@@ -406,6 +406,11 @@ from hani2.assistant import Assistant
 class Mascot(Assistant):
     # only the character, and the participant cannot hide it
     presentation = {"style": "persona", "may_hide": False}
+
+
+class Helper(Assistant):
+    # the panel, opened in the tool area in place of the open tool
+    presentation = {"place": "tools"}
 ```
 
 It can also change it at any time with `set_presentation`, or the model with the function of the same name:
@@ -415,6 +420,8 @@ self.set_presentation("both")                  # the character and the header bu
 self.set_presentation("panel")                 # only the header button
 self.set_presentation(may_hide=False)          # the character cannot be hidden (a hidden one comes back)
 self.set_presentation(may_show=False)          # once hidden, it cannot be brought back
+self.set_presentation(place="tools")           # open over the tool area, in the open tool's place
+self.set_presentation(place="beside")          # open beside the page
 self.set_presentation(clear=True)              # back to the admin's settings and the participant's choice
 ```
 
@@ -423,8 +430,9 @@ self.set_presentation(clear=True)              # back to the admin's settings an
 | `style` | `panel`, `persona` or `both`. Overrides `presentation.style` and the participant's choice, which is no longer offered. Choosing `persona` or `both` shows a hidden character again. |
 | `may_hide` | Whether the participant may hide the character (default `true`). `false` also brings a hidden character back. |
 | `may_show` | Whether the participant may bring a hidden character back (default `true`). |
+| `place` | `beside` or `tools`: where the open conversation goes. Overrides `presentation.place` for this session. With `tools` it opens in a tool popup's window when one is open, else in the tool area where one is on screen (simple and full views, tablets), and beside the page otherwise. |
 
-The locks also apply to the participant's style choice: when hiding is locked, they cannot pick **Panel**, and when showing is locked, they cannot pick **Character** or **Both** for a hidden character. A new Assistant (for example, the next round's Assistant in a counterbalanced study) starts from the admin's settings again. The snapshot's `interface.assistant` holds the result: `style` (what the page shows; `panel` while the character is hidden), `chosen` (the style before hiding), `choice`, `movable`, `persona_hidden`, `may_hide` and `may_show`.
+The locks also apply to the participant's style choice: when hiding is locked, they cannot pick **Panel**, and when showing is locked, they cannot pick **Character** or **Both** for a hidden character. A new Assistant (for example, the next round's Assistant in a counterbalanced study) starts from the admin's settings again. The snapshot's `interface.assistant` holds the result: `style` (what the page shows; `panel` while the character is hidden), `chosen` (the style before hiding), `choice`, `movable`, `persona_hidden`, `may_hide`, `may_show` and `place`.
 
 ## Estimating the opponent
 

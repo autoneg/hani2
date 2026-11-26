@@ -9,6 +9,8 @@ import { Markdown } from "../ui/Markdown";
 import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
 import { useDevice } from "../device";
+import { Assistant } from "./Assistant";
+import { assistantPlace, useAssistantInTools } from "./Persona";
 
 type Pane = "upper" | "lower" | "side";
 const PANE_ICON = { upper: PanelTop, lower: PanelBottom, side: PanelRight };
@@ -338,6 +340,12 @@ export function ToolPopup() {
   const [pos, setPos] = useState(readPos);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
+  // presentation.place = tools: the open Assistant takes this window, in the tool's place (the
+  // tool stays mounted underneath and comes back when the Assistant closes); phones keep its tab
+  const assistantHere = useStore(
+    (s) => s.assistantOpen && !!s.state?.support && assistantPlace(s.state) === "tools" && !phone && !!tool && !bare && maximized !== tool.id && !replay,
+  );
+  useAssistantInTools(assistantHere, "popup");
   useEffect(() => {
     // the tool went away (another round, hidden by the study) or the view has no tools
     if (id && !replay && (!tool || bare)) useStore.getState().clearUi(POPUP_KEY);
@@ -389,8 +397,13 @@ export function ToolPopup() {
       }`}
       style={style}
     >
+      {assistantHere && (
+        <div className="flex h-[min(560px,calc(100dvh-6rem))] min-h-0">
+          <Assistant fill />
+        </div>
+      )}
       <div
-        className={`flex items-center gap-2 border-b border-line px-3 py-2 ${phone ? "" : "cursor-grab touch-none active:cursor-grabbing"}`}
+        className={`items-center gap-2 border-b border-line px-3 py-2 ${assistantHere ? "hidden" : "flex"} ${phone ? "" : "cursor-grab touch-none active:cursor-grabbing"}`}
         onPointerDown={(e) => {
           if (phone || (e.target as HTMLElement).closest("button")) return;
           const r = box.current!.getBoundingClientRect();
@@ -430,7 +443,7 @@ export function ToolPopup() {
           <X size={16} />
         </button>
       </div>
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-3">
+      <div className={`scroll-thin min-h-0 flex-1 overflow-y-auto p-3 ${assistantHere ? "hidden" : ""}`}>
         <ToolBody key={tool.id} tool={tool} />
       </div>
     </div>,

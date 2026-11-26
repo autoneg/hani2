@@ -64,7 +64,7 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "layout": ("Change the layout", "Switch between the full, simple, focus and bare (no tools) views, and resize or collapse regions"),
     "offer_display": ("Change how offers read", "Rewrite how offers are shown: the offer sentence, number formats, value names and the control of each issue"),
     "interface": ("Adjust the interface", "Change your display settings (text size, history, offer order) and restyle the page"),
-    "presentation": ("Choose how it appears", "Appear as a panel, a character or both, and decide whether you can hide the character"),
+    "presentation": ("Choose how it appears", "Appear as a panel, a character or both, open beside the page or over the tool area, and decide whether you can hide the character"),
     "panels": ("Custom panels", "Show interactive panels it builds (cards, tables, buttons)"),
     "tool_add": ("Add tools", "Add new tools to your screen while you negotiate, and remove the ones it added"),
     "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),

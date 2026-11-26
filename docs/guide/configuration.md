@@ -416,6 +416,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `presentation.style` | `"panel"` | How the Assistant appears: `panel` (opened from the header), `persona` (a character in a corner of the screen), `both`, or `choice` (the participant picks in their settings). Phones always use the Assistant tab. See [The Assistant as a character](interface.md#the-assistant-as-a-character). |
 | `presentation.choice_default` | `"panel"` | What a participant starts with under `choice`. |
 | `presentation.persona_movable` | `true` | Whether participants may drag the character. |
+| `presentation.place` | `"beside"` | Where the open Assistant goes: `beside` the page (a dock or a slide-over) or `tools` (in the tool area, in the open tool's place; closing it brings the tool back). Where no tool area is shown it opens beside the page. The Assistant may change it for its session. See [The Assistant in the tool area](interface.md#the-assistant-in-the-tool-area). |
 
 See [Assistant](assistant.md).
 

@@ -12,6 +12,31 @@ export const usePersona = create<{ shown: boolean; setShown: (v: boolean) => voi
   setShown: (v) => set({ shown: v }),
 }));
 
+/** Whether the open Assistant sits in the tool area or in the tool popup's window
+ *  (`presentation.place` = tools): the character then leaves its own chat card to it, and the
+ *  layout does not show it a second time. Set by the layout / the popup that shows it there. */
+export const useAssistantSlot = create<{ inTools: boolean; inPopup: boolean; setInTools: (v: boolean) => void; setInPopup: (v: boolean) => void }>((set) => ({
+  inTools: false,
+  inPopup: false,
+  setInTools: (v) => set({ inTools: v }),
+  setInPopup: (v) => set({ inPopup: v }),
+}));
+
+/** Where the open Assistant goes: beside the page, or over the tool area in the open tool's place. */
+export function assistantPlace(st: SessionState | null | undefined): "beside" | "tools" {
+  return st?.interface?.assistant?.place === "tools" ? "tools" : "beside";
+}
+
+/** Tell the page whether the Assistant took the tool area (and keep the character's chat card away). */
+export function useAssistantInTools(inTools: boolean, slot: "tools" | "popup" = "tools") {
+  const set = useAssistantSlot((s) => (slot === "popup" ? s.setInPopup : s.setInTools));
+  // before paint, so the character's chat card never flashes up
+  useLayoutEffect(() => {
+    set(inTools);
+    return () => set(false);
+  }, [inTools, set]);
+}
+
 /** How the Assistant appears on this device: panel (opened from the header), persona or both.
  *  Phones always use the Assistant tab. */
 export function assistantStyle(st: SessionState | null | undefined, device: Device): "panel" | "persona" | "both" {
@@ -62,7 +87,7 @@ function useViewport() {
 /**
  * The Assistant as a character in a corner of the screen. Its notifications come out of it as
  * speech bubbles; clicking it opens the conversation next to it (or the side panel when the
- * Assistant also has the panel), and the character steps aside until the conversation is closed. The participant can drag it anywhere unless the admin fixed it;
+ * Assistant also has the panel, or in the tool area when `presentation.place` is tools), and the character steps aside until the conversation is closed. The participant can drag it anywhere unless the admin fixed it;
  * where it was put is kept with the layout (`persona_x`, `persona_y`: its centre as fractions of
  * the window).
  */
@@ -73,6 +98,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
   const toasts = useStore((s) => s.toasts);
   const drop = useStore((s) => s.dropToast);
   const setShown = usePersona((s) => s.setShown);
+  const inTools = useAssistantSlot((s) => s.inTools || s.inPopup);
   const vp = useViewport();
   const style = assistantStyle(st, device);
   const shown = !!st?.support && style !== "panel";
@@ -148,7 +174,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
     ...(below ? { top: y + SIZE / 2 + 8 } : { bottom: vp.h - y + SIZE / 2 + 8 }),
   };
   const bubbles = toasts.filter((t) => t.source === "assistant").slice(-3);
-  const chatHere = open && style === "persona";
+  const chatHere = open && style === "persona" && !inTools;
   // while the conversation is open (next to the character or in the side panel) the character
   // steps aside; it comes back when the conversation is closed
   return (

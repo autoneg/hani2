@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **The Assistant in the tool area.** `presentation.place: tools` (*The open Assistant goes* on the
+  Assistant settings page, per layer) opens the Assistant in the tool area, in the open tool's
+  place, instead of beside the page; closing it brings the same tool back. A tool open in a popup is
+  the tool in front, so the Assistant takes the popup's window; otherwise it fills the tools area of
+  the simple view, the tools column of the full view, or the tools column or open tray on tablets.
+  With no tool on screen (focus, bare) it opens beside the page as before, and phones keep the
+  Assistant tab. The Assistant can change it for its session
+  (`set_presentation(place=...)`, the `place` class attribute key, or the model's
+  `set_presentation` function). See [The Assistant in the tool area](guide/interface.md#the-assistant-in-the-tool-area).
 - **The Utility Bar, a graphical utility inverter.** The new first offer generator: click or drag on
   a 0-100% bar of what deals are worth to you (with how many deals lie at each value and marks at
   your value on disagreement, the opponent's offer and yours) and get one deal from that part, up to
@@ -26,6 +35,7 @@
   card with the role's hints and what you want on every issue in plain words.
   Option names in the bar charts are no longer cut: the chart makes room for them, and only a very
   long name is shortened in the middle (its start and end stay visible; hover shows it in full).
+||||||| parent of af175e6729 (feat(assistant,ui): the open Assistant can take the tool area's place (presentation.place))
 - **Utility bars by issue.** *Colour the utility bars by issue* (`color_utility_by_issue`, off by
   default) splits every utility bar (the offer on the table, the counter-offer, the confirmation, the
   result and the history) into one coloured segment per issue, the most important first, with a

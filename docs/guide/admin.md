@@ -344,7 +344,7 @@ was skipped; with unsaved changes it tests those. See [Models and connections](m
 | Temperature, max tokens, tool steps per turn | `temperature`, `max_tokens`, `max_tool_iterations` |
 | Speaks up unprompted when a negotiation starts, it is the participant's turn, a negotiation ends | `proactive.on_negotiation_started`, `proactive.on_action_requested`, `proactive.on_negotiation_ended` |
 | System prompt | `system_prompt` |
-| The Assistant appears as: a panel, a character (persona), both, the participant chooses; the first choice; participants may move the character | `presentation.style` (`panel`, `persona`, `both`, `choice`), `presentation.choice_default`, `presentation.persona_movable` |
+| The Assistant appears as: a panel, a character (persona), both, the participant chooses; the first choice; participants may move the character; the open Assistant goes beside the page or over the tool area | `presentation.style` (`panel`, `persona`, `both`, `choice`), `presentation.choice_default`, `presentation.persona_movable`, `presentation.place` (`beside`, `tools`) |
 
 Participants can narrow these permissions in their Assistant settings but never widen them. See [Assistant](assistant.md).
 

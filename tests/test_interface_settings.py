@@ -182,11 +182,11 @@ def _pres(s):
 def test_assistant_presentation_panel_persona_or_choice():
     s = make_session()
     assert _pres(s) == {"style": "panel", "chosen": "panel", "choice": False, "movable": True,
-                        "persona_hidden": False, "may_hide": False, "may_show": False}
+                        "persona_hidden": False, "may_hide": False, "may_show": False, "place": "beside"}
     assert not s.set_pref("assistant_presentation", "persona")  # the admin did not offer a choice
     p = make_session(assistant_settings={"presentation": {"style": "persona", "persona_movable": False}})
     assert _pres(p) == {"style": "persona", "chosen": "persona", "choice": False, "movable": False,
-                        "persona_hidden": False, "may_hide": True, "may_show": False}
+                        "persona_hidden": False, "may_hide": True, "may_show": False, "place": "beside"}
     c = make_session(assistant_settings={"presentation": {"style": "choice", "choice_default": "both"}})
     assert _pres(c)["style"] == "both"
     assert c.set_pref("assistant_presentation", "persona")
@@ -239,6 +239,39 @@ def test_assistant_decides_its_style_and_can_hand_it_back():
     # the language model's function does the same
     agent.dispatcher.execute("set_presentation", {"style": "both", "may_hide": False})
     assert _pres(s)["style"] == "both" and not _pres(s)["may_hide"]
+
+
+def test_assistant_place_from_settings_and_the_assistants_override():
+    # the admin's layered setting (beside by default)
+    assert _pres(make_session())["place"] == "beside"
+    s = make_session(assistant_settings={"presentation": {"place": "tools"}})
+    assert _pres(s)["place"] == "tools"
+    assert s.snapshot()["interface"]["assistant"]["place"] == "tools"
+    assert _pres(make_session(assistant_settings={"presentation": {"place": "sideways"}}))["place"] == "beside"
+    # the Assistant overrides it for its session, and hands it back
+    agent = s.support_agent
+    assert agent.set_presentation(place="beside")["ok"]
+    assert _pres(s)["place"] == "beside"
+    assert not agent.set_presentation(place="sideways")["ok"]
+    agent.set_presentation(clear=True)
+    assert _pres(s)["place"] == "tools"
+    # the language model's function
+    agent.dispatcher.execute("set_presentation", {"place": "beside"})
+    assert _pres(s)["place"] == "beside" and _pres(s)["style"] == "panel"
+    schema = next(f for f in agent.dispatcher.schemas() if f["function"]["name"] == "set_presentation")
+    assert schema["function"]["parameters"]["properties"]["place"]["enum"] == ["beside", "tools"]
+
+
+def test_assistant_place_needs_the_presentation_capability():
+    s = make_session(assistant_settings={"capabilities": {"presentation": False}}, agent_class=f"{__file__}:OverTools")
+    assert _pres(s)["place"] == "beside"  # the class attribute is ignored without the capability
+    assert not s.support_agent.set_presentation(place="tools")["ok"]
+    assert _pres(s)["place"] == "beside"
+
+
+def test_assistant_place_class_attribute():
+    s = make_session(agent_class=f"{__file__}:OverTools")
+    assert _pres(s)["place"] == "tools" and _pres(s)["style"] == "panel"
 
 
 def test_presentation_class_attribute_applies_before_the_first_render():
@@ -299,3 +332,9 @@ class CharacterOnly(Assistant):
     """Shows itself only as a character the participant cannot hide."""
 
     presentation = {"style": "persona", "may_hide": False}
+
+
+class OverTools(Assistant):
+    """Opens over the tool area, in the open tool's place."""
+
+    presentation = {"place": "tools"}

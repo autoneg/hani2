@@ -153,8 +153,10 @@ DEFAULT_ASSISTANT_SETTINGS: dict[str, Any] = {
     "toolbox": [],
     # how the Assistant appears: style panel (opened from the header), persona (a movable
     # character in the corner that notifications come out of), both, or choice (the
-    # participant picks; choice_default first)
-    "presentation": {"style": "panel", "choice_default": "panel", "persona_movable": True},
+    # participant picks; choice_default first); place: where the open conversation goes,
+    # beside the page (a dock or a slide-over) or over the tool area ("tools", in the open
+    # tool's place)
+    "presentation": {"style": "panel", "choice_default": "panel", "persona_movable": True, "place": "beside"},
 }
 
 

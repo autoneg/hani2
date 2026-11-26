@@ -933,9 +933,11 @@ class ToolDispatcher:
     def _set_presentation(self, args: dict) -> dict:
         style = args.get("style")
         kw = {k: bool(args[k]) for k in ("may_hide", "may_show") if isinstance(args.get(k), bool)}
-        res = self._session().set_assistant_presentation(style if style else None, **kw,
+        place = args.get("place") or None
+        res = self._session().set_assistant_presentation(style if style else None, **kw, place=place,
                                                          clear=bool(args.get("reset")))
-        _log_agent_action(self.ss, "set_presentation", str({**({"style": style} if style else {}), **kw})[:120])
+        _log_agent_action(self.ss, "set_presentation", str({**({"style": style} if style else {}),
+                                                            **({"place": place} if place else {}), **kw})[:120])
         return res
 
     def _schema_set_presentation(self) -> dict:
@@ -944,9 +946,12 @@ class ToolDispatcher:
             "Choose how you appear: style 'panel' (only the Assistant button in the header opens "
             "your chat), 'persona' (only a character in a corner of the screen) or 'both'. "
             "may_hide: whether the participant may hide the character; may_show: whether they may "
-            "bring it back after hiding it. reset: true hands the choice back to the default.",
+            "bring it back after hiding it. place: where your open chat goes, 'beside' the page "
+            "or 'tools' (over the tool area, in the open tool's place; closing it brings the tool "
+            "back). reset: true hands the choice back to the default.",
             {
                 "style": {"type": "string", "enum": ["panel", "persona", "both"]},
+                "place": {"type": "string", "enum": ["beside", "tools"]},
                 "may_hide": {"type": "boolean"},
                 "may_show": {"type": "boolean"},
                 "reset": {"type": "boolean"},

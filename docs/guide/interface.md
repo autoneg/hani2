@@ -268,6 +268,37 @@ While the character is shown, the Assistant's notifications come out of it as sp
 
 The [Assistant](assistant.md) page explains autonomy, capabilities and proactive messages.
 
+### The Assistant in the tool area
+
+`assistant_settings.json → presentation.place` (**The open Assistant goes** on the **Assistant
+settings** page, per layer: global, project or study) chooses where the open conversation goes:
+
+- `beside` (the default): beside the page, as a dock on wide screens (1600 px and more) and
+  sliding over the right edge on narrower ones;
+- `tools`: in the tool area, in the open tool's place. Opening the Assistant (the header button,
+  the character, or a notification) covers the tools; closing it brings back the same tool, with
+  its tab and inputs as they were. No second panel opens beside the page, and the character's own
+  chat card is not used.
+
+Where `tools` applies:
+
+| View | With `place: tools` |
+| --- | --- |
+| A tool open in a popup (any view but bare) | The tool in front: the Assistant takes the popup's window, and closing it brings the popup's tool back. |
+| Simple (one tools area) | The Assistant fills the tools area. |
+| Full | The Assistant fills the tools column (the upper and lower panes); the side pane stays. |
+| Focus, bare, or the tools collapsed, with no popup open | No tool is on screen, so the Assistant opens beside the page as with `beside`. |
+| Tablet, landscape | The Assistant fills the tools column. |
+| Tablet, portrait | The Assistant fills the tool tray while it is open; with the tray closed it slides over the right edge. |
+| Phone | Unchanged: the Assistant is always a tab of its own, in the place of the Tools tab (the popup sheet stays as it is). |
+
+While the Assistant covers the tools, the page closes it when a tool has to be seen: when a
+negotiation starts and the Preferences tool is revealed, and when the Assistant highlights
+something inside a tool. Bringing a tool to the front (`focus_tool`) does not close it: the tool
+shows when the participant closes the Assistant. Plots in the hidden tools redraw at their size
+when they come back. The Assistant can change the place for its session with
+[`set_presentation`](assistant.md#how-the-assistant-appears).
+
 ### Agent panels
 
 An Assistant can build its own panels from the same components tools use. A panel has a title and a close button, and appears in one of three places: inside the assistant dock, above the thread ("side"), or as a modal dialog. Closing a modal or a panel tells the server, and the agent receives the panel's button presses.

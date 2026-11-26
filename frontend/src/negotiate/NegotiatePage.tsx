@@ -14,7 +14,7 @@ import { useDevice, type Device } from "../device";
 import * as telemetry from "../telemetry";
 import { Splitter, useLayoutSize } from "../ui/Splitter";
 import { PinnedMessages } from "./Notifications";
-import { Persona, assistantStyle } from "./Persona";
+import { Persona, assistantPlace, assistantStyle, useAssistantInTools, useAssistantSlot } from "./Persona";
 import { CustomStyle } from "./CustomStyle";
 
 function useMedia(q: string) {
@@ -138,7 +138,10 @@ function ToolColumn() {
 
 function Desktop() {
   const st = useStore((s) => s.state)!;
-  const assistantOpen = useStore((s) => s.assistantOpen) && assistantStyle(st, "desktop") !== "persona";
+  // an open tool popup is the tool in front: with place = tools the Assistant takes its window
+  const inPopup = useAssistantSlot((s) => s.inPopup);
+  const open = useStore((s) => s.assistantOpen) && !!st.support && !inPopup;
+  const setAssistant = useStore((s) => s.setAssistantOpen);
   const wide = useMedia("(min-width: 1600px)");
   const rowRef = useRef<HTMLDivElement>(null);
   const [tools, setTools, commitTools] = useLayoutSize("tools");
@@ -150,6 +153,13 @@ function Desktop() {
   const toolsCol = view === "full" && !collapsed.includes("tools") && (has("upper") || has("lower"));
   const sideCol = view === "full" && !collapsed.includes("side") && has("side");
   const simpleCol = view === "simple" && !collapsed.includes("tools");
+  // presentation.place = tools: the open Assistant takes the tool area's place (the tools stay
+  // mounted underneath and come back when it closes); with no tool area it opens beside the page
+  const overTools = open && assistantPlace(st) === "tools" && (toolsCol || simpleCol);
+  const assistantOpen = open && !overTools && assistantStyle(st, "desktop") !== "persona";
+  useAssistantInTools(overTools);
+  useReveal(() => overTools && setAssistant(false));
+  useUncoverForHighlights(overTools, () => setAssistant(false));
   const toolsSplitter = (after: boolean) => (
     <Splitter
       dir="col"
@@ -169,7 +179,10 @@ function Desktop() {
       {toolsCol && (
         <>
           <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
-            <ToolColumn />
+            {overTools && <Assistant fill />}
+            <div className={`min-h-0 flex-1 flex-col ${overTools ? "hidden" : "flex"}`}>
+              <ToolColumn />
+            </div>
           </div>
           {toolsSplitter(false)}
         </>
@@ -179,7 +192,8 @@ function Desktop() {
         <>
           {toolsSplitter(true)}
           <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
-            <ToolPane panes={["upper", "lower", "side"]} className="flex-1" label="Tools" />
+            {overTools && <Assistant fill />}
+            <ToolPane panes={["upper", "lower", "side"]} className={`flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />
           </div>
         </>
       )}
@@ -211,16 +225,35 @@ function Desktop() {
   );
 }
 
-/** The assistant as a slide-over panel (tablets, narrow desktops). */
-function AssistantOverlay() {
-  const open = useStore((s) => s.assistantOpen);
+/** The assistant as a slide-over panel (tablets, narrow desktops); `hidden` when it sits in
+ *  the tool area instead. */
+function AssistantOverlay({ hidden = false }: { hidden?: boolean }) {
+  const inPopup = useAssistantSlot((s) => s.inPopup);
+  const open = useStore((s) => s.assistantOpen) && !inPopup;
   const persona = useStore((s) => assistantStyle(s.state, "tablet") === "persona");
-  if (!open || persona) return null;
+  if (!open || persona || hidden) return null;
   return (
     <div className="absolute bottom-0 right-0 top-14 z-40 flex w-full max-w-[420px] shadow-pop">
       <Assistant />
     </div>
   );
+}
+
+/** While the Assistant covers the tool area: a new highlight on something in a tool (the
+ *  Assistant pointing at it) closes the conversation so the tool can be seen. */
+function useUncoverForHighlights(overTools: boolean, close: () => void) {
+  const ids = useStore((s) => (s.state?.highlights ?? []).map((h) => `${h.id}:${h.target}`).join("|"));
+  const seen = useRef(ids);
+  useEffect(() => {
+    const before = new Set(seen.current.split("|"));
+    seen.current = ids;
+    if (!overTools || !ids) return;
+    const fresh = ids.split("|").filter((x) => !before.has(x)).map((x) => x.slice(x.indexOf(":") + 1).toLowerCase());
+    if (!fresh.length) return;
+    const inTools = [...document.querySelectorAll<HTMLElement>("[data-region=tools] [data-anchor]")].some((el) =>
+      fresh.includes((el.dataset.anchor ?? "").toLowerCase()));
+    if (inTools) close();
+  }, [ids, overTools]);
 }
 
 /** Re-runs `fn` whenever the server asks to reveal a tool (e.g. the
@@ -245,9 +278,20 @@ function Tablet({ landscape }: { landscape: boolean }) {
   const colRef = useRef<HTMLDivElement>(null);
   const [tools, setTools, commitTools] = useLayoutSize("tablet_tools");
   const [tray, setTray, commitTray] = useLayoutSize("tray");
-  useReveal(() => setTrayOpen(true));
   const focus = st.layout.view === "focus" || st.layout.view === "bare";
   const hasTools = st.tools.some((t) => t.visible);
+  const inPopup = useAssistantSlot((s) => s.inPopup);
+  const open = useStore((s) => s.assistantOpen) && !!st.support && !inPopup;
+  const setAssistant = useStore((s) => s.setAssistantOpen);
+  // presentation.place = tools: the open Assistant fills the tools column (landscape) or the
+  // open tray (portrait); otherwise it slides over the right edge
+  const overTools = open && assistantPlace(st) === "tools" && !focus && hasTools && (landscape || trayOpen);
+  useAssistantInTools(overTools);
+  useReveal(() => {
+    setTrayOpen(true);
+    if (assistantPlace(st) === "tools") setAssistant(false);
+  });
+  useUncoverForHighlights(overTools, () => setAssistant(false));
   if (landscape) {
     const w = tools ?? 0.42;
     return (
@@ -257,11 +301,12 @@ function Tablet({ landscape }: { landscape: boolean }) {
           <>
             <Splitter dir="col" after container={rowRef} value={tools} fallback={() => w} onChange={setTools} onCommit={commitTools} min={0.25} max={0.65} label="Resize the tools" />
             <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${w * 100}%`, minWidth: 280 }}>
-              <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />
+              {overTools && <Assistant fill />}
+              <ToolPane panes={["side", "upper", "lower"]} className={`min-h-0 flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />
             </div>
           </>
         )}
-        <AssistantOverlay />
+        <AssistantOverlay hidden={overTools} />
       </div>
     );
   }
@@ -281,11 +326,16 @@ function Tablet({ landscape }: { landscape: boolean }) {
               </span>
               {trayOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
             </button>
-            {trayOpen && <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />}
+            {overTools && (
+              <div className="flex min-h-0 flex-1">
+                <Assistant fill />
+              </div>
+            )}
+            {trayOpen && <ToolPane panes={["side", "upper", "lower"]} className={`min-h-0 flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />}
           </div>
         </>
       )}
-      <AssistantOverlay />
+      <AssistantOverlay hidden={overTools} />
     </div>
   );
 }

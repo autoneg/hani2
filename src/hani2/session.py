@@ -111,6 +111,10 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     "view_locked": False,
 }
 
+#: Where the open Assistant goes: ``beside`` the page (a dock or a slide-over) or over the
+#: ``tools`` area, in the open tool's place (assistant_settings.json → ``presentation.place``).
+ASSISTANT_PLACES = ("beside", "tools")
+
 #: The layout views. ``bare`` shows no tools at all: the history, the offer area and the Assistant.
 LAYOUT_VIEWS = ("full", "simple", "focus", "bare")
 
@@ -626,9 +630,11 @@ class NegotiationSession:
         ``panel``, so the header's Assistant button shows), ``chosen`` the style before hiding,
         ``choice`` whether the participant picks the style (assistant_settings.json →
         ``presentation``), ``movable`` whether the character can be dragged, ``persona_hidden``
-        whether the participant hid it, and ``may_hide`` / ``may_show`` whether they may hide it or
-        bring it back. The Assistant can fix the style and the two permissions
-        (:meth:`set_assistant_presentation`)."""
+        whether the participant hid it, ``may_hide`` / ``may_show`` whether they may hide it or
+        bring it back, and ``place`` where the open conversation goes: ``beside`` the page (a dock
+        or a slide-over) or over the ``tools`` area, in the open tool's place (closing it brings
+        the tool back; where no tool area is on screen it opens beside the page). The Assistant can
+        fix the style, the place and the two permissions (:meth:`set_assistant_presentation`)."""
         sa = getattr(self, "support_agent", None)
         try:
             from hani2.support_agent.settings import load_assistant_settings
@@ -651,20 +657,27 @@ class NegotiationSession:
             style = "panel"
         has_persona = style != "panel"
         hidden = has_persona and bool(self.prefs.get("persona_hidden"))
+        place = ov.get("place") if ov.get("place") in ASSISTANT_PLACES else pres.get("place")
         return {"style": "panel" if hidden else style, "chosen": style, "choice": choice,
+                "place": place if place in ASSISTANT_PLACES else "beside",
                 "movable": bool(pres.get("persona_movable", True)), "persona_hidden": hidden,
                 "may_hide": has_persona and not hidden and ov.get("may_hide", True) is not False,
                 "may_show": hidden and ov.get("may_show", True) is not False}
 
     def set_assistant_presentation(self, style: str | None = None, *, may_hide: bool | None = None,
-                                   may_show: bool | None = None, clear: bool = False) -> dict:
+                                   may_show: bool | None = None, place: str | None = None,
+                                   clear: bool = False) -> dict:
         """The Assistant's say in how it appears: ``style`` (panel | persona | both; ``None`` keeps
-        the current one) and whether the participant may hide the character (``may_hide``) or bring
-        it back once hidden (``may_show``). Choosing persona or both shows the character again, and
-        ``may_hide=False`` brings a hidden character back. ``clear=True`` drops everything the
-        Assistant set (the admin's settings and the participant's choice apply again)."""
+        the current one), whether the participant may hide the character (``may_hide``) or bring
+        it back once hidden (``may_show``), and where its open conversation goes (``place``:
+        ``beside`` the page or over the ``tools`` area, in the open tool's place). Choosing persona
+        or both shows the character again, and ``may_hide=False`` brings a hidden character back.
+        ``clear=True`` drops everything the Assistant set (the admin's settings and the
+        participant's choice apply again)."""
         if style is not None and style not in ("panel", "persona", "both"):
             return {"ok": False, "error": "style must be panel, persona or both"}
+        if place is not None and place not in ASSISTANT_PLACES:
+            return {"ok": False, "error": "place must be beside or tools"}
         with self.lock:
             ov = {} if clear else dict(self.ss.get("assistant_presentation_override") or {})
             if style is not None:
@@ -677,6 +690,8 @@ class NegotiationSession:
                     self.prefs["persona_hidden"] = False
             if may_show is not None:
                 ov["may_show"] = bool(may_show)
+            if place is not None:
+                ov["place"] = place
             self.ss["assistant_presentation_override"] = ov
         self.push_state()
         return {"ok": True, "presentation": self.assistant_presentation()}

@@ -43,6 +43,7 @@
   "presentation": {
     "style": "panel",
     "choice_default": "panel",
-    "persona_movable": true
+    "persona_movable": true,
+    "place": "beside"
   }
 }

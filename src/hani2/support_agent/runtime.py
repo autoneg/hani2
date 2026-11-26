@@ -118,7 +118,8 @@ class SupportAgent:
     name: str = AGENT_NAME
     #: How this Assistant appears from the start, applied when it is created (before the page
     #: shows it): any of ``style`` (panel | persona | both), ``may_hide`` and ``may_show`` (may the
-    #: participant hide the character, or bring it back). ``None`` leaves it to the admin's
+    #: participant hide the character, or bring it back) and ``place`` (beside | tools: open
+    #: beside the page or over the tool area). ``None`` leaves it to the admin's
     #: settings. Needs the ``presentation`` capability; see :meth:`set_presentation`.
     presentation: dict[str, Any] | None = None
 
@@ -146,9 +147,11 @@ class SupportAgent:
         self._below_reserved_warned = False
         if self.presentation and self.capabilities.has(Capability.PRESENTATION):
             p = self.presentation
-            ov = {k: p[k] for k in ("style", "may_hide", "may_show") if p.get(k) is not None}
+            ov = {k: p[k] for k in ("style", "may_hide", "may_show", "place") if p.get(k) is not None}
             if ov.get("style") not in (None, "panel", "persona", "both"):
                 ov.pop("style")
+            if ov.get("place") not in (None, "beside", "tools"):
+                ov.pop("place")
             session_state["assistant_presentation_override"] = ov
             sess = session_state.get("_session")
             if sess is not None and (ov.get("style") in ("persona", "both") or ov.get("may_hide") is False):
@@ -334,13 +337,16 @@ class SupportAgent:
         return self._denied(Capability.INTERFACE) or self.session.set_interface(prefs=prefs, custom_css=custom_css)
 
     def set_presentation(self, style: str | None = None, *, may_hide: bool | None = None,
-                         may_show: bool | None = None, clear: bool = False) -> dict:
+                         may_show: bool | None = None, place: str | None = None,
+                         clear: bool = False) -> dict:
         """Decide how the Assistant appears: ``style`` panel (the header's Assistant button only),
         persona (the character only) or both; ``may_hide`` / ``may_show``: whether the participant
-        may hide the character or bring it back once hidden. ``clear=True`` hands the decision back
-        to the admin's settings. Needs ``presentation``."""
+        may hide the character or bring it back once hidden; ``place``: where the open
+        conversation goes, ``beside`` the page or over the ``tools`` area in the open tool's place
+        (closing it brings the tool back). ``clear=True`` hands the decision back to the admin's
+        settings. Needs ``presentation``."""
         return self._denied(Capability.PRESENTATION) or self.session.set_assistant_presentation(
-            style, may_hide=may_hide, may_show=may_show, clear=clear)
+            style, may_hide=may_hide, may_show=may_show, place=place, clear=clear)
 
     def set_opponent_estimate(self, estimate: Any = None) -> dict:
         """Share an estimate of the opponent's utility function: a negmas utility function over

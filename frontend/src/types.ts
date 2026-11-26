@@ -278,6 +278,8 @@ export interface InterfaceState {
     persona_hidden?: boolean;
     may_hide?: boolean;
     may_show?: boolean;
+    /** where the open conversation goes: beside the page, or over the tool area in the open tool's place */
+    place?: "beside" | "tools";
   };
   move_tools: boolean;
 }
