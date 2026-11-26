@@ -41,7 +41,7 @@ from hani2.evaluation import scores as _scores  # noqa: F401
 from hani2.evaluation import ablation as _ablation  # noqa: F401  (the condition metric)
 from hani2.evaluation.ablation import ablation_report
 from hani2.evaluation.base import KINDS, REGISTRY, Column, EvalContext, Metric, metric
-from hani2.evaluation.tracks import TRACKS, leaderboard, leaderboards
+from hani2.evaluation.tracks import TRACKS, head_to_head, leaderboard, leaderboards, strata_boards
 from hani2.evaluation.llm_judge import llm_judge_status
 from hani2.evaluation.reference import metric_reference
 from hani2.recording.format import Recording, iter_recordings, recording_id
@@ -50,7 +50,7 @@ __all__ = [
     "REGISTRY", "Column", "EvalContext", "Metric", "metric", "available_metrics", "evaluate_recording",
     "evaluate_paths", "evaluate_keys", "compare_rows", "compare_keys", "pass_hat_k", "llm_judge_status",
     "metric_reference", "leaderboard", "leaderboards", "TRACKS", "load_paths", "judge_reliability",
-    "ablation_report",
+    "ablation_report", "head_to_head", "strata_boards",
 ]
 
 

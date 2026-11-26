@@ -996,6 +996,9 @@ def replay_leaderboard(
     reliability: Annotated[Optional[Path], typer.Option(help="A judge reliability report (.json of `judge-reliability -o`): leave out the language-model judged components it did not find ready.")] = None,
     judge: Annotated[Optional[str], typer.Option("--judge", "-j", help="Judge the soft metrics with exactly this model (provider:model), e.g. one the reliability report checked.")] = None,
     official: Annotated[bool, typer.Option("--official", help="An official ranking: without a reliability report (--reliability or env.json evaluation.reliability.report) every language-model judged component is left out.")] = False,
+    stratum: Annotated[Optional[str], typer.Option("--stratum", help="hi: combined (default), solo (AI opponents, with Paired fallbacks) or paired (person against person); han: alone (default, the official board), vs_team (HI Solo games against HAN agents) or both (pooled).")] = None,
+    ci_unit: Annotated[str, typer.Option("--ci-unit", help="What the bootstrap resamples: participant (default) or match (a sensitivity check for Paired rows).")] = "participant",
+    head_to_head: Annotated[bool, typer.Option("--head-to-head", help="hi: also rank the Assistants from their Paired matches (Bradley-Terry on human_advantage).")] = False,
     option: OptionOpt = None,
 ):
     """Rank the entrants of a competition track on its outcome and interaction boards."""
@@ -1022,7 +1025,8 @@ def replay_leaderboard(
     try:
         lbs = {b: leaderboard(res["rows"], track, b, options=opts, success=success, success_threshold=success_threshold,
                               relative=relative, min_coverage=min_coverage, include_practice=practice,
-                              reliability=reliability, official=official) for b in boards}
+                              reliability=reliability, official=official, stratum=stratum, ci_unit=ci_unit,
+                              head_to_head=head_to_head) for b in boards}
     except (ValueError, OSError) as e:
         typer.secho(str(e), fg="red", err=True)
         raise typer.Exit(1) from None
@@ -1031,7 +1035,7 @@ def replay_leaderboard(
         typer.echo(f"wrote {out}", err=True)
         return
     for b, lb in lbs.items():
-        typer.secho(f"\n{lb['track_title']} — {b} board (ranked by {lb['ranked_by']}"
+        typer.secho(f"\n{lb['track_title']} — {b} board, {lb['stratum_title']} (ranked by {lb['ranked_by']}"
                     f"{', relative to the cell means' if relative else ''})", bold=True)
         rows, cols = _board_rows(lb)
         if out is not None:
@@ -1050,6 +1054,15 @@ def replay_leaderboard(
             typer.secho(f"  warning: {w}", fg="yellow")
         excl = ", ".join(f"{k} {v}" for k, v in lb["excluded"].items())
         typer.echo(f"  {lb['sessions']} session(s); pass^k success = {lb['success']}" + (f"; excluded: {excl}" if excl else ""))
+        typer.echo("  rows per stratum: " + ", ".join(f"{k} {v}" for k, v in lb["strata"].items()))
+        for n in lb["notes"]:
+            typer.echo(f"  note: {n}")
+        h2h = lb.get("head_to_head")
+        if h2h is not None and b == boards[0]:
+            typer.secho(f"\n  Head-to-head (Bradley-Terry on {h2h['column']}, {h2h['matches']} Paired match(es))", bold=True)
+            _write_table(h2h["entries"], ["rank", "entrant", "strength", "matches", "wins", "losses", "ties", "group"], None)
+            for n in h2h["notes"]:
+                typer.echo(f"  note: {n}")
 
 
 @replay_app.command("judge-reliability")

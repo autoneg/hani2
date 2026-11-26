@@ -312,6 +312,13 @@ def test_cli_and_api(hani2_home, scenario_with_criteria, tmp_path):
     lb = json.loads(out.read_text(encoding="utf-8"))
     assert lb["track"] == "han" and len(lb["entries"]) == 1 and lb["entries"][0]["n"] == 1
     assert CliRunner().invoke(cli, ["replay", "leaderboard", "--track", "x"]).exit_code == 1
+    r = CliRunner().invoke(cli, ["replay", "leaderboard", str(hani2_home), "-t", "hi", "-b", "outcome", "--stratum",
+                                 "solo", "--ci-unit", "match", "--head-to-head"])
+    assert r.exit_code == 0, r.output
+    assert "Solo (against AI opponents" in r.output and "rows per stratum: solo 1, paired 0" in r.output
+    assert "Head-to-head" in r.output
+    r = CliRunner().invoke(cli, ["replay", "leaderboard", str(hani2_home), "-t", "han", "--stratum", "paired"])
+    assert r.exit_code == 1 and "stratum" in r.output
     with TestClient(app) as c:
         assert c.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
         keys = [x["key"] for x in c.get("/api/replay/recordings").json()["recordings"]]
@@ -320,6 +327,13 @@ def test_cli_and_api(hani2_home, scenario_with_criteria, tmp_path):
         e = got["boards"]["outcome"]["entries"][0]
         assert e["n"] == 1 and e["rank"] == 1
         assert c.post("/api/replay/leaderboard", json={"keys": keys, "track": "x"}).status_code == 400
+        got = c.post("/api/replay/leaderboard", json={"keys": keys, "track": "han", "board": "outcome",
+                                                       "stratum": "vs_team", "ci_unit": "match"}).json()
+        assert got["boards"]["outcome"]["stratum"] == "vs_team" and got["boards"]["outcome"]["ci_unit"] == "match"
+        assert c.post("/api/replay/leaderboard", json={"keys": keys, "track": "hi", "stratum": "alone"}).status_code == 400
+        got = c.post("/api/replay/leaderboard", json={"keys": keys, "track": "hi", "board": "outcome",
+                                                       "head_to_head": True}).json()
+        assert got["boards"]["outcome"]["head_to_head"]["matches"] == 0
         assert c.post("/api/replay/leaderboard", json={"keys": []}).status_code == 400
     assert any(f.name.endswith(".hrec") for f in iter_recordings(hani2_home))
 
@@ -543,3 +557,4 @@ def test_head_to_head_bradley_terry():
     # two groups that never met
     h = head_to_head([*_paired("m1", "A", "u1", 0.8, "B", "u2", 0.2), *_paired("m2", "C", "u3", 1, "D", "u4", 0)])
     assert h["groups"] == 2 and h["notes"]
+    assert head_to_head([])["entries"] == []

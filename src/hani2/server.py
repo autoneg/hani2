@@ -1607,7 +1607,8 @@ def _reliability_body(rep):
 def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
     """Leaderboards of a competition track: ``{"keys", "track": "han"|"hi", "board": "outcome"|"interaction"|null,
     "metrics", "llm", "options", "success", "success_threshold", "relative", "min_coverage", "practice",
-    "reliability" (a judge reliability report), "official", "judge" (provider:model)}``;
+    "reliability" (a judge reliability report), "official", "judge" (provider:model), "stratum" (hi: combined, solo,
+    paired; han: alone, vs_team, both), "ci_unit" (participant or match), "head_to_head" (hi: the Bradley–Terry view)}``;
     without ``board`` both boards (``{"boards": {"outcome": ..., "interaction": ...}}``)."""
     from hani2.evaluation import TRACKS, evaluate_keys, leaderboard
 
@@ -1631,7 +1632,8 @@ def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
               relative=bool(body.get("relative")),
               min_coverage=0.5 if body.get("min_coverage") is None else float(body["min_coverage"]),
               include_practice=bool(body.get("practice")), reliability=_reliability_body(body.get("reliability")),
-              official=bool(body.get("official")))
+              official=bool(body.get("official")), stratum=str(body["stratum"]) if body.get("stratum") else None,
+              ci_unit=str(body.get("ci_unit") or "participant"), head_to_head=bool(body.get("head_to_head")))
     try:
         out = {b: leaderboard(ev["rows"], track, b, **kw) for b in boards}
     except (ValueError, OSError) as e:

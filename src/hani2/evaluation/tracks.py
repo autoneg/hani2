@@ -382,7 +382,7 @@ def head_to_head(rows: list[dict], column: str = "human_advantage", *, prior: fl
                 group[root(i)] = root(j)
     comps = sorted({root(i) for i in range(n)})
     p_ = np.ones(n)
-    for _ in range(iterations):
+    for _ in range(iterations if n else 0):
         new = np.empty(n)
         for i in range(n):
             den = sum(games[i, j] / (p_[i] + p_[j]) for j in range(n) if j != i and games[i, j] > 0)
