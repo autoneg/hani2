@@ -90,7 +90,7 @@ On tablets and phones buttons and inputs are taller for touch, the autopilot mov
 
 ## Tool panes
 
-Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default pane, which you can change in `env.json` (see [Tools](tools.md)). A pane is shown only if it has at least one tool.
+Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default pane, which you can change in `env.json` (see [Tools](tools.md)). A pane is shown only if it has at least one tool. The full view shows the three panes; the simple view (the default) shows the tools of all three as the tabs of one tools column, in the same order.
 
 ### Tabs
 

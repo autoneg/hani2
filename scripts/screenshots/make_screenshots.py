@@ -263,6 +263,19 @@ def tab(page, name: str):
     return page.get_by_role("tab", name=re.compile(rf"^{re.escape(name)}\b"))
 
 
+def llm_shot(page, name: str, file: str, **kw) -> None:
+    """``shot_tool`` for a tool that needs the language model: a slow or failed answer is logged and skipped
+    (the old image stays) instead of stopping the run."""
+    try:
+        shot_tool(page, name, file, **kw)
+    except Exception as e:  # noqa: BLE001
+        debug = Path(tempfile.gettempdir()) / f"hani2-shots-{file}.png"
+        page.screenshot(path=str(debug))
+        log(f"skipped {file}: {type(e).__name__} (see {debug})")
+        page.keyboard.press("Escape")
+        page.set_viewport_size(VIEWPORT)
+
+
 def shot_tool(page, name: str, file: str, *, prepare=None, wait_for: str | None = None, settle_ms: int = 1200) -> None:
     """Open the tool's tab, enlarge it and screenshot the enlarged window (fitted to its content)."""
     t = tab(page, name).first
@@ -336,20 +349,20 @@ def take_tools(browser, use_llm: bool) -> None:
             def ask_llm(d):
                 type_into(d.locator("textarea"), "Propose a fair middle ground on the rent and keep the lease short.")
                 d.get_by_role("button", name="Generate").click()
-            shot_tool(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Suggested offer")
+            llm_shot(page, "LLM", "tool-llm", prepare=ask_llm, wait_for="Suggested offer")
 
             def answered(d, button: str, empty: str) -> None:
                 d.get_by_role("button", name=button, exact=True).click()
                 expect(d.get_by_text(empty)).to_have_count(0, timeout=120000)
                 expect(d.get_by_role("button", name=button, exact=True)).to_be_visible(timeout=120000)
 
-            shot_tool(page, "Summary", "tool-summary",
+            llm_shot(page, "Summary", "tool-summary",
                       prepare=lambda d: answered(d, "Summarise", "Press Summarise once a few offers have been made."))
 
             def ask(d):
                 type_into(d.locator("textarea"), "Which issue should I give up first?")
                 answered(d, "Ask", "Type a question and press Ask.")
-            shot_tool(page, "Ask the AI", "tool-ask-ai", prepare=ask)
+            llm_shot(page, "Ask the AI", "tool-ask-ai", prepare=ask)
         accept_offer(page)
         page.get_by_role("button", name="Next negotiation").click()
         expect(page.get_by_role("button", name="Start negotiation")).to_be_visible()
