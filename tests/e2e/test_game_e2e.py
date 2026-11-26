@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -97,7 +98,7 @@ def test_an_invited_guest_signs_in_and_plays_an_ai_now(e2e_browser, game_server)
         p.get_by_role("button", name="Play an AI opponent now").click()
         expect(p.get_by_test_id("opponent-choice")).to_have_count(0)
         p.get_by_role("button", name="Start negotiation").click()
-        expect(p.get_by_role("button", name="End")).to_be_visible()
+        expect(p.get_by_role("button", name=re.compile(r"^End"))).to_be_visible()
         # the guest opens nothing but the game
         assert p.request.post("/api/session", data={"mode": "main"}).status == 403
         assert p.request.get("/api/admin/results").status in (401, 403)

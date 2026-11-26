@@ -91,6 +91,12 @@ nav:
       - Installation: getting-started/installation.md
       - Quick start: getting-started/quickstart.md
       - Command line: getting-started/cli.md
+  - Walkthroughs:
+      - walkthroughs/index.md
+      - "Against an AI: the basics": walkthroughs/han-basics.md
+      - "Against an AI: advanced": walkthroughs/han-advanced.md
+      - "With an Assistant: the basics": walkthroughs/hi-basics.md
+      - "With an Assistant: advanced": walkthroughs/hi-advanced.md
   - User guide:
       - The interface: guide/interface.md
       - Tools: guide/tools.md

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **The simple view is the default.** Sessions start in the simple view (the thread, the offer area
+  and one tools column) instead of the full view, unless `?view=`, a study or a project
+  (`env.json` → `interface.view`) chooses another. Set `interface.view: full` to keep the old start.
+  See [Layout views](guide/interface.md#layout-views).
+- **Walkthroughs.** Four step-by-step walkthroughs for first-time participants, against an AI and
+  with an Assistant, basics and advanced, each with a narrated video. See [Walkthroughs](walkthroughs/index.md).
 - **Send offer in the generators' popups.** An offer generator opened in a popup has the same
   buttons and the same disabled reasons as in its pane. When its **Send offer** sends the offer
   (with the typed message), the popup closes, whether the participant or the Assistant pressed it. When the send is refused, the popup stays open and a
@@ -91,7 +97,6 @@
   card with the role's hints and what you want on every issue in plain words.
   Option names in the bar charts are no longer cut: the chart makes room for them, and only a very
   long name is shortened in the middle (its start and end stay visible; hover shows it in full).
-||||||| parent of af175e6729 (feat(assistant,ui): the open Assistant can take the tool area's place (presentation.place))
 - **Utility bars by issue.** *Colour the utility bars by issue* (`color_utility_by_issue`, off by
   default) splits every utility bar (the offer on the table, the counter-offer, the confirmation, the
   result and the history) into one coloured segment per issue, the most important first, with a

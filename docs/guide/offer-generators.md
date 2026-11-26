@@ -5,8 +5,9 @@ panel, and you check it, change it if you like and press **Send offer** under it
 in the Utility Bar or the Utility-based Selector, or generating one with Random, already fills your
 counter-offer, so their own button is **Send offer** too: it sends that deal at once. The LLM tool
 has both **Set offer** (copy the suggestion) and **Send offer** (send it). See [Sending from the
-tool](#sending-from-the-tool). HANI2 has four built in, in the side pane next to the offer panel
-by default:
+tool](#sending-from-the-tool). HANI2 has four built in. In the simple view (the default) they are
+tabs of the tools column, and the **Utility Bar** button and the **Tools** menu in the offer area
+open them in a popup; in the full view they sit in the side pane next to the offer panel:
 
 | Generator | How it picks an offer | Who gets it | Best for |
 |-----------|-----------------------|-------------|----------|
@@ -20,14 +21,14 @@ ability, and you can [write your own](#writing-your-own).
 
 ## Utility Bar
 
-The first generator, and the side pane's open tab when a negotiation starts. It works like the
+The first generator, and the side pane's open tab when a negotiation starts in the full view. It works like the
 Utility-based Selector below, the other way round from a utility function: you choose a value and
 get deals with it, but graphically.
 
 ![The Utility Bar with an estimate of the opponent: the ten deals worth 55-90% to you that the opponent likes most](../assets/screens/tool-utility-bar.png)
 
-1. Open the **Utility Bar** tab in the side pane, or, outside the full view, press **Utility Bar**
-   in the offer area (see [Tools in a popup](#tools-in-a-popup)).
+1. Press **Utility Bar** in the offer area to open it in a popup (see [Tools in a popup](#tools-in-a-popup)),
+   or open its tab in the tools column (the side pane in the full view).
 2. Look at the bar: it runs from 0% (your worst deal) to 100% (your best). The grey columns show
    how many deals there are at each value, the coloured marks your value on disagreement (*No
    deal*), the opponent's offer on the table (*Their offer*) and your current offer (*Your offer*).
@@ -65,7 +66,8 @@ among those still good for you.
 
 ![The Utility-based Selector](../assets/screens/tool-utility-selector.png)
 
-1. Open the **Utility-based Selector** tab in the side pane.
+1. Open the **Utility-based Selector** tab in the tools column (the side pane in the full view), or
+   pick it from the **Tools** menu in the offer area.
 2. Set **Minimum utility**: the least a deal must be worth to you, in percent of the span from your
    worst to your best deal.
 3. Set **Range width**: how far above the minimum to look. 70% and 10% list every deal worth 70-80%

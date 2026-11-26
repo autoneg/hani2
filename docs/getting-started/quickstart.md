@@ -45,11 +45,13 @@ If you only want to try the interface, open `http://localhost:5006/play` instead
 On a desktop browser the page has four parts:
 
 - **The header**: the title, the scenario name, your role ("You are the Seller"), the round label ("Negotiation 1"), the countdown, and buttons for the assistant, the layout, settings, the colour theme and your account.
-- **The tool panes** on the left (upper and lower) and on the right (side). Each pane holds tabs such as your preferences, the scenario information and offer helpers.
+- **The tools** in one column on the right (the simple view, the default). It holds tabs such as your preferences, the scenario information and the offer helpers; the full view splits them into panes on the left and beside the action dock (see [Layouts](#layouts)).
 - **The history thread** in the middle: every offer and message you and your opponent exchange.
 - **The action dock** under the thread: the buttons you use to negotiate.
 
-The [interface](../guide/interface.md) page describes each part in detail.
+The [interface](../guide/interface.md) page describes each part in detail. The
+[walkthroughs](../walkthroughs/index.md) explain the page step by step, with videos, for
+participants who have never negotiated before.
 
 ## Walk through a negotiation
 
@@ -57,7 +59,7 @@ The [interface](../guide/interface.md) page describes each part in detail.
 
 When the page opens, a scenario is already loaded. The action dock shows the round label, the scenario title and your role, and asks you to check your preferences before you start. On the first round it also shows the welcome text from `announcements.md`.
 
-Read the **Preferences** and **Scenario Info** tabs in the tool panes. They tell you what each possible deal is worth to you and what you get if there is no deal.
+Read the **Scenario Info** and **Preferences** tabs in the tools column. They tell you what each possible deal is worth to you and what you get if there is no deal.
 
 Press **Start negotiation**. Press **Different scenario** first if you want another one. The thread shows "Setting up the negotiation…" and then "Your opponent is thinking…" while the AI opponent makes its move.
 
@@ -97,19 +99,20 @@ If a per-negotiation questionnaire is configured, it appears before the next neg
 
 ## Tools
 
-The tool panes hold the built-in tools. Click a tab to switch tools. Some tools start switched off; use the switch next to the tabs, or the **Turn on** button in the tool, to enable them. The **⋯** menu next to the tabs moves a tool to another pane or hides it; the **+** button brings hidden tools back. See [Tools](../guide/tools.md) for what each tool shows.
+The tools column holds the built-in tools. Click a tab to switch tools. Some tools start switched off; use the switch next to the tabs, or the **Turn on** button in the tool, to enable them. The **⋯** menu next to the tabs moves a tool to another pane or hides it; the **+** button brings hidden tools back. See [Tools](../guide/tools.md) for what each tool shows.
 
 ## Layouts
 
-The layout button in the header switches between three views:
+The page opens in the simple view. The layout button in the header switches between four views:
 
 | View | What you see |
 | --- | --- |
+| Simple (the default) | The thread and action dock, with one tools area on the right that holds every tool |
 | Full | Upper and lower tool panes on the left; on the right the thread on top, with the action dock and the offer generators side by side below it |
-| Simple | The thread and action dock, with one tools area on the right that holds every tool |
-| Focus | The thread and action dock only |
+| Focus | The thread and action dock only; the **Tools** menu in the dock opens any tool in a popup |
+| Bare | The thread and action dock with no tools at all |
 
-You can also open the page in a given view with `?view=simple` (or `full`, `focus`) in the URL.
+You can also open the page in a given view with `?view=full` (or `simple`, `focus`, `bare`) in the URL.
 
 ## Settings
 

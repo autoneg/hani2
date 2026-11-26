@@ -197,7 +197,7 @@ def test_python_helpers_respect_capabilities():
     s.wait_agent_idle()
     assert s.highlights == [] and s.annotations == {}
     sa = s.support_agent
-    assert not sa.set_layout(view="focus")["ok"] and s.layout["view"] == "full"
+    assert not sa.set_layout(view="focus")["ok"] and s.layout["view"] == "simple"
     assert not sa.show_panel("p", "t", [])["ok"] and s.agent_panels == []
     assert not sa.focus_tool("Trace")["ok"]
 

@@ -20,9 +20,9 @@ Open the layout menu in the header (the icon next to the notification bell). It 
 
 | View | What it shows |
 |------|---------------|
+| **Simple** (the default) | The history and the offer area, plus one tools column with every tool. |
 | **Full** | Every tool pane: tools on the left, offer generators beside the offer area. |
-| **Simple** | The history and the offer area, plus one tools column with every tool. |
-| **Focus** | The history and the offer area. Opening a tool brings the tools back. |
+| **Focus** | The history and the offer area. The **Tools** menu in the offer area opens any tool in a popup, and the view stays the focus view. |
 | **Bare** | No tools at all: the history, the offer area (accept, counter-offer, end) and, when the session has one, the Assistant. |
 
 ![The bare view: no tools, only the offers, the offer area and the Assistant](../assets/screens/tutorial-level11-bare.png)

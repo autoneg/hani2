@@ -15,6 +15,14 @@ def test_sizes_are_sanitised(hani2_home):
     assert not s.set_layout(sizes=[1, 2])["ok"]
 
 
+def test_the_simple_view_is_the_default(hani2_home):
+    s = make_session()
+    assert s.layout["view"] == "simple"
+    snap = s.snapshot()
+    assert snap["layout"]["view"] == "simple" and s.ss["view_source"] == "default"
+    s.end()
+
+
 def test_own_preferences_are_revealed_on_start(hani2_home):
     s = make_session()
     prefs = next(t for t in s.tools if t.name == "Preferences")
@@ -27,7 +35,7 @@ def test_own_preferences_are_revealed_on_start(hani2_home):
     s.start()
     assert st["visible"]
     assert s.active_tabs[st["pane"]] == "Preferences" and s.active_tabs["all"] == "Preferences"
-    assert s.layout["view"] == "full" and "tools" not in s.layout["collapsed"]
+    assert s.layout["view"] == "simple" and "tools" not in s.layout["collapsed"]
     snap = s.snapshot()
     assert snap["reveal"]["tool"] == "Preferences" and not snap["reveal"]["popup"]
     s.end()
