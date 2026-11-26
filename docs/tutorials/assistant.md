@@ -293,8 +293,9 @@ button actions and selectable tables, the same things `read_tool` reports. That 
 written for people needs no extra code for an agent, and why the built-in LLM agent can use tools
 it has never seen (it has the `read_tool` and `use_tool` functions).
 
-The selector's **Set Offer** and row selection fill the offer, so the agent needs `fill_offer` as
-well as `tool_use`. Switch **Fill the offer** off in the assistant's settings and the selector still
+Selecting a row in the selector fills the offer, so the agent needs `fill_offer` as well as
+`tool_use` (and pressing the selector's **Send offer**, action `send_offer`, would also need
+`submit_counter`). Switch **Fill the offer** off in the assistant's settings and the selector still
 moves, but your offer stays as it is.
 
 **Try this:** read the compass with `self.read_tool("Deal Compass")["text"]` and post its first line

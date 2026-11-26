@@ -113,7 +113,7 @@ def test_click_finds_the_nearest():
     assert len(res) == min(10, len(mine)) and sorted(abs(mine[i] - 0.37) for i in res) == nearest
 
 
-def test_set_offer_and_pick_fill_the_draft():
+def test_the_set_offer_action_and_a_pick_fill_the_draft():
     s = _started()
     b = _bar(s)
     b.on_input("area", [0, 100])
@@ -181,5 +181,5 @@ def test_the_assistant_sets_the_bar(hani2_home):
         res = sa.use_tool("Utility Bar", inputs={"area": given, "mode": "All offers"})
         assert res["ok"], res
         assert b.area() == (40.0, 60.0) and b.mode() == "all", given
-    res = sa.use_tool("Utility Bar", inputs={"area": 55, "mode": "any"}, action="set_offer")
-    assert res["ok"] and b.is_click() and s.draft
+    res = sa.use_tool("Utility Bar", inputs={"area": 55, "mode": "any"}, action="pick", row=0)
+    assert res["ok"] and b.is_click() and s.draft and b.picked_outcome()

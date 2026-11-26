@@ -149,17 +149,17 @@ def login(page, user: str, password: str) -> None:
 
 def start(page) -> None:
     page.get_by_role("button", name="Start negotiation").click()
-    expect(page.get_by_role("button", name="Counter-offer").or_(page.get_by_role("button", name="Send offer")).first
+    expect(page.get_by_role("button", name="Counter-offer").or_(page.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).first
            ).to_be_visible()
 
 
 def send_counter(page, message: str) -> None:
-    if not page.get_by_role("button", name="Send offer").count():
+    if not page.locator("[data-anchor=send]").get_by_role("button", name="Send offer").count():
         page.get_by_role("button", name="Counter-offer").click()
     box = page.get_by_placeholder(re.compile("Explain your offer"))
     if box.count():
         box.fill(message)
-    send = page.get_by_role("button", name="Send offer")
+    send = page.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
     try:
         expect(send).to_be_enabled(timeout=8000)
     except AssertionError:

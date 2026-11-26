@@ -1,8 +1,11 @@
 # Offer generators
 
-Offer generators are tools that fill your counter-offer for you. They never send it: the offer
-appears in the offer panel, and you check it, change it if you like and press **Send offer**
-yourself. HANI2 has four built in, in the side pane next to the offer panel by default:
+Offer generators are tools that fill your counter-offer for you: the offer appears in the offer
+panel, and you check it, change it if you like and press **Send offer** under it. In the Utility
+Bar and the Utility-based Selector, picking a deal already fills your counter-offer, so their own
+button is **Send offer** too: it sends the picked deal at once (see [Sending from the
+tool](#sending-from-the-tool)). HANI2 has four built in, in the side pane next to the offer panel
+by default:
 
 | Generator | How it picks an offer | Who gets it | Best for |
 |-----------|-----------------------|-------------|----------|
@@ -39,8 +42,8 @@ get deals with it, but graphically.
    | **Best for the opponent** | the deal in the part worth most to the opponent | the best for the opponent among the ten nearest |
    | **Top 10 for the opponent** | the ten deals in the part worth most to the opponent | the ten nearest, best for the opponent first |
 
-5. Click a row to copy that deal into your counter-offer, or press **Set Offer** for the selected (or
-   first) one.
+5. Click a row to copy that deal into your counter-offer, then press **Send offer** in the tool to
+   send it right away, or change it in the counter-offer and send it from there.
 
 The two opponent choices appear only when the tool knows what deals are worth to the opponent: when
 an [estimate of the opponent's preferences](tools.md#an-estimate-of-the-opponents-preferences) is
@@ -66,8 +69,8 @@ among those still good for you.
    worst to your best deal.
 3. Set **Range width**: how far above the minimum to look. 70% and 10% list every deal worth 70-80%
    to you; the default width of 100% lists every deal from the minimum up to your best.
-4. Click a row to copy that deal into your counter-offer, or press **Set Offer** to have one picked
-   from the range.
+4. Click a row to copy that deal into your counter-offer, then press **Send offer** in the tool to
+   send it right away, or change it in the counter-offer and send it from there.
 
 The table is sorted best first, can be sorted by any column and is paged for large scenarios.
 
@@ -117,6 +120,23 @@ model through Ollama) and a running negotiation. Without a model the tool shows 
 **When to use it.** You think in strategies rather than numbers, want a message that explains your
 offer, or want to compare what a language model proposes with your own idea.
 
+## Sending from the tool
+
+In the Utility Bar and the Utility-based Selector, clicking a row is all it takes to put that deal
+into your counter-offer. Their **Send offer** button then sends it, exactly as the **Send offer**
+button under the counter-offer does: with the message you typed in the message box, if any, and
+with the same checks. Nothing is sent before you press it.
+
+The button is disabled while you cannot send, and its tooltip says why:
+
+- the negotiation is not running (before the start, after the end);
+- it is not your turn;
+- you have not picked a deal yet, or you changed the counter-offer after picking one (then send it
+  from the offer panel, or pick again);
+- the study sends offers as messages only (*text-only mode*).
+
+After it is sent, the deal is no longer picked: pick one again for your next offer.
+
 ## Random
 
 ![The Random tool](../assets/screens/tool-random.png)
@@ -160,7 +180,7 @@ in the admin console, or set `tools.overrides.<name>.admin_only` to `false` in `
 An offer generator is a tool that derives from `hani2.tools.OutcomeSelector`. Override
 `get_outcome()` to return an outcome (a tuple with one value per issue, in the scenario's issue
 order) and, optionally, `selector_view()` to show controls above the **Set Offer** button the base
-class adds:
+class adds (it fills the counter-offer with `get_outcome()`):
 
 ```python
 from hani2.tools import OutcomeSelector, ui
@@ -183,6 +203,11 @@ class HalfwayOffer(OutcomeSelector):
         outcomes = ufun.outcome_space.enumerate_or_sample(max_cardinality=5000)
         return min(outcomes, key=lambda o: abs(float(ufun(o)) - target))
 ```
+
+If your tool fills the counter-offer as soon as a deal is picked (a table, a chart), set
+`sends_offer = True` and call `self.pick(offer)` when the participant picks one: the button becomes
+**Send offer** (`send_label`) and sends the picked deal, as in the [Utility Bar](#utility-bar).
+`send_blocker()` returns why it cannot send now (or `None`); the button shows it as its tooltip.
 
 Save it in the tools folder (`$HANI2_HOME/tools`) and the next session has it. The [tools
 tutorial](../tutorials/tools.md#offer-pickers-outcomeselector) explains `OutcomeSelector` and

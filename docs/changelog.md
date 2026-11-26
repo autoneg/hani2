@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Send offer in the Utility Bar and the Utility-based Selector.** Picking a row already puts the
+  deal into the counter-offer, so their **Set Offer** button did nothing visible. It is now **Send
+  offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
+  does (same checks, with the message typed in the message box, which then empties). It is disabled
+  while the participant cannot send (the negotiation is not running, not their turn, text-only mode,
+  no deal picked or the counter-offer changed since), and its tooltip says why. Picking a row still
+  only fills the counter-offer. An Assistant operating these tools picks a row (action `pick`) to
+  fill the offer, and presses `send_offer` only with *Send counter-offers*; the `set_offer` action is
+  no longer offered on them (code calling `on_action("set_offer", ...)` still fills the offer).
+  Random, the LLM tool's **Apply to my offer** and custom `OutcomeSelector`s keep filling the offer;
+  a custom one opts in with `sends_offer = True` and `pick()`. See [Sending from the
+  tool](guide/offer-generators.md#sending-from-the-tool).
 - **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
   participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no
   **Play an AI opponent instead** button, no person/AI choice screen, no AI entries in the opponent

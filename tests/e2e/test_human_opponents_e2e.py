@@ -51,12 +51,12 @@ def test_two_participants_negotiate_with_each_other(e2e_browser, human_server):
             a.wait_for_timeout(100)
         assert wa.count() + wb.count() == 1, "exactly one side waits for the other"
         mover, other = (b, a) if wa.count() else (a, b)
-        if not mover.get_by_role("button", name="Send offer").count():
+        if not mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").count():
             mover.get_by_role("button", name="Counter-offer").click()
         box = mover.get_by_placeholder(re.compile("Explain your offer"))
         if box.count():
             box.fill("Hello from the other side")
-        mover.get_by_role("button", name="Send offer").click()
+        mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").click()
         expect(other.get_by_role("button", name=ACCEPT).first).to_be_enabled()
         if box.count():
             expect(other.get_by_text("Hello from the other side")).to_be_visible()

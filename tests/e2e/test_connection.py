@@ -94,7 +94,7 @@ def test_start_while_disconnected_says_so(new_page):
     proxy.refuse = False
     expect(p.get_by_text("Reconnecting")).to_have_count(0, timeout=30000)
     p.get_by_role("button", name="Start negotiation").click()
-    expect(p.get_by_role("button", name="Counter-offer").or_(p.get_by_role("button", name="Send offer")).first).to_be_visible()
+    expect(p.get_by_role("button", name="Counter-offer").or_(p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).first).to_be_visible()
 
 
 @pytest.mark.parametrize("page_id,endpoint", [("users", "/api/admin/users"), ("results", "/api/admin/results")])

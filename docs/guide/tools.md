@@ -44,8 +44,8 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Negotiation Plot | lower | load | yes | admins only; everyone while an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set | The negotiation in utility space: every outcome placed by its utility for you (x) and for the opponent (y), the Pareto frontier, the Nash and Kalai points, dotted lines at both sides' values on disagreement, both parties' offer trajectories and the agreement. Options: show all outcomes, the frontier, the Nash/Kalai points. |
 | Outcome Plot | lower | start | no | everyone | The offers placed in the outcome space: any two issues, relative time or step on the axes, with an option to hide your own offers. |
 | Trace | lower | start | no | everyone | A table of every offer: step, relative time, who made it, the offer, the message and its utility for you. Admins (or everyone, see below) can add an "Opponent utility" column. |
-| Utility Bar | side | start | yes | everyone | The first offer generator. Click or drag on a bar of your utility (0-100%, with how many deals there are at each value and marks at your value on disagreement, the opponent's offer and your offer) and get one deal from that part, up to ten, all of them, or (with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences), or for admins) the best or the top ten for the opponent. A click gives the deals nearest to that value. See [Utility Bar](offer-generators.md#utility-bar). |
-| Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer. A **Set Offer** button picks one outcome from the range. While an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set, it can also show the opponent's estimated utility and choose deals by it. |
+| Utility Bar | side | start | yes | everyone | The first offer generator. Click or drag on a bar of your utility (0-100%, with how many deals there are at each value and marks at your value on disagreement, the opponent's offer and your offer) and get one deal from that part, up to ten, all of them, or (with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences), or for admins) the best or the top ten for the opponent. A click gives the deals nearest to that value. Clicking a row puts it into your counter-offer; **Send offer** sends it. See [Utility Bar](offer-generators.md#utility-bar). |
+| Utility-based Selector | side | start | yes | everyone | Two sliders choose a utility range (minimum and width, in percent of the span from your worst to your best outcome, so un-normalized utility functions work too). The width starts at 100%, so by default the range runs from the minimum up to your best outcome. A table lists the outcomes in that range, best first; clicking a row puts it into your counter-offer, and **Send offer** sends the picked deal as your offer. While an [estimate of the opponent](#an-estimate-of-the-opponents-preferences) is set, it can also show the opponent's estimated utility and choose deals by it. |
 | LLM | side | start | yes | admins only | Write an instruction in plain words ("propose a fair middle ground"), choose text and offer, text only or offer only, and let the configured language model write a suggested offer and message. **Apply to my offer** copies them into the counter-offer. |
 | Random | side | start | yes | admins only | A **Set Offer** button that fills the counter-offer with a random outcome. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table (practice rounds are not scored or ranked). |
@@ -80,7 +80,7 @@ until the next scenario loads. While one is set:
   banner then reads **Real preferences**, as it does whenever no estimate is set.
 - **Utility-based Selector.** A banner says an estimate is set. The table gets an *Opponent
   (estimate)* column (**Show the opponent's estimate**), and **Choose deals by** switches the
-  sliders, the order of the table and **Set Offer** to the opponent's estimated utility, while the
+  sliders and the order of the table to the opponent's estimated utility, while the
   *Utility* column keeps showing what each deal is worth to the participant. Picking a row fills
   only the issues.
 
@@ -207,8 +207,8 @@ opponent's utility, with the same rule as the Utility Plot.
 0% to 100%: drag across a part of it, or click a point for the nearest deals, and choose **Any
 offer**, **Up to 10 offers**, **All offers**, **Best for the opponent** or **Top 10 for the
 opponent** (the last two only with an [estimate of the opponent](#an-estimate-of-the-opponents-preferences),
-or for those who may see the real preferences). Click a row to copy it into your counter-offer, or
-press **Set Offer**. See [Utility Bar](offer-generators.md#utility-bar).
+or for those who may see the real preferences). Click a row to copy it into your counter-offer, then
+press **Send offer** to send it at once, with your message. See [Utility Bar](offer-generators.md#utility-bar).
 
 ![The Utility Bar](../assets/screens/tool-utility-bar.png)
 
@@ -218,8 +218,8 @@ press **Set Offer**. See [Utility Bar](offer-generators.md#utility-bar).
 **Minimum utility** and **Range width** set the range in percent of the span from your worst to your
 best deal (70% and 10% list every deal worth 70-80% to you); the width starts at 100%, so the range
 runs from the minimum up to your best deal. Click a row to copy that deal into your counter-offer,
-or press **Set Offer** to have one picked from the range. The offer is only filled in; you still
-send it.
+then press **Send offer** to send it at once, with your message, or change it in the counter-offer
+and send it from there. See [Sending from the tool](offer-generators.md#sending-from-the-tool).
 
 ![The Utility-based Selector](../assets/screens/tool-utility-selector.png)
 

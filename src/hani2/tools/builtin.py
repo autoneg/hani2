@@ -869,8 +869,8 @@ class UtilitySelectorTool(OutcomeSelector):
 
     **How to use it.** Set *Minimum utility* and *Range width* with the sliders (70% and 10%
     lists every deal worth 70–80% to you). Click a row to copy that deal into your
-    counter-offer, or press **Set Offer** to have one picked from the range. The offer is
-    only filled in: you still send it yourself.
+    counter-offer, then press **Send offer** to send it as your offer right away (with the
+    message you typed, if any), or adjust it in your counter-offer and send it from there.
 
     **With an estimate of the opponent.** When an estimate of the opponent's preferences is
     set (for example by your Assistant), the table can also show what each deal is worth to the
@@ -882,6 +882,9 @@ class UtilitySelectorTool(OutcomeSelector):
     pane = "side"
     timing = "start"
     order = 0
+    sends_offer = True
+    agent_hint = ("Select a row with action 'pick' to fill the participant's counter-offer with that deal; "
+                  "'send_offer' then sends the picked deal as their offer.")
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
@@ -1025,17 +1028,14 @@ class UtilitySelectorTool(OutcomeSelector):
         return out
 
     def on_input(self, name, value):
-        self.values["selected"] = None
+        self.unpick()
         super().on_input(name, value)
 
     def on_action(self, action, payload):
         if action == "pick":
             row = payload.get("row") or {}
-            self.values["selected"] = payload.get("index")
-            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", OPP_COLUMN)})
-            self.refresh()
-            return
-        super().on_action(action, payload)
+            return self.pick({k: v for k, v in row.items() if k not in ("Utility", OPP_COLUMN)}, payload.get("index"))
+        return super().on_action(action, payload)
 
     def get_outcome(self) -> Outcome | None:
         try:
@@ -1078,20 +1078,23 @@ class UtilityBarTool(OutcomeSelector):
       to the opponent (only when an estimate of the opponent's preferences is set, or for
       administrators, who see the real ones).
 
-    Click a row to copy that deal into your counter-offer, or press **Set Offer** for the
-    selected (or first) one. The offer is only filled in: you still send it yourself. The
-    keyboard works too: the arrow keys move the selection, shift and an arrow widens it.
+    Click a row to copy that deal into your counter-offer, then press **Send offer** to send
+    it as your offer right away (with the message you typed, if any), or adjust it in your
+    counter-offer and send it from there. The keyboard works too: the arrow keys move the
+    selection, shift and an arrow widens it.
 
     **The opponent's numbers** come from an *estimate* when one is set, and estimates can be
     wrong; a banner says which you see.
     """
     agent_hint = ("Set the input 'area' to [low, high] in percent of the participant's utility (or [x, x] for the "
                   "deals nearest x) and 'mode' to one of any, some, all, opp_best, opp_top; then select a row "
-                  "with action 'pick' or use 'set_offer'.")
+                  "with action 'pick' to fill the participant's counter-offer with it; 'send_offer' then sends "
+                  "the picked deal as their offer.")
     icon = "ruler-dimension-line"
     pane = "side"
     timing = "start"
     order = -10
+    sends_offer = True
     #: outcomes considered at most (larger outcome spaces are sampled)
     max_outcomes = 200_000
     #: rows shown at most by "All offers"
@@ -1332,11 +1335,12 @@ class UtilityBarTool(OutcomeSelector):
             out.append(ui.button("Another", "draw", icon="dices", variant="ghost"))
         return out
 
-    def draft_changed(self, *_a) -> None:
+    def draft_changed(self, session_state, draft) -> None:
+        super().draft_changed(session_state, draft)
         self.refresh()
 
     def on_input(self, name, value):
-        self.values["selected"] = None
+        self.unpick()
         if name == "area":
             # a new part of the bar: a new random pick for "Any offer"
             self.values["draw"] = 0
@@ -1345,16 +1349,14 @@ class UtilityBarTool(OutcomeSelector):
     def on_action(self, action, payload):
         if action == "pick":
             row = payload.get("row") or {}
-            self.values["selected"] = payload.get("index")
-            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", "Opponent", "Opponent (estimate)")})
-            self.refresh()
-            return
+            return self.pick({k: v for k, v in row.items() if k not in ("Utility", "Opponent", "Opponent (estimate)")},
+                             payload.get("index"))
         if action == "draw":
             self.values["draw"] = int(self.values.get("draw", 0) or 0) + 1
-            self.values["selected"] = None
+            self.unpick()
             self.refresh()
-            return
-        super().on_action(action, payload)
+            return None
+        return super().on_action(action, payload)
 
     def get_outcome(self) -> Outcome | None:
         res = self.results()

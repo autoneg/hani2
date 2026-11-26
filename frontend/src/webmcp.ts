@@ -6,7 +6,7 @@
  * AbortSignal. Every tool call is logged on the server as a `webmcp` event, so
  * studies can tell when a browser agent acted.
  */
-import { useStore } from "./store";
+import { flushDraftText, useStore } from "./store";
 import type { SessionState } from "./types";
 
 type Json = any;
@@ -256,7 +256,10 @@ function toolDefs(): ToolDef[] {
         const t = st()?.tools.find((x) => x.name.toLowerCase() === String(name).toLowerCase());
         if (!t) return fail(`No tool named ${name}.`);
         if (input) send({ type: "tool_input", id: t.id, name: input, value });
-        if (action) send({ type: "tool_action", id: t.id, action, payload: payload ?? {} });
+        if (action) {
+          flushDraftText();
+          send({ type: "tool_action", id: t.id, action, payload: payload ?? {} });
+        }
         await sleep(900);
         return ok({ name: t.name, components: compact(S().toolViews[t.id] ?? []), my_draft: st()?.draft });
       },
