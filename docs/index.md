@@ -52,7 +52,7 @@ ollama pull qwen3:4b-instruct
 - [Installation](getting-started/installation.md) and the [quick start](getting-started/quickstart.md) walk through a first negotiation.
 - The [walkthroughs](walkthroughs/index.md) take a first-time participant through the page, with and without an Assistant, with narrated videos.
 - [The interface](guide/interface.md) describes what participants see.
-- [Studies and results](guide/studies.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
+- [Study management](guide/study-management.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
 - [Build an Assistant](tutorials/assistant.md) and [Build a tool](tutorials/tools.md) are hands-on tutorials.
 - [Configuration reference](guide/configuration.md) lists every setting and environment variable.
 

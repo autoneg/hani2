@@ -440,7 +440,8 @@ class NegotiationSession:
         self.support_agent = create_support_agent_for(self)
         if self.support_agent is not None:
             self.models.get("assistant")  # chosen at session start; a missing model shows a banner
-        ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution()})
+        ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution(),
+                                                                         **self._study_mode_event()})
 
     # ------------------------------------------------------------------ #
     # Small helpers                                                       #
@@ -487,8 +488,32 @@ class NegotiationSession:
             if v is not None:
                 self.admin_prefs[key] = v
         opp = projects.setting("opponents", None, ref=ref)
+        from hani2 import study_modes
+
+        try:
+            self.study_mode_info = study_modes.resolve(ref) if ref is not None else None
+        except Exception as e:  # noqa: BLE001 — a broken file must not stop the session
+            print(f"[hani2] could not read the study's mode: {e}")
+            self.study_mode_info = None
+        if not opp and self.study_mode_info is not None:
+            opp = self.study_mode_info.filled.get("opponents")  # a Paired study without opponents
         if opp:
             self.admin_prefs["opponent_types"] = [o.strip() for o in opp.split(",")] if isinstance(opp, str) else list(opp)
+
+    #: the study's mode (see hani2.study_modes; ``None`` outside a study)
+    study_mode_info: Any = None
+
+    def _study_mode_event(self) -> dict:
+        """``study_mode`` (the mode in use) and, when the declared mode disagreed with the pool,
+        ``study_mode_error: true``, for the session's events."""
+        info = self.study_mode_info
+        if info is None:
+            return {}
+        out: dict = {"study_mode": info.mode}
+        if info.mode_error:
+            out["study_mode_error"] = True
+            out["study_mode_declared"] = info.declared
+        return out
 
     def in_study(self, fn: Callable) -> Callable:
         """``fn`` wrapped to run bound to this session's study (for other threads)."""
@@ -1967,9 +1992,33 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     @_in_own_study
     def opponent_pool(self) -> list:
-        """:meth:`_opponent_pool_raw`, keeping only its human entries in a people-only group
-        (``"ai_fallback": false``; see :meth:`_people_only_pool`)."""
-        return self._people_only_pool(self._opponent_pool_raw())
+        """:meth:`_opponent_pool_raw`, checked against the study's declared mode when it comes from
+        the page's group file (see :meth:`_mode_checked_pool`), and keeping only its human entries in
+        a people-only group (``"ai_fallback": false``; see :meth:`_people_only_pool`)."""
+        return self._people_only_pool(self._mode_checked_pool(self._opponent_pool_raw()))
+
+    def _mode_checked_pool(self, pool: list) -> list:
+        """A group file's pool (``?group=``) against the study's ``study_mode``, when the study sets
+        one: a Paired study drops the file's AI entries, a Solo study refuses a file with a human entry
+        and uses its own pool (see :func:`hani2.study_modes.filter_group_pool`). An admin's
+        ``?opponents=`` is a test link and is never checked."""
+        from hani2 import study_modes
+
+        info = self.study_mode_info
+        if info is None or not info.explicit or getattr(self, "_pool_source", "") != "group":
+            return pool
+        kept, warn = study_modes.filter_group_pool(info.mode, pool)
+        if kept is None:
+            kept = self._base_pool()
+        if warn and not self.__dict__.get("_mode_pool_warned"):
+            self._mode_pool_warned = True
+            print(f"[hani2] WARNING: {warn}")
+            try:
+                ev.log_event(self.sid, ev.EventType.ERROR, user=self.user, component="matches",
+                             action="study_mode_group", value={"error": warn, "study_mode": info.mode})
+            except Exception:  # noqa: BLE001
+                pass
+        return kept
 
     def _opponent_pool_raw(self) -> list:
         """The opponents this session may face, first match wins: the page's
@@ -1986,7 +2035,15 @@ class NegotiationSession:
             q = self.query
             raw = (q.get("opponents") or q.get("agents")) if admin else None
             self.opponent_group = _group_name(raw) if raw else str(q.get("group") or "").strip().lstrip(":")
+            #: where the pool came from: ``url`` (an admin's ?opponents=), ``group`` (?group=) or ``base``
+            self._pool_source = "url" if raw else "group"
             return override
+        self._pool_source = "base"
+        return self._base_pool()
+
+    def _base_pool(self) -> list:
+        """The opponent pool without the page's own choice: ``hani2 --opponents``, the study's
+        ``opponents``, env.json, else the built-in default pool."""
         cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
         if cmdline:
             pool = expand_agents(cmdline)

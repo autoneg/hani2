@@ -121,7 +121,9 @@ The popup button next to the tabs (and **Open in a popup** in the **⋯** menu) 
 tool in a small floating window that does not block the page: drag it by its title bar, resize it
 from its corner (it remembers where it was), close it with **×** or **Esc**, or enlarge it with
 **⤢**. One tool is in the popup at a time. While it is out, its pane shows **Bring it back here**.
-On a phone the popup is a sheet along the top of the screen. Opening and closing are logged as
+On a phone the popup is a sheet along the top of the screen. A tool in the popup has the same
+buttons as in its pane. When an offer generator's **Send offer** sends the offer, the popup closes.
+If the send is refused, the popup stays open and a notice gives the reason. Opening and closing are logged as
 `tool_popup_opened` (with `from`: `pane`, `dock` or `menu`) and `tool_popup_closed` events. See
 [Tools in a popup](offer-generators.md#tools-in-a-popup).
 
@@ -182,7 +184,7 @@ A pick holds for this negotiation only; the next one starts from HANI2's own pic
 
 The dock shows the **offer on the table** with its utility gauge, then the **Accept**, **Counter-offer** and **End** buttons, and the counter-offer editor when it is open. The buttons work only on your turn; otherwise "Waiting…" appears.
 
-Outside the full view (the simple and focus views, and on tablets and phones), where the offer generators are not next to the dock, two more buttons follow **Counter-offer**: the first offer generator (the **Utility Bar**), which opens in a [popup](#open-in-a-popup) and opens the counter-offer editor, and **Tools**, a menu of every tool, offer generators first, that opens the chosen one in the popup. When a tool in the popup fills the offer, the editor opens so the new offer is in view. The **Tools** menu is also in the dock before and after the negotiation. The bare view has neither.
+Outside the full view (the simple and focus views, and on tablets and phones), where the offer generators are not next to the dock, two more buttons follow **Counter-offer**: the first offer generator (the **Utility Bar**), which opens in a [popup](#open-in-a-popup) and opens the counter-offer editor, and **Tools**, a menu of every tool, offer generators first, that opens the chosen one in the popup. When a tool in the popup fills the offer, the editor opens so the new offer is in view; its **Send offer** sends the offer and closes the popup. The **Tools** menu is also in the dock before and after the negotiation. The bare view has neither.
 
 The utility gauge is a bar from 0% to 100% with a dark tick at your value on disagreement. The fill is blue for your offers and orange for your opponent's; it turns red when the value is below the tick.
 
@@ -324,7 +326,7 @@ Every notification is also kept in the session. The bell in the header shows how
 
 ## Questionnaire
 
-If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Studies and results](studies.md) for the file format.
+If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for the file format.
 
 ## Utility by issue
 

@@ -58,8 +58,8 @@ exact rules and a figure.
 ## Subjective metrics
 
 `questionnaire` turns the answers to the post-negotiation questionnaire into scale scores:
-`scale_<name>` (mean on the items' own range) and `scale_<name>_norm` (0–1); numeric answers to
-questions without a scale become `q_<id>`.
+`scale_<name>` (mean on the items' own range) and `scale_<name>_norm` (0–1); every numeric answer
+also becomes `q_<id>` (reversed items already reversed), so a score can use a single item.
 
 HANI2 ships an evaluation questionnaire with:
 
@@ -153,6 +153,14 @@ competition's study:
 ```json
 {"evaluation": {"scores": {"hi_assistant": {"weights": {"ja_overall": 2, "fn_success_rate": 0}}}}}
 ```
+
+## Evaluation criteria and normalisation
+
+Every numeric metric column and every numeric questionnaire answer can be used in a score, after
+it is mapped to $[0, 1]$ (1 = best). How values are mapped, and how a project freezes the reference
+that scales unbounded values, is described in
+[Project management: scores](project-management.md#scores). Every criterion is listed in the
+[Criteria and scores reference](criteria.md).
 
 ## Comparing
 

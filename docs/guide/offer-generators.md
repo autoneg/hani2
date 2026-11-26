@@ -156,6 +156,10 @@ The button is disabled while you cannot send, and its tooltip says why:
 
 After it is sent, the deal is no longer picked: pick one again for your next offer.
 
+A generator works the same in a [popup](#tools-in-a-popup) as in its pane: the same buttons, the
+same checks and the same tooltips. A **Send offer** that sends closes the popup; one that cannot
+send (not your turn, say) leaves the popup open and says why.
+
 ## Random
 
 ![The Random tool](../assets/screens/tool-random.png)
@@ -187,6 +191,11 @@ Drag the popup by its title bar and resize it from its corner; it opens where yo
 is in the popup at a time: opening another takes its place. **Esc** or **×** closes it, **⤢**
 enlarges it. On a phone it is a sheet along the top of the screen, above the offer editor. The bare
 view has no tools at all, so it has no popup and no launcher.
+
+An offer generator in the popup has the same buttons as in its pane (see [Sending from the
+tool](#sending-from-the-tool)). Its **Send offer** sends the deal at once, with the message typed in
+the message box, like the **Send offer** button under the counter-offer, and the popup then closes.
+If the offer cannot be sent, the popup stays open and a notice gives the reason.
 
 ## Giving the admin-only generators to participants
 
@@ -228,6 +237,8 @@ If your tool fills the counter-offer as soon as a deal is picked (a table, a cha
 `sends_offer = True` and call `self.pick(offer)` when the participant picks one: the button becomes
 **Send offer** (`send_label`) and sends the picked deal, as in the [Utility Bar](#utility-bar).
 `send_blocker()` returns why it cannot send now (or `None`); the button shows it as its tooltip.
+A tool that sends the offer itself calls `self.offer_sent()` once the offer is sent: the message box
+empties and, if the tool is open in a popup, the popup closes.
 
 Save it in the tools folder (`$HANI2_HOME/tools`) and the next session has it. The [tools
 tutorial](../tutorials/tools.md#offer-pickers-outcomeselector) explains `OutcomeSelector` and

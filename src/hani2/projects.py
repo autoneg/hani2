@@ -42,6 +42,7 @@ DEFAULT_KEYS = (
     "scenario_set", "n_required", "practice", "practice_time_limit", "counted_time_limit", "time_limit",
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
     "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
+    "study_mode", "pairing",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -253,9 +254,10 @@ def _split(data: dict, fields: tuple[str, ...], nested: str) -> tuple[dict, dict
 def file_problems(data: dict, nested: str) -> list[str]:
     """What is wrong with a project.yaml (``nested="defaults"``) or study.yaml
     (``nested="overrides"``) mapping: a setting given both at the top level and under
-    ``nested`` with different values (they mean the same thing), and unknown
-    scheduling methods."""
-    from hani2 import scheduling
+    ``nested`` with different values (they mean the same thing), unknown
+    scheduling methods, and a ``study_mode`` or ``pairing`` block that is not valid on its own
+    (the checks against the pool and the project are :func:`hani2.study_modes.resolve`)."""
+    from hani2 import scheduling, study_modes
 
     out: list[str] = []
     inner = data.get(nested)
@@ -272,12 +274,27 @@ def file_problems(data: dict, nested: str) -> list[str]:
             scheduling.check_scheduling(d, where)
         except ValueError as e:
             out.append(str(e))
-    return out
+    for src in (data, inner):
+        try:
+            study_modes.check_mode(src.get("study_mode"))
+        except ValueError as e:
+            out.append(str(e))
+        out += study_modes.check_pairing(src.get("pairing"))[1]
+    return list(dict.fromkeys(out))
 
 
-def check_file_data(data: dict, nested: str) -> dict:
-    """``data`` when :func:`file_problems` finds nothing, else a ValueError naming every problem."""
+def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = None,
+                    project: str | None = None) -> dict:
+    """``data`` when :func:`file_problems` finds nothing, else a ValueError naming every problem.
+    With the file's study ``ref`` (a study.yaml) or ``project`` name (a project.yaml), the mode
+    checks run too, on the file's settings merged with its project's: ``study_mode`` against
+    ``opponents``, the Assistant and the project's ``kind``, the ``pairing`` block, and the years
+    of ``:han<year>-<set>`` entries (see :mod:`hani2.study_modes`)."""
     problems = file_problems(data, nested)
+    if ref is not None or project is not None:
+        from hani2 import study_modes
+
+        problems = list(dict.fromkeys([*problems, *study_modes.save_problems(data, nested, ref=ref, project=project)]))
     if problems:
         raise ValueError("; ".join(problems))
     return data
@@ -361,11 +378,12 @@ def list_studies(project: str) -> list[str]:
 
 
 def _merge_fields(data: dict, fields: dict) -> None:
-    """``data.update(fields)`` without ``None`` values; ``scheduling`` merges per dimension."""
+    """``data.update(fields)`` without ``None`` values; ``scheduling`` merges per dimension and
+    ``pairing`` key by key."""
     for k, v in fields.items():
         if v is None:
             continue
-        if k == "scheduling" and isinstance(v, dict) and isinstance(data.get(k), dict):
+        if k in ("scheduling", "pairing") and isinstance(v, dict) and isinstance(data.get(k), dict):
             data[k] = {**data[k], **v}
         else:
             data[k] = v
@@ -381,7 +399,7 @@ def create_project(name: str, **fields: Any) -> Project:
         data["kind"] = "none"
     if data["kind"] not in KINDS:
         raise ValueError(f"kind must be one of {', '.join(KINDS)}")
-    check_file_data(data, "defaults")
+    check_file_data(data, "defaults", project=name)
     write_yaml(f, data)
     (f.parent / "studies").mkdir(exist_ok=True)
     return load_project(name)
@@ -400,7 +418,7 @@ def create_study(ref: "StudyRef | str", **fields: Any) -> Study:
         data["type"] = "prolific"
     if data["type"] not in STUDY_TYPES:
         raise ValueError(f"type must be one of {', '.join(STUDY_TYPES)}")
-    check_file_data(data, "overrides")
+    check_file_data(data, "overrides", ref=ref)
     write_yaml(folder / STUDY_FILE, data)
     (folder / "results").mkdir(parents=True, exist_ok=True)
     return load_study(ref)

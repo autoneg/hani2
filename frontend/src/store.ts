@@ -18,6 +18,8 @@ interface Store {
   /** Bumped when the Assistant writes the message (draft_text): the message box then shows it.
    * Filling only the offer values must not touch what the participant is typing. */
   draftVersion: number;
+  /** The last offer a tool sent (its Send offer button): a popup showing that tool closes. */
+  toolSent: { tool: string; seq: number } | null;
   ws: WebSocket | null;
   /** sends a message; false when the socket is not open */
   send: (msg: Record<string, any>) => boolean;
@@ -78,6 +80,7 @@ export const useStore = create<Store>((set, get) => ({
   assistantOpen: false,
   maximized: null,
   draftVersion: 0,
+  toolSent: null,
   ws: null,
   ui: {},
   replay: false,
@@ -212,6 +215,9 @@ export const useStore = create<Store>((set, get) => ({
           break;
         case "draft_text":
           set((s) => (s.state ? { state: { ...s.state, draft: { ...s.state.draft, text: msg.text } }, draftVersion: s.draftVersion + 1 } : {}));
+          break;
+        case "tool_sent":
+          set((s) => ({ toolSent: { tool: String(msg.tool), seq: (s.toolSent?.seq ?? 0) + 1 } }));
           break;
         case "toast":
           get().pushToast({ message: msg.message, level: msg.level, duration: msg.duration, action: msg.action, source: msg.source }, true);

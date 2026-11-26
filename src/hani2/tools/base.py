@@ -457,11 +457,17 @@ class OutcomeSelector(Tool):
         res = self.session_state["actions"]["reject_counter"]() or {}
         if res.get("ok"):
             self.unpick()
-            sess = self.session_state.get("_session")
-            if sess is not None:
-                sess.emit({"type": "draft_text", "text": ""})  # the message box empties, as after Send offer
+            self.offer_sent()
             self.refresh()
         return res
+
+    def offer_sent(self) -> None:
+        """The tool sent the human's offer: the message box empties, as after Send offer, and the
+        browser closes the tool's popup if the tool is open in one (``tool_sent``)."""
+        sess = self.session_state.get("_session")
+        if sess is not None:
+            sess.emit({"type": "draft_text", "text": ""})
+            sess.emit({"type": "tool_sent", "tool": self.name})
 
     def draft_changed(self, session_state: dict[str, Any], draft: dict[str, Any]) -> None:
         """The counter-offer changed: a deal no longer in it is no longer picked."""

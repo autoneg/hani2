@@ -548,6 +548,43 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
     expect(box).to_have_value("")
 
 
+def test_send_offer_in_a_generator_popup_sends_the_deal_and_closes_it(new_page):
+    """A generator opened in a popup from the action panel has the same Send offer as in its pane:
+    disabled until a deal is picked, then it sends the deal with the typed message and the popup closes."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play?view=simple")
+    start(p)
+    p.get_by_test_id("launch-generator").click()
+    popup = p.get_by_test_id("tool-popup")
+    expect(popup).to_have_attribute("aria-label", "Utility Bar (popup)")
+    tool_send = popup.get_by_role("button", name="Send offer")
+    expect(tool_send).to_be_disabled()
+    expect(popup.get_by_role("button", name=re.compile("Set offer|Use this offer", re.I))).to_have_count(0)
+    # our turn (the opponent may move first): the composer is open
+    counter = p.get_by_role("button", name="Counter-offer")
+    box = p.get_by_placeholder(re.compile("Explain your offer"))
+    for _ in range(300):
+        if counter.count() and counter.first.is_enabled() and not box.count():
+            counter.first.click()
+        if box.count() and box.first.is_enabled():
+            break
+        p.wait_for_timeout(100)
+    expect(box).to_be_enabled()
+    expect(tool_send).to_have_attribute("title", "Pick a deal first.")  # the same reason as in the pane
+    bar = popup.get_by_test_id("range-bar-area")
+    popup.get_by_role("combobox").first.select_option(label="All offers")
+    _drag_across(p, bar, 0.05, 0.95)
+    popup.locator("tbody tr").first.click()
+    expect(tool_send).to_be_enabled()
+    # the main Send offer button is the one under the counter-offer, never the popup's
+    expect(p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).to_be_visible()
+    box.fill("Sent from the popup.")
+    tool_send.click()
+    expect(p.locator('[data-anchor="history"]').get_by_text("Sent from the popup.")).to_be_visible()
+    expect(popup).to_have_count(0)  # sent: the popup closes
+    expect(p.get_by_test_id("launch-generator")).to_have_attribute("aria-pressed", "false")
+
+
 def test_random_generates_a_deal_and_send_offer_sends_it(new_page):
     """The Random generator (admins): Generate fills the counter-offer, its Send offer sends that deal."""
     p = new_page(viewport={"width": 1400, "height": 900})

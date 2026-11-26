@@ -109,6 +109,7 @@ Unknown types are ignored.
 | `chat` | `message` | One new assistant chat message. |
 | `draft` | `draft`, `utility`, `by_agent` | The counter-offer fields changed; `by_agent` is true when a tool or the assistant changed them. |
 | `draft_text` | `text` | The message field was changed by a tool or the assistant. |
+| `tool_sent` | `tool` | The tool named `tool` sent the offer (its **Send offer**, pressed by the participant or the Assistant): the browser closes the tool's popup if the tool is open in one. |
 | `toast` | `message`, `level`, `duration`, `action` | Show a notification. |
 | `confirm` | `kind`, `message` | Ask the human to confirm `accept` or `end` (sent when the assistant or a tool requests it). |
 | `pong` | | Answer to `ping`. |

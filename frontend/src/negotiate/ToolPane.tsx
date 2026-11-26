@@ -356,6 +356,15 @@ export function ToolPopup() {
   useEffect(() => {
     if (tool) box.current?.focus({ preventScroll: true });
   }, [tool?.id]);
+  // the tool in the popup sent the offer (its Send offer button): the popup has done its job and
+  // closes; a refused send leaves it open, with the reason in a toast
+  const sent = useStore((s) => s.toolSent);
+  const sentSeen = useRef(sent?.seq);
+  useEffect(() => {
+    if (!sent || sent.seq === sentSeen.current) return;
+    sentSeen.current = sent.seq;
+    if (!replay && tool && sent.tool === tool.name) closePopup();
+  }, [sent?.seq]);
   // the server reveals a tool in the popup (the participant's preferences when a negotiation
   // starts in the focus view); a reconnect does not reopen it
   const reveal = useStore((s) => s.state?.reveal);

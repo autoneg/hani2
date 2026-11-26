@@ -21,7 +21,9 @@ human alone: two studies of one project, one with an Assistant and ``opponents:
 [human]``, the other without and ``opponents: [human+assistant]``.
 
 The match key is ``?match=<code>`` when the page has one (two people who share
-a code meet each other), else the project (so its studies can be paired). One
+a code meet each other), else the study's ``pairing.scope``: the project (so its
+studies can be paired; the default) or the study alone (the default of a study
+declared ``study_mode: paired``). One
 :class:`Match` owns the shared mechanism and the lock that steps it. A side
 only ever steps the mechanism for its own action; the other side is woken
 through its own :meth:`~hani2.session.NegotiationSession.submit`.
@@ -101,8 +103,25 @@ def codes_allowed(session: NegotiationSession) -> bool:
     return not (v is False or str(v).strip().lower() in ("0", "false", "no", "off"))
 
 
+def pairing_scope(session: NegotiationSession) -> str:
+    """Where this session's participant meets others (``pairing.scope``, see
+    :mod:`hani2.study_modes`): ``study``, ``project`` or ``code``. A study declared ``paired``
+    meets within itself unless it says otherwise; any other study keeps the project-wide lobby."""
+    info = getattr(session, "study_mode_info", None)
+    if info is None:
+        try:
+            from hani2 import study_modes
+
+            info = study_modes.resolve(session.study_ref)
+        except Exception:  # noqa: BLE001
+            return "project"
+    return str(info.pairing_effective.get("scope") or "project")
+
+
 def match_key(session: NegotiationSession) -> str:
-    """The lobby key of a session: ``?match=<code>`` or its study."""
+    """The lobby key of a session: ``?match=<code>`` when codes are allowed, else by the study's
+    ``pairing.scope``: ``study:<project>/<study>``, ``project:<project>`` (the default), or, for
+    ``code``, a lobby of the session's own (without a code it meets nobody)."""
     q = session.query or {}
     code = q.get("match") if codes_allowed(session) else None
     if isinstance(code, (list, tuple)):
@@ -111,7 +130,14 @@ def match_key(session: NegotiationSession) -> str:
     if code:
         return f"code:{code}"
     ref = session.study_ref
-    return f"project:{ref.project}" if ref is not None else "project:"
+    if ref is None:
+        return "project:"
+    scope = pairing_scope(session)
+    if scope == "study":
+        return f"study:{ref.project}/{ref.study}"
+    if scope == "code":
+        return f"nocode:{session.sid}"
+    return f"project:{ref.project}"
 
 
 def _pref(session: NegotiationSession, key: str, default: float) -> float:

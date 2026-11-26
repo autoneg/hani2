@@ -47,6 +47,11 @@ class Column:
       a worked example and caveats (inline math ``$...$``, display ``$$...$$``);
     * ``range`` — the possible values (e.g. ``[0, 1]``, ``count``, ``seconds``).
 
+    ``normaliser`` maps the column to ``[0, 1]`` for scores (see
+    :mod:`hani2.evaluation.criteria`); leave it ``None`` when ``range`` says it
+    (``[0, 1]``, ``1–7``, ``count``, …), and set it where the text does not
+    parse, e.g. ``{"kind": "bounded", "lo": 0, "hi": 2}``.
+
     A ``name`` with ``<...>`` (e.g. ``q_<id>``) describes a family of dynamic
     columns (see :meth:`Metric.column_info`).
     """
@@ -58,6 +63,7 @@ class Column:
     formula: str = ""
     details: str = ""
     range: str = ""
+    normaliser: dict | None = None
 
     def info(self) -> dict:
         return dict(name=self.name, title=self.title, description=self.description,

@@ -37,6 +37,7 @@ app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).connections_app, na
 app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="models")
 app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
+app.add_typer(__import__("hani2.cli_scores", fromlist=["x"]).scores_app, name="scores")
 
 
 def _open_when_ready(url: str) -> None:
@@ -239,7 +240,7 @@ def main(
     ctx: typer.Context,
     port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on.")] = 5006,
     host: Annotated[str, typer.Option(help="Interface to bind (0.0.0.0 to accept remote connections).")] = "127.0.0.1",
-    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan; with hani2[han]: :han2026-all, :han2026-qualified, :han2026-finalists, :han2026-winners), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", "--opponent", "-o", help="Opponent agent(s) the participants negotiate against: comma-separated negotiators and/or groups (:llm, :template, :notext, :negmas, :classic, :genius, :custom, :pan; with hani2[han]: :han2026-all, :han2026-qualified, :han2026-finalists, :han2026-winners; the year of han.current_year comes from its submissions), e.g. BoulwareTBNegotiator or file:path/to/mine.MyNegotiator.")] = None,
     agents: Annotated[Optional[str], typer.Option("--agents", hidden=True, help="Old name of --opponents.")] = None,
     assistant: Annotated[Optional[str], typer.Option("--assistant", help="Assistant: on (everyone), off (nobody), auto (admins only), or an Assistant class to run for everyone (pkg.module:Class or path/to/file.py:Class).")] = None,
     assistants: Annotated[Optional[str], typer.Option("--assistants", help="Assistant pool: comma-separated Assistant classes and/or Assistant groups (:default, :tutorial, or a group file's key). With more than one, each human keeps one Assistant, balanced across the humans of a study.")] = None,
@@ -1292,6 +1293,8 @@ def project_create(
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
     assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
+    study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
 ):
     """Create a project (or update its project.yaml)."""
     from hani2 import projects
@@ -1299,7 +1302,8 @@ def project_create(
     sched = _scheduling_options(opponent_scheduling, assistant_scheduling, scenario_scheduling)
     try:
         pr = projects.create_project(name, full_name=full_name, kind=kind, short_description=description, link=link,
-                                     year=year, organizer=organizer, contact=contact, scheduling=sched)
+                                     year=year, organizer=organizer, contact=contact, scheduling=sched,
+                                     study_mode=study_mode, opponents=_csv(opponents))
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Project {pr.name} at {projects.project_dir(pr.name)}")
@@ -1328,7 +1332,12 @@ def project_show(name: str):
     pr = projects.load_project(name)
     typer.echo(f"{name}  ({pr.path or 'no folder: uses the settings folder'})")
     _echo_mapping({k: v for k, v in pr.to_dict().items() if k != "name"})
-    for e in pr.errors:
+    from hani2 import study_modes
+
+    mode = study_modes.resolve_project(name)
+    _echo_mode(mode)
+    _echo_han_sources(pr.defaults.get("opponents"))
+    for e in dict.fromkeys([*pr.errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     for st in projects.list_studies(name):
         typer.echo(f"  study {st}")
@@ -1351,6 +1360,8 @@ def study_create(
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
     assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
+    study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
 ):
     """Create a study (or update its study.yaml) and print the links to give participants."""
     from hani2 import projects
@@ -1360,11 +1371,45 @@ def study_create(
     try:
         st = projects.create_study(r, type=type, title=title, completion_code=completion_code,
                                    completion_url=completion_url, prolific_study_id=prolific_study_id, link=link,
-                                   start=start, end=end, n_required=n_required, end_text=end_text, scheduling=sched)
+                                   start=start, end=end, n_required=n_required, end_text=end_text, scheduling=sched,
+                                   study_mode=study_mode, opponents=_csv(opponents))
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Study {r} ({st.type}) at {st.path}")
     _print_links(r, base_url)
+
+
+def _csv(value: Optional[str]) -> Optional[list[str]]:
+    return [x.strip() for x in value.split(",") if x.strip()] if value else None
+
+
+def _echo_mode(info) -> None:
+    """The mode block of ``project show`` / ``study show``."""
+    from hani2 import study_modes
+
+    if info.declared and not info.mode_error:
+        how = "declared"
+    elif info.declared:
+        how = f"derived from opponents; the declared {info.declared!r} disagrees"
+    else:
+        how = "derived from opponents"
+    typer.echo(f"  study_mode (in use): {info.mode}  ({how})")
+    for k, v in info.filled.items():
+        typer.echo(f"    filled in: {k}: [{', '.join(v)}]")
+    if info.mode in (study_modes.PAIRED, study_modes.MIXED) or info.pairing:
+        typer.echo("  pairing (in use):")
+        for k, v in info.pairing_effective.items():
+            typer.echo(f"    {k}: {v}" + ("" if k in info.pairing else "  (default)"))
+
+
+def _echo_han_sources(pool) -> None:
+    """Where each ``:han<year>-<set>`` entry of a pool comes from."""
+    from hani2 import han_submissions, study_modes
+
+    for tok in study_modes.items(pool):
+        ht = study_modes.han_token(tok)
+        if ht is not None:
+            typer.echo(f"  {tok}: {han_submissions.source_text(ht[0])}")
 
 
 def _scheduling_options(opponents: Optional[str], assistants: Optional[str], scenarios: Optional[str]) -> Optional[dict]:
@@ -1429,7 +1474,13 @@ def study_show(
     typer.echo("  scheduling (in use):")
     for d in scheduling.DIMENSIONS:
         typer.echo(f"    {d}: {effective[d]}" + ("" if d in explicit else "  (default)"))
-    for e in dict.fromkeys([*st.errors, *errors]):
+    from hani2 import study_modes
+
+    mode = study_modes.resolve(r)
+    _echo_mode(mode)
+    with projects.use_study(r):
+        _echo_han_sources(projects.setting("opponents", None, ref=r))
+    for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)
 
@@ -1465,6 +1516,73 @@ def groups_list(
             typer.echo(f"      members: {shown or '-'}")
             if g.get("assistant"):
                 typer.echo(f"      assistant: {g['assistant']}")
+
+
+han_app = typer.Typer(help="HAN agents of the current year, from the submitted zips (han.current_year, han.submissions).")
+app.add_typer(han_app, name="han")
+
+
+def _han_year(year: Optional[int]) -> int:
+    from hani2 import han_submissions
+
+    y = year if year is not None else han_submissions.current_year()
+    if y is None:
+        raise typer.BadParameter("give --year, or set han.current_year in env.json", param_hint="--year")
+    return y
+
+
+@han_app.command("import")
+def han_import(
+    year: Annotated[Optional[int], typer.Option("--year", help="The year (default: han.current_year).")] = None,
+    check: Annotated[bool, typer.Option("--check/--no-check", help="Check, in a separate process, that each class imports.")] = True,
+):
+    """Unpack each zip of a year's submissions index into its own new folder (nothing in it runs
+    while unpacking) and make it the entrant's current version. A new upload gets a new folder."""
+    from hani2 import han_submissions
+
+    y = _han_year(year)
+    if han_submissions.submissions_dir(y) is None:
+        raise typer.BadParameter(f"han.submissions has no folder for {y} in env.json", param_hint="--year")
+    results, problems = han_submissions.import_year(y, check=check)
+    for p in problems:
+        typer.secho(f"ERROR: {p}", fg="red")
+    for r in results:
+        line = f"{r.entrant:24s} {r.status:10s} {r.sha256[:12]}"
+        typer.secho(line + (f"  {r.message}" if r.message else ""), fg="red" if r.status == "error" else None)
+    ok = sum(r.status != "error" for r in results)
+    typer.echo(f"{ok} of {len(results)} entries ready in {han_submissions.import_root() / str(y)}")
+    if problems or ok < len(results):
+        raise typer.Exit(1)
+
+
+@han_app.command("check")
+def han_check(
+    year: Annotated[Optional[int], typer.Option("--year", help="The year (default: han.current_year).")] = None,
+    import_check: Annotated[bool, typer.Option("--import-check/--no-import-check", help="Import each class again (in a separate process).")] = True,
+):
+    """List a year's entries, their sets, their imported version and whether each class imports;
+    report zips the index does not list and module names two entrants share."""
+    from hani2 import han_submissions
+
+    y = _han_year(year)
+    rep = han_submissions.check_year(y, import_check=import_check)
+    typer.echo(f"HAN {y}: {han_submissions.source_text(y)}")
+    for p in rep["problems"]:
+        typer.secho(f"  ERROR: {p}", fg="red")
+    bad = bool(rep["problems"])
+    for r in rep["entries"]:
+        imp = {True: "imports", False: "DOES NOT IMPORT", None: "-"}[r["imports"]]
+        typer.echo(f"  {r['entrant']:24s} {','.join(r['sets']):32s} {r['version'][:12] or '-':12s} {imp:15s} {r['class']}")
+        for p in r["problems"]:
+            typer.secho(f"      {p}", fg="red")
+            bad = True
+    for z in rep["unlisted_zips"]:
+        typer.secho(f"  zip not in the index: {z}", fg="yellow")
+    for mod, who in rep["module_clashes"].items():
+        typer.secho(f"  module {mod!r} is used by {', '.join(who)}: only one of them can be loaded per server process",
+                    fg="yellow")
+    if bad:
+        raise typer.Exit(1)
 
 
 scheduling_app = typer.Typer(help="List the scheduling methods for opponents, Assistants and scenarios.")

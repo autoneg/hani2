@@ -177,6 +177,44 @@ def han_groups() -> dict[str, list[str]]:
 
 AGENT_GROUPS.update(han_groups())
 
+
+def resolve_han_group(year: int, kind: str) -> list[str]:
+    """The agents of ``:han<year>-<kind>``: the current year (``han.current_year``) from its
+    submissions (see :mod:`hani2.han_submissions`), any other year from ``han-agents``;
+    ``[]`` (with a message) when no source covers the year."""
+    from hani2 import han_submissions
+
+    src = han_submissions.source_of(year)
+    if src == han_submissions.SOURCE_SUBMISSIONS:
+        return han_submissions.group_specs(year, kind)
+    if src == han_submissions.SOURCE_PACKAGE:
+        return list(AGENT_GROUPS.get(f":han{year}-{kind}", []))
+    print(f"⚠️ :han{year}-{kind}: no agents for {year} ({han_submissions.coverage_text()}).")
+    return []
+
+
+def han_group_keys() -> list[str]:
+    """The ``han<year>-<set>`` keys some source covers (``han-agents`` years and the current year)."""
+    from hani2 import han_submissions
+
+    years = set(han_years())
+    cy = han_submissions.current_year()
+    if cy is not None:
+        years.add(cy)
+    return [f"han{y}-{k}" for y in sorted(years) for k in HAN_GROUP_KINDS]
+
+
+def han_group_description(key: str) -> str:
+    from hani2 import han_submissions, study_modes
+
+    ht = study_modes.han_token(key)
+    if ht is None:
+        return ""
+    desc = HAN_GROUP_KINDS[ht[1]][1].format(year=ht[0])
+    if han_submissions.source_of(ht[0]) == han_submissions.SOURCE_SUBMISSIONS:
+        return desc + " (from the submissions)"
+    return desc if han_submissions.source_of(ht[0]) else ""
+
 # Boulware/Linear/Conceder/Hybrid with NO text component. Bare names
 # resolve via negmas.sao in get_agent_type().
 NOTEXT_NEGOTIATORS = [
@@ -280,6 +318,11 @@ def _read_group_file(key: str) -> "list[str] | None":
 def _resolve_builtin(token: str) -> list:
     """A built-in group token (``:llm``, ``:pan``, …) → its specs (``[]`` when unknown)."""
     low = token.strip().lower()
+    from hani2.study_modes import han_token
+
+    ht = han_token(low)
+    if ht is not None and low.startswith(":"):
+        return resolve_han_group(*ht)
     if low == ":pan":
         return _pan_group_specs()
     if low == ":notext":
@@ -296,6 +339,10 @@ def _resolve_builtin(token: str) -> list:
 
 def _builtin_known(token: str) -> bool:
     low = token.strip().lower()
+    from hani2.study_modes import han_token
+
+    if han_token(low) is not None and low.startswith(":"):
+        return True  # resolved (or reported as covered by no source) by resolve_han_group
     return low in AGENT_GROUPS or low in (":pan", ":notext", ":custom")
 
 
@@ -367,6 +414,12 @@ def _prime_group_syspaths() -> None:
         from hani2 import groups
 
         groups.prime_syspaths()
+    except Exception:
+        pass
+    try:
+        from hani2 import han_submissions
+
+        han_submissions.prime_syspaths()
     except Exception:
         pass
 

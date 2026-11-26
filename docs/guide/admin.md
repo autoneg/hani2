@@ -64,7 +64,7 @@ A session reads each file from its study first, then its project, then the [star
 
 Pages whose settings can live in a layer start with an **Edit and save in** bar. Pick the layer there; it stays chosen while you move between pages. The page then shows the values in effect *at that layer*, and **Save** writes only the values you changed, and only into that layer's own file. A row whose value is set in the chosen project or study layer is marked **set here**; its ↺ button removes it from that layer, so the inherited value applies again. The bar at the bottom always says where the next save goes.
 
-When the console is opened inside a study (`/s/<project>/<study>/admin`), it starts with that study's layer chosen, and the bar names the study. It never saves to another layer behind your back: every read and write names its layer explicitly. (The API refuses a settings write that names no layer from inside a study; see the [admin API](projects.md#admin-api).)
+When the console is opened inside a study (`/s/<project>/<study>/admin`), it starts with that study's layer chosen, and the bar names the study. It never saves to another layer behind your back: every read and write names its layer explicitly. (The API refuses a settings write that names no layer from inside a study; see the [admin API](project-management.md#admin-api).)
 
 General and Connections are the exceptions: sign-in, identity and the model connections apply to the whole server and are always saved in the settings folder.
 
@@ -90,7 +90,7 @@ The server removes sessions that have no open tab, are not negotiating, and have
 
 ## Results
 
-**Download CSV** (`/api/admin/results.csv`, saved as `hani2_results.csv`), the **Leaderboard** of human participants (`user`, `participant_type`, `score`, `negotiations`, `mean_utility`; practice rounds left out) when there is anything to rank, the leaderboard **by participant type** when there are several types (see [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types)), the **Qualifying round** of [simulated participants](simulation.md) (never ranked with humans), and a searchable table of every negotiation, newest first. **Choose columns** picks the columns to show; it starts with the default columns plus `user`. Utilities and the human advantage are shown as percentages. The console shows the results of the server's default study; open it at `/s/<project>/<study>/admin` (or use **Open in this study** on a study's page) for another study. [Studies and results](studies.md) describes the files and their columns.
+**Download CSV** (`/api/admin/results.csv`, saved as `hani2_results.csv`), the **Leaderboard** of human participants (`user`, `participant_type`, `score`, `negotiations`, `mean_utility`; practice rounds left out) when there is anything to rank, the leaderboard **by participant type** when there are several types (see [Pre-questionnaire and participant types](study-management.md#pre-questionnaire-and-participant-types)), the **Qualifying round** of [simulated participants](simulation.md) (never ranked with humans), and a searchable table of every negotiation, newest first. **Choose columns** picks the columns to show; it starts with the default columns plus `user`. Utilities and the human advantage are shown as percentages. The console shows the results of the server's default study; open it at `/s/<project>/<study>/admin` (or use **Open in this study** on a study's page) for another study. [Results](study-management.md#results) describes the files and their columns.
 
 ## Event analytics
 
@@ -104,7 +104,7 @@ The server removes sessions that have no open tab, are not negotiating, and have
 
 The list shows every project with its full name, kind, year and number of studies, and **New project** creates one. Open a project to edit `project.yaml`:
 
-- **Project**: full name, short description, link, year, kind (research, opponents evaluated, Assistants evaluated), organizer and contact. The hint of each row names the [text variable](projects.md#texts-with-variables) it fills.
+- **Project**: full name, short description, link, year, kind (research, opponents evaluated, Assistants evaluated), organizer and contact. The hint of each row names the [text variable](study-management.md#texts-with-variables) it fills.
 - **Defaults for its studies**: scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles. An empty field keeps the default.
 - **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
 - **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for.
@@ -118,18 +118,18 @@ Open a study to see and edit:
 - **Study**: type, title, link, year, start and end dates, organizer, contact; **Completion**: Prolific study id, completion code, completion URL and the end text.
 - **Overrides of the project's defaults**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default) and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
 
-**Save** writes `project.yaml` or `study.yaml`. See [Projects and studies](projects.md).
+**Save** writes `project.yaml` or `study.yaml`. See [Project management](project-management.md) and [Study management](study-management.md).
 
 ## Texts
 
 Pick the layer and one of **Welcome text** (`announcements.md`), **Consent form** (`consent.md`), **Scenario sets** (`scenario_sets.yaml`) and **Custom order** (`scenario_order.txt`, one scenario type per line: the `Custom` set).
 
 - **Source** says which layer the text in effect comes from and whether the chosen layer has its own file. Without one, the editor starts with the inherited text, and **Save** creates the layer's own copy; **Use the inherited text** deletes the layer's copy again.
-- **Preview** (welcome text and consent form) renders the text as Markdown with the [text variables](projects.md#texts-with-variables) filled in, as a participant of the chosen study would see it; at the settings or project layer, pick the study to preview with. Unknown `{{variables}}` are listed above the preview and left as written.
+- **Preview** (welcome text and consent form) renders the text as Markdown with the [text variables](study-management.md#texts-with-variables) filled in, as a participant of the chosen study would see it; at the settings or project layer, pick the study to preview with. Unknown `{{variables}}` are listed above the preview and left as written.
 - **Available variables** lists every variable with its value for the preview, with a copy button.
 - **In effect for a study** shows, for any study, which layer each of the four texts comes from.
 
-Consent is recorded per study (see [Consent per study](projects.md#consent-per-study)).
+Consent is recorded per study (see [Consent per study](study-management.md#consent-per-study)).
 
 ## Study forms
 

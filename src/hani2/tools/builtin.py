@@ -1541,7 +1541,7 @@ class ResponseGeneratorTool(OutcomeSelector):
         res = self.session_state["actions"]["reject_counter"]() or {}
         if res.get("ok"):
             self.generated = None
-            self.session.emit({"type": "draft_text", "text": ""})
+            self.offer_sent()
             self.refresh()
         return res
 

@@ -2506,7 +2506,7 @@ The mean answer to the items of a scale defined by your questionnaire (`scale: <
 
 ##### `q_<id>` — <id>
 
-*The numeric answer to a question without a scale*
+*The numeric answer to one question*
 
 **Range:** the question's range · **Direction:** no better direction
 
@@ -2514,7 +2514,7 @@ $$
 v'_{\text{id}}
 $$
 
-The answer to the question with this `id` when it belongs to no scale: the number for rating questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.
+The answer to the question with this `id` (whether or not it belongs to a scale): the number for rating questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.
 
 ## Soft metrics (language-model judge)
 

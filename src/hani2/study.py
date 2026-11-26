@@ -721,6 +721,7 @@ class ProlificStudy(Study):
             opp_method = "practice"
         else:
             want = entry.get("agent_class_name")
+            want = self._slot_opponent_checked(want) if want else want
             pool = self.finalists()
             group = self._finalists_group
             if want:
@@ -761,6 +762,28 @@ class ProlificStudy(Study):
         if assistant:
             plan["assistant"] = assistant
         return plan
+
+    def _slot_opponent_checked(self, want: Any) -> Any:
+        """A slot's ``agent_class_name`` against the study's declared ``study_mode``: a human entry in
+        a Solo study, or an AI opponent in a Paired one, is refused (``None``: the study's pool is
+        used), with a warning in the log and the events."""
+        from hani2 import study_modes
+
+        info = getattr(self.session, "study_mode_info", None)
+        if info is None or not info.explicit or study_modes.slot_allowed(info.mode, want):
+            return want
+        s = self.session
+        msg = (f"schedule.json names {want!r} for {s.user}'s next negotiation but the study is "
+               f"{info.mode.capitalize()}: the study's own pool is used")
+        print(f"[hani2] WARNING: {msg}")
+        try:
+            from hani2 import events as ev
+
+            ev.log_event(s.sid, ev.EventType.ERROR, user=s.user, component="scheduling",
+                         action="study_mode_slot", value={"error": msg, "study_mode": info.mode})
+        except Exception:  # pragma: no cover
+            pass
+        return None
 
     def finished(self) -> bool:
         return self.counted() >= self.n_required

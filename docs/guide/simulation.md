@@ -162,5 +162,5 @@ the persona's prompt needs work.
 - User names starting with `sim_` (and `guest_`) are reserved, so no account is mistaken for a
   simulated participant.
 - Simulated sessions get no questionnaires (neither the
-  [pre-questionnaire](studies.md#pre-questionnaire-and-participant-types) nor the per-negotiation
+  [pre-questionnaire](study-management.md#pre-questionnaire-and-participant-types) nor the per-negotiation
   one) and never count as study participants for balancing.
