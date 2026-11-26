@@ -14,7 +14,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from hani2 import scenario_links
 from hani2 import scenario_store as store
@@ -63,8 +63,14 @@ def _num(v: Any) -> float | None:
     return f if math.isfinite(f) else None
 
 
-def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: int | None) -> dict:
+def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: int | None,
+                      rule: str | None = None) -> dict:
+    """One scenario of type ``name`` as participants would see it: a pool scenario (``scenario``,
+    else the first), or a draw ``generate`` of its generator by the generation ``rule``
+    (:data:`hani2.scenario_store.GENERATION_RULES`; ``None``: the layer's own rule)."""
     from negmas import Scenario
+
+    from hani2.scenarios import simple
 
     warnings: list[str] = []
     with binding(layer):
@@ -75,10 +81,14 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
         pool: list[str] = []
         path: Path | None = None
         generated = False
+        layer_rule = store.default_rule()
+        if rule is not None and rule not in store.GENERATION_RULES:
+            raise HTTPException(400, f"unknown generation rule {rule!r}")
+        used_rule = rule or layer_rule
         if generate is not None:
             if reg is None:
                 raise HTTPException(400, f"{name} has no generator")
-            s = store.make_scenario(name, generate, store.simple_scenarios())  # as this layer would serve it
+            s = store.generate_scenario(name, generate, used_rule)
             generated = True
         elif folder is not None and store.pool_of(folder):
             folders = store.pool_of(folder)
@@ -96,7 +106,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
                 raise HTTPException(400, f"cannot load {path}: {e}") from None
             s.info = store._read_info(path) or (s.info or {})
         elif reg is not None:
-            s = store.make_scenario(name, 0, store.simple_scenarios())
+            s = store.generate_scenario(name, 0, used_rule)
             generated = True
         elif (DEFAULT_SCENARIOS / name).is_dir():
             path = DEFAULT_SCENARIOS / name
@@ -128,7 +138,17 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
                        "description": str(idesc.get(iss.name, "") or "")})
     card = _num(getattr(s.outcome_space, "cardinality", None))
     sample = _sample(s)
-    plot_token = _remember(s, human_idx)
+    pic_dir = None if generated else (path or folder)
+    plot_token = _remember(s, human_idx, name, pic_dir)
+    summaries = []
+    for r, u in zip(roles, s.ufuns):
+        try:
+            from hani2.tools.ufun_views import preference_summary
+
+            text = preference_summary(u)
+        except Exception:  # noqa: BLE001 - a summary must not break the details
+            text = ""
+        summaries.append({"role": r["name"], "human": r["human"], "summary": text})
     if len(s.ufuns) < 2:
         warnings.append(f"needs a utility function per role, found {len(s.ufuns)}")
     for k in store.REQUIRED_INFO:
@@ -146,36 +166,80 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
         "roles": roles, "issues": issues, "n_outcomes": int(card) if card is not None else None, "pool": pool,
         "loaded_from": str(path) if path else None, "generated": generated, "sample": sample,
         "has_display_py": _display_py(folder_for_display), "warnings": warnings,
-        "plot_token": plot_token,
+        "plot_token": plot_token, "summaries": summaries,
+        "rules": [{"value": k, **v} for k, v in store.GENERATION_RULES.items()],
+        "layer_rule": layer_rule, "rule": used_rule if generated else None,
+        "simple": bool(simple.is_simple(s)) if generated else bool(info.get(simple.SIMPLE_KEY)),
     }
 
 
-_SHOWN: OrderedDict[str, tuple[Any, int | None]] = OrderedDict()
+_SHOWN: OrderedDict[str, tuple[Any, int | None, str, Path | None]] = OrderedDict()
 """The scenarios last described, by plot token, so their plot (fetched after the details, to not
 delay them) shows the very scenario on screen: generators do not repeat a draw."""
 _SHOWN_MAX = 64
 _SHOWN_LOCK = threading.Lock()
 
 
-def _remember(s, human_idx: int | None) -> str:
+def _remember(s, human_idx: int | None, name: str = "", folder: Path | None = None) -> str:
     token = secrets.token_urlsafe(12)
     with _SHOWN_LOCK:
-        _SHOWN[token] = (s, human_idx)
+        _SHOWN[token] = (s, human_idx, name, folder)
         while len(_SHOWN) > _SHOWN_MAX:
             _SHOWN.popitem(last=False)
     return token
 
 
-def scenario_plots(token: str) -> dict:
-    """The plots of a scenario described before (``plot_token`` of its details)."""
+def _shown(token: str) -> tuple[Any, int | None, str, Path | None]:
     with _SHOWN_LOCK:
         hit = _SHOWN.get(token)
         if hit is not None:
             _SHOWN.move_to_end(token)
     if hit is None:
-        raise HTTPException(404, "This example is no longer available; reload the details to plot it.")
-    plots, note = _plots(*hit)
+        raise HTTPException(404, "This example is no longer available; reload the details to see it.")
+    return hit
+
+
+def scenario_plots(token: str) -> dict:
+    """The plots of a scenario described before (``plot_token`` of its details)."""
+    s, human_idx, _, _ = _shown(token)
+    plots, note = _plots(s, human_idx)
     return {"plots": plots, "plot_note": note}
+
+
+def scenario_picture(token: str, layer: Layer) -> dict:
+    """``{"light", "dark"}`` browser URLs of the picture of a scenario described before (``None``: none)."""
+    from hani2 import scenario_pictures
+
+    s, _, name, folder = _shown(token)
+    with binding(layer):
+        light, dark = scenario_pictures.sources(folder, name, dict(s.info or {}))
+    return {"light": light, "dark": dark}
+
+
+class _ViewSession:
+    """What the Preferences tool asks of a session when it renders outside one."""
+
+    @staticmethod
+    def relabel_text(text: str) -> str:
+        return text
+
+
+def scenario_preferences(token: str, role: int, values: dict | None = None) -> dict:
+    """The Preferences tool of a scenario described before, as role ``role`` sees it there
+    (``values``: the tool's inputs, e.g. the issue its option values show)."""
+    from hani2.tools.builtin import PreferencesTool
+
+    s, human_idx, _, _ = _shown(token)
+    ufuns = list(s.ufuns)
+    if not 0 <= role < len(ufuns):
+        raise HTTPException(404, f"no role {role}")
+    u = ufuns[role]
+    tool = PreferencesTool({"scenario": s, "human_ufun": u, "human_index": role,
+                            "human_id": str(getattr(u, "name", "") or ""), "_session": _ViewSession()})
+    tool.values = dict(values or {})
+    from hani2.tools.ui import jsonable
+
+    return jsonable({"role": _role_names(s)[role], "human": role == human_idx, "components": tool.render()})
 
 
 PLOT_MAX_OUTCOMES = 5_000
@@ -293,7 +357,25 @@ def admin_scenario_plot(token: str):
     return scenario_plots(token)
 
 
+@router.get("/api/admin/scenarios/picture/{token}")
+def admin_scenario_picture(token: str, layer: str | None = None, study: str | None = None, project: str | None = None):
+    """The picture of the example a details call just showed (by its ``plot_token``)."""
+    return scenario_picture(token, need_layer(layer, study, project))
+
+
+@router.post("/api/admin/scenarios/preferences/{token}")
+def admin_scenario_preferences(token: str, body: dict = Body(default_factory=dict)):
+    """The Preferences tool of one role (``{"role": index, "values": {...}}``) of the example a
+    details call just showed (by its ``plot_token``)."""
+    try:
+        role = int(body.get("role", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "role must be a role index") from None
+    values = body.get("values") if isinstance(body.get("values"), dict) else {}
+    return scenario_preferences(token, role, values)
+
+
 @router.get("/api/admin/scenarios/{name}")
 def admin_scenario(name: str, layer: str | None = None, study: str | None = None, project: str | None = None,
-                   scenario: str | None = None, generate: int | None = None):
-    return describe_scenario(name, need_layer(layer, study, project), scenario, generate)
+                   scenario: str | None = None, generate: int | None = None, rule: str | None = None):
+    return describe_scenario(name, need_layer(layer, study, project), scenario, generate, rule)

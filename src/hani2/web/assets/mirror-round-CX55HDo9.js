@@ -1,1 +1,0 @@
-import{c as e}from"./index-BslAo2_g.js";const r={name:"mirror-round",size:24,node:[["path",{d:"M10 6.6 8.6 8",key:"itrr7k"}],["path",{d:"M12 18v4",key:"jadmvz"}],["path",{d:"M15 7.5 9.5 13",key:"1vyrsv"}],["path",{d:"M7 22h10",key:"10w4w3"}],["circle",{cx:"12",cy:"10",r:"8",key:"1gshiw"}]]};r.node;const a=e(r);export{r as __iconData,a as default};

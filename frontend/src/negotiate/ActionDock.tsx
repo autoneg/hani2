@@ -374,9 +374,15 @@ function Running({ st, launcher }: { st: SessionState; launcher: boolean }) {
           </div>
         </Anchor>
       )}
-      {st.phase === "starting" && st.can_play_ai_instead && (
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-          Waiting for another participant… <AiInstead />
+      {st.phase === "starting" && st.waiting_for_opponent && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted" data-testid="waiting-for-person">
+          {st.can_play_ai_instead ? (
+            <>
+              Waiting for another participant… <AiInstead />
+            </>
+          ) : (
+            "Waiting for another participant. The negotiation starts as soon as they are ready."
+          )}
         </div>
       )}
       {!myTurn && st.phase === "running" && !st.negotiation.thinking && (

@@ -119,6 +119,12 @@ def policy(session: "NegotiationSession") -> dict[str, bool | list[str]]:
             out["opponent"] = False
     except Exception:  # noqa: BLE001 - a broken group file must not break the page
         pass
+    # a people-only group file ("ai_fallback": false) offers no AI opponent to pick, even when broken
+    try:
+        if out["opponent"] is not False and assignment.group_people_only(session):
+            out["opponent"] = False
+    except Exception:  # noqa: BLE001
+        out["opponent"] = False
     return out
 
 

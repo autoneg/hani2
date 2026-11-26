@@ -345,6 +345,17 @@ def group_agents(session: Any) -> list[str]:
     return list(g.members) if g is not None and not g.error else []
 
 
+def group_people_only(session: Any) -> bool:
+    """Whether the page's group file says ``"ai_fallback": false``: its sessions never get an AI
+    opponent (no wait-time fallback, no "play an AI" button or choice screen, no AI pick). An
+    admin's ``?opponents=`` replaces the group's pool and so its switch too."""
+    if getattr(session, "is_admin", False) and _query_val(getattr(session, "query", None) or {},
+                                                          "opponents", "agents"):
+        return False
+    g = group_file(session)
+    return g is not None and not g.ai_fallback
+
+
 def _group_of(items: list[str]) -> str:
     """The group name when a level names exactly one group token."""
     if len(items) == 1 and items[0].startswith((":", "@")):

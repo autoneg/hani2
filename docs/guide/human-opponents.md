@@ -88,7 +88,8 @@ a participant whose next opponent may be a person first chooses:
 Nobody is paired before the choice, and the negotiation cannot start until it is made. While
 waiting for a person, the page offers **Play an AI opponent instead** (also without the choice
 screen, unless `human_opponent_fallback` is `false`). It leaves the waiting room and starts with an
-AI opponent.
+AI opponent. A [people-only invitation](#people-only-invitations) shows neither the choice screen nor
+this button.
 
 !!! note "One server process"
     The waiting room lives in the server's memory. HANI2 runs a single server process (`hani2` starts
@@ -99,7 +100,10 @@ AI opponent.
 - **Nobody joins.** After `human_opponent_wait` seconds (an admin setting, default `120`; `0` waits
   forever), the participant gets an AI opponent from the rest of the pool, or from the default pool when the
   pool holds only human entries. A notification tells them. Set `human_opponent_fallback` to `false` to
-  keep waiting instead.
+  keep waiting instead (for the whole study), or `"ai_fallback": false` in a group file for the
+  participants arriving with it ([People-only invitations](#people-only-invitations)). Without a
+  fallback, the page says *Waiting for another participant. The negotiation starts as soon as they
+  are ready.*
 - **Someone does not press Start.** When one side has pressed **Start** and the other has not within
   `human_opponent_wait` seconds, they are separated. The side that pressed waits for someone else. The
   other keeps its scenario and side, and waits for someone new.
@@ -192,6 +196,38 @@ title: Arena
   and so does a new hand-off from the website.
 - `time_limit` (not `counted_time_limit`, which only Prolific and `?pid=` participants use) limits
   each game of a logged-in account; `n_required` and `end_text` do not apply to them.
+
+### People-only invitations
+
+An invitation to play a *person* (the group file's `agents` lists only `human` and/or
+`human+assistant`) can still end in an AI game: the participant may press **Play an AI opponent
+instead** (or **Play an AI opponent now** on the choice screen), and the wait-time fallback brings an
+AI after `human_opponent_wait` seconds. To keep such an invitation strict, add `"ai_fallback": false`
+to its group file:
+
+```json title="results/groups/<key>.json"
+{"agents": ["human+assistant", "human"], "assistant": "team42.assistant:Helper", "ai_fallback": false}
+```
+
+A session whose page has `?group=<key>` then never gets an AI opponent:
+
+- **No wait-time fallback.** It keeps waiting for a person, as with `human_opponent_fallback: false`,
+  and the page says *Waiting for another participant. The negotiation starts as soon as they are ready.*
+- **No AI buttons.** No **Play an AI opponent instead**, and no person/AI choice screen, even with
+  `human_opponent_choice: true` or `?opponent_choice=1`.
+- **No AI picks.** The participant's opponent picker offers nothing, and the file's own AI entries,
+  if it lists any next to the human ones, are dropped (with a warning in the log).
+- **The server refuses** any client message that asks for an AI opponent (`opponent_choice` with
+  `kind: "ai"`, or `choose` with an opponent), not only the hidden buttons. Should a round ever reach
+  the start without its waiting room, it goes back to waiting instead of starting with an AI.
+
+The key works also in a group file without `agents` (one that only names the Assistant): the
+study's own pool then loses its AI entries for these participants. The default is `true`: a file
+without the key behaves as before. When the pool has no human entry at all, the key is ignored (a
+warning says so) and its AI opponents play. Strictness follows the page's `?group=`: keep it in every
+link of the invitation. An admin's
+`?opponents=` replaces the group's pool and so this switch too. Admins writing group files through
+the API must give a JSON boolean (`"false"` as a string is refused).
 
 ## Play against an invited agent
 

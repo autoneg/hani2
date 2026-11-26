@@ -6,6 +6,21 @@
   and one tools column) instead of the full view, unless `?view=`, a study or a project
   (`env.json` → `interface.view`) chooses another. Set `interface.view: full` to keep the old start.
   See [Layout views](guide/interface.md#layout-views).
+- **Walkthroughs.** Four step-by-step walkthroughs for first-time participants, against an AI and
+  with an Assistant, basics and advanced, each with a narrated video. See [Walkthroughs](walkthroughs/index.md).
+- **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
+  participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no
+  **Play an AI opponent instead** button, no person/AI choice screen, no AI entries in the opponent
+  picker (the file's own AI entries are dropped), and the server refuses any request for an AI
+  opponent. The default (`true`) changes nothing. While a participant waits with no AI on offer, the
+  page now says *Waiting for another participant. The negotiation starts as soon as they are ready.*
+  (before, it showed no waiting line under the offer area; this also applies to studies with
+  `human_opponent_fallback: false`). See [People-only invitations](guide/human-opponents.md#people-only-invitations).
+- **Scenario explorer.** A scenario type's page in the console (Library → Scenarios) shows its
+  picture, short and long descriptions, every role's preference summary, its issues, the 2D utility
+  plot and the Preferences tool as each role sees it, in sections that fold away. Generators draw
+  samples by any generation rule (*Simple* or *Random*, whatever the layer's own setting). See
+  [Scenarios](guide/admin.md#scenarios).
 - **The Assistant in the tool area.** `presentation.place: tools` (*The open Assistant goes* on the
   Assistant settings page, per layer) opens the Assistant in the tool area, in the open tool's
   place, instead of beside the page; closing it brings the same tool back. A tool open in a popup is

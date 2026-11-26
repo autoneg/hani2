@@ -1,1 +1,0 @@
-import{c as o}from"./index-BslAo2_g.js";const e={name:"square-chevrons-down",size:24,node:[["path",{d:"M9 14L12 17L15 14",key:"hpyt1r"}],["path",{d:"M9 8L12 11L15 8",key:"19orua"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

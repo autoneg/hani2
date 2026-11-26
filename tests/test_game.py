@@ -412,3 +412,136 @@ def test_a_guest_plays_only_the_invited_agent(client, hani2_home):
     s.start()
     assert wait(lambda: s.phase == "running")
     assert "Conceder" in str(s.ss.get("last_partner_type"))
+
+
+# --------------------------------------------------------------------------- #
+# People-only invitations ("ai_fallback": false in the group file)            #
+# --------------------------------------------------------------------------- #
+PEOPLE = ["human+assistant", "human"]
+
+
+def test_a_people_only_group_keeps_waiting_instead_of_an_ai(hani2_home):
+    folder = game_study(hani2_home, human_opponent_wait=0.3)
+    _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
+    s = play("alice", query={"group": "inv_people"})
+    assert s.people_only() and s.match is not None
+    assert not s.snapshot()["can_play_ai_instead"]
+    s.start()
+    time.sleep(1.5)  # several wait-time expiries
+    assert s.phase == "starting" and s.mechanism is None and s.match is not None and s.waiting_for_opponent
+    assert matches.LOBBY.n_waiting() == 1
+    b = play("bob", query={"group": "inv_people"})  # a person still meets them
+    assert b.match is s.match and s.match.paired
+
+
+def test_without_the_switch_a_people_group_still_falls_back_to_an_ai(hani2_home):
+    folder = game_study(hani2_home, human_opponent_wait=0.3)
+    for i, extra in enumerate(({}, {"ai_fallback": True})):
+        _group(folder, f"inv_any{i}", agents=PEOPLE, **extra)
+        s = play(f"p{i}", query={"group": f"inv_any{i}"})
+        assert not s.people_only() and s.snapshot()["can_play_ai_instead"]
+        s.start()
+        assert s.wait(lambda: s.phase == "running", 20) and s.match is None
+        assert s.snapshot()["opponent_kind"] == "agent"
+        s.close()
+
+
+def test_a_people_only_group_has_no_choice_screen_and_refuses_an_ai(hani2_home):
+    folder = game_study(hani2_home, human_opponent_choice=True)
+    _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
+    s = play("alice", query={"group": "inv_people", "opponent_choice": "1"})
+    assert not s.opponent_choice_enabled() and not s.opponent_choice_pending
+    assert s.snapshot()["opponent_choice"] is None and s.match is not None
+    m = s.match
+    r = s.choose_opponent_kind("ai")
+    assert r["ok"] is False and "person" in r["error"]
+    assert s.match is m and matches.LOBBY.n_waiting() == 1  # still in its waiting room
+    s.start()
+    assert s.choose_opponent_kind("ai")["ok"] is False
+    time.sleep(0.3)
+    assert s.phase == "starting" and s.match is m and s.mechanism is None
+    other = play("carol", query={"opponent_choice": "1"})  # the same study without the group: unchanged
+    assert other.opponent_choice_pending
+
+
+def test_a_people_only_group_drops_its_ai_entries_and_offers_no_ai_pick(hani2_home):
+    folder = game_study(hani2_home)
+    _study_with_its_own_choices(folder)
+    _group(folder, "inv_mixed", agents=["human", "BoulwareTBNegotiator"], ai_fallback=False)
+    s = play("alice", query={"group": "inv_mixed"})
+    assert s.opponent_pool() == ["human"] and s.people_only()
+    for _ in range(5):
+        s.load()
+        assert s.match is not None
+    st = s.snapshot()["choices"]
+    assert st is None or not st["opponent"]["options"]
+    assert s.choose("opponent", "BoulwareTBNegotiator")["ok"] is False
+
+
+def test_a_people_only_group_without_people_is_ignored(hani2_home):
+    folder = game_study(hani2_home)
+    _group(folder, "inv_ai", agents=["ConcederTBNegotiator"], ai_fallback=False)
+    s = play("alice", query={"group": "inv_ai"})
+    assert not s.people_only() and s.match is None
+    s.start()
+    assert s.wait(lambda: s.phase == "running", 20)
+    assert "Conceder" in str(s.ss.get("last_partner_type"))
+
+
+def test_a_people_only_session_never_starts_an_ai_even_without_its_match(hani2_home):
+    folder = game_study(hani2_home)
+    _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
+    s = play("alice", query={"group": "inv_people"})
+    s._leave_match()  # as if the waiting room were lost: start() would build an AI opponent
+    s.ss["match_id"] = None
+    s.round_plan = dict(s.round_plan or {}, partner="BoulwareTBNegotiator")
+    s.start()
+    assert s.wait(lambda: s.match is not None, 10)
+    assert s.mechanism is None and s.phase == "ready" and matches.LOBBY.n_waiting() == 1
+
+
+def test_a_broken_people_only_group_still_offers_no_ai_pick(hani2_home):
+    from hani2 import choices
+
+    folder = game_study(hani2_home)
+    _study_with_its_own_choices(folder)
+    _group(folder, "inv_broken", agents=PEOPLE, members=["human"], ai_fallback=False)  # conflicting keys
+    s = play("alice", query={"group": "inv_broken"})
+    assert choices.policy(s)["opponent"] is False
+    assert s.choose("opponent", "BoulwareTBNegotiator")["ok"] is False
+
+
+def test_the_server_refuses_an_ai_for_a_people_only_guest(client, hani2_home):
+    from hani2.server import _dispatch_msg, hub
+
+    folder = projects.study_dir(projects.parse_ref(GAME))
+    _study_with_its_own_choices(folder, human_opponent_choice=True)
+    _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
+    nxt = f"/app?study={GAME}&group=inv_people&opponent_choice=1"
+    go(client, sso.sign(claims(), SECRET), next=nxt)
+    sid = client.post("/api/session", json={"mode": "main", "query": {
+        "study": GAME, "group": "inv_people", "opponent_choice": "1"}}).json()["sid"]
+    s = hub.get(sid)
+    assert s.match is not None and not s.opponent_choice_pending
+    snap = s.snapshot()
+    assert not snap["can_play_ai_instead"] and snap["opponent_choice"] is None
+    assert _dispatch_msg(s, {"type": "opponent_choice", "kind": "ai"})["ok"] is False
+    assert _dispatch_msg(s, {"type": "choose", "kind": "opponent", "value": "BoulwareTBNegotiator"})["ok"] is False
+    assert s.match is not None and s.chosen_opponent is None
+    _dispatch_msg(s, {"type": "start"})
+    assert _dispatch_msg(s, {"type": "opponent_choice", "kind": "ai"})["ok"] is False
+    time.sleep(0.3)
+    assert s.phase == "starting" and s.mechanism is None and s.match is not None
+
+
+def test_a_people_only_group_without_agents_filters_the_studys_pool(hani2_home):
+    folder = game_study(hani2_home, human_opponents_first=False)  # the study's pool also has an AI
+    _group(folder, "inv_strict", assistant="none", ai_fallback=False)
+    s = play("alice", query={"group": "inv_strict"})
+    assert s.people_only() and set(s.opponent_pool()) == set(PEOPLE)
+    for _ in range(6):
+        s.round_plan = {}
+        s.load()
+        assert s.match is not None, "a people-only round always looks for a person"
+    plain = play("bob", query={})
+    assert "BoulwareTBNegotiator" in plain.opponent_pool()  # the study without the group is unchanged

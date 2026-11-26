@@ -186,7 +186,7 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `show_opponent_type` | `false` | Show the opponent agent's type. Always on for admins. (Old name: `show_partner_type`.) |
 | `opponent_types` | `[]` | Opponent agents for this session. (Old name: `partner_types`.) |
 | `human_opponent_wait` | `120` | Seconds a participant waits for a [human opponent](human-opponents.md) before the fallback (0: forever). |
-| `human_opponent_fallback` | `true` | After that wait, negotiate with an AI opponent from the rest of the pool (else keep waiting). |
+| `human_opponent_fallback` | `true` | After that wait, negotiate with an AI opponent from the rest of the pool (else keep waiting). For one invitation's participants only, use `"ai_fallback": false` in its group file ([People-only invitations](human-opponents.md#people-only-invitations)). |
 | `human_opponent_absent` | `60` | Seconds without an open page after which a participant counts as having left a human-opponent negotiation. |
 | `human_opponents_first` | `false` | When the pool has human entries, every negotiation looks for a person first, of any human kind the pool lists; the AI entries are only the fallback. See [A person first](human-opponents.md#a-person-first-any-person). |
 | `human_opponent_choice` | `false` | Before pairing, the participant chooses *Play a person* or *Play an AI opponent now* (also `?opponent_choice=1`). See [Choosing a person or an AI](human-opponents.md#choosing-a-person-or-an-ai). |
