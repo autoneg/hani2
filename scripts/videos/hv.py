@@ -101,6 +101,7 @@ def film(name: str) -> Film:
     """A Film whose work files go to ``VIDEOS/work/<name>``."""
     out = VIDEOS / "work" / name
     return HaniFilm(out, voice="af_heart", say_map=SAY_MAP, brand=BRAND, logo=False,  # HANI2 is not an NEC project
+                    theme_css="#part:empty{display:none}",  # no empty chip before the first section
                     headless="--show" not in sys.argv)
 
 
