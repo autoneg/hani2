@@ -437,6 +437,8 @@ class Lobby:
         self._loading: dict[str, threading.Lock] = {}
         #: sessions showing the "play a person / an AI" choice, by match key (told when the lobby changes)
         self._watchers: dict[str, "weakref.WeakSet[NegotiationSession]"] = {}
+        #: bumped by :meth:`clear`: a match made before it never comes back into the lobby
+        self._generation = 0
 
     def loading(self, s: NegotiationSession) -> threading.Lock:
         """The lock a session holds from looking for a partner until it waits in the lobby."""
@@ -513,12 +515,15 @@ class Lobby:
     def host(self, s: NegotiationSession, host_index: int, scenario: Any, info: dict, sdir: Any,
              evaluation: Any, want_assistant: Any = False, has_assistant: bool = False) -> Match:
         m = Match(match_key(s), s, host_index, scenario, info, sdir, evaluation, want_assistant, has_assistant)
+        m.generation = self._generation
         s.match = m  # before it is visible to a joining session
         self.requeue(m)
         return m
 
     def requeue(self, m: Match) -> None:
         with self._lock:
+            if getattr(m, "generation", self._generation) != self._generation:
+                return  # made before the lobby was cleared (tests): it never comes back
             q = self.waiting.setdefault(m.key, [])
             if m not in q:
                 q.append(m)
@@ -549,6 +554,7 @@ class Lobby:
                     m._stopped = True
             self.waiting.clear()
             self._watchers.clear()
+            self._generation += 1
 
 
 LOBBY = Lobby()
