@@ -458,3 +458,157 @@ def test_a_blank_study_override_inherits_the_project_default(two_studies):
     path.write_text(path.read_text(encoding="utf-8") + "\nn_required:\n", encoding="utf-8")
     ref = projects.parse_ref("HI2027/hi-02")
     assert projects.setting("n_required", 99, ref=ref) == 2
+
+
+# --------------------------------------------------------------------------- #
+# study_mode and pairing (hani2.study_modes)                                   #
+# --------------------------------------------------------------------------- #
+def test_the_mode_is_derived_from_the_opponents():
+    from hani2 import study_modes
+
+    assert study_modes.derive(None) == study_modes.derive([":pan"]) == "solo"
+    assert study_modes.derive(["human"]) == study_modes.derive("human+assistant") == "paired"
+    assert study_modes.derive(["human assistant", ":pan"]) == "mixed"
+
+
+@pytest.mark.parametrize("kind,fields,match", [
+    ("assistant", {"study_mode": "solo", "opponents": ["human+assistant"]}, "Solo study plays AI opponents only"),
+    ("assistant", {"study_mode": "solo", "opponents": [":pan"], "assistants": ["none"]}, "name the Assistants"),
+    ("assistant", {"study_mode": "paired", "opponents": ["human"]}, r"needs opponents: \[human\+assistant\]"),
+    ("assistant", {"study_mode": "paired", "opponents": ["human+assistant", ":pan"]}, "needs opponents"),
+    ("assistant", {"study_mode": "paired", "assistants": ["none"]}, "each side needs an Assistant"),
+    ("opponent", {"study_mode": "paired", "opponents": ["human+assistant"]}, r"needs opponents: \[human\]"),
+    ("opponent", {"study_mode": "paired", "assistants": ["team.Helper"]}, r"assistants: \[none\]"),
+    ("none", {"study_mode": "paired", "opponents": ["human", ":pan"]}, "human entries only"),
+    ("none", {"study_mode": "mixed"}, "name the pool"),
+    ("none", {"study_mode": "mixed", "opponents": [":pan"]}, "no human entry"),
+    ("none", {"study_mode": "duo"}, "study_mode must be one of solo, paired, mixed"),
+    ("none", {"pairing": {"assign": "cells", "bogus": 1}}, "unknown key 'bogus'"),
+    ("none", {"pairing": {"scope": "world"}}, "pairing.scope must be one of study, project, code"),
+    ("none", {"pairing": {"slack": -1}}, "slack"),
+    ("none", {"pairing": {"fallback_opponents": ["human"]}}, "remove human"),
+])
+def test_a_mode_that_disagrees_is_refused_on_save(hani2_home, kind, fields, match):
+    projects.create_project("P", kind=kind)
+    with pytest.raises(ValueError, match=match):
+        projects.create_study("P/s", **fields)
+    assert not (projects.study_dir(StudyRef("P", "s")) / "study.yaml").exists()
+
+
+def test_the_project_file_is_checked_too(hani2_home):
+    with pytest.raises(ValueError, match="study_mode is 'paired'"):
+        projects.create_project("HAN", kind="opponent", defaults={"study_mode": "paired", "opponents": ["human+assistant"]})
+    # a study is checked against the project's defaults
+    projects.create_project("HI", kind="assistant", defaults={"study_mode": "solo", "opponents": [":pan"]})
+    with pytest.raises(ValueError, match="study_mode is 'solo'"):
+        projects.create_study("HI/s", opponents=["human+assistant"])
+    projects.create_study("HI/p", study_mode="paired", opponents=["human+assistant"])
+
+
+def test_paired_fills_in_the_pool_and_modes_that_agree_are_accepted(hani2_home):
+    from hani2 import study_modes
+
+    projects.create_project("HAN", kind="opponent")
+    projects.create_project("HI", kind="assistant")
+    projects.create_project("G", kind="none")
+    projects.create_study("HAN/p", study_mode="paired")
+    projects.create_study("HI/p", study_mode="paired")
+    projects.create_study("G/p", study_mode="paired", assistants=["none"])
+    projects.create_study("HI/m", study_mode="mixed", opponents=["human+assistant", ":pan"])
+    projects.create_study("HI/s", study_mode="solo", opponents=[":pan"])
+    han = study_modes.resolve("HAN/p")
+    assert han.mode == "paired" and han.explicit and han.errors == []
+    assert han.filled == {"opponents": ["human"], "assistants": ["none"]}
+    assert study_modes.resolve("HI/p").filled == {"opponents": ["human+assistant"]}
+    assert study_modes.resolve("G/p").filled == {"opponents": ["human"]}
+    assert study_modes.resolve("HI/m").mode == "mixed" and study_modes.resolve("HI/s").mode == "solo"
+    # unset: derived, and nothing is filled in
+    projects.create_study("HI/old", opponents=["human+assistant"])
+    old = study_modes.resolve("HI/old")
+    assert old.declared is None and old.mode == "paired" and old.filled == {} and not old.explicit
+
+
+def test_pairing_merges_key_by_key(hani2_home):
+    from hani2 import study_modes
+
+    projects.create_project("HI", kind="assistant",
+                            defaults={"study_mode": "paired", "pairing": {"scope": "project", "slack": 2}})
+    projects.create_study("HI/s", pairing={"assign": "order"})
+    projects.create_study("HI/s", pairing={"allow_same_assistant": True})  # an update merges with the file
+    assert projects.load_study("HI/s").overrides["pairing"] == {"assign": "order", "allow_same_assistant": True}
+    info = study_modes.resolve("HI/s")
+    assert info.pairing == {"scope": "project", "slack": 2, "assign": "order", "allow_same_assistant": True}
+    eff = info.pairing_effective
+    assert eff["scope"] == "project" and eff["fallback"] == "ai" and eff["cell_scenario"] == "type"
+    # a declared paired study meets within itself by default; other studies keep the project lobby
+    projects.create_study("HI/t")
+    assert study_modes.resolve("HI/t").pairing_effective["scope"] == "project"
+    projects.create_project("HJ", kind="assistant")
+    projects.create_study("HJ/t", study_mode="paired")
+    assert study_modes.resolve("HJ/t").pairing_effective["scope"] == "study"
+    assert study_modes.resolve("HJ/t").pairing_effective["assign"] == "cells"
+
+
+def test_fallback_wait_and_human_opponent_fallback_must_agree(hani2_home):
+    projects.create_project("HI", kind="assistant")
+    folder = projects.study_dir(StudyRef("HI", "s"))
+    folder.mkdir(parents=True)
+    (folder / "env.json").write_text(json.dumps({"negotiation": {"human_opponent_fallback": True}}), encoding="utf-8")
+    with pytest.raises(ValueError, match="human_opponent_fallback"):
+        projects.create_study("HI/s", study_mode="paired", pairing={"fallback": "wait"})
+    projects.create_study("HI/s", study_mode="paired", pairing={"fallback": "ai"})
+    # without an explicit human_opponent_fallback anywhere, any fallback is accepted
+    projects.create_study("HI/t", study_mode="paired", pairing={"fallback": "wait"})
+
+
+def test_a_hand_edited_contradiction_is_reported_and_opponents_wins(hani2_home, client):
+    from typer.testing import CliRunner
+
+    from hani2 import cli, study_modes
+
+    projects.create_project("HI", kind="assistant")
+    folder = projects.study_dir(StudyRef("HI", "s"))
+    folder.mkdir(parents=True)
+    (folder / "study.yaml").write_text("study_mode: solo\nopponents: [human+assistant]\n"
+                                       "pairing: {assign: cells}\n", encoding="utf-8")
+    info = study_modes.resolve("HI/s")
+    assert info.mode == "paired" and info.declared == "solo" and info.mode_error and not info.explicit
+    assert any("study_mode is 'solo'" in e for e in info.errors)
+    out = CliRunner().invoke(cli.app, ["study", "show", "HI/s"]).output
+    assert "study_mode (in use): paired" in out and "disagrees" in out and "ERROR" in out
+    assert "pairing (in use):" in out and "assign: cells" in out and "scope: project  (default)" in out
+    client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
+    st = client.get("/api/admin/projects/HI/studies/s").json()
+    assert st["study_mode_effective"]["mode"] == "paired" and st["study_mode_effective"]["mode_error"]
+    assert any("study_mode is 'solo'" in e for e in st["errors"])
+    # the session records the derived mode with study_mode_error
+    s = make_session(user="alice", partner=None, study="HI/s", load=False)
+    assert s._study_mode_event() == {"study_mode": "paired", "study_mode_error": True, "study_mode_declared": "solo"}
+
+
+def test_admin_put_refuses_a_contradiction(hani2_home, client):
+    client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
+    assert client.put("/api/admin/projects/HAN", json={"data": {"kind": "opponent"}}).json()["ok"]
+    r = client.put("/api/admin/projects/HAN/studies/p", json={"data": {"study_mode": "paired", "opponents": [":pan"]}})
+    assert r.status_code == 400 and "study_mode" in r.json()["detail"] and "opponents" in r.json()["detail"]
+    assert client.put("/api/admin/projects/HAN/studies/p", json={"data": {"study_mode": "paired"}}).status_code == 200
+    r = client.put("/api/admin/projects/HAN", json={"yaml": "kind: opponent\nstudy_mode: mixed\n"})
+    assert r.status_code == 400 and "name the pool" in r.json()["detail"]
+    pr = client.get("/api/admin/projects/HAN").json()
+    assert pr["study_mode_effective"]["mode"] == "solo"
+
+
+def test_cli_study_mode_option_and_show(hani2_home):
+    from typer.testing import CliRunner
+
+    from hani2 import cli
+
+    run = CliRunner()
+    assert run.invoke(cli.app, ["project", "create", "HAN", "--kind", "opponent"]).exit_code == 0
+    r = run.invoke(cli.app, ["study", "create", "HAN/p", "--study-mode", "paired", "--opponents", ":pan"])
+    assert r.exit_code != 0 and "study_mode" in r.output
+    assert run.invoke(cli.app, ["study", "create", "HAN/p", "--study-mode", "paired"]).exit_code == 0
+    out = run.invoke(cli.app, ["study", "show", "HAN/p"]).output
+    assert "study_mode (in use): paired  (declared)" in out
+    assert "filled in: opponents: [human]" in out and "filled in: assistants: [none]" in out
+    assert "scope: study  (default)" in out and "assign: cells  (default)" in out

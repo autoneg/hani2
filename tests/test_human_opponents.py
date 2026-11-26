@@ -349,3 +349,109 @@ def test_prolific_participants_scheduled_against_human_assistant(hani2_home, mon
     b = make_session(user="prolific_PB", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
     assert a.round_plan["partner"] == "human+assistant"
     assert a.match is not None and a.match is b.match
+
+
+# --------------------------------------------------------------------------- #
+# study_mode: where people meet and the per-session checks                     #
+# --------------------------------------------------------------------------- #
+def _group(ref, key, data):
+    import json
+
+    from hani2 import projects
+
+    d = projects.study_dir(ref) / "results" / "groups"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{key}.json").write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_the_lobby_follows_pairing_scope(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/paired", study_mode="paired")  # declared paired: the study alone
+    projects.create_study("HI/wide", study_mode="paired", pairing={"scope": "project"})
+    projects.create_study("HI/old", opponents=["human+assistant"])  # not declared: as before
+    projects.create_study("HI/codes", study_mode="paired", pairing={"scope": "code"})
+
+    def key(study, query=None):
+        s = make_session(user=f"u{uuid.uuid4().hex[:6]}", partner=None, study=f"HI/{study}", load=False,
+                         query=query or {})
+        return s, matches.match_key(s)
+
+    assert key("paired")[1] == "study:HI/paired"
+    assert key("wide")[1] == key("old")[1] == "project:HI"
+    s, k = key("codes")
+    assert k == f"nocode:{s.sid}"  # without a code, nobody to meet
+    assert key("codes", {"match": "abc"})[1] == key("paired", {"match": "abc"})[1] == "code:abc"
+
+
+def test_paired_studies_scoped_to_the_study_do_not_meet_each_other(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/a", study_mode="paired")
+    projects.create_study("HI/b", study_mode="paired")
+    a = make_session(user="alice", partner=None, study="HI/a", n_steps=10)
+    b = make_session(user="bob", partner=None, study="HI/b", n_steps=10)
+    assert a.match is not None and b.match is not None and a.match is not b.match
+    c = make_session(user="carol", partner=None, study="HI/a", n_steps=10)
+    assert c.match is a.match and a.match.paired
+
+
+def test_a_paired_han_study_without_opponents_pairs_people_without_assistants(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HAN", kind="opponent")
+    projects.create_study("HAN/p", study_mode="paired")
+    a = make_session(user="alice", partner=None, study="HAN/p", n_steps=10)
+    b = make_session(user="bob", partner=None, study="HAN/p", n_steps=10)
+    assert a.opponent_pool() == ["human"]
+    assert a.support_agent is None and b.support_agent is None
+    assert a.match is not None and a.match is b.match
+
+
+def test_group_files_are_checked_against_a_declared_mode(hani2_home):
+    from hani2 import projects
+
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/p", study_mode="paired")
+    projects.create_study("HI/s", study_mode="solo", opponents=["BoulwareTBNegotiator"])
+    projects.create_study("HI/old", opponents=["BoulwareTBNegotiator"])
+    for st in ("p", "s", "old"):
+        ref = projects.StudyRef("HI", st)
+        _group(ref, "mix", {"agents": ["human+assistant", "LinearTBNegotiator"]})
+        _group(ref, "ai", {"agents": ["LinearTBNegotiator"]})
+    # Paired: the group's AI entries are dropped; a group of AI only is refused (the study's pool)
+    p = make_session(user="alice", partner=None, study="HI/p", query={"group": "mix"}, load=False)
+    assert p.opponent_pool() == ["human+assistant"]
+    p2 = make_session(user="bob", partner=None, study="HI/p", query={"group": "ai"}, load=False)
+    assert p2.opponent_pool() == ["human+assistant"]
+    # Solo: a group with a human entry is refused, and the study's pool is used
+    s = make_session(user="carol", partner=None, study="HI/s", query={"group": "mix"}, load=False)
+    assert s.opponent_pool() == ["BoulwareTBNegotiator"]
+    s2 = make_session(user="dan", partner=None, study="HI/s", query={"group": "ai"}, load=False)
+    assert s2.opponent_pool() == ["LinearTBNegotiator"]
+    # no declared mode: the group file is used as it is (as before)
+    o = make_session(user="erin", partner=None, study="HI/old", query={"group": "mix"}, load=False)
+    assert o.opponent_pool() == ["human+assistant", "LinearTBNegotiator"]
+    # an admin's ?opponents= is a test link: never checked
+    adm = make_session(user="admin", partner=None, study="HI/s", is_admin=True, load=False,
+                       query={"opponents": "human+assistant,LinearTBNegotiator"})
+    assert adm.opponent_pool() == ["human+assistant", "LinearTBNegotiator"]
+
+
+def test_a_schedule_slot_is_checked_against_a_declared_mode(hani2_home, monkeypatch):
+    import json
+
+    from hani2 import projects
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    projects.create_project("HS", kind="assistant")
+    projects.create_study("HS/s", type="prolific", practice=False, study_mode="solo", opponents=["BoulwareTBNegotiator"])
+    ref = projects.StudyRef("HS", "s")
+    d = projects.study_dir(ref) / "results" / "prolific_PA"
+    d.mkdir(parents=True)
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
+        {"slot": 0, "agent_class_name": "human+assistant", "scenario_type": "Trade"}]}), encoding="utf-8")
+    a = make_session(user="prolific_PA", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    assert a.round_plan["partner"] == "BoulwareTBNegotiator" and a.match is None

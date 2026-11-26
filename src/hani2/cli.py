@@ -1293,6 +1293,8 @@ def project_create(
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
     assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
+    study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
 ):
     """Create a project (or update its project.yaml)."""
     from hani2 import projects
@@ -1300,7 +1302,8 @@ def project_create(
     sched = _scheduling_options(opponent_scheduling, assistant_scheduling, scenario_scheduling)
     try:
         pr = projects.create_project(name, full_name=full_name, kind=kind, short_description=description, link=link,
-                                     year=year, organizer=organizer, contact=contact, scheduling=sched)
+                                     year=year, organizer=organizer, contact=contact, scheduling=sched,
+                                     study_mode=study_mode, opponents=_csv(opponents))
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Project {pr.name} at {projects.project_dir(pr.name)}")
@@ -1329,7 +1332,11 @@ def project_show(name: str):
     pr = projects.load_project(name)
     typer.echo(f"{name}  ({pr.path or 'no folder: uses the settings folder'})")
     _echo_mapping({k: v for k, v in pr.to_dict().items() if k != "name"})
-    for e in pr.errors:
+    from hani2 import study_modes
+
+    mode = study_modes.resolve_project(name)
+    _echo_mode(mode)
+    for e in dict.fromkeys([*pr.errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     for st in projects.list_studies(name):
         typer.echo(f"  study {st}")
@@ -1352,6 +1359,8 @@ def study_create(
     opponent_scheduling: Annotated[Optional[str], typer.Option("--opponent-scheduling", help="How opponents are scheduled (see `hani2 scheduling list`), e.g. latin_square, random, cyclic, fixed_order, external.")] = None,
     assistant_scheduling: Annotated[Optional[str], typer.Option("--assistant-scheduling", help="How Assistants are assigned, e.g. balanced, random_fixed, random_each, latin_square, cyclic, round_robin, external.")] = None,
     scenario_scheduling: Annotated[Optional[str], typer.Option("--scenario-scheduling", help="How scenario types are scheduled, e.g. by_participant, set_order, random, latin_square, external.")] = None,
+    study_mode: Annotated[Optional[str], typer.Option("--study-mode", help="solo, paired or mixed (unset: derived from the opponents). Checked against the opponents, the Assistant and the project's kind.")] = None,
+    opponents: Annotated[Optional[str], typer.Option("--opponents", help="The opponent pool, comma-separated (e.g. human+assistant or :pan,:han2026-finalists).")] = None,
 ):
     """Create a study (or update its study.yaml) and print the links to give participants."""
     from hani2 import projects
@@ -1361,11 +1370,35 @@ def study_create(
     try:
         st = projects.create_study(r, type=type, title=title, completion_code=completion_code,
                                    completion_url=completion_url, prolific_study_id=prolific_study_id, link=link,
-                                   start=start, end=end, n_required=n_required, end_text=end_text, scheduling=sched)
+                                   start=start, end=end, n_required=n_required, end_text=end_text, scheduling=sched,
+                                   study_mode=study_mode, opponents=_csv(opponents))
     except ValueError as e:
         raise typer.BadParameter(str(e)) from None
     typer.echo(f"Study {r} ({st.type}) at {st.path}")
     _print_links(r, base_url)
+
+
+def _csv(value: Optional[str]) -> Optional[list[str]]:
+    return [x.strip() for x in value.split(",") if x.strip()] if value else None
+
+
+def _echo_mode(info) -> None:
+    """The mode block of ``project show`` / ``study show``."""
+    from hani2 import study_modes
+
+    if info.declared and not info.mode_error:
+        how = "declared"
+    elif info.declared:
+        how = f"derived from opponents; the declared {info.declared!r} disagrees"
+    else:
+        how = "derived from opponents"
+    typer.echo(f"  study_mode (in use): {info.mode}  ({how})")
+    for k, v in info.filled.items():
+        typer.echo(f"    filled in: {k}: [{', '.join(v)}]")
+    if info.mode in (study_modes.PAIRED, study_modes.MIXED) or info.pairing:
+        typer.echo("  pairing (in use):")
+        for k, v in info.pairing_effective.items():
+            typer.echo(f"    {k}: {v}" + ("" if k in info.pairing else "  (default)"))
 
 
 def _scheduling_options(opponents: Optional[str], assistants: Optional[str], scenarios: Optional[str]) -> Optional[dict]:
@@ -1430,7 +1463,11 @@ def study_show(
     typer.echo("  scheduling (in use):")
     for d in scheduling.DIMENSIONS:
         typer.echo(f"    {d}: {effective[d]}" + ("" if d in explicit else "  (default)"))
-    for e in dict.fromkeys([*st.errors, *errors]):
+    from hani2 import study_modes
+
+    mode = study_modes.resolve(r)
+    _echo_mode(mode)
+    for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)
 
