@@ -531,7 +531,11 @@ def test_the_server_refuses_an_ai_for_a_people_only_guest(client, hani2_home):
     _dispatch_msg(s, {"type": "start"})
     assert _dispatch_msg(s, {"type": "opponent_choice", "kind": "ai"})["ok"] is False
     time.sleep(0.3)
-    assert s.phase == "starting" and s.mechanism is None and s.match is not None
+    # no AI opponent ever starts: the session still waits in its match, or (when a person left waiting by
+    # another test in the same process joined it) negotiates with that person, never with an agent
+    assert s.match is not None
+    assert s.mechanism is None or s.match.paired, "a people-only guest started without a person"
+    assert s.phase in ("starting", "running")
 
 
 def test_a_people_only_group_without_agents_filters_the_studys_pool(hani2_home):
