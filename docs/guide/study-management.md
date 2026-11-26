@@ -190,7 +190,12 @@ overrides are merged, so a study cannot contradict its project's mode silently:
 On save (`hani2 study create`, the admin API's `PUT`, **Save** in the admin console) such a file
 is refused (a 400 from the API). The study page of the admin console shows the problem under its
 **Mode** row before you save, from the study's overrides and the project's
-defaults. A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
+defaults. The study page has the same rows as the project's defaults, each with its **?**; an
+empty field keeps the project's value:
+
+![The Mode and HAN agents rows (here of a project's defaults; a study's overrides look the same)](../assets/screens/editor-mode.png)
+
+A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
 `errors`, and `opponents` wins: the study runs with the derived mode.
 
 ### Checks for each session

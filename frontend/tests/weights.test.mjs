@@ -31,6 +31,9 @@ test("Normalise keeps proportions and sums to exactly 100", () => {
   assert.deepEqual(normalise([0, 0, 0, 0]), [25, 25, 25, 25], "all zero: equal shares");
   assert.deepEqual(normalise([0, 5]), [0, 100], "a zero weight stays 0");
   assert.deepEqual(normalise([]), []);
+  // a stored score whose fractions are thirds opens at exactly 100 %, so it can be saved again
+  assert.ok(atHundred(normalise([1 / 3, 1 / 3, 1 / 3])));
+  assert.ok(atHundred(normalise([1 / 7, 2 / 7, 4 / 7])));
 });
 
 test("percentages are saved as fractions that sum to 1 (within the API's 1e-6)", () => {

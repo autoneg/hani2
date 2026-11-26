@@ -122,13 +122,13 @@ export function kOfN(method: string | null | undefined, k: number | null | undef
   if (!per) return { perNegotiation: false, warn: false, text: `${head}: one Assistant per person (${m || "the default method"})` };
   if (m === "random_each")
     return repeats === false
-      ? { perNegotiation: true, warn: true, text: `${head}: random_each can repeat an Assistant, but Repeats is off: saving is refused` }
+      ? { perNegotiation: true, warn: true, text: `${head}: random_each can repeat an Assistant, but Repeats is No: saving is refused` }
       : { perNegotiation: true, warn: false, text: `${head}: drawn each negotiation, so repeats can happen` };
   if (K == null || N == null || N <= 0) return { perNegotiation: true, warn: false, text: head };
   if (K > N)
     return repeats === true
       ? { perNegotiation: true, warn: false, text: `${head}: K > N, and Repeats is on: the Assistants wrap around` }
-      : { perNegotiation: true, warn: true, text: `${head}: K > N but each Assistant is used at most once: saving is refused (lower K, add Assistants or turn Repeats on)` };
+      : { perNegotiation: true, warn: true, text: `${head}: K > N but each Assistant is used at most once per person: lower K, add Assistants or turn Repeats on (a file that names the pool is refused on save)` };
   return { perNegotiation: true, warn: false, text: `${head}: each Assistant at most once per person${K === N ? " (every Assistant once)" : ""}` };
 }
 

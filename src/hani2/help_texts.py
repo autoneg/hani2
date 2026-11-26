@@ -349,8 +349,10 @@ switched off.""",
 | `order` | each person follows their planned order of Assistants strictly; two people fit only when their next planned Assistants form an allowed pair | small scripted lab sessions (it thins the pool a lot) |
 | `random` | any waiting person who fits | today's behaviour, the default otherwise |
 
-Only completed matches fill a cell; an abandoned match or an AI fallback fills none. The value is
-checked and stored now; balancing by cells is applied as the pairing engine supports it.""",
+Only completed matches fill a cell; an abandoned match or an AI fallback fills none.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.""",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     "pairing.slack": Help(
         "Slack", "Cells within this count of the emptiest are treated as tied (0: strictest balance)",
@@ -360,7 +362,10 @@ predictable. Every candidate whose cell count is within `slack` of the minimum c
 the tie is broken by the other balance terms and finally at random.
 
 - `0`: the strictest balance, the most predictable pairing;
-- `1` (default): nearly as balanced, and nobody can aim at a particular person.""",
+- `1` (default): nearly as balanced, and nobody can aim at a particular person.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.""",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     "pairing.cell_scenario": Help(
         "Scenario in a cell", "type: balance scenario types (domains); name: balance single scenarios too",
@@ -368,14 +373,20 @@ the tie is broken by the other balance terms and finally at random.
 A match cell is (scenario, Assistant at side 0, Assistant at side 1). With `type` (the default) the
 scenario is the domain, and the single scenario (which preferences were used) is recorded but not
 balanced. With `name`, single scenarios are balanced too, which multiplies the number of cells by
-the scenarios per type: with 5 Assistants, 3 domains and 5 scenarios each, 60 cells become 300.""",
+the scenarios per type: with 5 Assistants, 3 domains and 5 scenarios each, 60 cells become 300.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.""",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     "pairing.allow_same_assistant": Help(
         "Same-Assistant matches", "May both sides of a match use the same Assistant?",
         """\
 **No** (the default) in evaluation studies: a match of an Assistant against itself says nothing
 about it compared with the others. **Yes** in the game, where an invited guest plays with the
-inviter's Assistant, so the two necessarily share one.""",
+inviter's Assistant, so the two necessarily share one.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.""",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     "pairing.fallback": Help(
         "When nobody fits", "ai: play an AI opponent; wait: keep waiting; end: skip the slot",
@@ -388,11 +399,16 @@ What happens when nobody fits within `human_opponent_wait` seconds:
 | `wait` | keeps waiting (the same as `human_opponent_fallback: false`; for supervised lab sessions) |
 | `end` | skips the slot: they move on to their next Assistant, or finish early with the completion code |
 
-When `human_opponent_fallback` is also set in an `env.json` and disagrees, the file is refused.""",
+When `human_opponent_fallback` is also set in an `env.json` and disagrees, the file is refused. To
+keep a supervised session waiting today, set `human_opponent_fallback: false` in the study's
+`env.json`.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.""",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     "pairing.fallback_opponents": Help(
         "Fallback opponents", "The AI pool of the fallback (default: the study's AI opponents, else :pan)",
-        "AI entries only (agents and groups such as `:pan`); human entries are refused.",
+        "AI entries only (agents and groups such as `:pan`); human entries are refused.\n\n**In this version** only *Where people meet* decides who is paired; this key is checked and stored\nfor the balanced pairing of matches, which a later version applies.",
         section="Pairing", docs="project-management.md#pairing-defaults"),
     # ------------------------------------------------------------------ scores
     "scores": Help(

@@ -356,7 +356,7 @@ function PairingGroup({ value, onChange, inherit, effective }: { value: any; onC
     <Select label={label} value={v[k] ?? ""} onChange={(x) => put(k, x)} options={[{ value: "", label: shown(k) }, ...opts]} />
   );
   return (
-    <Group title="Pairing" id="setting-pairing" footer="Read only in Paired and Mixed studies. Empty fields keep the value above; a study's block is merged key by key with its project's.">
+    <Group title="Pairing" id="setting-pairing" footer="Read only in Paired and Mixed studies. Empty fields keep the value above; a study's block is merged key by key with its project's. This version uses Where people meet; the other keys are checked and kept for the balanced pairing of matches.">
       <Row id="pairing-scope" help="pairing.scope" label="Where people meet" overridden={v.scope !== undefined} onReset={() => put("scope", null)}>{sel("scope", "Where people meet", ["study", "project", "code"])}</Row>
       <Row id="pairing-assign" help="pairing.assign" label="How a match is formed" overridden={v.assign !== undefined} onReset={() => put("assign", null)}>{sel("assign", "How a match is formed", ["cells", "order", "random"])}</Row>
       <Row id="pairing-slack" help="pairing.slack" label="Slack" overridden={v.slack !== undefined} onReset={() => put("slack", null)}>

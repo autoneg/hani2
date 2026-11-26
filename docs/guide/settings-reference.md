@@ -464,8 +464,10 @@ More: [Project management](project-management.md#pairing-defaults).
 | `order` | each person follows their planned order of Assistants strictly; two people fit only when their next planned Assistants form an allowed pair | small scripted lab sessions (it thins the pool a lot) |
 | `random` | any waiting person who fits | today's behaviour, the default otherwise |
 
-Only completed matches fill a cell; an abandoned match or an AI fallback fills none. The value is
-checked and stored now; balancing by cells is applied as the pairing engine supports it.
+Only completed matches fill a cell; an abandoned match or an AI fallback fills none.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -480,6 +482,9 @@ the tie is broken by the other balance terms and finally at random.
 - `0`: the strictest balance, the most predictable pairing;
 - `1` (default): nearly as balanced, and nobody can aim at a particular person.
 
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
+
 More: [Project management](project-management.md#pairing-defaults).
 
 ### Scenario in a cell {#setting-pairing-cell-scenario}
@@ -491,6 +496,9 @@ scenario is the domain, and the single scenario (which preferences were used) is
 balanced. With `name`, single scenarios are balanced too, which multiplies the number of cells by
 the scenarios per type: with 5 Assistants, 3 domains and 5 scenarios each, 60 cells become 300.
 
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
+
 More: [Project management](project-management.md#pairing-defaults).
 
 ### Same-Assistant matches {#setting-pairing-allow-same-assistant}
@@ -500,6 +508,9 @@ More: [Project management](project-management.md#pairing-defaults).
 **No** (the default) in evaluation studies: a match of an Assistant against itself says nothing
 about it compared with the others. **Yes** in the game, where an invited guest plays with the
 inviter's Assistant, so the two necessarily share one.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -515,7 +526,12 @@ What happens when nobody fits within `human_opponent_wait` seconds:
 | `wait` | keeps waiting (the same as `human_opponent_fallback: false`; for supervised lab sessions) |
 | `end` | skips the slot: they move on to their next Assistant, or finish early with the completion code |
 
-When `human_opponent_fallback` is also set in an `env.json` and disagrees, the file is refused.
+When `human_opponent_fallback` is also set in an `env.json` and disagrees, the file is refused. To
+keep a supervised session waiting today, set `human_opponent_fallback: false` in the study's
+`env.json`.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -524,6 +540,9 @@ More: [Project management](project-management.md#pairing-defaults).
 `pairing.fallback_opponents`: *The AI pool of the fallback (default: the study's AI opponents, else :pan)*
 
 AI entries only (agents and groups such as `:pan`); human entries are refused.
+
+**In this version** only *Where people meet* decides who is paired; this key is checked and stored
+for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 

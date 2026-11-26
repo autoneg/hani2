@@ -9,7 +9,7 @@ import { Select } from "./controls/Select";
 import { TextField } from "./controls/TextField";
 import { Note, Spinner } from "./schema";
 import { toast } from "./toast";
-import { atHundred, normalise, sumText, toFractions, toPercent } from "./weights";
+import { atHundred, normalise, sumText, toFractions } from "./weights";
 
 /* ---------- the target of the score endpoints ---------- */
 const base = (project: string, study?: string) =>
@@ -160,7 +160,8 @@ function presetNormaliser(info: any, direction: string): string {
 
 function fromDefinition(d: any): Comp[] {
   const comps = d?.components ?? [];
-  const pct = toPercent(comps.map((c: any) => c.weight));
+  // stored fractions sum to 1; rounding each to 0.01 % could show 99.99 % (thirds), so rescale exactly
+  const pct = normalise(comps.map((c: any) => c.weight));
   return comps.map((c: any, i: number) => ({ criterion: c.criterion, weight: pct[i], direction: c.direction ?? "", normaliser: c.normaliser ?? null, label: c.label }));
 }
 
