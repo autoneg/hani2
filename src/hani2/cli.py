@@ -1478,7 +1478,8 @@ def study_show(
 
     mode = study_modes.resolve(r)
     _echo_mode(mode)
-    _echo_han_sources(projects.setting("opponents", None, ref=r))
+    with projects.use_study(r):
+        _echo_han_sources(projects.setting("opponents", None, ref=r))
     for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
     _print_links(r, base_url)

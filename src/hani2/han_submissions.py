@@ -415,6 +415,11 @@ def import_entry(year: int, e: Entry, *, check: bool = True) -> ImportResult:
                 "import_checked": bool(check), "import_ok": (not error) if check or error else None,
                 "import_error": error}
     _write_json(dest.parent / f"{sha}.json", manifest)
+    prev = current(year, e.entrant)
+    if error and prev is not None and prev.get("sha256") != sha and prev.get("import_ok") is not False:
+        # a broken re-upload does not replace a version that works: the earlier one keeps playing
+        return ImportResult(e.entrant, "error", sha,
+                            f"{error}; the earlier version {str(prev['sha256'])[:12]} keeps playing")
     _write_json(dest.parent / CURRENT_FILE, manifest)
     return ImportResult(e.entrant, "error" if error else status, sha, error)
 
@@ -573,7 +578,8 @@ def check_year(year: int, *, import_check: bool = True) -> dict[str, Any]:
         else:
             row["version"] = m["sha256"]
             if zp is not None and sha256_of(zp) != m["sha256"]:
-                row["problems"].append("the zip changed since it was imported")
+                row["problems"].append(f"the zip changed since it was imported (or its new version does not "
+                                       f"import); the version {m['sha256'][:12]} plays")
             sp = version_dir(year, e.entrant, m["sha256"]) / (m.get("syspath") or "")
             if import_check and sp.is_dir() and e.spec:
                 err = check_import(sp, m.get("spec") or e.spec)

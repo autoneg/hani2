@@ -74,7 +74,7 @@ Without the package, and for a year it does not cover, these tokens have no agen
 
 ### HAN agents of the current year
 
-While a league runs, its agents are not packaged yet. `han.current_year` in `env.json` names that year (it is never taken from the clock), and `han.submissions` names the folder of its submissions:
+While a league runs, its agents are not packaged yet. `han.current_year` in `env.json` names that year (put it in the settings folder's `env.json`, so that `hani2 han import` and every project see the same year) (it is never taken from the clock), and `han.submissions` names the folder of its submissions:
 
 ```json title="settings/env.json"
 {
@@ -117,7 +117,7 @@ hani2 han import                 # the current year; --year 2027 for another
 hani2 han check                  # entries, sets, imported version, whether each class imports
 ```
 
-`hani2 han import` unpacks each zip into its own new folder, `<HANI2_HOME>/han_submissions/<year>/<entrant>/<sha256 of the zip>/`, and runs nothing while unpacking: archives with absolute paths, `..`, symbolic links or more than the size limit are refused. It then checks, in a separate Python process, that the class imports, and makes that folder the entrant's current version. An entry whose class does not import is left out of the groups, with a warning in the server log. A new upload has a new hash and so gets a new folder; the earlier one is kept, so past games keep their meaning, and every game records the version it played (`opponent_han_version`, next to `opponent_han_year` and `opponent_han_source`, see [`results.csv` columns](study-management.md#resultscsv-columns)).
+`hani2 han import` unpacks each zip into its own new folder, `<HANI2_HOME>/han_submissions/<year>/<entrant>/<sha256 of the zip>/`, and runs nothing while unpacking: archives with absolute paths, `..`, symbolic links or more than the size limit are refused. It then checks, in a separate Python process, that the class imports, and makes that folder the entrant's current version. An entry whose class does not import is left out of the groups, with a warning in the server log; when it is a new upload of an entrant whose earlier version works, the earlier version keeps playing (and `hani2 han check` says which version plays). A new upload has a new hash and so gets a new folder; the earlier one is kept, so past games keep their meaning, and every game records the version it played (`opponent_han_version`, next to `opponent_han_year` and `opponent_han_source`, see [`results.csv` columns](study-management.md#resultscsv-columns)).
 
 `hani2 han check` also reports zips the index does not list, zips that changed since they were imported, entries not imported yet, and module names two entrants share. Python loads a module once per process, so of two entries with the same top-level package only the first one used can run until the server restarts; the same holds for a new version of an agent that already ran (restart the server after importing new uploads).
 

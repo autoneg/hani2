@@ -455,3 +455,44 @@ def test_a_schedule_slot_is_checked_against_a_declared_mode(hani2_home, monkeypa
         {"slot": 0, "agent_class_name": "human+assistant", "scenario_type": "Trade"}]}), encoding="utf-8")
     a = make_session(user="prolific_PA", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
     assert a.round_plan["partner"] == "BoulwareTBNegotiator" and a.match is None
+
+
+def test_a_paired_study_ignores_a_slot_naming_an_ai_agent(hani2_home, monkeypatch):
+    import json
+
+    from hani2 import projects
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    projects.create_project("HQ", kind="assistant")
+    projects.create_study("HQ/p", type="prolific", practice=False, study_mode="paired")
+    ref = projects.StudyRef("HQ", "p")
+    d = projects.study_dir(ref) / "results" / "prolific_PA"
+    d.mkdir(parents=True)
+    (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
+        {"slot": 0, "agent_class_name": "BoulwareTBNegotiator", "scenario_type": "Trade"}]}), encoding="utf-8")
+    a = make_session(user="prolific_PA", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    assert a.round_plan["partner"] == "human+assistant" and a.match is not None
+
+
+def test_new_columns_append_to_an_old_results_file(hani2_home):
+    """A returning participant's results.csv with the old header gets rows with the new columns."""
+    s = make_session(user="alice", n_steps=4)
+    s.start()
+    s.end()
+    assert s.wait_until_done(30)
+    f = s.ss["user_path"] / "results.csv"
+    with open(f, newline="") as fh:
+        old = list(csv.DictReader(fh))
+    keep = [k for k in old[0] if not k.startswith("opponent_han_")]
+    with open(f, "w", newline="") as fh:  # the file as an earlier version wrote it
+        w = csv.DictWriter(fh, fieldnames=keep, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(old)
+    s2 = make_session(user="alice", n_steps=4)
+    s2.start()
+    s2.end()
+    assert s2.wait_until_done(30)
+    with open(f, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    assert len(rows) == 2 and all(None not in r for r in rows)
+    assert "opponent_han_year" in rows[-1] and rows[0]["mechanism_id"] != rows[1]["mechanism_id"]

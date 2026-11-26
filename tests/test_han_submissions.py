@@ -224,3 +224,29 @@ def test_cli_han_import_and_check(subs):
     assert r.exit_code == 0, r.output
     assert "sub_0981" in r.output and "all,qualified,finalists" in r.output and "imports" in r.output
     assert run.invoke(cli.app, ["han", "import", "--year", "2030"]).exit_code != 0
+
+
+def test_han_settings_in_a_project_env_json_are_seen_on_save_and_in_sessions(subs, hani2_home):
+    """han.current_year read from the project's own env.json when its files are saved and resolved."""
+    write_settings(hani2_home, "env.json", {})
+    projects.create_project("HAN2028", kind="opponent", year=2028)
+    (projects.project_dir("HAN2028") / "env.json").write_text(json.dumps({"han": {"current_year": 2028}}), encoding="utf-8")
+    projects.create_study("HAN2028/play", opponents=[":han2028-all"])  # covered by the project's current year
+    from hani2 import study_modes
+
+    assert study_modes.resolve("HAN2028/play").errors == []
+    projects.create_project("HAN2028", defaults={"opponents": [":han2028-finalists"]})
+    with pytest.raises(ValueError, match="no agents for 2028"):
+        projects.create_project("OTHER", kind="opponent", defaults={"opponents": [":han2028-all"]})
+
+
+def test_a_broken_reupload_keeps_the_earlier_working_version(subs):
+    han_submissions.import_year(2027)
+    good = han_submissions.current(2027, "sub_0981")["sha256"]
+    make_zip(subs / "t17.zip", "t17_agent", body="raise ImportError('new version is broken')\n")
+    r = {x.entrant: x for x in han_submissions.import_year(2027)[0]}
+    assert r["sub_0981"].status == "error" and "keeps playing" in r["sub_0981"].message
+    assert han_submissions.current(2027, "sub_0981")["sha256"] == good
+    assert "t17_agent.agent.MyNegotiator" in agents.expand_agents(":han2027-all")
+    row = next(x for x in han_submissions.check_year(2027, import_check=False)["entries"] if x["entrant"] == "sub_0981")
+    assert any(good[:12] in p and "plays" in p for p in row["problems"])

@@ -163,7 +163,9 @@ pairing:
 Every key is checked when a file is saved (unknown keys and values not listed above are refused)
 and reported when a hand-edited file has a problem. This version uses `scope` to decide where
 people meet; the other keys are checked and kept for the balanced pairing of matches, which a
-later version adds.
+later version adds. In particular `fallback: wait` does not stop the AI fallback yet: for a
+supervised session that must keep waiting, set `human_opponent_fallback: false` in the study's
+`env.json` (see [Human opponents](human-opponents.md)).
 
 ### HAN agents by year
 

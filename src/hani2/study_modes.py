@@ -24,6 +24,7 @@ made at the same moments (on save, on load).
 
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -339,6 +340,20 @@ def _explicit_fallback(dirs: list) -> bool | None:
     return None
 
 
+@contextlib.contextmanager
+def _layer(ref: Any = None, project: str | None = None):
+    """Read env.json (``han.current_year``, …) as a session of study ``ref`` would, or, for a
+    project file, from that project's folder and the settings folder."""
+    from hani2 import config, projects
+
+    if ref is not None:
+        with projects.use_study(ref):
+            yield
+    else:
+        with projects.use_study(None), config.layer_view(project):
+            yield
+
+
 def _layer_settings(project: Any, overrides: dict | None) -> dict[str, Any]:
     """The project's defaults with a study's overrides on top (``None`` values inherit;
     ``pairing`` merges key by key)."""
@@ -359,6 +374,7 @@ def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | No
     (``nested="overrides"``) about to be saved: the file's settings merged with its project's."""
     from hani2 import projects
 
+    r = None
     _, settings, _ = projects._split(data, (), nested)
     settings = {k: v for k, v in settings.items() if k in projects.DEFAULT_KEYS}
     if nested == "overrides":
@@ -375,7 +391,8 @@ def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | No
         merged = _layer_settings(None, settings)
         kind = str(data.get("kind") or "none").lower()
         dirs = [projects.project_layer_dir(project) if project else None]
-    info = check_settings(merged, kind, explicit_fallback=_explicit_fallback(dirs))
+    with _layer(r if nested == "overrides" else None, None if nested == "overrides" else project):
+        info = check_settings(merged, kind, explicit_fallback=_explicit_fallback(dirs))
     return info.errors
 
 
@@ -397,7 +414,8 @@ def resolve(ref: Any) -> ModeInfo:
     st = projects.get_study(r)
     merged = _layer_settings(pr, st.overrides if st is not None else {})
     dirs = [projects.study_dir(r), projects.project_layer_dir(r.project)]
-    info = check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback(dirs), where=f"study {r}")
+    with _layer(r):
+        info = check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback(dirs), where=f"study {r}")
     if not merged.get("opponents") and info.declared is None:
         # no opponents in the files: the derived mode comes from the pool env.json gives
         try:
@@ -422,8 +440,9 @@ def resolve_project(name: str) -> ModeInfo:
 
     pr = projects.load_project(name)
     merged = _layer_settings(pr, {})
-    return check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback([projects.project_layer_dir(name)]),
-                          where=f"project {name}")
+    with _layer(project=name):
+        return check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback([projects.project_layer_dir(name)]),
+                              where=f"project {name}")
 
 
 # --------------------------------------------------------------------------- #
