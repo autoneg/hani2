@@ -248,6 +248,13 @@ class SessionRecorder:
                 shutil.copyfileobj(src, dst)
             path.unlink(missing_ok=True)
             self._write_index(final, rec_id, t0, meta)
+            if meta.get("summary") is not None:  # a finished game: its evaluation entry is computed again
+                try:
+                    from hani2.evaluation import eval_cache
+
+                    eval_cache.schedule(getattr(self.session, "study_ref", None), final)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
             return final
         except Exception:
             traceback.print_exc()

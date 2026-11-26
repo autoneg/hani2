@@ -83,7 +83,10 @@ DEFAULT_MISSING = "renormalise"
 DEFAULT_MIN_COVERAGE = 0.5
 #: how far from 1 the weights of a score may sum
 WEIGHT_TOLERANCE = 1e-6
-SCORE_KEYS = ("title", "description", "track", "components", "missing", "min_coverage")
+SCORE_KEYS = ("title", "description", "track", "components", "missing", "min_coverage", "same_assistant")
+#: how a board counts a same-Assistant game (an inviter against their guest): ``once`` (the mean of its two
+#: rows) or ``skip`` (left out); ``utility`` always leaves them out
+SAME_ASSISTANT = ("once", "skip")
 COMPONENT_KEYS = ("criterion", "weight", "direction", "normaliser", "label")
 _KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 #: prefixes of questionnaire columns (a score key must not look like one)
@@ -130,6 +133,8 @@ class Score:
     min_coverage: float = DEFAULT_MIN_COVERAGE
     #: where it is defined: ``builtin``, ``project`` or ``study``
     origin: str = "builtin"
+    #: how a board counts same-Assistant games (see :data:`SAME_ASSISTANT`)
+    same_assistant: str = "once"
 
     @property
     def builtin(self) -> bool:
@@ -378,6 +383,8 @@ def definition(score: Score, options: dict | None = None) -> dict[str, Any]:
         comps.append(d)
     out: dict[str, Any] = {"title": score.title, "description": score.description, "track": score.track,
                            "components": comps, "missing": score.missing, "min_coverage": score.min_coverage}
+    if score.same_assistant != "once":
+        out["same_assistant"] = score.same_assistant
     if score.builtin:
         out["builtin"] = True
         if score.board:
@@ -446,6 +453,9 @@ def parse_definition(key: str, data: Any, *, strict: bool = True,
     for k in ("title", "description"):
         if data.get(k) is not None and not isinstance(data.get(k), str):
             problems.append(f"{where}: {k} must be text")
+    same = str(data.get("same_assistant") or "once")
+    if same not in SAME_ASSISTANT:
+        problems.append(f"{where}: same_assistant must be one of {', '.join(SAME_ASSISTANT)} (got {same!r})")
     raw = data.get("components")
     comps: list[Component] = []
     if not isinstance(raw, list) or not raw:
@@ -503,7 +513,7 @@ def parse_definition(key: str, data: Any, *, strict: bool = True,
         return None, problems, warnings
     return Score(name=key, title=str(data.get("title") or key), track=track, board="",
                  description=str(data.get("description") or ""), components=comps, missing=missing,
-                 min_coverage=float(mc), origin=origin), problems, warnings
+                 min_coverage=float(mc), origin=origin, same_assistant=same), problems, warnings
 
 
 def file_problems(value: Any, where: str = "scores", *, strict: bool = True) -> tuple[list[str], list[str]]:

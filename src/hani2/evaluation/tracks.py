@@ -65,6 +65,9 @@ TRACKS: dict[str, dict[str, Any]] = {
     ),
 }
 BOARDS = ("outcome", "interaction")
+#: the board of :mod:`hani2.evaluation.boards`: rows scored beforehand, ranked by ``rank_by`` (any score or
+#: criterion) with the game's rules applied by the caller (``_exclude`` / ``_hidden`` / ``_only_stratum``)
+GAME_BOARD = "game"
 #: what a bootstrap cluster is: a participant (default) or a match (a sensitivity check for Paired rows)
 CI_UNITS = ("participant", "match")
 STRATUM_TITLES = {
@@ -123,6 +126,8 @@ def _in_track(r: dict, track: str) -> bool:
 
 
 def entrant_of(r: dict, track: str) -> str:
+    if r.get("_entrant"):  # set by the boards (an outside system's entrant id, else the spec)
+        return str(r["_entrant"])
     if track == "hi":
         name, model = str(r.get("support_agent") or "none"), r.get("support_model")
         return f"{name} · {model}" if model else name
@@ -153,6 +158,8 @@ def _filter(rows: list[dict], track: str, include_practice: bool, include_simula
         if not _in_track(r, track):
             continue
         st = study_stratum(r) if track == "hi" else han_stratum(r)
+        if r.get("_only_stratum") and st != r["_only_stratum"]:
+            continue  # a row taken in from another project for one stratum only
         if st == "human opponent":
             if stratum in (None, "alone", "both"):
                 drop("human opponent")  # a HAN row of a Paired study: no entrant to rank
@@ -169,6 +176,11 @@ def _filter(rows: list[dict], track: str, include_practice: bool, include_simula
             continue
         if status in spec["exclude_status"]:
             drop(spec["exclude_status"][status])
+            continue
+        if r.get("_exclude"):  # a rule of the caller (boards: own-team games, caps, not counted)
+            drop(str(r["_exclude"]))
+            continue
+        if r.get("_hidden"):  # a view of the caller (boards: the games and window switches); not excluded
             continue
         counts[st] = counts.get(st, 0) + 1
         if stratum in (None, "combined", "both") or st == stratum:
@@ -273,9 +285,10 @@ def _balanced(vals: list[tuple[tuple, float]]) -> float | None:
 
 
 def _bootstrap(items: list[tuple[str, tuple, float]], n_boot: int, rng: np.random.Generator,
-               unit: str = "participant") -> tuple[float | None, float | None, str]:
-    """95 % percentile CI of the balanced mean, resampling the clusters named by the first item of
-    each tuple: participants (or sessions when there is only one participant), or matches."""
+               unit: str = "participant", level: float = 0.95) -> tuple[float | None, float | None, str]:
+    """Percentile CI (``level``, default 95 %) of the balanced mean, resampling the clusters named by
+    the first item of each tuple: participants (or sessions when there is only one participant), or
+    matches."""
     if unit == "participant":
         users = sorted({u for u, _, _ in items})
         unit = "participant" if len(users) >= 2 else "session"
@@ -293,7 +306,8 @@ def _bootstrap(items: list[tuple[str, tuple, float]], n_boot: int, rng: np.rando
             stats.append(b)
     if not stats:
         return None, None, unit
-    return float(np.percentile(stats, 2.5)), float(np.percentile(stats, 97.5)), unit
+    a = 100 * (1 - level) / 2
+    return float(np.percentile(stats, a)), float(np.percentile(stats, 100 - a)), unit
 
 
 def _pass_hat_k(rows: list[dict], cell, success: str, threshold: float | None, max_k: int) -> dict[int, float]:
@@ -423,7 +437,8 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
                 min_coverage: float = 0.5, relative: bool = False, n_boot: int = 1000, seed: int = 0,
                 include_practice: bool = False, reliability: Any = None, official: bool = False,
                 include_simulated: bool = False, stratum: str | None = None, ci_unit: str = "participant",
-                head_to_head: bool | str = False) -> dict:
+                head_to_head: bool | str = False, rank_by: str | None = None, values: list[str] | None = None,
+                directions: dict[str, str] | None = None, ci: float = 0.95) -> dict:
     """Rank the entrants of ``track`` (``han`` or ``hi``) on ``board``
     (``outcome`` or ``interaction``) from evaluated rows (``evaluate_*()["rows"]``).
 
@@ -446,6 +461,13 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     resamples independently). ``head_to_head`` (HI): add the Bradley–Terry view of the Paired
     matches on ``human_advantage`` (or on the column it names) under ``head_to_head``.
 
+    ``board="game"`` (:mod:`hani2.evaluation.boards`): the rows already carry their scores; the board
+    ranks by ``rank_by`` (any score or criterion column) in its direction (``directions``, default
+    ``higher``) and reports ``values`` too. With ``relative`` the cell-adjusted means are shifted back by
+    the grand mean, so they stay on the scale of the values. Rows may carry ``_entrant`` (the entrant's
+    name), ``_exclude`` (a reason: the row is excluded and counted), ``_hidden`` (left out of this view)
+    and ``_only_stratum`` (counted in that stratum only); partners are found among every row.
+
     ``reliability``: a judge reliability report (a dict or the ``.json`` file of
     ``hani2 replay judge-reliability``); the soft (language-model judged)
     components it did not find ready are left out. ``official``: an official
@@ -456,25 +478,38 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     """
     if track not in TRACKS:
         raise ValueError(f"unknown track {track!r}; use one of {', '.join(TRACKS)}")
-    if board not in BOARDS:
+    game = board == GAME_BOARD
+    if board not in BOARDS and not game:
         raise ValueError(f"unknown board {board!r}; use one of {', '.join(BOARDS)}")
+    if game and not rank_by:
+        raise ValueError("the game board needs rank_by (a score or criterion column)")
+    directions = dict(directions or {})
     spec = TRACKS[track]
     stratum = stratum or spec["default_stratum"]
     if stratum not in spec["strata"]:
         raise ValueError(f"unknown {track} stratum {stratum!r}; use one of {', '.join(spec['strata'])}")
     if ci_unit not in CI_UNITS:
         raise ValueError(f"unknown ci_unit {ci_unit!r}; use one of {', '.join(CI_UNITS)}")
-    names: list[str] = list(spec["boards"][board])
+    if game:
+        names = list(dict.fromkeys([str(rank_by), *(values or [])]))
+    else:
+        names = list(spec["boards"][board])
     kept, excluded, strata = _filter(rows, track, include_practice, include_simulated, stratum)
     # the sub-scores first, so a score of scores knows which of them exist
-    order = [s for s in BY_NAME if s in names or any(c.column == s for n in names for c in BY_NAME[n].components)]
-    gate = _reliability_gate(reliability, official, {str(r["judge_model"]) for r in kept if r.get("judge_model")})
-    active = _active_components(kept, track, order, min_coverage, gate["blocked"])
+    order = [] if game else [s for s in BY_NAME if s in names or any(c.column == s for n in names
+                                                                       for c in BY_NAME[n].components)]
+    if game:
+        gate: dict[str, Any] = dict(blocked=set(), warnings=[], source=None, judges=None)
+        active: dict[str, set[str]] = {}
+    else:
+        gate = _reliability_gate(reliability, official, {str(r["judge_model"]) for r in kept if r.get("judge_model")})
+        active = _active_components(kept, track, order, min_coverage, gate["blocked"])
     partners = _partners([r for r in rows if _in_track(r, track)])  # a partner row left out still names the opponent
     scored = []
     for i, r in enumerate(kept):
         r2 = dict(r)
-        r2.update(score_row(r, options, only=active))
+        if not game:
+            r2.update(score_row(r, options, only=active))
         partner = partners.get(id(r))
         r2["_cell"] = _cell(r, track, stratum, partner)
         r2["_match"] = _match_of(r)
@@ -500,9 +535,11 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
                 if num(r.get(n)) is not None:
                     per.setdefault(cell(r), []).append(float(r[n]))
             means = {c: float(np.mean(v)) for c, v in per.items()}
+            # the game board stays on the values' scale: the adjusted means are shifted by the grand mean
+            grand = float(np.mean([x for v in per.values() for x in v])) if game and per else 0.0
             for r in scored:
                 if num(r.get(n)) is not None:
-                    r[n] = float(r[n]) - means[cell(r)]
+                    r[n] = float(r[n]) - means[cell(r)] + grand
     rng = np.random.default_rng(seed)
     groups: dict[str, list[dict]] = {}
     for r in scored:
@@ -519,7 +556,7 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
         for n in names:
             items = [(cluster(r), cell(r), float(r[n])) for r in rs if num(r.get(n)) is not None]
             covs = [num(r.get(f"{n}_coverage")) for r in rs]
-            lo, hi, unit = _bootstrap(items, n_boot, rng, ci_unit)
+            lo, hi, unit = _bootstrap(items, n_boot, rng, ci_unit, ci)
             sc[n] = dict(mean=_balanced([(c, v) for _, c, v in items]), lo=lo, hi=hi, n=len(items), ci_unit=unit,
                          coverage=float(np.mean([c for c in covs if c is not None])) if any(c is not None for c in covs) else None)
         ph = _pass_hat_k(rs, cell, success, success_threshold, max_k)
@@ -533,10 +570,11 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
             scores=sc, pass_hat_k=ph, success_rate=ph.get(1), cost_usd=float(np.mean(costs)) if costs else None,
         ))
     main = names[0]
+    sign = -1.0 if directions.get(main, "higher") == "lower" else 1.0
 
     def key(e):
         m = e["scores"][main]["mean"]
-        return (m is None, -(m if m is not None else 0.0), e["entrant"])
+        return (m is None, -sign * (m if m is not None else 0.0), e["entrant"])
 
     entries.sort(key=key)
     leader = entries[0]["scores"][main] if entries else None
@@ -550,8 +588,11 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
                 rank = i + 1
             e["rank"], prev = rank, m
         s = e["scores"][main]
-        e["tied_with_leader"] = bool(
-            i > 0 and leader is not None and leader["lo"] is not None and s["hi"] is not None and s["hi"] >= leader["lo"])
+        if sign > 0:
+            tied = leader is not None and leader["lo"] is not None and s["hi"] is not None and s["hi"] >= leader["lo"]
+        else:  # lower is better: tied when the CI reaches below the leader's upper end
+            tied = leader is not None and leader["hi"] is not None and s["lo"] is not None and s["lo"] <= leader["hi"]
+        e["tied_with_leader"] = bool(i > 0 and tied)
     n_paired = sum(1 for r in scored if r["_match"] is not None)
     if track == "han":
         cells = list(spec["cells"]) + ([] if stratum == "alone" else ["assistant"])
@@ -570,7 +611,8 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
         components={n: sorted(active.get(n, set())) for n in order},
         dropped_components={n: sorted({c.column for c in BY_NAME[n].components} - active.get(n, set())) for n in order},
         weight_share=(share := {n: _share(n, active, options) for n in order}),
-        warnings=gate["warnings"] + _warnings(main, share, entries),
+        warnings=gate["warnings"] + _warnings(main, share, entries, game),
+        directions={n: directions.get(n, "higher") for n in names},
         notes=_notes(track, stratum, ci_unit, n_paired, scored),
         reliability=dict(report=gate["source"], judges=gate["judges"], official=official,
                          left_out={n: sorted({c.column for c in BY_NAME[n].components} & gate["blocked"]) for n in order}),
@@ -667,9 +709,9 @@ def _share(name: str, active: dict[str, set[str]], options: dict | None) -> floa
     return got / total
 
 
-def _warnings(main: str, share: dict[str, float], entries: list[dict]) -> list[str]:
+def _warnings(main: str, share: dict[str, float], entries: list[dict], game: bool = False) -> list[str]:
     out = []
-    if share.get(main, 0) < LOW_WEIGHT_SHARE:
+    if not game and share.get(main, 0) < LOW_WEIGHT_SHARE:
         out.append(f"{main} uses only {share.get(main, 0):.0%} of its weight: most of its components (questionnaire, "
                    "language-model judge) were not measured for every entrant, so the ranking rests on few components")
     means = [e["scores"][main]["mean"] for e in entries if e["scores"][main]["mean"] is not None]

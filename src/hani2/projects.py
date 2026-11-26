@@ -43,7 +43,7 @@ DEFAULT_KEYS = (
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
     "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
-    "scores", "scores_enabled", "normalisation",
+    "scores", "scores_enabled", "normalisation", "leaderboard",
     "force_reserved_value",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
@@ -286,6 +286,9 @@ def file_problems(data: dict, nested: str, *, strict: bool = True) -> list[str]:
             out.append(str(e))
         out += study_modes.check_pairing(src.get("pairing"))[1]
     out += _evaluation_problems(data, inner, nested, strict)[0]
+    from hani2.evaluation import boards
+
+    out += boards.file_problems(data, nested)
     return list(dict.fromkeys(out))
 
 
@@ -338,8 +341,11 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
     if ref is not None or project is not None:
         from hani2 import scheduling, study_modes
 
+        from hani2.evaluation import boards
+
         problems = list(dict.fromkeys([*problems, *study_modes.save_problems(data, nested, ref=ref, project=project),
-                                       *scheduling.save_problems(data, nested, ref=ref, project=project)]))
+                                       *scheduling.save_problems(data, nested, ref=ref, project=project),
+                                       *boards.save_problems(data, nested, ref=ref, project=project)]))
     if problems:
         raise ValueError("; ".join(problems))
     return data

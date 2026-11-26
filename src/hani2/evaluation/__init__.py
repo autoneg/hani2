@@ -68,9 +68,12 @@ PAIRED_FIELDS = ("study_mode", "opponent_kind", "pairing", "match_id", "match_ce
 #: where a HAN opponent agent came from (see hani2.han_submissions.PROVENANCE_COLUMNS), and who left a
 #: human-opponent negotiation (``abandoned``: ``self``, ``opponent`` or empty)
 OTHER_ROW_FIELDS = ("opponent_han_source", "opponent_han_version", "abandoned")
+#: fields that only the boards read (hani2.evaluation.boards): the guest's inviter, the other person
+#: of a match and whether the human is counted. Boards never show them.
+BOARD_ROW_FIELDS = ("invited_by", "opponent_user", "counted")
 ID_FIELDS = ("key", "id", "user", "mode", "participant_type", "persona", "scenario", "opponent", "support_agent",
              "support_model", "experiment", "started", "practice", "judge_model", "assistant", "human_index",
-             *PAIRED_FIELDS, *OTHER_ROW_FIELDS)
+             *PAIRED_FIELDS, *OTHER_ROW_FIELDS, *BOARD_ROW_FIELDS)
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -123,7 +126,23 @@ def _ident(rec: Recording, key: str | None) -> dict:
         assistant=(st.get("assignment") or {}).get("assistant") or None, human_index=st.get("human_index"),
         # the study's mode and the pairing (from the results row; empty in recordings made without one)
         **{k: (row.get(k) if row.get(k) not in (None, "") else None) for k in (*PAIRED_FIELDS, *OTHER_ROW_FIELDS)},
+        invited_by=row.get("invited_by") or None, opponent_user=row.get("opponent_user") or None,
+        counted=_counted(rec, row),
     )
+
+
+def _counted(rec: Recording, row: dict) -> bool:
+    """Whether the game's human is counted: the results row says so; older rows are judged from the
+    recording's header (not an admin, a playground, a guest of the playground or a simulated person)."""
+    v = row.get("counted")
+    if isinstance(v, bool):
+        return v
+    if v not in (None, ""):
+        return str(v).strip().lower() in ("true", "1", "1.0")
+    sess = rec.header.get("session") or {}
+    user = str(sess.get("user") or "")
+    return not (sess.get("is_admin") or str(sess.get("sid") or "").startswith("play:")
+                or user.startswith(("guest_", "sim_")) or sess.get("mode") == "simulated")
 
 
 def _cache_path(rec: Recording) -> Path | None:

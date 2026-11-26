@@ -3422,6 +3422,13 @@ class NegotiationSession:
                        "agent_failed": False, "human_utility": None, "agent_utility": None, "human_advantage": None}
         if self.recorder is not None:
             self.recorder.finish(row, summary)
+            if row is not None:  # the game's evaluation entry, in the background (hani2.evaluation.eval_cache)
+                try:
+                    from hani2.evaluation import eval_cache
+
+                    eval_cache.schedule(self.study_ref, self.recorder.path)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
         st = m.state
         agreement = st.agreement
         with self.lock:

@@ -246,6 +246,19 @@ def _information(ss: dict[str, Any], m: Any = None) -> dict[str, Any]:
     }
 
 
+def _counted(ss: dict[str, Any]) -> bool:
+    """Whether the human is counted (see :func:`hani2.assignment.counts_as_human`); ``True`` without a session."""
+    s = ss.get("_session")
+    if s is None:
+        return True
+    try:
+        from hani2 import assignment
+
+        return bool(assignment.counts_as_human(s))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
     """Write all result files for a finished negotiation.
 
@@ -362,6 +375,8 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
             abandoned=ss.get("match_abandoned") or "",
             # a guest who came through an invitation (hani2.sso): who invited them, else empty
             invited_by=ss.get("invited_by") or "",
+            # whether the game counts for boards and balance (not an admin, a playground or a test run)
+            counted=_counted(ss),
         )
         | _condition(ss)
         | _attribution(ss)
