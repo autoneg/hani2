@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Scenario explorer.** A scenario type's page in the console (Library → Scenarios) shows its
+  picture, short and long descriptions, every role's preference summary, its issues, the 2D utility
+  plot and the Preferences tool as each role sees it, in sections that fold away. Generators draw
+  samples by any generation rule (*Simple* or *Random*, whatever the layer's own setting). See
+  [Scenarios](guide/admin.md#scenarios).
 - **The Assistant in the tool area.** `presentation.place: tools` (*The open Assistant goes* on the
   Assistant settings page, per layer) opens the Assistant in the tool area, in the open tool's
   place, instead of beside the page; closing it brings the same tool back. A tool open in a popup is

@@ -199,10 +199,28 @@ files are written by `hani2 library` on the command line.
 ### Scenarios
 
 Items are the scenario types: registered generators and category folders, uploaded or linked.
-Open one for its title and descriptions, its roles (with the participant's role and the no-deal
-values), its issues and options and a table of sample utilities (the best outcome for each role
-and a few others); pick a saved scenario of its pool, or **Generate** a fresh example from a
-generator. Scenarios with a `display.py` are marked.
+Open one to explore it. **Example** picks what is shown: a saved scenario of its pool, or, for a
+generator, a fresh sample drawn by a **Generation rule**: *Simple* (round numbers: option values in
+steps of 5%, weights in steps of 10%, linear or symmetric issues, no noise) or *Random* (preferences
+as the generator draws them), or *As this layer* (the layer's `simple_scenarios` setting). Changing
+the rule draws a new sample; **Generate** draws another (samples are not saved). **Shown** says
+which rule produced it, or, for a saved scenario, its folder and whether it is simple. Scenarios
+with a `display.py` are marked.
+
+The rest of the page is in sections that fold away (click a heading; the console remembers which
+are open, and a closed section loads nothing):
+
+- **Picture**: the scenario's picture as participants see it (with its dark-theme version).
+- **Description**: the title, the short description and the number of outcomes; **Long
+  description** (closed at first) is the full text participants read.
+- **Preference summaries**: the *In short* text of the Preferences tool for every role.
+- **Roles**: every role with its description and no-deal value; the participant's role is marked.
+- **Issues**: every issue with its options.
+- **Outcome space**: the 2D utility plot (below).
+- **Preferences tool** (closed at first): the Preferences tool exactly as each role would see it
+  in a negotiation, side by side: the summary, the issue weights, the value of each option (pick
+  the issue), the value on disagreement and the hints.
+- **Sample utilities** (closed at first): the best outcome for each role and a few others.
 
 **Outcome space** plots every outcome in utility space (negmas's 2D utility plot): the
 participant's role on the x axis against another role on the y axis, with the Pareto frontier, the

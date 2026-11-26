@@ -1,1 +1,0 @@
-import{c as e}from"./index-EgugQHiT.js";const c={name:"zodiac-taurus",size:24,node:[["circle",{cx:"12",cy:"15",r:"6",key:"lhqcmb"}],["path",{d:"M18 3A6 6 0 0 1 6 3",key:"1p399e"}]]};c.node;const o=e(c);export{c as __iconData,o as default};

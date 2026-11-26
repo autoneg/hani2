@@ -1,0 +1,1 @@
+import{c as o}from"./index-CgKaJehS.js";const e={name:"move-right",size:24,node:[["path",{d:"M18 8L22 12L18 16",key:"1r0oui"}],["path",{d:"M2 12H22",key:"1m8cig"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

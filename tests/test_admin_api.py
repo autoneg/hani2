@@ -375,6 +375,40 @@ def test_scenario_details_plot(admin, studies):
     assert admin.get("/api/admin/scenarios/plot/nope").status_code == 404
 
 
+def test_scenario_generation_rules(admin, studies):
+    """Any generation rule can be drawn by, whatever the layer's own rule (simple by default)."""
+    d = admin.get("/api/admin/scenarios/Lease?layer=settings").json()
+    assert {r["value"] for r in d["rules"]} == {"simple", "random"} and d["layer_rule"] == "simple"
+    assert d["rule"] == "simple" and d["simple"] is True
+    for _ in range(3):  # a random draw is almost never simple by chance; one of three surely is not
+        r = admin.get("/api/admin/scenarios/Lease?layer=settings&generate=2&rule=random").json()
+        assert r["rule"] == "random"
+        if not r["simple"]:
+            break
+    else:
+        raise AssertionError("rule=random kept giving simple scenarios")
+    s = admin.get("/api/admin/scenarios/Lease?layer=settings&generate=2&rule=simple").json()
+    assert s["rule"] == "simple" and s["simple"] is True
+    assert admin.get("/api/admin/scenarios/Lease?layer=settings&rule=nope").status_code == 400
+
+
+def test_scenario_summaries_picture_and_preferences(admin, studies):
+    """Every role's summary, the picture and the Preferences tool as each role sees it."""
+    d = admin.get("/api/admin/scenarios/Lease?layer=settings").json()
+    assert [x["role"] for x in d["summaries"]] == [r["name"] for r in d["roles"]]
+    assert all(x["summary"] for x in d["summaries"])
+    pic = admin.get(f"/api/admin/scenarios/picture/{d['plot_token']}?layer=settings").json()
+    assert set(pic) == {"light", "dark"} and (pic["light"] or "").startswith("data:image/")
+    for i, role in enumerate(d["roles"]):
+        p = admin.post(f"/api/admin/scenarios/preferences/{d['plot_token']}", json={"role": i}).json()
+        comps = p["components"]
+        assert p["role"] == role["name"] and p["human"] == role["human"]
+        assert not [c for c in comps if c.get("type") == "alert" and c.get("kind") in ("error", "warning")]
+        assert comps[0]["title"] == "In short" and comps[0]["children"][0]["text"] == d["summaries"][i]["summary"]
+    assert admin.post(f"/api/admin/scenarios/preferences/{d['plot_token']}", json={"role": 9}).status_code == 404
+    assert admin.post("/api/admin/scenarios/preferences/nope", json={"role": 0}).status_code == 404
+
+
 def test_scenario_plots_bounded_and_per_pair():
     from negmas import Scenario, make_issue, make_os
     from negmas.preferences import LinearAdditiveUtilityFunction as L

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Dices, Map as MapIcon, TriangleAlert } from "lucide-react";
+import { ChevronRight, Dices, Map as MapIcon, TriangleAlert } from "lucide-react";
 import { api } from "../../api";
 import { Markdown } from "../../ui/Markdown";
 import { Plot } from "../../ui/Plot";
+import { Renderer } from "../../ui/Renderer";
 import { Group } from "../Group";
 import { InfoRow, Row } from "../Row";
-import { Disclosure } from "../Disclosure";
 import { lq, shortPath, type Layer } from "../layer";
 import { Select } from "../controls/Select";
 import { Note, Spinner } from "../schema";
@@ -15,18 +15,61 @@ import type { Adapter, ExGroup, ExItem } from "./types";
 
 const enc = encodeURIComponent;
 
-/** A scenario type as participants would see it (``GET /api/admin/scenarios/{name}``). */
+/** A section that folds away; its body mounts only while open (plots size to their container,
+ *  and closed sections fetch nothing). The open state is remembered per section. */
+function Fold({ id, title, hint, defaultOpen = true, children }: { id: string; title: React.ReactNode; hint?: React.ReactNode; defaultOpen?: boolean; children: () => React.ReactNode }) {
+  const key = `hani2.explorer.fold.${id}`;
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(key);
+      return v === null ? defaultOpen : v === "1";
+    } catch {
+      return defaultOpen;
+    }
+  });
+  const toggle = () => {
+    setOpen(!open);
+    try {
+      localStorage.setItem(key, open ? "0" : "1");
+    } catch {
+      /* no storage: the state lasts for the page */
+    }
+  };
+  return (
+    <section className="mb-4" id={`fold-${id}`}>
+      <button type="button" onClick={toggle} aria-expanded={open} className="mb-1.5 flex w-full items-center gap-1.5 rounded px-1 text-left hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-you/40">
+        <ChevronRight size={14} className={`shrink-0 text-muted transition-transform ${open ? "rotate-90" : ""}`} />
+        <h3 className="text-[0.8rem] font-semibold text-muted">{title}</h3>
+        {hint && <span className="ml-auto truncate text-xs text-muted">{hint}</span>}
+      </button>
+      {open && children()}
+    </section>
+  );
+}
+
+/** A scenario type as participants would see it (``GET /api/admin/scenarios/{name}``): pick a pool
+ *  scenario or draw one from the generator by any generation rule. */
 function Details({ item, layer }: { item: ExItem; layer: Layer }) {
   const t = item.raw;
   const [d, setD] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
   const [pick, setPick] = useState<string>("");
   const [gen, setGen] = useState<number | null>(null);
+  const [rule, setRule] = useState<string>("");
+  useEffect(() => setD(null), [t.name, layer.id]);
   useEffect(() => {
-    setD(null);
-    const q = `${lq(layer)}${pick ? `&scenario=${enc(pick)}` : ""}${gen !== null ? `&generate=${gen}` : ""}`;
-    api(`/api/admin/scenarios/${enc(t.name)}${q}`).then(setD).catch((e) => setD({ error: e.message }));
-  }, [t.name, layer.id, pick, gen]);
-  const generator = t.source === "builtin" || (t.source === "registered" && !t.n_scenarios);
+    let live = true;
+    setLoading(true);
+    const q = `${lq(layer)}${pick ? `&scenario=${enc(pick)}` : ""}${gen !== null ? `&generate=${gen}` : ""}${rule && !pick ? `&rule=${enc(rule)}` : ""}`;
+    api(`/api/admin/scenarios/${enc(t.name)}${q}`)
+      .then((x) => live && setD(x))
+      .catch((e) => live && setD({ error: e.message }))
+      .finally(() => live && setLoading(false));
+    return () => void (live = false);
+  }, [t.name, layer.id, pick, gen, rule]);
+  const generator = t.source === "builtin" || (t.source === "registered" && !t.n_scenarios) || d?.kind === "generator" || d?.kind === "story";
+  const draw = () => (setPick(""), setGen(Math.floor(Math.random() * 10000)));
+  const ruleLabel = (v: string | null | undefined) => d?.rules?.find((r: any) => r.value === v)?.label ?? v;
   return (
     <>
       {d?.has_display_py && (
@@ -35,17 +78,33 @@ function Details({ item, layer }: { item: ExItem; layer: Layer }) {
       <Group title="Example">
         {d?.pool?.length > 0 && (
           <Row label="Scenario" hint={`${d.pool.length} in the pool`}>
-            <Select label="Pool scenario" value={pick} onChange={(v) => (setPick(v), setGen(null))} options={[{ value: "", label: "First in the pool" }, ...d.pool]} />
+            <Select label="Pool scenario" value={pick} onChange={(v) => (setPick(v), setGen(null))} options={[{ value: "", label: gen !== null ? "A generated sample" : "First in the pool" }, ...d.pool]} />
           </Row>
         )}
-        {(generator || d?.kind === "generator" || d?.kind === "story") && (
-          <Row label="Generate an example" hint="A fresh draw from the generator (not saved)">
-            <button className="btn-secondary" onClick={() => (setPick(""), setGen(Math.floor(Math.random() * 10000)))}><Dices size={14} /> Generate</button>
+        {generator && d?.rules?.length > 0 && (
+          <Row label="Generation rule" hint={d.rules.find((r: any) => r.value === (rule || d.layer_rule))?.description}>
+            <Select
+              label="Generation rule"
+              value={rule}
+              onChange={(v) => (setRule(v), setPick(""), gen === null && setGen(0))}
+              options={[{ value: "", label: `As this layer (${ruleLabel(d.layer_rule)})` }, ...d.rules.map((r: any) => ({ value: r.value, label: r.label }))]}
+            />
           </Row>
         )}
-        {d && !d.error && <InfoRow label="Shown" value={d.generated ? (gen !== null ? `generated (seed ${gen})` : "generated") : shortPath(d.loaded_from) || "bundled template"} mono={!d.generated} />}
+        {generator && (
+          <Row label="Generate a sample" hint="A fresh draw from the generator by the rule above (not saved)">
+            <button className="btn-secondary" onClick={draw} disabled={loading}><Dices size={14} /> {loading ? "Generating…" : "Generate"}</button>
+          </Row>
+        )}
+        {d && !d.error && (
+          <InfoRow
+            label="Shown"
+            value={d.generated ? `generated · ${ruleLabel(d.rule)}${gen !== null ? ` · draw ${gen}` : ""}` : `${shortPath(d.loaded_from) || "bundled template"}${d.simple ? " · simple" : ""}`}
+            mono={!d.generated}
+          />
+        )}
       </Group>
-      {!d ? <Spinner /> : d.error ? <Note tone="warn">{d.error}</Note> : <ScenarioBody d={d} />}
+      {!d ? <Spinner /> : d.error ? <Note tone="warn">{d.error}</Note> : <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}><ScenarioBody d={d} /></div>}
     </>
   );
 }
@@ -53,53 +112,149 @@ function Details({ item, layer }: { item: ExItem; layer: Layer }) {
 function ScenarioBody({ d }: { d: any }) {
   return (
     <>
-      <Group title={d.title || d.name}>
-        {d.short_description && <div className="px-4 py-3 text-sm">{d.short_description}</div>}
-        {d.long_description && <Disclosure label="Long description" hint="What participants read" title="Long description" render={() => <Group><div className="px-4 py-3"><Markdown text={d.long_description} /></div></Group>} />}
-        <InfoRow label="Outcomes" value={d.n_outcomes} />
-      </Group>
-      <Group title="Roles">
-        {d.roles.map((r: any) => (
-          <InfoRow key={r.name} label={<>{r.name}{r.human && <span className="ml-1.5 rounded bg-you/10 px-1.5 text-[0.68rem] text-you">participant</span>}</>} hint={r.description} value={`no deal: ${fmt(r.reserved_value)}`} />
-        ))}
-      </Group>
-      <Group title={`Issues (${d.issues.length})`}>
-        {d.issues.map((i: any) => (
-          <Row key={i.name} label={i.name} hint={i.description || i.type} wide>
-            <div className="flex flex-wrap gap-1">
-              {i.values.map((v: string) => <span key={v} className="chip">{v}</span>)}
-              {i.n_values > i.values.length && <span className="text-xs text-muted">… {i.n_values} options</span>}
-            </div>
-          </Row>
-        ))}
-      </Group>
-      <UtilityPlots d={d} />
+      <Fold id="picture" title="Picture">{() => <Picture token={d.plot_token} />}</Fold>
+      <Fold id="description" title="Description" hint={d.title || d.name}>
+        {() => (
+          <Group>
+            <div className="px-4 pt-3 text-sm font-semibold">{d.title || d.name}</div>
+            {d.short_description ? <div className="px-4 py-3 text-sm">{d.short_description}</div> : <div className="px-4 py-3 text-sm text-muted">No short description.</div>}
+            {d.source && <InfoRow label="Source" value={d.source} />}
+            <InfoRow label="Outcomes" value={d.n_outcomes ?? "—"} />
+          </Group>
+        )}
+      </Fold>
+      <Fold id="long-description" title="Long description" hint="What participants read" defaultOpen={false}>
+        {() => <Group><div className="px-4 py-3">{d.long_description ? <Markdown text={d.long_description} /> : <span className="text-sm text-muted">No long description.</span>}</div></Group>}
+      </Fold>
+      <Fold id="summaries" title="Preference summaries" hint="“In short” of the Preferences tool, per role">
+        {() => (
+          <Group>
+            {d.summaries?.map((s: any) => (
+              <div key={s.role} className="px-4 py-3">
+                <div className="mb-1 text-sm font-semibold">{s.role}{s.human && <ParticipantTag />}</div>
+                {s.summary ? <Markdown text={s.summary} /> : <span className="text-sm text-muted">No summary.</span>}
+              </div>
+            ))}
+          </Group>
+        )}
+      </Fold>
+      <Fold id="roles" title={`Roles (${d.roles.length})`}>
+        {() => (
+          <Group>
+            {d.roles.map((r: any) => (
+              <InfoRow key={r.name} label={<>{r.name}{r.human && <ParticipantTag />}</>} hint={r.description} value={`no deal: ${fmt(r.reserved_value)}`} />
+            ))}
+          </Group>
+        )}
+      </Fold>
+      <Fold id="issues" title={`Issues (${d.issues.length})`}>
+        {() => (
+          <Group>
+            {d.issues.map((i: any) => (
+              <Row key={i.name} label={i.name} hint={i.description || i.type} wide>
+                <div className="flex flex-wrap gap-1">
+                  {i.values.map((v: string) => <span key={v} className="chip">{v}</span>)}
+                  {i.n_values > i.values.length && <span className="text-xs text-muted">… {i.n_values} options</span>}
+                </div>
+              </Row>
+            ))}
+          </Group>
+        )}
+      </Fold>
+      <Fold id="outcome-space" title="Outcome space" hint="2D utility plot">{() => <UtilityPlots d={d} />}</Fold>
+      <Fold id="preferences" title="Preferences tool" hint="As each role sees it" defaultOpen={false}>{() => <RolePreferences d={d} />}</Fold>
       {d.sample?.length > 0 && (
-        <Group title="Sample utilities" footer="The best outcome for each role, then a few others.">
-          <div className="scroll-thin overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted">
-                  {d.issues.map((i: any) => <th key={i.name} className="px-3 py-2 font-medium">{i.name}</th>)}
-                  {d.roles.map((r: any) => <th key={r.name} className="px-3 py-2 text-right font-medium">{r.name}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {d.sample.map((s: any, k: number) => (
-                  <tr key={k} className="border-t border-line/70">
-                    {d.issues.map((i: any) => <td key={i.name} className="px-3 py-1.5">{s.outcome[i.name]}</td>)}
-                    {d.roles.map((r: any) => <td key={r.name} className="tnum px-3 py-1.5 text-right">{fmt(s.utilities[r.name])}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Group>
+        <Fold id="sample" title="Sample utilities" hint="Best outcome per role, then a few others" defaultOpen={false}>
+          {() => (
+            <Group>
+              <div className="scroll-thin overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted">
+                      {d.issues.map((i: any) => <th key={i.name} className="px-3 py-2 font-medium">{i.name}</th>)}
+                      {d.roles.map((r: any) => <th key={r.name} className="px-3 py-2 text-right font-medium">{r.name}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {d.sample.map((s: any, k: number) => (
+                      <tr key={k} className="border-t border-line/70">
+                        {d.issues.map((i: any) => <td key={i.name} className="px-3 py-1.5">{s.outcome[i.name]}</td>)}
+                        {d.roles.map((r: any) => <td key={r.name} className="tnum px-3 py-1.5 text-right">{fmt(s.utilities[r.name])}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Group>
+          )}
+        </Fold>
       )}
       {d.warnings?.length > 0 && <Note tone="warn">{d.warnings.join(" · ")}</Note>}
     </>
   );
 }
+
+const ParticipantTag = () => <span className="ml-1.5 rounded bg-you/10 px-1.5 text-[0.68rem] font-normal text-you">participant</span>;
+
+/** The scenario's picture (light and dark), fetched apart: it can be a large data URL. */
+function Picture({ token }: { token: string }) {
+  const [p, setP] = useState<{ light: string | null; dark: string | null } | { error: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    setP(null);
+    api<any>(`/api/admin/scenarios/picture/${enc(token)}`).then((x) => live && setP(x)).catch((e) => live && setP({ error: e.message }));
+    return () => void (live = false);
+  }, [token]);
+  if (!p) return <Spinner />;
+  if ("error" in p) return <Note tone="warn">{p.error}</Note>;
+  if (!p.light) return <Note>This scenario has no picture.</Note>;
+  const cls = "block h-auto max-h-[420px] w-full rounded-xl object-contain";
+  return (
+    <Group>
+      <div className="p-2">
+        {p.dark ? (
+          <>
+            <img src={p.light} alt="" className={`${cls} theme-light-only`} />
+            <img src={p.dark} alt="" className={`${cls} theme-dark-only`} />
+          </>
+        ) : (
+          <img src={p.light} alt="" className={cls} />
+        )}
+      </div>
+    </Group>
+  );
+}
+
+/** The Preferences tool, rendered on the server for every role, side by side. */
+function RolePreferences({ d }: { d: any }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {d.roles.map((r: any, i: number) => <RolePreference key={`${d.plot_token}:${i}`} token={d.plot_token} index={i} role={r} />)}
+    </div>
+  );
+}
+
+function RolePreference({ token, index, role }: { token: string; index: number; role: any }) {
+  const [view, setView] = useState<any[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, any>>({});
+  useEffect(() => {
+    let live = true;
+    api<any>(`/api/admin/scenarios/preferences/${enc(token)}`, { method: "POST", body: { role: index, values } })
+      .then((x) => live && (setView(x.components), setErr(null)))
+      .catch((e) => live && setErr(e.message));
+    return () => void (live = false);
+  }, [token, index, values]);
+  return (
+    <div className="min-w-0 rounded-xl border border-line/80 bg-surface p-3">
+      <div className="mb-2 text-sm font-semibold">{role.name}{role.human && <ParticipantTag />}</div>
+      {err ? <Note tone="warn">{err}</Note> : !view ? <Spinner /> : (
+        <Renderer components={view} ctx={{ reserved: role.reserved_value, onInput: (n, v) => setValues((s) => ({ ...s, [n]: v })), onAction: () => {} }} />
+      )}
+    </div>
+  );
+}
+
 /** Every outcome in utility space (negmas's 2D plot): the participant's role against each other
  *  role, with the Pareto frontier, the bargaining solutions and the no-deal regions shaded. */
 function UtilityPlots({ d }: { d: any }) {
@@ -115,14 +270,13 @@ function UtilityPlots({ d }: { d: any }) {
     return () => void (live = false);
   }, [d.plot_token]);
   if (!d.plot_token) return null;
-  if (!r) return <Group title="Outcome space"><div className="px-4"><Spinner /></div></Group>;
+  if (!r) return <Group><div className="px-4"><Spinner /></div></Group>;
   if ("error" in r) return <Note tone="warn">{r.error}</Note>;
   const plots = r.plots;
   if (!plots.length) return r.plot_note ? <Note>{r.plot_note}</Note> : null;
   const p = plots[Math.min(k, plots.length - 1)];
   return (
     <Group
-      title="Outcome space"
       footer={["Each dot is an outcome at its utility for the two roles; shading marks where an outcome is worse than a role's no-deal value.", r.plot_note].filter(Boolean).join(" ")}
     >
       {plots.length > 1 && (
