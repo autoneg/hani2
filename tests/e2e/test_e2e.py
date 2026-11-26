@@ -146,6 +146,20 @@ def test_playground_on_a_phone_has_no_sideways_scroll(new_page):
         assert width[0] <= width[1] + 1, (tab, width)
 
 
+def test_each_tool_pane_keeps_one_help_button_while_negotiating(new_page):
+    """Regression (issue #1): the "?" (About <tool>) button multiplied in every pane on each turn."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    start(p)
+    counts = "() => [...document.querySelectorAll('[role=tablist]')].map(t => t.querySelectorAll('button[aria-label^=\"About \"]').length)"
+    for i in range(4):
+        send_counter(p, f"Turn {i}")
+        expect(p.get_by_text(f"Turn {i}")).to_be_visible()
+        p.wait_for_timeout(500)  # let the opponent's reply and the tool renders arrive
+        per_pane = p.evaluate(counts)
+        assert per_pane and all(n <= 1 for n in per_pane), (i, per_pane)
+
+
 def test_participants_cannot_open_the_admin_api(user_page):
     assert user_page.request.get("/api/admin/users").status == 403
 
