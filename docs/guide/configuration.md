@@ -191,11 +191,6 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `human_opponents_first` | `false` | When the pool has human entries, every negotiation looks for a person first, of any human kind the pool lists; the AI entries are only the fallback. See [A person first](human-opponents.md#a-person-first-any-person). |
 | `human_opponent_choice` | `false` | Before pairing, the participant chooses *Play a person* or *Play an AI opponent now* (also `?opponent_choice=1`). See [Choosing a person or an AI](human-opponents.md#choosing-a-person-or-an-ai). |
 | `human_opponent_codes` | `true` | Whether `?match=<code>` pairs non-admins (false: pairing is only random among those waiting). |
-| `assistant_isolation` | `"none"` | `process`: participant-written Assistants run in a sandboxed worker process (also `HANI2_ASSISTANT_ISOLATION=process`). See [Isolated Assistants](assistant.md#isolated-assistants). |
-| `assistant_sandbox` | `"required"` | The isolated worker's sandbox: `required`, `auto` or `off`. |
-| `assistant_network` | `false` | Whether an isolated worker may use the network. |
-| `assistant_call_timeout`, `assistant_start_timeout` | `600`, `90` | Seconds an isolated Assistant may take for one call, and to start. |
-| `assistant_cpu_seconds`, `assistant_memory_mb` | `3600`, `2048` | Its CPU-time and (Linux) memory limits. |
 
 The Prolific flow overrides some of these per round (for example the time limits). See [Prolific](prolific.md).
 
@@ -206,7 +201,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `participant_settings.<key>` | all `true` | Whether participants may change this. Off: the control is not shown and the server refuses the change. Administrators may always change everything (their settings drawer marks what participants do not see). |
-| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
+| `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
 | `view` | `full` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
@@ -216,7 +211,7 @@ The `participant_settings` keys:
 
 | Key | Controls |
 | --- | --- |
-| `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
+| `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` | The display settings of the same name. |
 | `show_scenario_picture` | **Show the scenario's picture** in the settings drawer and the *Picture* switch of the *Scenario Info* tool. |
 | `scenario_picture_style` | **Scenario picture** in the settings drawer and the style menu of the *Scenario Info* tool. |
 | `open_scenario_description` | **Open the full scenario description**. |

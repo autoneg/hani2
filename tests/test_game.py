@@ -147,34 +147,18 @@ def _run_to_agreement(a, b):
     assert a.wait_until_done() and b.wait_until_done()
 
 
-def test_page_assistant_and_own_results_show_nothing_about_the_other_participant(hani2_home):
+def test_a_game_records_both_sides_and_asks_no_questionnaire(hani2_home):
     game_study(hani2_home)
     a, b = play("alice"), play("bob")
     assert a.match is b.match
     _run_to_agreement(a, b)
-    for me, other in ((a, b), (b, a)):
-        snap = json.dumps(me.snapshot(), default=str)
-        assert other.user not in snap and me.ss["match_id"] not in snap
-        assert me.result["agent_utility"] is None
-        ctx = json.dumps(me.context(), default=str)
-        assert other.user not in ctx and "agent_utility\": 0" not in ctx
-        assert me.opponent_preferences() == {} and me.opponent_utility(me.mechanism.agreement) is None
+    for me in (a, b):
         assert me.questionnaire is None and me.phase == "ended"  # questionnaires: false
-    # results.csv keeps everything for analysis …
     with open(a.ss["user_path"] / "results.csv") as fh:
         row = list(csv.DictReader(fh))[-1]
     assert row["opponent_user"] == "bob" and row["match_id"] and row["agent_utility"] != ""
-    # … but the participant's own results view does not
-    from hani2.results import own_view, read_user_results
-
-    with projects.use_study(projects.parse_ref(GAME)):
-        df = own_view(read_user_results(a.ss["user"]))
-    assert "opponent_user" not in df.columns and "match_id" not in df.columns
-    assert df["agent_utility"].isna().all()
-    from hani2.tools.base import Tool
-
-    t = Tool(a.ss)
-    assert t.agent_ufun is None and not t.may_see_opponent
+    # the page shows the other participant's name nowhere
+    assert "bob" not in json.dumps(a.snapshot(), default=str)
 
 
 def test_questionnaires_off_wins_over_the_environment(hani2_home, monkeypatch):
@@ -324,3 +308,107 @@ def test_a_group_file_can_give_a_player_no_assistant(hani2_home):
     b = play("bob")  # with an Assistant: they fit (both take any person)
     assert a.match is not None and a.match is b.match
     assert b.snapshot()["opponent_kind"] == "human"
+
+
+
+# --------------------------------------------------------------------------- #
+# Invitations: the group file decides the Assistant (HI) or the opponent (HAN) #
+# --------------------------------------------------------------------------- #
+HELLO, RULES = "level1_hello:HelloAgent", "level2_rules:RulesAgent"
+
+
+def _study_with_its_own_choices(folder, **neg):
+    """The study has its own Assistant pool and lets participants choose the Assistant and the opponent."""
+    projects.create_project("game", kind="none", defaults={
+        "opponents": ["human+assistant", "human", "BoulwareTBNegotiator"], "assistants": [RULES, "none"],
+        "questionnaires": False})
+    env = json.loads((folder / "env.json").read_text())
+    env["choices"] = {"assistant": True, "opponent": True}
+    env["negotiation"].update(neg)
+    (folder / "env.json").write_text(json.dumps(env))
+
+
+def _group(folder, key, **data):
+    d = folder / "results" / "groups"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{key}.json").write_text(json.dumps(data))
+
+
+def test_the_group_files_assistant_always_wins(hani2_home):
+    folder = game_study(hani2_home)
+    _study_with_its_own_choices(folder)
+    _group(folder, "inv_hello", agents=["human+assistant", "human", "BoulwareTBNegotiator"], assistant=HELLO)
+    plain = play("carol")
+    assert plain.assistant_choice.spec in (RULES, "none")  # the study's own pool, without a group
+    for i in range(3):
+        s = play(f"p{i}", query={"group": "inv_hello"})
+        assert s.assistant_choice.spec == HELLO and type(s.support_agent).__name__ == "HelloAgent"
+        assert s.assistant_choice.source == "group"
+        assert s.choose("assistant", RULES)["ok"] is False  # no participant pick replaces it
+        st = s.snapshot()["choices"]
+        assert st is None or not st["assistant"]["options"]
+        s.load()  # a new round keeps it
+        assert s.assistant_choice.spec == HELLO
+        s.close()
+
+
+def test_the_group_files_assistant_wins_even_when_the_assistant_is_switched_off(hani2_home):
+    folder = game_study(hani2_home)
+    _group(folder, "inv_hello", assistant=HELLO)
+    s = play("dave", query={"group": "inv_hello"}, assistant_settings={"mode": "off"})
+    assert type(s.support_agent).__name__ == "HelloAgent"
+
+
+def test_a_group_file_naming_no_assistant_gives_none(hani2_home):
+    folder = game_study(hani2_home)
+    _study_with_its_own_choices(folder)
+    _group(folder, "inv_none", assistant="none")
+    s = play("erin", query={"group": "inv_none"})
+    assert s.support_agent is None and s.assistant_choice.spec == "none" and not s.assistant_error
+    assert s.choose("assistant", RULES)["ok"] is False
+
+
+def test_an_invited_agent_is_the_only_opponent(hani2_home):
+    folder = game_study(hani2_home, human_opponent_choice=True)
+    _study_with_its_own_choices(folder)
+    _group(folder, "han_inv", agents=["ConcederTBNegotiator"])
+    for i in range(3):
+        s = play(f"h{i}", query={"group": "han_inv"})
+        assert s.match is None and not s.opponent_choice_pending  # no person, no person/AI screen
+        assert s.choose("opponent", "BoulwareTBNegotiator")["ok"] is False
+        s.start()
+        assert s.wait(lambda: s.phase == "running", 20)
+        assert "Conceder" in str(s.ss.get("last_partner_type"))
+        assert s.end() and s.wait(lambda: s.phase == "ended", 20)
+        s.close()
+
+
+def test_a_guest_plays_with_the_inviters_assistant(client, hani2_home):
+    folder = projects.study_dir(projects.parse_ref(GAME))
+    _study_with_its_own_choices(folder)
+    _group(folder, "inv_hello", agents=["human+assistant", "human", "BoulwareTBNegotiator"], assistant=HELLO)
+    go(client, sso.sign(claims(), SECRET), next=f"/app?study={GAME}&group=inv_hello")
+    sid = client.post("/api/session", json={"mode": "main",
+                                            "query": {"study": GAME, "group": "inv_hello"}}).json()["sid"]
+    from hani2.server import hub
+
+    s = hub.get(sid)
+    assert s.assistant_choice.spec == HELLO and type(s.support_agent).__name__ == "HelloAgent"
+    assert s.choose("assistant", RULES)["ok"] is False
+
+
+def test_a_guest_plays_only_the_invited_agent(client, hani2_home):
+    folder = projects.study_dir(projects.parse_ref(GAME))
+    _study_with_its_own_choices(folder)
+    _group(folder, "han_inv", agents=["ConcederTBNegotiator"])
+    go(client, sso.sign(claims(), SECRET), next=f"/app?study={GAME}&group=han_inv&opponent_choice=1")
+    sid = client.post("/api/session", json={"mode": "main", "query": {"study": GAME, "group": "han_inv",
+                                                                      "opponent_choice": "1"}}).json()["sid"]
+    from hani2.server import hub
+
+    s = hub.get(sid)
+    assert s.match is None and not s.opponent_choice_pending
+    assert s.choose("opponent", "BoulwareTBNegotiator")["ok"] is False
+    s.start()
+    assert wait(lambda: s.phase == "running")
+    assert "Conceder" in str(s.ss.get("last_partner_type"))

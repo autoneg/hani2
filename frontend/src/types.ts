@@ -25,6 +25,8 @@ export interface HistoryItem {
   text?: string | null;
   data?: Record<string, Json> | null;
   utility?: number | null;
+  /** what each issue adds to ``utility``, in ``SessionState.utility_issues`` order (additive preferences only) */
+  utility_parts?: number[] | null;
   below_reserved?: boolean;
   step?: number | null;
   relative_time?: number | null;
@@ -112,6 +114,7 @@ export interface Result {
   agent_utility: number | null;
   human_advantage: number | null;
   reserved_value: number;
+  utility_parts?: number[] | null;
   n_human_actions: number;
   agent_failed: boolean;
   step: number;
@@ -158,13 +161,15 @@ export interface SessionState {
     time_limit: number | null;
     server_time: number;
   };
-  partner_offer: null | { values: Record<string, Json>; text: string; utility: number | null; message?: string | null; view?: Component[] | null };
+  partner_offer: null | { values: Record<string, Json>; text: string; utility: number | null; utility_parts?: number[] | null; message?: string | null; view?: Component[] | null };
   /** null when the human does not know it (an information split) */
   reserved_value: number | null;
   /** who knows what this round; null when the human and the Assistant know the same things */
   information?: { totals_hidden: boolean; reserved_hidden: boolean; preferences: string; past_negotiations: number; market_research: boolean } | null;
   /** ``controls``: the scenario's own counter-offer controls (components); absent = one field per issue */
-  draft: { values: Record<string, Json>; text: string; utility: number | null; controls?: Component[] | null };
+  draft: { values: Record<string, Json>; text: string; utility: number | null; utility_parts?: number[] | null; controls?: Component[] | null };
+  /** the issues of the colour-coded utility bars, most important first (null: not additive, or not known to the human) */
+  utility_issues?: string[] | null;
   result: Result | null;
   history: HistoryItem[];
   tools: ToolInfo[];

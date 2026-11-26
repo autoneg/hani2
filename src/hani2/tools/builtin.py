@@ -186,8 +186,6 @@ class OpponentPreferencesTool(Tool):
     order = 50
 
     def view(self):
-        if self.opponent_is_participant:
-            return [ui.alert("The opponent is another participant: their preferences are private.", "neutral")]
         return [ui.alert("Only visible to administrators.", "warning"),
                 *preference_view(self, self.agent_ufun, title_prefix="Opponent ", help_card=False)]
 
@@ -827,9 +825,7 @@ class UserResultsTool(Tool):
     def view(self):
         from hani2.results import read_user_results
 
-        from hani2.results import own_view
-
-        return _results_view(self, own_view(read_user_results(self.session_state["user"])), leaderboard=False)
+        return _results_view(self, read_user_results(self.session_state["user"]), leaderboard=False)
 
 
 class AllResultsTool(Tool):

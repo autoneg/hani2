@@ -1,1 +1,0 @@
-import{c as o}from"./index-D9bUNdtR.js";const e={name:"margin-top",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M3 3h18",key:"o7r712"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

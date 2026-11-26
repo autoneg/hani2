@@ -160,7 +160,7 @@ export function ConfirmDialog() {
             ) : (
               <div>
                 <div className="mb-1 text-xs text-muted">You will receive</div>
-                <Gauge value={po.utility} reserved={rv} size="lg" />
+                <Gauge value={po.utility} reserved={rv} size="lg" parts={po.utility_parts} legend />
               </div>
             )}
             {below && (
@@ -266,7 +266,7 @@ function Running({ st }: { st: SessionState }) {
               {!totalsHidden && (
                 <div className="min-w-[10rem] max-w-full flex-1 sm:max-w-[14rem]">
                   <div className="mb-0.5 text-[11px] text-muted">Worth to you · line marks no-deal value</div>
-                  <Gauge value={po.utility} reserved={rv} party="opponent" />
+                  <Gauge value={po.utility} reserved={rv} party="opponent" parts={po.utility_parts} legend />
                 </div>
               )}
             </div>
@@ -309,7 +309,7 @@ function Running({ st }: { st: SessionState }) {
             {!textOnly && !totalsHidden && (
               <div className="mt-3 rounded-lg bg-sunken/70 px-3 py-2">
                 <div className="mb-1 text-xs text-muted">If your opponent accepts this offer you get</div>
-                <Gauge value={st.draft.utility} reserved={rv} size="lg" />
+                <Gauge value={st.draft.utility} reserved={rv} size="lg" parts={st.draft.utility_parts} legend />
               </div>
             )}
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -622,7 +622,7 @@ function ResultCard({ st }: { st: SessionState }) {
       {r && (
         <div className="rounded-xl bg-sunken/70 px-4 py-3">
           <div className="mb-1 text-xs text-muted">Your result</div>
-          <Gauge value={r.human_utility} reserved={r.reserved_value} size="lg" />
+          <Gauge value={r.human_utility} reserved={r.reserved_value} size="lg" parts={r.utility_parts} legend />
         </div>
       )}
       {st.notice && <div className={`rounded-lg px-3 py-2 text-sm ${st.notice.level === "error" ? "bg-bad/10 text-bad" : st.notice.level === "success" ? "bg-good/10 text-good" : "bg-you/10"}`}>{st.notice.text}</div>}
