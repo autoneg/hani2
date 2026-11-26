@@ -420,3 +420,37 @@ def test_the_llm_tool_capability_is_on_by_default_and_switches_the_routing(monke
     assert "Your Assistant" not in str(s2.tool_controller.find("LLM").render())
     s.end()
     s2.end()
+
+
+def _emitted(s, monkeypatch) -> list:
+    """The messages the session pushes to the browser."""
+    out: list = []
+    real = s.emit
+    monkeypatch.setattr(s, "emit", lambda msg: (out.append(msg), real(msg))[1])
+    return out
+
+
+@pytest.mark.parametrize("cls", [UtilitySelectorTool, UtilityBarTool, RandomOutcomeTool, "LLM"])
+def test_a_sent_offer_tells_the_browser_so_the_tools_popup_closes(cls, monkeypatch):
+    """Every generator's Send offer emits ``tool_sent`` (a popup showing the tool closes) once the
+    offer is sent; a refused send emits nothing, so the popup stays open with the reason."""
+    s = _started(is_admin=True)
+    if cls == "LLM":
+        t = _llm(s, monkeypatch, {"text": "", "outcome": {i.name: list(i.all)[0] for i in s.issues}, "reasoning": ""})
+    else:
+        t = _tool(s, cls)
+        if cls is RandomOutcomeTool:
+            t.on_action("generate", {})
+        else:
+            _prepare(t)
+            _pick(t)
+    out = _emitted(s, monkeypatch)
+    monkeypatch.setattr(s, "is_my_turn", lambda: False)
+    assert not t.on_action("send_offer", {})["ok"]
+    assert not [m for m in out if m.get("type") == "tool_sent"]
+    monkeypatch.setattr(s, "is_my_turn", lambda: True)
+    n = len(_human_offers(s))
+    assert t.on_action("send_offer", {})["ok"]
+    _wait_sent(s, n)
+    assert {"type": "tool_sent", "tool": t.name} in out
+    s.end()

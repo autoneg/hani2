@@ -1,0 +1,1 @@
+import{c as e}from"./index-Cyj_4wKy.js";const a={name:"exclamation-mark",size:24,node:[["path",{d:"M12 15V4",key:"1w66p8"}],["path",{d:"M12 20h.01",key:"zekei9"}]]};a.node;const t=e(a);export{a as __iconData,t as default};

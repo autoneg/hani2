@@ -53,6 +53,8 @@ A tool is created once per session and stays for the rest of it; later scenarios
 
 Every tool has a help text that says what it does and how it works. Participants read it from the **?** button next to the tool's tabs, and an Assistant with **Use tools** gets it at the top of what `read_tool` returns.
 
+Any tool can also open in a [popup](interface.md#open-in-a-popup), where it has the same buttons as in its pane. When an offer generator's **Send offer** sends the offer from the popup, the popup closes; when the send is refused, the popup stays open with the reason. See [Tools in a popup](offer-generators.md#tools-in-a-popup).
+
 "Permanent" tools have no enable switch and cannot be hidden. Tools that are off by default still show their tab; their view is not computed until the participant (or the Assistant) switches them on.
 
 "Admins only" means a logged-in admin account. `?admin=1` in the URL changes nothing for other users.

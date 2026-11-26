@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Send offer in the generators' popups.** An offer generator opened in a popup has the same
+  buttons and the same disabled reasons as in its pane. When its **Send offer** sends the offer
+  (with the typed message), the popup closes, whether the participant or the Assistant pressed it. When the send is refused, the popup stays open and a
+  notice gives the reason. The server tells the browser with a `tool_sent` message
+  (`OutcomeSelector.offer_sent()`, which also empties the message box). See [Tools in a
+  popup](guide/offer-generators.md#tools-in-a-popup).
 - **Send offer in the offer generators.** Picking a row in the Utility Bar or the Utility-based
   Selector already puts the deal into the counter-offer, so their **Set Offer** button did nothing
   visible. It is now **Send offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
