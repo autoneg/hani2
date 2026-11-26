@@ -227,9 +227,10 @@ export function MaximizedTool() {
   const id = useStore((s) => s.maximized);
   const tool = useStore((s) => s.state?.tools.find((t) => t.id === id && t.visible));
   const mode = useStore((s) => s.state?.tool_maximize ?? "window");
+  const bare = useStore((s) => s.state?.layout.view === "bare");
   useEffect(() => {
-    if (id && (!tool || mode === "off")) useStore.getState().setMaximized(null);
-  }, [id, tool, mode]);
+    if (id && (!tool || mode === "off" || bare)) useStore.getState().setMaximized(null);
+  }, [id, tool, mode, bare]);
   useEffect(() => {
     if (!tool) return;
     const k = (e: KeyboardEvent) => e.key === "Escape" && putBack(tool);

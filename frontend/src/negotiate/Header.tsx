@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Eye, EyeOff, Moon, Plane, Settings2, Shield, Sun, SunMoon, UserRound } from "lucide-react";
+import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Eye, EyeOff, Moon, Plane, Settings2, Shield, Square, Sun, SunMoon, UserRound } from "lucide-react";
 import { send, useStore, useUiState } from "../store";
 import { isVirtual, now as clockNow } from "../clock";
 import { Anchor } from "../ui/Anchor";
@@ -196,7 +196,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
     navigate("/login");
   };
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4">
+    <header data-region="header" className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4">
       <Brand />
       <div className="mx-1 hidden h-6 w-px bg-line md:block" />
       <div className="hidden min-w-0 flex-1 md:block">
@@ -261,12 +261,12 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
           id="layout"
           button={
             <button className="btn-ghost px-2" aria-label="Layout">
-              {view === "full" ? <Columns3 size={17} /> : view === "simple" ? <LayoutPanelLeft size={17} /> : <Maximize2 size={17} />}
+              {view === "full" ? <Columns3 size={17} /> : view === "simple" ? <LayoutPanelLeft size={17} /> : view === "bare" ? <Square size={17} /> : <Maximize2 size={17} />}
             </button>
           }
         >
           <div className="px-2.5 pb-1 pt-1.5 text-xs text-muted">Layout</div>
-          <MenuItem icon={Columns3} active={view !== "focus"} onClick={() => send({ type: "layout", view: "full" })}>
+          <MenuItem icon={Columns3} active={view === "full" || (view === "simple" && device !== "desktop")} onClick={() => send({ type: "layout", view: "full" })}>
             {device === "tablet" ? "Show the tools" : "Full: all tool panes"}
           </MenuItem>
           {device === "desktop" && (
@@ -276,6 +276,9 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
           )}
           <MenuItem icon={Maximize2} active={view === "focus"} onClick={() => send({ type: "layout", view: "focus" })}>
             Focus: negotiation only
+          </MenuItem>
+          <MenuItem icon={Square} active={view === "bare"} onClick={() => send({ type: "layout", view: "bare" })}>
+            Bare: no tools at all
           </MenuItem>
         </Menu>
         )}

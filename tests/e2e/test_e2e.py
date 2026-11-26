@@ -307,3 +307,56 @@ def test_participant_hides_the_character_and_gets_the_header_button(e2e_browser,
         assert not p.errors, p.errors
     finally:
         ctx.close()
+
+
+def test_bare_view_shows_no_tools_on_desktop_and_phone(new_page):
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play?view=bare")
+    start(p)
+    expect(p.locator("[data-region=tools]")).to_have_count(0)
+    expect(p.get_by_role("tablist")).to_have_count(0)
+    expect(p.locator("[data-anchor=history]")).to_be_visible()
+    expect(p.get_by_role("button", name=ACCEPT).first).to_be_visible()
+    # the layout menu offers the way back
+    p.get_by_role("button", name="Layout").click()
+    p.get_by_role("menuitem", name=re.compile("^Full")).or_(p.get_by_role("button", name=re.compile("^Full"))).first.click()
+    expect(p.locator("[data-region=tools]").first).to_be_visible()
+
+    phone = new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    phone.goto("/play?view=bare")
+    phone.get_by_role("button", name="Start negotiation").click()
+    expect(phone.get_by_role("button", name="Counter-offer").or_(phone.get_by_role("button", name="Send offer")).first).to_be_visible()
+    expect(phone.get_by_role("navigation", name="Sections")).to_have_count(0)  # no Tools tab, no Assistant
+    expect(phone.locator("[data-region=tools]")).to_have_count(0)
+
+
+def test_a_style_sheet_that_hides_accept_is_dropped(e2e_browser, css_server):
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, css_server, viewport={"width": 1400, "height": 900})
+    p = Page(ctx.new_page(), css_server)
+    try:
+        name = "e2e" + uuid.uuid4().hex[:8]
+        r = p.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                       "consent": True})
+        assert r.ok, r.text()
+        p.goto("/app")
+        start(p)
+        wait_for_my_turn_with_an_offer(p)
+        paper = "() => getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()"
+        assert p.evaluate(paper) != "10 200 30"
+        header_button = p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True)
+        box = p.get_by_placeholder("Message the assistant")
+        if not box.count():
+            header_button.click()
+        expect(box).to_be_visible()
+        box.fill("calm")
+        box.press("Enter")
+        p.wait_for_function(f"() => ({paper})() === '10 200 30'")  # a harmless sheet applies
+        box.fill("hide")
+        box.press("Enter")
+        p.wait_for_function("() => !document.getElementById('hani2-custom-css')")  # the page dropped it
+        expect(p.get_by_role("button", name=ACCEPT).first).to_be_visible()
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()

@@ -198,6 +198,8 @@ What participants may adjust themselves, the defaults of their own settings, and
 | `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
+| `view` | `full` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
+| `view_locked` | `false` | `true`: participants and the Assistant cannot leave that view (administrators still can). Use it with `view: bare` for a no-tools condition. |
 
 The `participant_settings` keys:
 
@@ -209,7 +211,7 @@ The `participant_settings` keys:
 | `open_scenario_description` | **Open the full scenario description**. |
 | `device` | **Layout for** (phone, tablet, desktop). |
 | `theme` | The theme button and **Theme** setting. |
-| `layout_view` | The layout menu (full, simple, focus). |
+| `layout_view` | The layout menu (full, simple, focus, bare). |
 | `assistant_switch` | The Assistant's on/off switch. |
 | `assistant_autonomy` | **How much may the assistant do?** |
 | `assistant_abilities` | The Assistant's ability switches. |

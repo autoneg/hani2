@@ -1,0 +1,1 @@
+import{c as t}from"./index-C0SZhvfU.js";const e={name:"pilcrow-right",size:24,node:[["path",{d:"M10 3v11",key:"o3l5kj"}],["path",{d:"M10 9H7a1 1 0 0 1 0-6h8",key:"1wb1nc"}],["path",{d:"M14 3v11",key:"mlfb7b"}],["path",{d:"m18 14 4 4H2",key:"4r8io1"}],["path",{d:"m22 18-4 4",key:"1hjjrd"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

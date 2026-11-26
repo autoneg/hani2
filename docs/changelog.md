@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **A bare view with no tools, and studies that fix the view.** The fourth view, `bare`, shows the
+  history, the offer area and the Assistant, and no tools on any device. `env.json` →
+  `interface.view` sets the starting view and `interface.view_locked` keeps participants and the
+  Assistant in it. See [Layout views](guide/interface.md#layout-views).
+- **The Assistant shapes the interface.** `set_layout` switches between all four views; the new
+  `set_offer_display` (capability `offer_display`) rewrites how offers read over the scenario's
+  defaults, and `set_interface` (capability `interface`) changes the participant's display settings
+  and adds a checked style sheet. A new tutorial, [Shape the interface](tutorials/interface.md), and
+  level 11 of the [Assistant tutorial](tutorials/assistant.md#level-11-the-interface-they-ask-for) show how.
 - **Participants can choose the scenario, the opponent and the Assistant** when the admin allows it.
   Each negotiation starts with HANI2's usual pick; participants may then choose another from the
   allowed set (any of the pool, or a list). The playground's setting (`playground.choices`) never

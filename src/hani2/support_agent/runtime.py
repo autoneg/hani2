@@ -318,8 +318,20 @@ class SupportAgent:
         return self._denied(Capability.ANNOTATE) or self.session.annotate(target, text, kind)
 
     def set_layout(self, **changes: Any) -> dict:
-        """``view`` (full | simple | focus), ``collapsed``, ``sizes``. Needs ``layout``."""
+        """``view`` (full | simple | focus | bare), ``collapsed``, ``sizes``. Needs ``layout``."""
         return self._denied(Capability.LAYOUT) or self.session.set_layout(**changes)
+
+    def set_offer_display(self, **changes: Any) -> dict:
+        """Change how offers read (``offer_template``, ``issue_format``, ``value_labels``,
+        ``issue_widget``, ``offer_display``, ``reset``); see
+        :meth:`hani2.session.NegotiationSession.set_offer_display`. Needs ``offer_display``."""
+        return self._denied(Capability.OFFER_DISPLAY) or self.session.set_offer_display(**changes)
+
+    def set_interface(self, prefs: dict | None = None, custom_css: str | None = None) -> dict:
+        """Change the participant's display settings (``prefs``) and the page's extra style sheet
+        (``custom_css``); see :meth:`hani2.session.NegotiationSession.set_interface`. Needs
+        ``interface``."""
+        return self._denied(Capability.INTERFACE) or self.session.set_interface(prefs=prefs, custom_css=custom_css)
 
     def set_presentation(self, style: str | None = None, *, may_hide: bool | None = None,
                          may_show: bool | None = None, clear: bool = False) -> dict:

@@ -26,6 +26,8 @@
     "layout": true,
     "presentation": true,
     "panels": true,
+    "offer_display": true,
+    "interface": true,
     "tool_add": true,
     "tool_use": true,
     "private_info": true,

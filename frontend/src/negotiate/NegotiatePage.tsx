@@ -15,6 +15,7 @@ import * as telemetry from "../telemetry";
 import { Splitter, useLayoutSize } from "../ui/Splitter";
 import { PinnedMessages } from "./Notifications";
 import { Persona, assistantStyle } from "./Persona";
+import { CustomStyle } from "./CustomStyle";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -68,7 +69,7 @@ function Center({ withSide = false, dockMax, prefix = "" }: { withSide?: boolean
         max={0.88}
         label="Resize the offer area"
       />
-      <div ref={dockRef} className="flex min-h-0 shrink-0 flex-col" style={dock !== undefined ? { height: `${dock * 100}%` } : undefined}>
+      <div ref={dockRef} data-region="dock" className="flex min-h-0 shrink-0 flex-col" style={dock !== undefined ? { height: `${dock * 100}%` } : undefined}>
         {withSide ? (
           <div ref={rowRef} className={`flex min-h-0 flex-1 ${dock === undefined ? "max-h-[64vh] min-h-[340px]" : ""}`}>
             <ActionDock embedded />
@@ -167,7 +168,7 @@ function Desktop() {
     <div ref={rowRef} className="flex min-h-0 flex-1">
       {toolsCol && (
         <>
-          <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+          <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
             <ToolColumn />
           </div>
           {toolsSplitter(false)}
@@ -177,7 +178,7 @@ function Desktop() {
       {simpleCol && (
         <>
           {toolsSplitter(true)}
-          <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+          <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
             <ToolPane panes={["upper", "lower", "side"]} className="flex-1" label="Tools" />
           </div>
         </>
@@ -245,7 +246,7 @@ function Tablet({ landscape }: { landscape: boolean }) {
   const [tools, setTools, commitTools] = useLayoutSize("tablet_tools");
   const [tray, setTray, commitTray] = useLayoutSize("tray");
   useReveal(() => setTrayOpen(true));
-  const focus = st.layout.view === "focus";
+  const focus = st.layout.view === "focus" || st.layout.view === "bare";
   const hasTools = st.tools.some((t) => t.visible);
   if (landscape) {
     const w = tools ?? 0.42;
@@ -255,7 +256,7 @@ function Tablet({ landscape }: { landscape: boolean }) {
         {!focus && hasTools && (
           <>
             <Splitter dir="col" after container={rowRef} value={tools} fallback={() => w} onChange={setTools} onCommit={commitTools} min={0.25} max={0.65} label="Resize the tools" />
-            <div className="flex min-h-0 flex-col bg-surface" style={{ width: `${w * 100}%`, minWidth: 280 }}>
+            <div data-region="tools" className="flex min-h-0 flex-col bg-surface" style={{ width: `${w * 100}%`, minWidth: 280 }}>
               <ToolPane panes={["side", "upper", "lower"]} className="min-h-0 flex-1" label="Tools" />
             </div>
           </>
@@ -273,7 +274,7 @@ function Tablet({ landscape }: { landscape: boolean }) {
           {trayOpen && (
             <Splitter dir="row" after container={colRef} value={tray} fallback={() => h} onChange={setTray} onCommit={commitTray} min={0.2} max={0.8} label="Resize the tools" />
           )}
-          <div className={`flex shrink-0 flex-col bg-surface ${trayOpen ? "" : "border-t border-line"}`} style={trayOpen ? { height: `${h * 100}%` } : undefined}>
+          <div data-region="tools" className={`flex shrink-0 flex-col bg-surface ${trayOpen ? "" : "border-t border-line"}`} style={trayOpen ? { height: `${h * 100}%` } : undefined}>
             <button className="flex items-center justify-between px-4 py-2.5 text-sm font-medium" onClick={() => setTrayOpen(!trayOpen)} aria-expanded={trayOpen}>
               <span className="flex items-center gap-2">
                 <LayoutGrid size={16} /> Tools
@@ -294,24 +295,33 @@ function Mobile() {
   const assistantOpen = useStore((s) => s.assistantOpen);
   const setAssistant = useStore((s) => s.setAssistantOpen);
   const [tab, setTab] = useUiState<"negotiate" | "tools">("mobile.tab", "negotiate");
+  // the bare view has no tools at all; focus hides them too (a revealed tool brings them back)
+  const noTools = st.layout.view === "bare" || st.layout.view === "focus";
   useReveal(() => {
+    if (st.layout.view === "bare") return;
     setAssistant(false);
     setTab("tools");
   });
-  const current = assistantOpen ? "assistant" : tab;
+  const current = assistantOpen ? "assistant" : noTools && tab === "tools" ? "negotiate" : tab;
+  const sections: any[] = [
+    ["negotiate", Handshake, "Negotiate"],
+    ...(noTools ? [] : [["tools", LayoutGrid, "Tools"]]),
+    ...(st.support ? [["assistant", Bot, "Assistant"]] : []),
+  ];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
         {current === "negotiate" && <Center />}
-        {current === "tools" && <ToolPane panes={["upper", "lower", "side"]} className="min-w-0 flex-1 bg-surface" label="Tools" />}
+        {current === "tools" && (
+          <div data-region="tools" className="flex min-w-0 flex-1">
+            <ToolPane panes={["upper", "lower", "side"]} className="min-w-0 flex-1 bg-surface" label="Tools" />
+          </div>
+        )}
         {current === "assistant" && <Assistant />}
       </div>
-      <nav className="grid shrink-0 grid-cols-3 border-t border-line bg-surface" aria-label="Sections">
-        {[
-          ["negotiate", Handshake, "Negotiate"],
-          ["tools", LayoutGrid, "Tools"],
-          ...(st.support ? [["assistant", Bot, "Assistant"]] : []),
-        ].map(([k, I, l]: any) => (
+      {sections.length > 1 && (
+      <nav className={`grid shrink-0 border-t border-line bg-surface ${sections.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} aria-label="Sections">
+        {sections.map(([k, I, l]: any) => (
           <button
             key={k}
             aria-current={current === k}
@@ -328,6 +338,7 @@ function Mobile() {
           </button>
         ))}
       </nav>
+      )}
     </div>
   );
 }
@@ -351,6 +362,7 @@ export function NegotiateBody({ device, landscape, live = true }: { device: Devi
       <Persona device={device} live={live} />
       <MaximizedTool />
       <ConfirmDialog />
+      <CustomStyle />
       <SettingsDrawer open={settings} onClose={() => setSettings(false)} />
     </div>
   );

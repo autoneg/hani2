@@ -86,7 +86,7 @@ PARTICIPANT_SETTINGS: dict[str, tuple[str, str]] = {
                                "Small (beside the story), large (above it) or a watermark (behind it)"),
     "device": ("Layout for phone, tablet or desktop", ""),
     "theme": ("Light or dark theme", ""),
-    "layout_view": ("Full, simple or focus view", "The layout menu in the header"),
+    "layout_view": ("Full, simple, focus or bare view", "The layout menu in the header"),
     "assistant_switch": ("Switch the Assistant on and off", ""),
     "assistant_autonomy": ("How much the Assistant may do", "Only lower than the admin's grant"),
     "assistant_abilities": ("The Assistant's abilities", "Only switch off abilities the admin granted"),
@@ -99,7 +99,21 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     # defaults of the participant's own settings (USER_PREFS keys; filled in so the console shows them)
     "prefs": {k: v for k, v in USER_PREFS.items() if v is not None},
     "notifications": {"toast_seconds": 6, "center": True},
+    # the view a session starts in (full | simple | focus | bare); ``?view=`` in the URL wins
+    "view": "full",
+    # true: nobody but an admin may leave that view (not the participant, not the Assistant)
+    "view_locked": False,
 }
+
+#: The layout views. ``bare`` shows no tools at all: the history, the offer area and the Assistant.
+LAYOUT_VIEWS = ("full", "simple", "focus", "bare")
+
+#: Keys of a scenario's ``_info.yaml`` that shape how offers read (see :mod:`hani2.display`); a
+#: session may override them on the fly (:meth:`NegotiationSession.set_offer_display`).
+DISPLAY_KEYS = ("offer_template", "issue_format", "value_labels", "issue_widget")
+ISSUE_WIDGETS = ("buttons", "select", "slider", "number")
+#: Longest custom style sheet a session accepts (characters).
+MAX_CUSTOM_CSS = 8000
 
 #: How many notifications a session keeps for the notification centre.
 MAX_NOTIFICATIONS = 200
@@ -297,7 +311,11 @@ class NegotiationSession:
         self.highlights: list[dict[str, Any]] = []
         self.annotations: dict[str, dict[str, Any]] = {}
         self.agent_panels: list[dict[str, Any]] = []
-        self.layout: dict[str, Any] = {"view": self.query.get("view") or "full", "sizes": {}}
+        self.layout: dict[str, Any] = {"view": self._start_view(), "sizes": {}}
+        #: the session's overrides of the scenario's display keys (DISPLAY_KEYS); see set_offer_display
+        self.display_overrides: dict[str, Any] = {}
+        #: a style sheet the Assistant (or an admin) added to the page; see set_interface
+        self.custom_css: str = ""
         self.pending_question: dict[str, Any] | None = None
         self.notice: dict[str, Any] | None = None
         self.questionnaire: dict[str, Any] | None = None
@@ -352,7 +370,8 @@ class NegotiationSession:
             "results": [],
             "user_agent": user_agent,
             "view_mode": self.layout["view"],
-            "view_source": "query" if self.query.get("view") else "default",
+            "view_source": "query" if self.query.get("view") in LAYOUT_VIEWS else (
+                "study" if self.interface_policy().get("view") not in (None, "full") else "default"),
             "negotiation_running": False,
         }
         self.ss["actions"] = self._make_actions()
@@ -552,11 +571,24 @@ class NegotiationSession:
             pol["prefs"] = {}
         return pol
 
+    def _start_view(self) -> str:
+        """The view a session opens in: ``?view=`` in the URL, else env.json → interface.view."""
+        for v in (self.query.get("view"), self.interface_policy().get("view")):
+            if v in LAYOUT_VIEWS:
+                return str(v)
+        return "full"
+
+    def view_locked(self) -> bool:
+        """Whether the study fixes the view (env.json → interface.view_locked); admins are never locked."""
+        return not self.is_admin and bool(self.interface_policy().get("view_locked"))
+
     def may_adjust(self, key: str, policy: dict | None = None) -> bool:
         """Whether the participant may change ``key`` (a PARTICIPANT_SETTINGS key). Admins may change everything."""
         if self.is_admin:
             return True
         pol = policy or self.interface_policy()
+        if key == "layout_view" and pol.get("view_locked"):
+            return False
         return bool(pol["participant_settings"].get(key, key not in PARTICIPANT_SETTINGS))
 
     def assistant_presentation(self) -> dict[str, Any]:
@@ -1106,7 +1138,119 @@ class NegotiationSession:
             reserved_value=self.shown_reserved_value("human"), is_my_turn=self.is_my_turn(),
             step=getattr(m.state, "step", None) if m is not None else None,
             opponent_offer=self.outcome_to_dict(self.partner_offer()),
+            overrides=dict(self.display_overrides),
         )
+
+    def display_info(self) -> dict[str, Any]:
+        """The scenario's info with this session's display overrides on top."""
+        from hani2.display import merge_display_info
+
+        return merge_display_info((self.scenario.info or {}) if self.scenario is not None else {},
+                                  self.display_overrides)
+
+    def set_offer_display(self, *, offer_template: str | None = None, issue_format: dict | None = None,
+                          value_labels: dict | None = None, issue_widget: dict | None = None,
+                          offer_display: str | None = None, reset: bool | list = False) -> dict:
+        """Change how offers read in this session, over the scenario's own settings:
+        ``offer_template`` (the text line, e.g. ``"{Quantity} items at {Price}"``; ``""`` drops
+        it), ``issue_format`` (issue → format string such as ``"${:,}"``), ``value_labels``
+        (issue → {value: shown name}), ``issue_widget`` (issue → buttons | select | slider |
+        number), ``offer_display`` (the participant's text | table preference). ``reset``:
+        true drops every override, or a list of the keys to drop. Offers already in the history
+        are shown the new way too. An ``offer_template`` also replaces the text and offer views of
+        a scenario's own ``display.py``; the other keys reach it only where it uses the context's
+        formatting (:meth:`hani2.display.OfferContext.fmt`)."""
+        from hani2.display import OfferContext, OfferDisplay, merge_display_info
+
+        if self.scenario is None:
+            return {"ok": False, "error": "no scenario is loaded yet"}
+        names = [i.name for i in self.issues]
+        new = {k: (dict(v) if isinstance(v, dict) else v) for k, v in self.display_overrides.items()}
+        if reset is True:
+            new = {}
+        elif isinstance(reset, (list, tuple)):
+            for k in reset:
+                new.pop(str(k), None)
+
+        def _issues(arg: str, d: Any) -> dict | str:
+            if not isinstance(d, dict):
+                return f"{arg} must map issue names to settings"
+            unknown = [k for k in d if k not in names]
+            if unknown:
+                return f"{arg}: unknown issues {unknown} (issues: {names})"
+            return d
+
+        if offer_template is not None:
+            if not isinstance(offer_template, str) or len(offer_template) > 500:
+                return {"ok": False, "error": "offer_template must be a string of at most 500 characters"}
+            if offer_template:
+                try:
+                    offer_template.format_map({n: "x" for n in names})
+                except (KeyError, ValueError, IndexError, AttributeError) as e:
+                    return {"ok": False, "error": f"offer_template does not fit the issues {names}: {e!r}; "
+                                                  "use {Issue} placeholders"}
+            new["offer_template"] = offer_template
+        if issue_format is not None:
+            d = _issues("issue_format", issue_format)
+            if isinstance(d, str):
+                return {"ok": False, "error": d}
+            for k, f in d.items():
+                if f is None:
+                    continue
+                try:
+                    str(f).format(1)
+                except (KeyError, ValueError, IndexError) as e:
+                    return {"ok": False, "error": f"issue_format[{k}] is not a format for one value: {e!r}"}
+            new["issue_format"] = {**(new.get("issue_format") or {}), **{k: (None if f is None else str(f))
+                                                                         for k, f in d.items()}}
+        if value_labels is not None:
+            d = _issues("value_labels", value_labels)
+            if isinstance(d, str) or not all(isinstance(x, dict) or x is None for x in d.values()):
+                return {"ok": False, "error": d if isinstance(d, str) else "value_labels maps issue -> {value: label}"}
+            merged = dict(new.get("value_labels") or {})
+            for k, x in d.items():
+                merged[k] = None if x is None else {**(merged.get(k) or {}),
+                                                    **{str(a): str(b)[:80] for a, b in x.items()}}
+            new["value_labels"] = merged
+        if issue_widget is not None:
+            d = _issues("issue_widget", issue_widget)
+            if isinstance(d, str):
+                return {"ok": False, "error": d}
+            bad = {k: w for k, w in d.items() if w is not None and w not in ISSUE_WIDGETS}
+            if bad:
+                return {"ok": False, "error": f"issue_widget: unknown widgets {bad} (use {', '.join(ISSUE_WIDGETS)})"}
+            new["issue_widget"] = {**(new.get("issue_widget") or {}), **d}
+        if offer_display is not None and offer_display not in ("text", "table"):
+            return {"ok": False, "error": "offer_display must be text or table"}
+        # a template that no longer formats an offer falls back silently in OfferDisplay.text; check it here
+        try:
+            ctx = OfferContext(self.scenario, overrides=new)
+            OfferDisplay().text({n: None for n in names}, ctx)
+            merge_display_info(self.scenario.info, new)
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"these settings do not work: {e!r}"}
+        with self.lock:
+            self.display_overrides = {k: v for k, v in new.items() if v not in (None, {})}
+            if offer_display is not None:
+                self.prefs["offer_display"] = offer_display
+            self._rerender_history()
+        self.push_state()
+        return {"ok": True, "overrides": dict(self.display_overrides),
+                "offer_display": self.prefs.get("offer_display")}
+
+    def _rerender_history(self) -> None:
+        """Show the offers already in the history the current way (display overrides changed).
+        Call with the lock held."""
+        for h in self.history:
+            if h.get("kind") != "offer" or h.get("offer") is None:
+                continue
+            by_human = h.get("by") == "human"
+            try:
+                offer = tuple(h["offer"].get(i.name) for i in self.issues)
+                h["offer_str"] = self.relabel_text(self.outcome_str(offer, by_human))
+                h["view"] = self.offer_view("history", offer, by_human)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
 
     def _display_call(self, method: str, *args):
         """Call a display method; a failing custom display is reported once and
@@ -1129,7 +1273,8 @@ class NegotiationSession:
         if self.scenario is None:
             return str(outcome)
         ctx = self.offer_context("text", from_human=from_human, done=done, outcome=outcome)
-        r = self._display_call("text", ctx.as_dict(outcome), ctx)
+        # a session's own offer sentence wins over the scenario's display.py
+        r = None if self.display_overrides.get("offer_template") else self._display_call("text", ctx.as_dict(outcome), ctx)
         if r is None:
             from hani2.display import OfferDisplay
 
@@ -1151,8 +1296,8 @@ class NegotiationSession:
     def offer_view(self, surface: str, outcome, from_human: bool = False) -> list[dict] | None:
         """Custom components for an offer in the ``history`` or on the
         ``table``, or ``None`` for the default view."""
-        if outcome is None or self.scenario is None:
-            return None
+        if outcome is None or self.scenario is None or self.display_overrides.get("offer_template"):
+            return None  # no scenario, or the session's own offer sentence replaces custom views
         ctx = self.offer_context(surface, from_human=from_human, outcome=outcome)
         method = "history" if surface == "history" else "on_table"
         return self._view(self._display_call(method, ctx.as_dict(outcome), ctx))
@@ -1445,6 +1590,7 @@ class NegotiationSession:
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir
             self.ss["outcome_display"] = store.display_for(scenario, sdir)
+            self.display_overrides = {}  # overrides name the previous scenario's issues
             hi = store.assign_human(
                 scenario,
                 rule=str(self.admin_prefs.get("role_rule") or "auto"),
@@ -1803,7 +1949,7 @@ class NegotiationSession:
             region = "side" if st["pane"] == "side" else "tools"
             collapsed = [c for c in (self.layout.get("collapsed") or []) if c != region]
             self.layout["collapsed"] = collapsed
-            if self.layout.get("view") == "focus":
+            if self.layout.get("view") == "focus" and not self.view_locked():
                 self._switch_view("full")
                 st = self.tool_state(tool)
                 st["visible"] = True
@@ -2700,7 +2846,8 @@ class NegotiationSession:
         return {"ok": True}
 
     def set_layout(self, **changes: Any) -> dict:
-        """Change the interface layout: ``view`` (full | simple | focus),
+        """Change the interface layout: ``view`` (full | simple | focus | bare; bare shows no
+        tools; refused when the study locks the view),
         ``sizes`` (region → fraction of its container, as set by dragging the
         dividers: ``tools`` (tool column width), ``upper`` (upper tools' share of
         the column), ``dock`` (offer area's share of the height), ``side``
@@ -2711,8 +2858,10 @@ class NegotiationSession:
         with self.lock:
             for k, v in changes.items():
                 if k in allowed and v is not None:
-                    if k == "view" and v not in ("full", "simple", "focus"):
-                        return {"ok": False, "error": "view must be full, simple or focus"}
+                    if k == "view" and v not in LAYOUT_VIEWS:
+                        return {"ok": False, "error": "view must be full, simple, focus or bare"}
+                    if k == "view" and v != self.layout.get("view") and self.view_locked():
+                        return {"ok": False, "error": "the study fixes the view; it cannot be changed"}
                     if k == "sizes":
                         if not isinstance(v, dict):
                             return {"ok": False, "error": "sizes must map region names to fractions"}
@@ -2736,6 +2885,43 @@ class NegotiationSession:
             self.ss["view_mode"] = self.layout.get("view")
         self.push_state()
         return {"ok": True, "layout": dict(self.layout)}
+
+    def set_interface(self, prefs: dict | None = None, custom_css: str | None = None) -> dict:
+        """Change the participant's interface: ``prefs`` sets their own settings (USER_PREFS keys
+        such as ``font_scale``, ``show_history``, ``last_offer_on_top``, ``offer_display``; each
+        only when the study lets the participant change it), ``custom_css`` replaces the page's
+        extra style sheet (``""`` removes it; no ``url()``, ``@import`` or ``!important``, at most
+        MAX_CUSTOM_CSS characters; the accept, end and send controls always stay visible)."""
+        changed: dict[str, Any] = {}
+        refused: dict[str, str] = {}
+        for k, v in (prefs or {}).items():
+            key = PREF_ALIASES.get(str(k), str(k))
+            if key not in USER_PREFS:
+                refused[key] = f"unknown setting (settings: {', '.join(USER_PREFS)})"
+            elif key == "font_scale" and not (isinstance(v, (int, float)) and 0.7 <= float(v) <= 1.6):
+                refused[key] = "font_scale must be a number from 0.7 to 1.6"
+            elif key == "offer_display" and v not in ("text", "table"):
+                refused[key] = "offer_display must be text or table"
+            elif self.set_pref(key, v):
+                changed[key] = v
+            else:
+                refused[key] = "the study does not let this be changed"
+        if custom_css is not None:
+            css = str(custom_css)
+            low = css.lower()
+            bad = [w for w in ("url(", "@import", "!important", "expression(", "</", "javascript:",
+                               "behavior:", "-moz-binding") if w in low]
+            if len(css) > MAX_CUSTOM_CSS:
+                refused["custom_css"] = f"at most {MAX_CUSTOM_CSS} characters"
+            elif bad:
+                refused["custom_css"] = f"not allowed in custom_css: {bad}"
+            else:
+                with self.lock:
+                    self.custom_css = css
+                changed["custom_css"] = f"{len(css)} characters" if css else "removed"
+                self.push_state()
+        return {"ok": bool(changed) or not refused, "changed": changed,
+                **({"refused": refused} if refused else {})}
 
     def _switch_view(self, view: str) -> None:
         """Change ``layout["view"]`` and move every tool to its place in the new
@@ -2810,7 +2996,7 @@ class NegotiationSession:
 
     def issues_spec(self) -> list[dict[str, Any]]:
         out = []
-        info = (self.scenario.info or {}) if self.scenario is not None else {}
+        info = self.display_info()
         role = str(self.ss.get("human_id", "")).replace(" (You)", "")
         descs = info.get("issue_description", {}) or {}
         for i in self.issues:
@@ -2927,7 +3113,9 @@ class NegotiationSession:
                     "text_only_mode", "allow_scenario_selection")},
                 "highlights": list(self.highlights),
                 "annotations": dict(self.annotations),
-                "layout": dict(self.layout),
+                "layout": {**self.layout, **({"locked": True} if self.view_locked() else {})},
+                "custom_css": self.custom_css or None,
+                "display_overrides": dict(self.display_overrides) or None,
                 "agent_panels": list(self.agent_panels),
                 "board": self.board,
                 "pins": [dict(p) for p in self.pins],

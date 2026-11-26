@@ -119,6 +119,7 @@ nav:
   - Tutorials:
       - Build an Assistant: tutorials/assistant.md
       - Build a tool: tutorials/tools.md
+      - Shape the interface: tutorials/interface.md
   - Reference:
       - Architecture: reference/architecture.md
       - Python API: reference/api.md

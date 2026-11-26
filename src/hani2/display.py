@@ -47,6 +47,7 @@ __all__ = [
     "OfferDisplay",
     "OutcomeDisplay",
     "format_value",
+    "merge_display_info",
     "value_key",
 ]
 
@@ -82,6 +83,30 @@ def format_value(info: dict[str, Any] | None, issue: str, value: Any) -> str:
     return str(value)
 
 
+#: Display keys that map issue names to settings; an override merges into them per issue.
+PER_ISSUE_KEYS = ("issue_format", "value_labels", "issue_widget")
+
+
+def merge_display_info(info: dict[str, Any] | None, overrides: dict[str, Any] | None) -> dict[str, Any]:
+    """``info`` (a scenario's ``_info.yaml``) with a session's display ``overrides`` on top:
+    ``offer_template`` is replaced; ``issue_format``, ``value_labels`` and ``issue_widget``
+    merge per issue (an issue mapped to ``None`` falls back to the scenario's setting)."""
+    out = dict(info or {})
+    for k, v in (overrides or {}).items():
+        if k in PER_ISSUE_KEYS and isinstance(v, dict):
+            merged = dict(out.get(k) or {})
+            for issue, x in v.items():
+                if x is None:
+                    continue
+                if k == "value_labels" and isinstance(x, dict) and isinstance(merged.get(issue), dict):
+                    x = {**merged[issue], **x}
+                merged[issue] = x
+            out[k] = merged
+        elif v is not None:
+            out[k] = v
+    return out
+
+
 @dataclass
 class OfferContext:
     """What a display method knows besides the offer itself.
@@ -105,9 +130,13 @@ class OfferContext:
     step: int | None = None
     opponent_offer: dict[str, Any] | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    #: the session's overrides of the scenario's display keys (see :func:`merge_display_info`)
+    overrides: dict[str, Any] = field(default_factory=dict)
 
     @property
     def info(self) -> dict[str, Any]:
+        if self.overrides:
+            return merge_display_info(self.scenario.info, self.overrides)
         return self.scenario.info or {}
 
     @property

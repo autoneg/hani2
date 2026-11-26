@@ -1,1 +1,0 @@
-import{c as a}from"./index-BUywXpVq.js";const e={name:"half-note",size:24,node:[["circle",{cx:"12",cy:"18",r:"4",key:"m3r9ws"}],["path",{d:"M16 18V2",key:"40x2m5"}]],aliases:["music-3"]};e.node;const o=a(e);export{e as __iconData,o as default};

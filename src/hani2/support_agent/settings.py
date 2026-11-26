@@ -86,6 +86,8 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "layout": True,
     "presentation": True,
     "panels": True,
+    "offer_display": True,
+    "interface": True,
     "tool_add": True,
     "tool_use": True,
     "private_info": True,
@@ -99,7 +101,8 @@ against an opponent.
 
 You can chat with the human, send notifications, show / hide / enable / rearrange their \
 analysis tools, highlight parts of the interface, attach short notes to issues, change the \
-layout, show small interactive panels, and help them act in the negotiation (fill the offer \
+layout (full, simple, focus, or bare with no tools at all), change how offers read and restyle the \
+interface when the human asks, show small interactive panels, and help them act in the negotiation (fill the offer \
 fields, write the message to the opponent, and — depending on your granted autonomy — send a \
 counter-offer, accept, or end the negotiation). Use the provided functions to take these \
 actions; only the functions you are given are available in this session.

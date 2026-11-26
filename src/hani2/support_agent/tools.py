@@ -82,6 +82,8 @@ class ToolDispatcher:
             "annotate": (Capability.ANNOTATE, self._annotate, self._schema_annotate),
             "set_layout": (Capability.LAYOUT, self._set_layout, self._schema_set_layout),
             "set_presentation": (Capability.PRESENTATION, self._set_presentation, self._schema_set_presentation),
+            "set_offer_display": (Capability.OFFER_DISPLAY, self._set_offer_display, self._schema_set_offer_display),
+            "set_interface": (Capability.INTERFACE, self._set_interface, self._schema_set_interface),
             "set_opponent_estimate": (Capability.OPPONENT_MODEL, self._set_opponent_estimate,
                                       self._schema_set_opponent_estimate),
             "show_panel": (Capability.PANELS, self._show_panel, self._schema_show_panel),
@@ -854,13 +856,75 @@ class ToolDispatcher:
         return _fn(
             "set_layout",
             "Rearrange the interface. view: 'full' (all panes), 'simple' (history, offer and one "
-            "tools area) or 'focus' (only the negotiation, tools hidden). collapsed: regions to "
+            "tools area), 'focus' (only the negotiation; tools come back when one is opened) or "
+            "'bare' (no tools at all: the history, the offer area and you). Switch to 'simple' or "
+            "'full' when the participant wants more, to 'focus' or 'bare' when they want less. "
+            "The study may fix the view; the result then says so. collapsed: regions to "
             "collapse, any of 'tools', 'history', 'side'. sizes: fractions such as "
             "{'tools': 0.4} (width share of the tools column).",
             {
-                "view": {"type": "string", "enum": ["full", "simple", "focus"]},
+                "view": {"type": "string", "enum": ["full", "simple", "focus", "bare"]},
                 "collapsed": {"type": "array", "items": {"type": "string"}},
                 "sizes": {"type": "object"},
+            },
+            [],
+        )
+
+    def _set_offer_display(self, args: dict) -> dict:
+        keys = ("offer_template", "issue_format", "value_labels", "issue_widget", "offer_display", "reset")
+        changes = {k: args[k] for k in keys if k in args and args[k] is not None}
+        res = self._session().set_offer_display(**changes)
+        _log_agent_action(self.ss, "set_offer_display", str(changes)[:160])
+        return res
+
+    def _schema_set_offer_display(self) -> dict:
+        return _fn(
+            "set_offer_display",
+            "Change how offers are shown everywhere (history, the offer on the table, the result, "
+            "notifications), over the scenario's defaults, for this session. offer_template: one "
+            "sentence with {Issue} placeholders, e.g. '{Quantity} units at {Price} each' ('' drops "
+            "it). issue_format: issue -> Python format for one value, e.g. {'Price': '${:,.2f}'}. "
+            "value_labels: issue -> {value: shown name}. issue_widget: issue -> 'buttons', 'select', "
+            "'slider' or 'number' (the control in the offer editor). offer_display: 'text' "
+            "(sentences) or 'table' (issue chips). reset: true drops every change, or a list of "
+            "keys to drop. Values themselves never change, only how they read.",
+            {
+                "offer_template": {"type": "string"},
+                "issue_format": {"type": "object"},
+                "value_labels": {"type": "object"},
+                "issue_widget": {"type": "object"},
+                "offer_display": {"type": "string", "enum": ["text", "table"]},
+                "reset": {"anyOf": [{"type": "boolean"}, {"type": "array", "items": {"type": "string"}}]},
+            },
+            [],
+        )
+
+    def _set_interface(self, args: dict) -> dict:
+        prefs = args.get("prefs") if isinstance(args.get("prefs"), dict) else None
+        css = args.get("custom_css")
+        res = self._session().set_interface(prefs=prefs, custom_css=css if isinstance(css, str) else None)
+        _log_agent_action(self.ss, "set_interface",
+                          str({**({"prefs": prefs} if prefs else {}),
+                               **({"custom_css": f"{len(css)} chars"} if isinstance(css, str) else {})})[:160])
+        return res
+
+    def _schema_set_interface(self) -> dict:
+        return _fn(
+            "set_interface",
+            "Adjust the participant's interface when they ask. prefs: their display settings, any "
+            "of show_history (false: only the latest offer), show_human_offers, last_offer_on_top, "
+            "offer_panel_always_visible, offer_display ('text' | 'table'), font_scale (0.7-1.6), "
+            "show_scenario_picture, scenario_picture_style ('small' | 'large' | 'watermark'). "
+            "custom_css: a style sheet added to the page (replaces the previous one; '' removes "
+            "it): colours, spacing, fonts, sizes, hiding decorations. Target stable hooks such as "
+            "[data-region=header], [data-region=dock] (the offer area), [data-region=tools], "
+            "[data-anchor=history], [data-anchor=accept], [data-anchor=end], [data-anchor=offer], "
+            "[data-anchor='issue:<name>'] and the CSS colour variables on :root (space-separated RGB, e.g. "
+            "':root{--you: 200 40 40; --paper: 250 247 240}'; --font-scale scales the text). No url(), @import or !important; the accept, end and "
+            "send controls cannot be hidden. Settings the study keeps fixed are refused.",
+            {
+                "prefs": {"type": "object"},
+                "custom_css": {"type": "string"},
             },
             [],
         )

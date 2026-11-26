@@ -408,6 +408,7 @@ LEVELS: dict[int, dict] = {
     8: {"agent": "level8_spotlight:SpotlightAgent"},
     9: {"agent": "level9_panels:PanelAgent"},
     10: {"agent": "level10_toolsmith:ToolsmithAgent"},
+    11: {"agent": "level11_interface:InterfaceAgent"},
 }
 
 
@@ -441,6 +442,23 @@ def take_level(browser, level: int) -> None:
             expect(page.get_by_text("best offers for you").first).to_be_visible()
             settle(page)
             save(page, "tutorial-level9")
+        elif level == 11:
+            start(page)
+            expect(page.get_by_text("How should your screen look?").first).to_be_visible(timeout=30000)
+            settle(page)
+            save(page, "tutorial-level11-welcome")
+            page.get_by_role("button", name="No tools", exact=True).click()
+            my_turn(page)
+            hide_toasts(page)
+            settle(page)
+            save(page, "tutorial-level11-bare")
+            for choice in ("Simple", "Offers as sentences", "Calm colours"):
+                page.get_by_role("button", name=choice, exact=True).click()
+                settle(page, 500)
+            play(page, 1)
+            hide_toasts(page)
+            settle(page, 1500)
+            save(page, "tutorial-level11-styled")
         elif level == 6:
             start(page)
             open_assistant(page)

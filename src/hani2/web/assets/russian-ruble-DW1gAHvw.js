@@ -1,1 +1,0 @@
-import{c as e}from"./index-BUywXpVq.js";const a={name:"russian-ruble",size:24,node:[["path",{d:"M4 16h6",key:"m3hhay"}],["path",{d:"M7 20V5a1 1 0 011-1h6a4 4 0 010 8H4",key:"buy49y"}]]};a.node;const o=e(a);export{a as __iconData,o as default};

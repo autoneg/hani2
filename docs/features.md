@@ -21,7 +21,7 @@ details are.
 
 | Feature | What it does | Details |
 | --- | --- | --- |
-| Three views | **Full** (tools left, offer generators beside the offer area), **simple** (one tools column) and **focus** (negotiation only). | [Layout views](guide/interface.md#layout-views) |
+| Four views | **Full** (tools left, offer generators beside the offer area), **simple** (one tools column), **focus** (negotiation only) and **bare** (no tools at all; a study can fix it). | [Layout views](guide/interface.md#layout-views) |
 | Resizable panes | Drag the dividers between panes; double-click to reset. Sizes survive a reload. | [Resizing the panes](guide/interface.md#resizing-the-panes) |
 | Enlarge a tool | Open any tool in a large window or full screen, and put it back where it came from. | [Enlarge and put back](guide/interface.md#enlarge-and-put-back) |
 | Tablets and phones | Landscape and portrait tablet layouts with a tools tray, and a phone layout with Negotiate / Tools / Assistant tabs. | [Phones and tablets](guide/interface.md#phones-and-tablets) |

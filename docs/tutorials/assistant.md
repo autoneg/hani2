@@ -1,6 +1,6 @@
 # Build an Assistant
 
-This tutorial builds a negotiation Assistant in eleven small steps. You start with an agent that echoes what the participant types and finish with one that points at the interface, rearranges it and builds its own interactive panels. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
+This tutorial builds a negotiation Assistant in twelve small steps. You start with an agent that echoes what the participant types and finish with one that rebuilds the interface the way the participant asks. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
 
 | Level | You build | Needs an LLM |
 |-------|-----------|--------------|
@@ -15,6 +15,7 @@ This tutorial builds a negotiation Assistant in eleven small steps. You start wi
 | 8 | Highlights and notes on the interface | no |
 | 9 | Layout changes and a custom interactive panel | no |
 | 10 | An agent that brings its own tool and uses yours | no |
+| 11 | An agent that gives the participant the interface they ask for | no |
 
 Every level is a real file in `examples/support_agent_tutorial` in the source repository, and every one is covered by the test suite. The screenshots come from running each level against the default model; your scenario, numbers and the model's words will differ. The [Assistant guide](../guide/assistant.md) is the reference for everything used here.
 
@@ -300,12 +301,59 @@ moves, but your offer stays as it is.
 to the status board, or remove the compass with `self.remove_tool("Deal Compass")` once the
 negotiation ends.
 
+## Level 11: the interface they ask for
+
+The last agent lets the participant decide what the screen looks like. It offers a panel of
+choices when the negotiation starts and understands a few words in the chat. Three helpers do the
+work, each gated by its own capability:
+
+- `set_layout(view=...)` switches between `full`, `simple`, `focus` and `bare`: no tools at all,
+  just the history, the offer area and the Assistant (`layout`);
+- `set_offer_display(...)` rewrites how offers read over the scenario's defaults: an
+  `offer_template` sentence, `issue_format`, `value_labels`, the `issue_widget` of each issue, and
+  `reset=True` to undo it (`offer_display`);
+- `set_interface(prefs=..., custom_css=...)` changes the participant's display settings (here the
+  text size) and adds a small style sheet (`interface`).
+
+```python
+--8<-- "examples/support_agent_tutorial/level11_interface.py"
+```
+
+Run it with `"agent_class": "level11_interface:InterfaceAgent"`, or
+`hani2 --assistant examples/support_agent_tutorial/level11_interface.py:InterfaceAgent`.
+When you press Start:
+
+1. A **How should your screen look?** panel appears in the assistant dock.
+
+    ![The level 11 panel of choices](../assets/screens/tutorial-level11-welcome.png)
+2. **No tools** hides every tool pane; **Simple** brings back one tools column and **Everything**
+   all of them.
+
+    ![The bare view: the offers, the offer area and the Assistant, no tools](../assets/screens/tutorial-level11-bare.png)
+3. **Offers as sentences** rewrites every offer, including those already in the history, as
+   "6 for Quantity and 200 for Price".
+4. **Bigger text** and **Calm colours** change the text size and the colour scheme; **Reset**
+   puts everything back.
+5. Typing *no tools*, *simple*, *bigger text* or *reset* in the chat does the same.
+
+![Simple view, offers as sentences and calm colours](../assets/screens/tutorial-level11-styled.png)
+
+Every helper returns `{"ok": ...}`. A study can fix the view (`interface.view_locked`) or stop
+participants changing a display setting; the helper then returns the reason, and the agent tells
+the participant instead of pretending it worked. The style sheet is checked: no `url()`,
+`@import` or `!important`, and a sheet that hides Accept or End is dropped by the page.
+
+**Try this:** add a *dollars* choice that calls
+`self.set_offer_display(issue_format={"Price": "${:,}"})`, or a *dark offer area* choice with
+`custom_css="[data-region=dock] { background: rgb(30 34 44); color: white; }"`.
+The [Shape the interface](interface.md) tutorial shows the same controls from the study's side.
+
 ## What you built, and where next
 
 Starting from an echo, you added rules that read the negotiation (levels 1-2), a language model
 with your persona and your own functions (3-4), proactive advice (5), control over the tools, the
-participant's attention and the layout (6-9), and finally your own tools and the use of the
-participant's tools (10). A real Assistant usually combines a few of these.
+participant's attention and the layout (6-9), your own tools and the use of the
+participant's tools (10), and finally an interface shaped by the participant's requests (11). A real Assistant usually combines a few of these.
 
 - The [Assistant guide](../guide/assistant.md) lists every setting, capability, helper and function.
 - [Build a tool](tools.md) shows how to write the tools your Assistant can bring or use.

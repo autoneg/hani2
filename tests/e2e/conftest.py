@@ -120,6 +120,16 @@ def character_server(tmp_path_factory):
     _stop(proc, log)
 
 
+@pytest.fixture(scope="session")
+def css_server(tmp_path_factory):
+    """A server whose Assistant (tests/e2e/css_agent.py, no model needed) sets style sheets."""
+    home = tmp_path_factory.mktemp("e2e_css_home")
+    agent = Path(__file__).resolve().parent / "css_agent.py"
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--assistant", f"{agent}:CssAgent"])
+    yield url
+    _stop(proc, log)
+
+
 class Page:
     """A Playwright page that collects uncaught page errors (any one fails the test)."""
 

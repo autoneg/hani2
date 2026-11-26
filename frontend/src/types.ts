@@ -166,7 +166,11 @@ export interface SessionState {
   settings: Record<string, Json>;
   highlights: Highlight[];
   annotations: Record<string, { text: string; kind: string }>;
-  layout: { view: "full" | "simple" | "focus"; sizes?: Record<string, number>; collapsed?: string[] };
+  layout: { view: "full" | "simple" | "focus" | "bare"; sizes?: Record<string, number>; collapsed?: string[]; locked?: boolean };
+  /** a style sheet the Assistant added to the page (see CustomStyle) */
+  custom_css?: string | null;
+  /** the session's overrides of the scenario's display keys */
+  display_overrides?: Record<string, Json> | null;
   agent_panels: AgentPanel[];
   board: string;
   pins?: Pin[];

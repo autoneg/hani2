@@ -30,17 +30,20 @@ The opponent's (opponent agent's) name appears when the session is in admin mode
 
 ## Layout views
 
-The layout menu offers three views. The current view is part of the session state, so an Assistant can change it too.
+The layout menu offers four views. The current view is part of the session state, so an Assistant can change it too.
 
 | View | Desktop layout |
 | --- | --- |
 | `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
 | `simple` | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
-| `focus` | The thread and action dock only. |
+| `focus` | The thread and action dock only. Opening a tool (or the start of a negotiation revealing the participant's preferences) brings the tools back. |
+| `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
 
 ![The full view: tools on the left, the thread on top, the action dock and offer generators below](../assets/screens/app-full-view.png)
 
-Add `?view=full`, `?view=simple` or `?view=focus` to the URL to choose the starting view. A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the Assistant's layout control sets it.
+Add `?view=full`, `?view=simple`, `?view=focus` or `?view=bare` to the URL to choose the starting view. A study (or project) sets it with `env.json` → `interface.view`, and `interface.view_locked: true` fixes it: the layout menu disappears and the Assistant's `set_layout` is refused, so a *no tools* condition stays a no-tools condition (see [`interface`](configuration.md#interface)). A region listed in `layout.collapsed` (`tools` or `side`) is hidden; the Assistant's layout control sets it.
+
+The [Shape the interface](../tutorials/interface.md) tutorial walks through the views, a no-tools study, and what the Assistant can change on the fly.
 
 ### Resizing the panes
 

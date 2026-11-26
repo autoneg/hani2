@@ -53,6 +53,14 @@ class ToolController:
             )
         return out
 
+    def _bare(self, res: dict) -> dict:
+        """Add a note to a successful result when the bare view shows no tools at all."""
+        if res.get("ok") and (getattr(self.session, "layout", None) or {}).get("view") == "bare":
+            locked = getattr(self.session, "view_locked", lambda: False)()
+            res["note"] = ("the bare view shows no tools; the study fixes the view, so the participant will not see it"
+                           if locked else "the bare view shows no tools; switch the view (set_layout) to show it")
+        return res
+
     def pane_tools(self, pane: str) -> list["Tool"]:
         items = [t for t in self.tools if self.session.tool_state(t)["pane"] == pane]
         return sorted(items, key=lambda t: self.session.tool_state(t)["order"])
@@ -87,7 +95,7 @@ class ToolController:
             others = [x for x in self.pane_tools(pane) if self.session.tool_state(x)["visible"]]
             self.session.active_tabs[pane] = others[0].name if others else None
         self.session.push_state()
-        return {"ok": True, "tool": t.name, "visible": bool(visible)}
+        return self._bare({"ok": True, "tool": t.name, "visible": bool(visible)})
 
     def move_tool(self, name: str, position: int | None = None, pane: str | None = None) -> dict:
         t = self.find(name)
@@ -106,7 +114,7 @@ class ToolController:
         st["visible"] = True
         self.session.active_tabs[st["pane"]] = t.name
         self.session.push_state()
-        return {"ok": True, "tool": t.name, "pane": st["pane"], "position": pos}
+        return self._bare({"ok": True, "tool": t.name, "pane": st["pane"], "position": pos})
 
     def focus_tool(self, name: str) -> dict:
         """Bring a tool's tab to the front (showing and enabling it)."""
@@ -123,7 +131,7 @@ class ToolController:
         self.session.active_tabs["all"] = t.name
         t.refresh()
         self.session.push_state()
-        return {"ok": True, "tool": t.name, "pane": st["pane"]}
+        return self._bare({"ok": True, "tool": t.name, "pane": st["pane"]})
 
     def restore_all(self) -> list[str]:
         names = []

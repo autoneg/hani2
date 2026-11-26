@@ -18,7 +18,9 @@ Depending on the capabilities you grant and the autonomy level, the agent can:
 - send a counter-offer, accept the opponent's offer or end the negotiation, either directly or through the participant's confirmation dialog;
 - spotlight parts of the interface (buttons, issues, tool tabs, panes) with a short callout;
 - attach notes to issues and other elements;
-- switch the layout between the full, simple and focus views, collapse regions and resize the panes;
+- switch the layout between the full, simple, focus and bare (no tools) views, collapse regions and resize the panes;
+- change how offers read (the offer sentence, number formats, value names, the control of each issue) over the scenario's defaults;
+- change the participant's display settings and restyle the page with a small style sheet;
 - show interactive panels built from the same components as tools, and react when the participant clicks their buttons.
 - find the participant's tools, read what they show and operate their inputs and buttons;
 - add tools to the participant's screen while they negotiate: its own tools or registered ones (see [Tools the agent can find, use and add](#tools-the-agent-can-find-use-and-add)).
@@ -304,7 +306,9 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `end` | End | End the negotiation | `end_negotiation` |
 | `highlight` | Highlight | Spotlight parts of the interface with a short note | `highlight`, `clear_highlights` |
 | `annotate` | Annotate | Attach notes to issues, offers and other elements | `annotate` |
-| `layout` | Change the layout | Switch views and resize or collapse regions | `set_layout` |
+| `layout` | Change the layout | Switch between the full, simple, focus and bare (no tools) views, and resize or collapse regions | `set_layout` |
+| `offer_display` | Change how offers read | Rewrite how offers are shown: the offer sentence, number formats, value names and the control of each issue | `set_offer_display` |
+| `interface` | Adjust the interface | Change the participant's display settings (text size, history, offer order) and restyle the page | `set_interface` |
 | `presentation` | Choose how it appears | Appear as a panel, a character or both, and decide whether the participant can hide the character | `set_presentation` |
 | `panels` | Custom panels | Show interactive panels (cards, tables, buttons) | `show_panel`, `close_panel` |
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
@@ -323,7 +327,7 @@ not to let the opponent know.
 
 The agent always has `get_negotiation_state` and `show_on_board`. It has `list_tools` whenever at least one of `tool_enable`, `tool_visibility`, `tool_order`, `tool_add` or `tool_use` is effective.
 
-Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `set_presentation()` and the `presentation` class attribute need `presentation`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, `pin_message()` and `unpin_message()` need `pin`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
+Capabilities gate the functions offered to the model, `ToolDispatcher.execute`, and the helper methods on `Assistant`: `highlight()` needs `highlight`, `annotate()` needs `annotate`, `set_layout()` needs `layout`, `set_offer_display()` needs `offer_display`, `set_interface()` needs `interface`, `set_presentation()` and the `presentation` class attribute need `presentation`, `show_panel()` needs `panels`, `focus_tool()` needs `tool_visibility`, `pin_message()` and `unpin_message()` need `pin`, and `toast()` needs `toast` (otherwise the text goes to the chat). A gated helper does nothing and returns `{"ok": False, "error": ...}`, so a participant's switches always win, even over custom Python agents.
 
 ## Autonomy
 
@@ -561,6 +565,8 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `clear_highlights(target=None)` | Remove one highlight or all of them. |
 | `annotate(target, text, kind="info")` | Attach a note to an element. `text=None` removes it. |
 | `set_layout(view=..., sizes=..., collapsed=...)` | Change the layout (see [Layout](#layout)). |
+| `set_offer_display(offer_template=..., issue_format=..., value_labels=..., issue_widget=..., offer_display=..., reset=...)` | Change how offers read (see [How offers read](#how-offers-read)). |
+| `set_interface(prefs=..., custom_css=...)` | Change the participant's display settings and the page's style sheet (see [Display settings and style](#display-settings-and-style)). |
 | `set_presentation(style=None, may_hide=None, may_show=None, clear=False)` | Choose how the agent appears and whether the participant may hide or show the character (see [How the Assistant appears](#how-the-assistant-appears)). |
 | `focus_tool(name)` | Bring a tool's tab to the front, showing and enabling it. |
 | `show_panel(panel_id, title, components, placement="assistant")` | Show or replace a panel made of `hani2.tools.ui` components. |
@@ -675,7 +681,9 @@ class MyAgent(Assistant):
 | `highlight` | `target`, `message`, `style` (`pulse`, `glow`, `spotlight`), `duration` (seconds) | `highlight` |
 | `clear_highlights` | `target` | `highlight` |
 | `annotate` | `target`, `text`, `kind` (`info`, `success`, `warning`, `tip`) | `annotate` |
-| `set_layout` | `view` (`full`, `simple`, `focus`), `collapsed`, `sizes` | `layout` |
+| `set_layout` | `view` (`full`, `simple`, `focus`, `bare`), `collapsed`, `sizes` | `layout` |
+| `set_offer_display` | `offer_template`, `issue_format`, `value_labels`, `issue_widget`, `offer_display` (`text`, `table`), `reset` (`true` or a list of keys) | `offer_display` |
+| `set_interface` | `prefs` (display settings), `custom_css` | `interface` |
 | `set_presentation` | `style` (`panel`, `persona`, `both`), `may_hide`, `may_show`, `reset` | `presentation` |
 | `set_opponent_estimate` | `weights` (issue → number), `values` (issue → {option: 0..1}, or `increasing` / `decreasing`), `reserved_value`, `clear` | `opponent_model` |
 | `show_panel` | `panel_id`, `title`, `markdown`, `table` (list of row objects), `buttons` (`label`, `action`), `placement` (`assistant`, `side`, `modal`) | `panels` |
@@ -822,9 +830,32 @@ Notes added with `annotate` stay until removed (`text=None`) or until a new scen
 
 `set_layout` accepts:
 
-- `view`: `full` (all panes), `simple` (history, offer and one tools area) or `focus` (only the negotiation; tools hidden);
+- `view`: `full` (all panes), `simple` (history, offer and one tools area), `focus` (only the negotiation; opening a tool brings the tools back) or `bare` (no tools at all: the history, the offer area and the Assistant);
 - `collapsed`: a list of regions to collapse, any of `tools`, `history`, `side`;
 - `sizes`: fractions such as `{"tools": 0.4}` (the width share of the tools column).
+
+When the study fixes the view (`interface.view_locked`), a view change is refused with an error the Assistant can read. In the bare view, showing, focusing or moving a tool still succeeds (so the tool is ready if the view changes) but the result carries a `note` that nobody sees it.
+
+### How offers read
+
+`set_offer_display` changes, for this session only, the keys a scenario's `_info.yaml` uses to write offers (see [Scenarios](scenarios.md)):
+
+| Argument | Example | Effect |
+|----------|---------|--------|
+| `offer_template` | `"{Quantity} units at {Price} each"` | The one-line text of an offer, everywhere (history, offer on the table, result, notifications). `""` drops it. It also replaces a scenario's own `display.py` text and history views. |
+| `issue_format` | `{"Price": "${:,.2f}"}` | A Python format for one value of an issue. |
+| `value_labels` | `{"Colour": {"r": "Red"}}` | The shown name of a value. |
+| `issue_widget` | `{"Quantity": "slider"}` | The control of an issue in the offer editor: `buttons`, `select`, `slider` or `number`. |
+| `offer_display` | `"table"` | The participant's choice between sentences (`text`) and issue chips (`table`). |
+| `reset` | `true` or `["offer_template"]` | Drop every override, or the listed ones. |
+
+Placeholders, issue names and widgets are checked and a mistake comes back as an error, so a language model can correct itself. Offers already in the history are shown the new way at once. Values never change, only how they read, and a new scenario starts without overrides.
+
+### Display settings and style
+
+`set_interface(prefs=..., custom_css=...)` changes the participant's own display settings (`show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` from 0.7 to 1.6, `show_scenario_picture`, `scenario_picture_style`), each only when the study lets the participant change it (`interface.participant_settings`). The result lists what changed and what was refused.
+
+`custom_css` adds a style sheet to the page (it replaces the previous one; `""` removes it). Stable hooks to target are `[data-region=header]`, `[data-region=dock]` (the offer area), `[data-region=tools]`, `[data-anchor=history]`, `[data-anchor=accept]`, `[data-anchor=end]`, `[data-anchor=offer]`, `[data-anchor="issue:<name>"]`, and the colour variables on `:root`, which are space-separated RGB values (`--you: 200 40 40`); `--font-scale` scales the text. For safety the server refuses sheets with `url()`, `@import`, `!important` or more than 8000 characters, and the page drops a sheet that hides the Accept, End, Counter-offer or offer controls (it records a `custom_css_rejected` event).
 
 ### Panels
 

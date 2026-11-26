@@ -264,3 +264,24 @@ def test_tool_loop_out_of_rounds_falls_back_to_a_plain_apology(scripted):
     scripted(*([("highlight", {"target": "accept", "message": "x"})] * 3))  # still a tool call at the end
     chat(s, "help")
     assert _assistant_texts(s)[-1].startswith("Sorry, I could not finish")
+
+
+def test_level11_interface_choices():
+    s = make_session(agent_class="level11_interface:InterfaceAgent")
+    s.start()
+    s.wait_for_turn()
+    s.wait_agent_idle()
+    assert "screen" in {p["id"] for p in s.agent_panels}
+    s.support_agent.on_panel_action("screen", "bare", {})
+    assert s.layout["view"] == "bare"
+    chat(s, "please make it simple")
+    assert s.layout["view"] == "simple"
+    s.support_agent.on_panel_action("screen", "sentences", {})
+    assert " for " in next(h for h in s.history if h.get("kind") == "offer")["offer_str"]
+    chat(s, "bigger text please")
+    assert s.prefs["font_scale"] == 1.25
+    s.support_agent.on_panel_action("screen", "calm", {})
+    assert "--you" in s.custom_css
+    chat(s, "reset everything")
+    assert s.layout["view"] == "full" and not s.custom_css and not s.display_overrides
+    assert s.prefs["font_scale"] == 1.0
