@@ -781,10 +781,11 @@ def take_walk_hi(browser, use_llm: bool) -> None:
         tab(page, "Negotiation Plot").first.click()
         settle(page, 1500)
         save(page, "walk-hi-estimate")
-        page.get_by_role("button", name="My settings").click()
-        expect(page.get_by_text(re.compile("Assistant")).first).to_be_visible()
+        open_assistant(page)
+        page.get_by_role("button", name="Assistant settings").click()
+        expect(page.get_by_text("How much may the assistant do?")).to_be_visible()
         settle(page, 800)
-        save(page, "walk-hi-my-settings")
+        save(page, "walk-hi-assistant-settings")
         ctx.close()
 
     # the Assistant opens in the tool area, in the open tool's place

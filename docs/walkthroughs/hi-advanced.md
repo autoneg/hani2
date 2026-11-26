@@ -35,10 +35,10 @@ The same settings have:
   *status board*), or chat messages.
 - **Clear the conversation** starts the chat afresh.
 
-The header's **My settings** has the Assistant's part as well, for example whether its
-character is shown:
+![The Assistant's settings: how much it may do, and its abilities](../assets/screens/walk-hi-assistant-settings.png)
 
-![My settings, with the Assistant's settings](../assets/screens/walk-hi-my-settings.png)
+The header's **My settings** holds the page's own display settings and, when the Assistant
+appears as a character, whether the character is shown.
 
 ## 2. Ask better questions
 
@@ -99,8 +99,9 @@ A choice holds for one negotiation; the next one starts from the study's own cho
 ## 6. Playing people: a few tips
 
 - **Waiting.** If nobody is waiting when you choose *Play a person*, you wait for the next one.
-  *Play an AI opponent instead* starts at once against an AI. Some studies switch to an AI after a
-  while on their own and tell you.
+  *Play an AI opponent instead*, when the study offers it, starts at once against an AI. Some
+  studies switch to an AI after a while on their own and tell you; others (people-only games and
+  invitations) keep you waiting for a person.
 - **Both start.** The negotiation starts when both of you have pressed **Start**.
 - **Turns.** While the other person decides, the page says *Your opponent is deciding…*; ask your
   Assistant in the meantime.

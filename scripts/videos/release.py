@@ -94,6 +94,8 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     playlist = ["#EXTM3U", f"#PLAYLIST:{PLAYLIST_TITLE}"]
     checklist = [f"# Upload checklist: {PLAYLIST_TITLE}", "",
+                 "0. Merge and deploy the docs first: every description links to its written walkthrough",
+                 f"   under {DOCS}/, which exists only once the walkthrough pages are published.",
                  "1. Create the playlist (public or unlisted) with the title and text in `playlist.txt`.",
                  "2. Upload each video below in order. For each one:",
                  "   - title from `title.txt`, description from `description.txt` (it holds the chapters),",

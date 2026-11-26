@@ -94,10 +94,14 @@ When the study lets you choose, the page first asks whom you want to play:
   waiting, you join them; otherwise you wait for someone to come.
 - **Play an AI opponent now**: start at once against an AI.
 
-While you wait, the page says *Waiting for the other participant…*, and **Play an AI opponent
-instead** is always offered.
+While you wait, the page says *Waiting for the other participant…*. Most studies also offer
+**Play an AI opponent instead**; a people-only game or invitation waits for a person.
 
 ![Waiting for the other participant](../assets/screens/walk-hi-waiting.png)
+
+The next person to arrive sees that someone is waiting, and joins them:
+
+![Play a person: one person is waiting now](../assets/screens/walk-hi-people-waiting.png)
 
 Once both of you press **Start**, you take turns as usual. A person icon instead of a robot marks
 the other side's offers, and while it is their turn the page says *Your opponent is deciding…*.

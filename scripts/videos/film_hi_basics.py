@@ -4,7 +4,7 @@
         python scripts/videos/film_hi_basics.py [--show]
 
 Part 1: a HANI2 server with the built-in Assistant (the local default language model,
-qwen3:4b-instruct on Ollama) at the Suggest level, the Apartment Lease scenario and a conceding AI
+qwen3:4b-instruct on Ollama, no opponent estimate) at the Suggest level, the Apartment Lease scenario and a conceding AI
 opponent. Part 2: ``hani2 human-trial --assistant``, two people negotiating, each with an Assistant.
 The Assistant's answers come from the model, so they differ from take to take.
 """
@@ -17,7 +17,6 @@ from hv import ASSISTANT_PANEL, COUNTER, MESSAGE, NEC, SEND, START, option
 NAME = "hani2-walkthrough-hi-basics"
 W, A, B = "w", "a", "b"
 ENV = {"negotiation": {"n_steps": 20, "time_limit": None}}
-ASSISTANT = f"{hv.ROOT / 'scripts' / 'screenshots' / 'docs_assistant.py'}:LLMDocsAssistant"
 HEADER_ASSISTANT = "header button:has-text('Assistant')"
 
 N = {
@@ -49,8 +48,8 @@ N = {
            "scenario from the other side, often with an Assistant of their own.",
     "choice": "When the study lets you choose, the page first asks whom you want to play: a person, or an AI "
            "opponent right away.",
-    "waiting": "Nobody is waiting yet, so the first player waits for the next person. Playing an AI instead is "
-            "always possible.",
+    "waiting": "Nobody is waiting yet, so the first player waits for the next person. Most studies also "
+            "offer to play an AI instead.",
     "second": "The second player sees that one person is waiting, and joins them.",
     "both": "The negotiation starts when both have pressed Start.",
     "offer": "One side moves first. A short, friendly message helps: the other side is a person.",
@@ -182,7 +181,7 @@ def part_two(f, url_a: str, url_b: str) -> None:
 def main() -> None:
     f = hv.film(NAME)
     hv.prewarm(f, hv.narration(globals()))
-    with hv.server(["--assistant", ASSISTANT], env_json=ENV, opponent="LinearTBNegotiator",
+    with hv.server(["--assistant", "on"], env_json=ENV, opponent="LinearTBNegotiator",
                    assistant={"autonomy": "suggest"}) as url, \
             hv.trial_server(assistant=True, assistant_settings={"autonomy": "suggest"}) as (url_a, url_b):
         with f:

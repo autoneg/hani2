@@ -50,8 +50,9 @@ N = {
              "for both lie near it. The yellow banner says this is an estimate, and it may be wrong.",
     "selector": "The Utility-based Selector can use the estimate too. It can choose deals by the opponent's "
              "estimated value: still good for you, and more likely to be accepted.",
-    "pick": "We take the deal at the top, check it, and send it.",
-    "tips": "When you play people, the same Assistant helps you. Keep your messages friendly, and be patient: "
+    "pick": "We choose the deal at the top: it goes into our counter-offer. We check it, and send it.",
+    "tips": "When you play people, the same Assistant helps you. While you wait, most studies offer an AI instead. "
+    "Keep your messages friendly, and be patient: "
          "people need time to decide.",
     "bye": "That is the end of the walkthroughs. Thank you for watching, and good luck.",
 }
@@ -135,7 +136,7 @@ def main() -> None:
             f.sleep(2.0)
             f.finish_speech(); f.unring()
             f.say(N["pick"], wait=False)
-            f.click(W, "button:has-text('Set Offer')")
+            f.click(W, "tbody tr:first-child")  # choosing a row puts the deal into the counter-offer
             f.sleep(1.0)
             if not f.loc(W, SEND).count():
                 f.click(W, COUNTER)  # the selector filled the offer; open the editor to check it
@@ -148,7 +149,7 @@ def main() -> None:
             f.part("")
             f.panes([])
             f.tiles("Playing people", [
-                {"n": "1", "t": "Waiting", "d": "Play an AI instead is always offered", "color": NEC["bright"]},
+                {"n": "1", "t": "Waiting", "d": "Most studies offer an AI instead", "color": NEC["bright"]},
                 {"n": "2", "t": "Both start", "d": "The negotiation starts when both press Start", "color": NEC["teal"]},
                 {"n": "3", "t": "Messages", "d": "Short and friendly: the other side is a person", "color": NEC["orange"]},
                 {"n": "4", "t": "Leaving", "d": "Ends the negotiation without agreement", "color": NEC["magenta"]},
