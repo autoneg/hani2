@@ -282,6 +282,12 @@ Every notification is also kept in the session. The bell in the header shows how
 
 If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Studies and results](studies.md) for the file format.
 
+## Utility by issue
+
+With **Colour the utility bars by issue** on, every utility bar (the offer on the table, your counter-offer, the confirmation before accepting, the result and each offer in the history) is split into one coloured segment per issue. A segment's length is what that issue adds to the value of the offer (its weight times the value of the chosen option), so the segments add up to the whole bar. The issues are always in the same order, the most important (largest weight) first, so the same colour means the same issue in every bar and you can compare offers at a glance. The bars in the offer area have a legend with each issue's share; in the history, hover a segment (or the bar) to see it. From the ninth issue on, the issues share one grey segment ("Other").
+
+This works only for linear additive preferences (a weighted sum of one value per issue; every built-in scenario), and only when you see what deals are worth to you and know your whole preferences: in an [information split](information.md) where you know only your weights or only your option values, the bars stay plain and the setting is not shown, since the segments would reveal the rest.
+
 ## Prolific completion
 
 In a Prolific session, the dock shows study progress and notices after each round, and starts or loads rounds automatically on timers. When all counted negotiations are done (and the questionnaire answered), the dock shows "You're all done. Thank you!" and a **Finish and submit** button that opens the completion URL. See [Prolific](prolific.md).
@@ -294,6 +300,7 @@ The **My settings** drawer (the sliders button) holds only what the current user
 | --- | --- | --- | --- |
 | Show the whole history | `show_history` | on | Off: the thread shows only your opponent's latest offer and system lines. |
 | Show my offers in the history | `show_human_offers` | on | Off: your own offers are not added to the thread. |
+| Colour the utility bars by issue | `color_utility_by_issue` | off | See [Utility by issue](#utility-by-issue). |
 | Newest offer on top | `last_offer_on_top` | off | Order of the thread. Off: oldest first, and the thread scrolls to the newest message as it arrives. |
 | Keep the offer editor open | `offer_panel_always_visible` | off | The counter-offer editor stays open. |
 | Offers shown as | `offer_display` | `text` | `text` (sentences) or `table` (issue chips). A scenario with its own history view shows that view either way. |

@@ -860,7 +860,7 @@ Placeholders, issue names and widgets are checked and a mistake comes back as an
 
 ### Display settings and style
 
-`set_interface(prefs=..., custom_css=...)` changes the participant's own display settings (`show_history`, `show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` from 0.7 to 1.6, `show_scenario_picture`, `scenario_picture_style`), each only when the study lets the participant change it (`interface.participant_settings`). The result lists what changed and what was refused.
+`set_interface(prefs=..., custom_css=...)` changes the participant's own display settings (`show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale` from 0.7 to 1.6, `show_scenario_picture`, `scenario_picture_style`), each only when the study lets the participant change it (`interface.participant_settings`). The result lists what changed and what was refused.
 
 `custom_css` adds a style sheet to the page (it replaces the previous one; `""` removes it). Stable hooks to target are `[data-region=header]`, `[data-region=dock]` (the offer area), `[data-region=tools]`, `[data-anchor=history]`, `[data-anchor=accept]`, `[data-anchor=end]`, `[data-anchor=offer]`, `[data-anchor="issue:<name>"]`, and the colour variables on `:root`, which are space-separated RGB values (`--you: 200 40 40`); `--font-scale` scales the text. For safety the server refuses sheets with `url()`, `@import`, `!important` or more than 8000 characters, and the page drops a sheet that hides the Accept, End, Counter-offer or offer controls (it records a `custom_css_rejected` event).
 

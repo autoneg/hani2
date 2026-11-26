@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Utility bars by issue.** *Colour the utility bars by issue* (`color_utility_by_issue`, off by
+  default) splits every utility bar (the offer on the table, the counter-offer, the confirmation, the
+  result and the history) into one coloured segment per issue, the most important first, with a
+  legend in the offer area. Linear additive preferences only, and only when the participant knows
+  their whole preferences. See [Utility by issue](guide/interface.md#utility-by-issue).
+- **`hani2 human-trial`.** One command tries a negotiation between two people on this machine: a
+  trial server with its own home folder and two linked pages (two tabs of one browser are enough).
+  `--assistant` gives both sides the Assistant. See [`hani2 human-trial`](getting-started/cli.md#hani2-human-trial).
 - **Games: people play each other whenever they like.** `human_opponents_first` makes every
   negotiation look for a person first, of any human kind the pool lists, with the AI entries as the
   fallback. `human_opponent_choice` (or `?opponent_choice=1`) lets the participant choose *Play a

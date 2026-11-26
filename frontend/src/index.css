@@ -17,6 +17,14 @@
   --bad: 210 69 59;
   --warn: 196 132 0;
   --font-scale: 1;
+  --issue-1: #257de0;
+  --issue-2: #f47230;
+  --issue-3: #00b894;
+  --issue-4: #f2a600;
+  --issue-5: #ee7fac;
+  --issue-6: #008a17;
+  --issue-7: #6a4ce2;
+  --issue-8: #ec4647;
   --accent-strong: 59 75 219;
   color-scheme: light;
 }
@@ -34,6 +42,14 @@
     --good: 52 199 148;
     --bad: 240 103 92;
     --warn: 230 175 50;
+    --issue-1: #338ced;
+    --issue-2: #e76624;
+    --issue-3: #00a888;
+    --issue-4: #d28e05;
+    --issue-5: #e24d8b;
+    --issue-6: #0aac23;
+    --issue-7: #9887ef;
+    --issue-8: #eb6263;
     --accent-strong: 79 91 214;
     color-scheme: dark;
   }
@@ -51,6 +67,14 @@
   --good: 52 199 148;
   --bad: 240 103 92;
   --warn: 230 175 50;
+  --issue-1: #338ced;
+  --issue-2: #e76624;
+  --issue-3: #00a888;
+  --issue-4: #d28e05;
+  --issue-5: #e24d8b;
+  --issue-6: #0aac23;
+  --issue-7: #9887ef;
+  --issue-8: #eb6263;
   --accent-strong: 79 91 214;
   color-scheme: dark;
 }
