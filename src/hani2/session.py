@@ -1655,6 +1655,8 @@ class NegotiationSession:
             self._leave_match()
             joined, hosting = None, False
             decision, self._opponent_decision = getattr(self, "_opponent_decision", None), None
+            if plan.get("partner") is not None and not matches.is_human(plan["partner"]) and self.people_only():
+                plan.pop("partner")  # a study's own AI pick (schedule, practice) never plays a people-only group
             self._choice_kinds = None
             matches.LOBBY.watch_choice(self, False)
             if decision == "ai" and not self.people_only():
@@ -1964,6 +1966,11 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     @_in_own_study
     def opponent_pool(self) -> list:
+        """:meth:`_opponent_pool_raw`, keeping only its human entries in a people-only group
+        (``"ai_fallback": false``; see :meth:`_people_only_pool`)."""
+        return self._people_only_pool(self._opponent_pool_raw())
+
+    def _opponent_pool_raw(self) -> list:
         """The opponents this session may face, first match wins: the page's
         ``?opponents=`` / ``?group=``, ``hani2 --opponents`` (``HANI2_OPPONENTS``),
         the admin session setting ``opponent_types`` (study.yaml / project.yaml
@@ -1978,8 +1985,6 @@ class NegotiationSession:
             q = self.query
             raw = (q.get("opponents") or q.get("agents")) if admin else None
             self.opponent_group = _group_name(raw) if raw else str(q.get("group") or "").strip().lstrip(":")
-            if not raw:
-                override = self._people_only_pool(override)
             return override
         cmdline = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
         if cmdline:
@@ -2000,8 +2005,8 @@ class NegotiationSession:
 
     def _people_only_pool(self, pool: list) -> list:
         """The pool of a ``?group=`` page: with ``"ai_fallback": false`` in its group file only the
-        human entries stay (the file's AI entries are dropped). A file with no human entry keeps its
-        pool, and its switch does nothing (a warning says so)."""
+        human entries stay (AI entries are dropped, whether the file or the study lists them). A pool
+        with no human entry stays as it is, and the switch does nothing (a warning says so)."""
         from hani2 import assignment
 
         try:
@@ -2014,11 +2019,11 @@ class NegotiationSession:
         dropped = [x for x in pool if not matches.is_human(x)]
         warn = None
         if not people:
-            warn = (f"group file {self.opponent_group!r} says ai_fallback: false but lists no human entry: "
-                    f"the switch is ignored and its AI opponents play")
+            warn = ("the page's group file says ai_fallback: false but the opponent pool has no human "
+                    "entry: the switch is ignored and its AI opponents play")
         elif dropped:
-            warn = (f"group file {self.opponent_group!r} says ai_fallback: false: its AI entries "
-                    f"{', '.join(map(str, dropped))} are dropped (people only)")
+            warn = (f"the page's group file says ai_fallback: false: the AI entries "
+                    f"{', '.join(map(str, dropped))} are dropped from the pool (people only)")
         if warn and not self.__dict__.get("_people_only_warned"):
             self._people_only_warned = True
             print(f"[hani2] WARNING: {warn}")
@@ -2095,6 +2100,7 @@ class NegotiationSession:
                 self._choice_kinds = None
                 self.round_plan = {k: v for k, v in (getattr(self, "round_plan", {}) or {}).items()
                                    if k not in ("partner", "human_kinds")}
+            self.toast("This game is with another person only: waiting for someone to join.", "info")
             self.load()
             return
         try:

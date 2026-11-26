@@ -221,8 +221,11 @@ A session whose page has `?group=<key>` then never gets an AI opponent:
   `kind: "ai"`, or `choose` with an opponent), not only the hidden buttons. Should a round ever reach
   the start without its waiting room, it goes back to waiting instead of starting with an AI.
 
-The default is `true`: a file without the key behaves as before. A file that says `false` but lists no
-human entry ignores the key (a warning says so), and its AI opponents play. An admin's
+The key works also in a group file without `agents` (one that only names the Assistant): the
+study's own pool then loses its AI entries for these participants. The default is `true`: a file
+without the key behaves as before. When the pool has no human entry at all, the key is ignored (a
+warning says so) and its AI opponents play. Strictness follows the page's `?group=`: keep it in every
+link of the invitation. An admin's
 `?opponents=` replaces the group's pool and so this switch too. Admins writing group files through
 the API must give a JSON boolean (`"false"` as a string is refused).
 

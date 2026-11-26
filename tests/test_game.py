@@ -532,3 +532,16 @@ def test_the_server_refuses_an_ai_for_a_people_only_guest(client, hani2_home):
     assert _dispatch_msg(s, {"type": "opponent_choice", "kind": "ai"})["ok"] is False
     time.sleep(0.3)
     assert s.phase == "starting" and s.mechanism is None and s.match is not None
+
+
+def test_a_people_only_group_without_agents_filters_the_studys_pool(hani2_home):
+    folder = game_study(hani2_home, human_opponents_first=False)  # the study's pool also has an AI
+    _group(folder, "inv_strict", assistant="none", ai_fallback=False)
+    s = play("alice", query={"group": "inv_strict"})
+    assert s.people_only() and set(s.opponent_pool()) == set(PEOPLE)
+    for _ in range(6):
+        s.round_plan = {}
+        s.load()
+        assert s.match is not None, "a people-only round always looks for a person"
+    plain = play("bob", query={})
+    assert "BoulwareTBNegotiator" in plain.opponent_pool()  # the study without the group is unchanged
