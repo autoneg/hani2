@@ -16,6 +16,10 @@ as written: the `+` becomes a space there, and `human assistant`, `human_assista
 pool can mix them with agents (`opponents: [human, :pan]`); every negotiation then draws one entry as usual,
 and scheduling methods treat `human` like any other pool member.
 
+An outside system's schedule works the same way: `agent_class_name: human+assistant` in a
+`schedule.json` slot, or the entry in a group file a `?group=` link names. Practice rounds use the
+practice opponents as before.
+
 Each participant keeps their own page, tools and Assistant. Whether a participant has an Assistant is
 decided as always (the study's Assistant settings, its Assistant pool and balance). The opponent entry
 only says what the *other* side must be.
@@ -71,10 +75,18 @@ arranged in advance or for testing.
   agreement. A time limit (`time_limit`) also ends negotiations where one side stays on the page but
   stops acting. Use one for studies with human opponents.
 
+## What participants see
+
+The page says when the opponent is another participant: the waiting messages, a person icon instead
+of a robot, and `opponent_kind` in the page state. This holds whatever `show_opponent_type` says. While
+paired, a participant cannot change their Assistant (it decides who fits whom). Where participants may
+pick their opponent ([What participants may choose](configuration.md#what-participants-may-choose)),
+the list never shows `human` or `human+assistant`, and picking an AI opponent leaves the waiting room.
+
 ## Turns and time
 
 The two participants take turns. The side whose turn it is acts as usual (offer, accept, end, messages,
-the Assistant, autopilot). The other side sees *Your opponent is deciding…*. The time limit and the
+the Assistant, autopilot). The other side sees *Your opponent is deciding…*. The time limit runs from the moment both have started. The time limit and the
 number of rounds are the waiting participant's, the one whose scenario is used. Each side's own timer
 acts for that side when time runs out.
 

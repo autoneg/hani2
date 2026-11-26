@@ -1395,7 +1395,7 @@ class NegotiationSession:
     @_in_own_study
     def load(self, scenario_type: str | None = None, name: str | None = None) -> None:
         """Load the next scenario (no negotiation is started)."""
-        with self.lock:
+        with self.lock, contextlib.ExitStack() as hold:
             if self.phase in ("running", "starting", "questionnaire"):
                 return
             self._reset_choices_if_due()
@@ -1437,6 +1437,9 @@ class NegotiationSession:
                 self.refresh_assistant(plan)
                 want, has = matches.wants_assistant(plan["partner"]), self.support_agent is not None
                 self._warn_unpairable(want, has)
+                # one load at a time per match key, from looking for a partner to waiting: two
+                # participants loading together must not both end up waiting
+                hold.enter_context(matches.LOBBY.loading(self))
                 joined = matches.LOBBY.pair(self, want, has)
                 hosting = joined is None
             try:
@@ -1705,6 +1708,8 @@ class NegotiationSession:
                 self._leave_match()
                 self.ss["match_id"] = None
         else:
+            if self.match is not None:  # the pairing depends on whether this side has an Assistant
+                return {"ok": False, "error": "You cannot change the Assistant while paired with another participant."}
             if value is not None and value not in choices.assistant_options(self, pol):
                 return {"ok": False, "error": "That Assistant is not one you may choose."}
             self.chosen_assistant = value
@@ -1976,6 +1981,10 @@ class NegotiationSession:
                                               private_info={"opponent_ufun": est} if est is not None else None)
         scenario.mechanism_params = dict(scenario.mechanism_params or {}) | self._mechanism_params()
         m = scenario.make_session(negotiators=negotiators)
+        # negmas starts its clock at the first step, and nobody steps here until a side acts: the
+        # clock is set back to this moment after each step (see _rewind_clock), so the time limit
+        # runs from the start, as the participants' countdown does
+        match.start_ns = time.perf_counter_ns()
         for i, s in seats.items():
             with s.lock:
                 s._trace_seen = 0
@@ -1993,6 +2002,13 @@ class NegotiationSession:
                 s.ss["opponent_scheduling"] = str(plan.get("opponent_scheduling") or "")
                 s.ss["scenario_scheduling"] = str(plan.get("scenario_scheduling") or "")
         return m
+
+    @staticmethod
+    def _rewind_clock(match, m) -> None:
+        start = getattr(match, "start_ns", None)
+        cur = getattr(m, "_start_time", None)
+        if start is not None and cur is not None and cur > start:
+            m._start_time = start
 
     def _match_failed(self, error: str) -> None:
         with self.lock:
@@ -2031,6 +2047,7 @@ class NegotiationSession:
             while not m.state.done and m.next_negotitor_ids()[0] not in match.seat_ids():
                 with rec.llm_role("opponent"):
                     m.step()
+                self._rewind_clock(match, m)
         absent = match.other(self)
         if absent is not None and not absent.closed:
             absent.submit(absent._match_turn)  # its page shows the end (and its row is saved)
@@ -2301,6 +2318,7 @@ class NegotiationSession:
                 return
             self.human_action = response
             m.step()
+            self._rewind_clock(match, m)
             with self.lock:
                 self._record_new_trace()
         self._tools_hook("action_executed", response)

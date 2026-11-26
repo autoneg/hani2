@@ -147,6 +147,7 @@ class Match:
         self._absent_since: dict[int, float] = {}
         self._first_ready_at: float | None = None
         self._watching = False
+        self._stopped = False
 
     # -- seats -----------------------------------------------------------------
     @property
@@ -208,7 +209,7 @@ class Match:
             if i is None or self.began:
                 return False
             self.ready.add(i)
-            if self._first_ready_at is None:
+            if self._first_ready_at is None and self.paired:
                 self._first_ready_at = time.time()
             if not (self.paired and self.ready >= {0, 1}):
                 self.watch()
@@ -264,8 +265,10 @@ class Match:
 
     def _check(self) -> bool:
         """One look at the seats; returns whether to keep watching."""
-        if self.finished():
+        if self.finished() or self._stopped:
             return False
+        if not self.began and all(s.match is not self or s.closed for s in list(self.seats.values())):
+            return False  # everyone moved on (an AI opponent after the wait, a new round)
         now = time.time()
         gone: list[NegotiationSession] = []
         with self.lock:
@@ -285,6 +288,13 @@ class Match:
                 limit = wait_seconds(self.host)
                 if waiting_on and limit > 0 and now - self._first_ready_at >= limit:
                     stalled = waiting_on[0]
+        if not self.began and not self.paired:
+            # a waiting host whose page is gone: nobody should be paired with them (the fallback
+            # timer still runs, so they get an AI opponent if they come back)
+            if gone:
+                LOBBY.withdraw(self)
+                return False
+            return True
         for s in gone:
             self.abandon(s)
         if stalled is not None and stalled not in gone:
@@ -312,6 +322,10 @@ class Match:
         # stalled gets a match of their own for the scenario they hold
         with self.lock:
             want, has = self.wants.get(i, False), self.has.get(i, False)
+            o = self.seats.get(1 - i)
+        if o is not None:
+            s.__dict__.setdefault("_avoid_sids", set()).add(o.sid)
+            o.__dict__.setdefault("_avoid_sids", set()).add(s.sid)
         self.leave(s)
         s.submit(s._match_kicked, self, i, want, has)
 
@@ -339,7 +353,7 @@ class Match:
                 self.has.pop(i, None)
                 self.ready.discard(i)
                 self._absent_since.clear()
-                self._first_ready_at = time.time() if self.ready else None
+                self._first_ready_at = None  # unpaired again
                 rest = next(iter(self.seats.values()), None)
                 if rest is None:
                     self.cancel_timer()
@@ -370,6 +384,13 @@ class Lobby:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self.waiting: dict[str, list[Match]] = {}
+        self._loading: dict[str, threading.Lock] = {}
+
+    def loading(self, s: NegotiationSession) -> threading.Lock:
+        """The lock a session holds from looking for a partner until it waits in the lobby."""
+        key = match_key(s)
+        with self._lock:
+            return self._loading.setdefault(key, threading.Lock())
 
     def pair(self, s: NegotiationSession, want_assistant: bool = False, has_assistant: bool = False) -> Match | None:
         """A waiting match ``s`` can join (it is then seated), else ``None``. ``want_assistant``:
@@ -387,11 +408,15 @@ class Lobby:
                         continue
                     if host is s or m.paired or not m.accepts(want_assistant, has_assistant):
                         continue
+                    if host.sid in getattr(s, "_avoid_sids", ()) or s.sid in getattr(host, "_avoid_sids", ()):
+                        continue  # these two were just separated (one did not press Start)
                     queue.remove(m)
                     m.cancel_timer()
                     i = m.free_index()
                     m.seats[i] = s
                     m.wants[i], m.has[i] = bool(want_assistant), bool(has_assistant)
+                    if m.ready:  # the waiting side already pressed Start: the clock for the other starts now
+                        m._first_ready_at = time.time()
                     m.watch()  # from now on: partners who never press Start, pages closed for good
                     return m
         return None
@@ -409,6 +434,7 @@ class Lobby:
             if m not in q:
                 q.append(m)
         m.arm(wait_seconds(m.host))
+        m.watch()
 
     def withdraw(self, m: Match) -> None:
         with self._lock:
@@ -429,6 +455,7 @@ class Lobby:
             for q in self.waiting.values():
                 for m in q:
                     m.cancel_timer()
+                    m._stopped = True
             self.waiting.clear()
 
 

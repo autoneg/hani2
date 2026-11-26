@@ -271,3 +271,81 @@ def test_the_opponent_picker_never_offers_human_entries(hani2_home):
     s = make_session(user="erin", opponent="human+assistant,BoulwareTBNegotiator", load=False)
     opts = choices.opponent_options(s, True)
     assert [choices.spec_key(o) for o in opts] == ["BoulwareTBNegotiator"]
+
+
+def test_a_late_joiner_gets_the_full_wait_to_press_start(hani2_home):
+    code = uuid.uuid4().hex[:6]
+    a = make_session(user="alice", opponent="human+assistant", query={"match": code}, load=False)
+    a.admin_prefs["human_opponent_wait"] = 1.5
+    a.load()
+    a.start()  # alice presses Start alone and waits
+    time.sleep(1.2)
+    b = make_session(user="bob", opponent="human+assistant", query={"match": code})
+    assert b.match is a.match
+    time.sleep(0.8)  # alice has waited longer than the wait, but bob just arrived
+    assert b.match is a.match and a.match.paired
+    b.start()
+    assert a.wait(lambda: a.phase == "running" and b.phase == "running")
+
+
+def test_two_participants_loading_together_are_paired(hani2_home, monkeypatch):
+    import threading
+
+    from hani2 import scenario_store as store
+
+    code = uuid.uuid4().hex[:6]
+    a = make_session(user="alice", opponent="human+assistant", query={"match": code}, load=False)
+    b = make_session(user="bob", opponent="human+assistant", query={"match": code}, load=False)
+    real = store.load_scenario
+
+    def slow(*args, **kw):
+        time.sleep(0.3)
+        return real(*args, **kw)
+
+    monkeypatch.setattr(store, "load_scenario", slow)
+    ts = [threading.Thread(target=s.load) for s in (a, b)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert a.match is not None and a.match is b.match
+
+
+def test_a_time_limit_ends_a_negotiation_nobody_acts_in(hani2_home):
+    a, b = pair(time_limit=3)
+    a.start()
+    b.start()
+    assert a.wait(lambda: a.phase == "running" and b.phase == "running")
+    assert a.wait_until_done(20) and b.wait_until_done(20)
+    assert a.result["status"] == "timedout" and b.result["status"] == "timedout"
+
+
+def test_a_time_limit_ends_a_negotiation_after_one_offer(hani2_home):
+    a, b = pair(time_limit=3)
+    a.start()
+    b.start()
+    assert a.wait(lambda: a.phase == "running" and b.phase == "running")
+    first = a if a.wait_for_turn(2) and a.is_my_turn() else b
+    first.send_counter("one offer")
+    assert a.wait_until_done(20) and b.wait_until_done(20)
+    assert a.result["status"] == "timedout" and b.result["status"] == "timedout"
+
+
+def test_prolific_participants_scheduled_against_human_assistant(hani2_home, monkeypatch):
+    import json
+
+    from hani2 import projects
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    projects.create_project("HP")
+    projects.create_study("HP/s1", type="prolific", practice=False)
+    ref = projects.StudyRef("HP", "s1")
+    for pid in ("PA", "PB"):
+        d = projects.study_dir(ref) / "results" / f"prolific_{pid}"
+        d.mkdir(parents=True)
+        (d / "schedule.json").write_text(json.dumps({"version": 2, "negotiations": [
+            {"slot": 0, "agent_class_name": "human+assistant", "scenario_type": "Trade"}]}), encoding="utf-8")
+    a = make_session(user="prolific_PA", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    b = make_session(user="prolific_PB", mode="guest", partner=None, study=ref, query={"noautostart": "1"})
+    assert a.round_plan["partner"] == "human+assistant"
+    assert a.match is not None and a.match is b.match
