@@ -1,1 +1,0 @@
-import{c as t}from"./index-CBPFJkwX.js";const e={name:"letter-y",size:24,node:[["path",{d:"M12 12v8",key:"1by136"}],["path",{d:"m6 4 6 8 6-8",key:"15qpi5"}]]};e.node;const o=t(e);export{e as __iconData,o as default};
