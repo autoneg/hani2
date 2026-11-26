@@ -105,7 +105,7 @@ class PreferencesTool(Tool):
     pane = "upper"
     timing = "load"
     permanent = True
-    order = 0
+    order = 1
     private_information = True
 
     def private_now(self) -> bool:
@@ -225,7 +225,7 @@ class ScenarioInfoTool(Tool):
     pane = "upper"
     timing = "load"
     permanent = True
-    order = 1
+    order = 0  # the first tab of the tools: read the scenario, then your preferences
 
     def view(self):
         s = self.scenario

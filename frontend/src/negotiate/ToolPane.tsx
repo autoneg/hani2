@@ -353,6 +353,17 @@ export function ToolPopup() {
   useEffect(() => {
     if (tool) box.current?.focus({ preventScroll: true });
   }, [tool?.id]);
+  // the server reveals a tool in the popup (the participant's preferences when a negotiation
+  // starts in the focus view); a reconnect does not reopen it
+  const reveal = useStore((s) => s.state?.reveal);
+  const seen = useRef(reveal?.seq);
+  useEffect(() => {
+    if (reveal?.seq === undefined || reveal.seq === seen.current) return;
+    seen.current = reveal.seq;
+    if (!reveal.popup || replay) return;
+    const t = useStore.getState().state?.tools.find((x) => x.name === reveal.tool);
+    if (t) useStore.getState().setUi(POPUP_KEY, t.id);
+  }, [reveal?.seq]);
   if (!tool || bare || maximized === tool.id) return null;
   const clamp = (x: number, y: number) => {
     const w = box.current?.offsetWidth ?? 420;

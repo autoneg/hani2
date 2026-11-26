@@ -34,12 +34,21 @@ def wait_for_my_turn_with_an_offer(p):
 
 
 def send_counter(p, message: str):
-    if not p.get_by_role("button", name="Send offer").count():
-        p.get_by_role("button", name="Counter-offer").click()
+    """Send an offer with a message once it is our turn. The opponent may move first: its offer then
+    arrives while we look, and the page shows Counter-offer instead of the composer."""
+    send = p.get_by_role("button", name="Send offer")
+    counter = p.get_by_role("button", name="Counter-offer")
     box = p.get_by_placeholder(re.compile("Explain your offer"))
+    for _ in range(300):
+        if counter.count() and counter.first.is_enabled():
+            counter.first.click()
+        if send.count() and send.first.is_enabled() and (not box.count() or box.first.is_enabled()):
+            break
+        p.wait_for_timeout(100)
     if box.count():
         box.fill(message)
-    p.get_by_role("button", name="Send offer").click()
+    expect(send).to_be_enabled()
+    send.click()
 
 
 def test_login_page_shows_and_default_user_can_log_in(new_page):
@@ -452,9 +461,8 @@ def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
     p = new_page(viewport={"width": 1400, "height": 900})
     p.goto(f"/play?view={view}")
     start(p)
-    if view == "focus":  # starting shows the participant's preferences (in the full view): go back to focus
-        p.get_by_role("button", name="Layout").click()
-        p.get_by_role("menuitem", name=re.compile("^Focus")).or_(p.get_by_role("button", name=re.compile("^Focus"))).first.click()
+    if view == "focus":  # the start reveals the participant's preferences in the popup, and focus stays
+        expect(p.get_by_test_id("tool-popup")).to_have_attribute("aria-label", "Preferences (popup)")
         expect(p.locator("[data-region=tools]")).to_have_count(0)
     gen = p.get_by_test_id("launch-generator")
     expect(gen).to_have_text(re.compile("Utility Bar"))
