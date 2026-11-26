@@ -11,7 +11,7 @@ HANI2 is a Python package with a FastAPI backend and a React frontend that ships
 The full list, with how to turn each one on, is on the [Features](features.md) page.
 
 - **Negotiation desk.** The opponent's offer on the table with its value to you. Accept it, send a counter-offer with an optional message, or end the negotiation; accepting and ending ask for confirmation. Gauges show what each offer is worth, with a tick at your no-deal value, and the history reads like a conversation.
-- **A layout you control.** Full, simple, focus and bare (no tools) views; drag the dividers to resize panes; enlarge any tool into a window or the full screen and put it back; layouts for tablets and phones.
+- **A layout you control.** Simple (the default), full, focus and bare (no tools) views; drag the dividers to resize panes; enlarge any tool into a window or the full screen and put it back; layouts for tablets and phones.
 - **Tools.** Fourteen built-in tools, from your preferences (for any kind of utility function) to a negotiation plot with the Pareto frontier. Write your own in Python with a small component API; no frontend code needed.
 - **Assistant.** An AI helper beside the negotiation. It chats, keeps a status board, highlights and annotates the interface, rearranges and resizes the layout, shows its own panels, fills in offers and, with permission, acts. It finds the participant's tools, reads and uses them, and adds new tools while they negotiate. Sixteen capabilities that admins grant and participants can narrow.
 - **Competitions.** Run the Human-Agent Negotiation competition without an assistant (`--no-assistant`) and the Hybrid Intelligence competition with the built-in assistant or a team's (`--assistant team.py:TeamAgent`), with the team's tools (`--tools`), against the opponent agents you choose (`--opponents`).
@@ -50,6 +50,7 @@ ollama pull qwen3:4b-instruct
 
 - [Features](features.md) lists everything HANI2 does.
 - [Installation](getting-started/installation.md) and the [quick start](getting-started/quickstart.md) walk through a first negotiation.
+- The [walkthroughs](walkthroughs/index.md) take a first-time participant through the page, with and without an Assistant, with narrated videos.
 - [The interface](guide/interface.md) describes what participants see.
 - [Studies and results](guide/studies.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
 - [Build an Assistant](tutorials/assistant.md) and [Build a tool](tutorials/tools.md) are hands-on tutorials.

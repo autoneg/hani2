@@ -1,4 +1,5 @@
-"""Take the documentation screenshots: every tool, the Assistant's character and the tutorial levels.
+"""Take the documentation screenshots: the app, every tool, the walkthroughs, the Assistant's character and
+the tutorial levels.
 
 Each run starts real HANI2 servers on fresh homes (in a temporary folder), drives them with
 Playwright (Chromium) at a fixed window size and writes PNG files into ``docs/assets/screens``.
@@ -9,6 +10,11 @@ Run it from the repository root after ``uv pip install -e ".[e2e]"`` and
     .venv/bin/python scripts/screenshots/make_screenshots.py tools      # only the tool screenshots
     .venv/bin/python scripts/screenshots/make_screenshots.py popup      # a tool in a popup (simple view)
     .venv/bin/python scripts/screenshots/make_screenshots.py tutorial --level 3
+    .venv/bin/python scripts/screenshots/make_screenshots.py app han hi   # the page, the walkthroughs
+
+Groups: ``tools`` (every tool), ``popup``, ``character``, ``app`` (login, the negotiation page in
+each view and device, the admin console, the example tools), ``han`` and ``hi`` (the walkthrough
+tutorials: against an AI opponent, and with the Assistant and against people) and ``tutorial``.
 
 The tools need no language model except the LLM tool and the two LLM example tools (Summary,
 Ask the AI); tutorial levels 0, 3, 4, 5 and 7 chat with the model. They use the default model,
@@ -92,21 +98,25 @@ def _merge_json(path: Path, data: dict) -> None:
 
 @contextlib.contextmanager
 def server(args: list[str], *, env_json: dict | None = None, assistant: dict | None = None,
-           scenario: str = "Lease", extra_env: dict | None = None):
-    """A HANI2 server on a fresh home; yields its base URL."""
+           scenario: str | None = "Lease", extra_env: dict | None = None, opponent: str = "BoulwareTBNegotiator"):
+    """A HANI2 server on a fresh home; yields its base URL.
+
+    ``scenario`` is the only scenario it serves (``None``: the bundled order); ``opponent`` the
+    opponent agent (later ``--opponents`` in ``args`` win)."""
     home = Path(tempfile.mkdtemp(prefix="hani2-shots-"))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("HANI2_", "PROLIFIC_", "SCMLWEB_"))}
     env.update(HANI2_HOME=str(home), HANI2_MODEL_PROBE="off", PYTHONUNBUFFERED="1", **(extra_env or {}))
-    cli = [sys.executable, "-m", "hani2.cli"]
+    cli = [os.environ.get("HANI2_PYTHON", sys.executable), "-m", "hani2.cli"]
     subprocess.run([*cli, "setup"], env=env, check=True, capture_output=True)
     settings = home / "settings"
-    (settings / "scenario_order.txt").write_text(scenario + "\n", encoding="utf-8")
+    if scenario:
+        (settings / "scenario_order.txt").write_text(scenario + "\n", encoding="utf-8")
     _merge_json(settings / "env.json", {"negotiation": {"n_steps": 12, "time_limit": None}, **(env_json or {})})
     if assistant:
         _merge_json(settings / "assistant_settings.json", assistant)
     port = _free_port()
     logf = (home / "server.log").open("w")
-    proc = subprocess.Popen([*cli, "--no-browser", "--port", str(port), "--opponents", "BoulwareTBNegotiator", *args],
+    proc = subprocess.Popen([*cli, "--no-browser", "--port", str(port), "--opponents", opponent, *args],
                             env=env, stdout=logf, stderr=subprocess.STDOUT, cwd=str(TUTORIAL))
     url = f"http://127.0.0.1:{port}"
     try:
@@ -134,9 +144,9 @@ def server(args: list[str], *, env_json: dict | None = None, assistant: dict | N
 # --------------------------------------------------------------------------- #
 # Driving the page                                                             #
 # --------------------------------------------------------------------------- #
-def new_page(browser, url: str, *, viewport: dict | None = None):
-    ctx = browser.new_context(base_url=url, viewport=viewport or VIEWPORT, device_scale_factor=SCALE,
-                              color_scheme="light", reduced_motion="reduce")
+def new_page(browser, url: str, *, viewport: dict | None = None, scale: float = SCALE, **kw):
+    ctx = browser.new_context(base_url=url, viewport=viewport or VIEWPORT, device_scale_factor=scale,
+                              color_scheme="light", reduced_motion="reduce", **kw)
     ctx.set_default_timeout(TIMEOUT)
     page = ctx.new_page()
     return ctx, page
@@ -166,7 +176,14 @@ def send_counter(page, message: str) -> None:
         debug = Path(tempfile.gettempdir()) / "hani2-shots-send-disabled.png"
         page.screenshot(path=str(debug))
         raise RuntimeError(f"Send offer stayed disabled; see {debug}") from None
-    send.click()
+    try:
+        send.click(timeout=8000)
+    except Exception:  # noqa: BLE001 - re-rendered under the click (an Assistant filling the offer)
+        if ended(page) or not send.count():
+            return  # the turn passed (the offer was sent or the negotiation moved on)
+        debug = Path(tempfile.gettempdir()) / "hani2-shots-send-failed.png"
+        page.screenshot(path=str(debug))
+        send.click(force=True, timeout=5000)
 
 
 def my_turn(page):
@@ -181,13 +198,22 @@ def my_turn(page):
     return accept
 
 
+def ended(page) -> bool:
+    """Whether the negotiation on the page has ended."""
+    return bool(page.get_by_text(re.compile(r"^(Agreement reached|No agreement)")).count())
+
+
 def play(page, rounds: int) -> None:
+    """Send ``rounds`` counter-offers (fewer when the negotiation ends first) and wait for the turn."""
     messages = ["I can offer this.", "That is still too much for me.", "Let us meet somewhere here.",
                 "I moved on the deposit.", "This is close to my limit."]
     for i in range(rounds):
+        if ended(page):
+            return
         my_turn(page)
         send_counter(page, messages[i % len(messages)])
-    my_turn(page)
+    if not ended(page):
+        my_turn(page)
 
 
 def accept_offer(page) -> None:
@@ -207,7 +233,7 @@ def save(locator, name: str) -> None:
     path = OUT / f"{name}.png"
     locator.screenshot(path=str(path), animations="disabled")
     compress(path)
-    log("wrote", path.relative_to(ROOT))
+    log("wrote", path.relative_to(ROOT) if path.is_relative_to(ROOT) else path)
 
 
 def compress(path: Path) -> None:
@@ -529,10 +555,292 @@ def take_popup(browser) -> None:
         ctx.close()
 
 
+# --------------------------------------------------------------------------- #
+# The app: login, the negotiation page in each view and device, the console    #
+# --------------------------------------------------------------------------- #
+#: The opponent of the walkthrough screenshots: it concedes steadily, so deals become possible.
+WALK_OPPONENT = "LinearTBNegotiator"
+WALK_ENV = {"negotiation": {"n_steps": 20, "time_limit": None}}
+END = re.compile(r"^End\b")
+
+
+def set_view(page, name: str) -> None:
+    """Switch the view with the header's layout menu."""
+    page.get_by_role("button", name="Layout").click()
+    page.get_by_role("button", name=re.compile(rf"^{name}:")).click()
+    settle(page, 800)
+
+
+def take_app(browser, use_llm: bool) -> None:
+    # a tough opponent, so that the negotiation is still running in every shot
+    with server(["--assistant", f"{ASSISTANT}:DocsAssistant"], env_json=WALK_ENV) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/")
+        expect(page.get_by_role("button", name="Log in")).to_be_visible()
+        settle(page)
+        save(page, "login")
+        login(page, "user", "userpass")
+        page.goto("/app")
+        start(page)
+        play(page, 3)
+        hide_toasts(page)
+        settle(page)
+        save(page, "app-overview")  # the simple view, the default
+        set_view(page, "Full")
+        settle(page, 1500)
+        save(page, "app-full-view")
+        ctx.close()
+
+        for name, vp, extra in [
+            ("tablet-landscape", {"width": 1180, "height": 820}, None),
+            ("tablet-portrait", {"width": 820, "height": 1180}, "tray"),
+            ("mobile", {"width": 390, "height": 844}, None),
+        ]:
+            ctx, page = new_page(browser, url, viewport=vp, scale=2, is_mobile=True, has_touch=True)
+            page.goto("/play")
+            page.get_by_role("button", name="Start negotiation").click()
+            page.wait_for_timeout(2500)
+            # the start reveals the Preferences: in the Tools tab on phones, in the tray on tablets
+            if page.get_by_role("button", name="Negotiate", exact=True).count():
+                page.get_by_role("button", name="Negotiate", exact=True).click()
+            tray = page.locator("[data-region=tools] > button[aria-expanded]")
+            if tray.count() and tray.get_attribute("aria-expanded") == "true":
+                tray.click()
+            play(page, 2)
+            hide_toasts(page)
+            if extra == "tray":
+                tray.click()
+            settle(page, 1200)
+            save(page, name)
+            ctx.close()
+
+        ctx, page = new_page(browser, url)
+        login(page, "admin", "adminpass")
+        for name, frag, wait in [("admin", "opponents", "Opponents"), ("admin-agent", "assistant", "Who gets the Assistant")]:
+            page.goto(f"/admin#{frag}")
+            expect(page.get_by_text(wait).first).to_be_visible()
+            settle(page, 1500)
+            save(page, name)
+        ctx.close()
+
+    # the example tools of the "Build a tool" tutorial, in the simple view next to the offer area
+    env = {**WALK_ENV, "tools": {"paths": [str(EXAMPLE_TOOLS)]}}
+    with server(["--no-assistant"], env_json=env, opponent=WALK_OPPONENT) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/play")
+        start(page)
+        play(page, 2)
+        hide_toasts(page)
+        tab(page, "What If").first.click()
+        settle(page)
+        save(page, "tools-whatif")
+        if use_llm:
+            tab(page, "Summary").first.click()
+            page.get_by_role("button", name="Summarise", exact=True).click()
+            expect(page.get_by_text("Press Summarise once a few offers have been made.")).to_have_count(0, timeout=120000)
+            expect(page.get_by_role("button", name="Summarise", exact=True)).to_be_visible(timeout=120000)
+            settle(page)
+            save(page, "tools-summary")
+        ctx.close()
+
+
+# --------------------------------------------------------------------------- #
+# Walkthrough: negotiating against an AI opponent (HAN)                        #
+# --------------------------------------------------------------------------- #
+def pick_options(page, n: int = 2) -> None:
+    """Change ``n`` issues of the counter-offer: the second option of each of the first issues."""
+    editor = page.locator("[data-region=dock]")
+    groups = editor.locator("[role=radiogroup], fieldset")
+    for i in range(min(n, groups.count())):
+        opts = groups.nth(i).get_by_role("radio").or_(groups.nth(i).get_by_role("button"))
+        if opts.count() > 1:
+            opts.nth(1).click()
+            page.wait_for_timeout(300)
+
+
+def take_walk_han(browser) -> None:
+    with server(["--no-assistant"], env_json=WALK_ENV, opponent=WALK_OPPONENT) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/play")
+        expect(page.get_by_role("button", name="Start negotiation")).to_be_visible()
+        settle(page, 1500)
+        save(page, "walk-han-start")
+        start(page)
+        my_turn(page)
+        hide_toasts(page)
+        settle(page, 1500)
+        save(page, "walk-han-first-offer")
+        save(page.get_by_role("banner"), "walk-han-header")
+        page.get_by_role("button", name="Counter-offer").click()
+        pick_options(page, 2)
+        box = page.get_by_placeholder(re.compile("Explain your offer"))
+        box.fill("I can pay a little more if the deposit is lower.")
+        settle(page)
+        save(page, "walk-han-counter")
+        page.get_by_role("button", name="Send offer").click()
+        play(page, 3)
+        hide_toasts(page)
+        settle(page)
+        save(page, "walk-han-history")
+        page.get_by_role("button", name=END).first.click()
+        expect(page.get_by_role("button", name="End negotiation")).to_be_visible()
+        settle(page, 600)
+        save(page, "walk-han-end-confirm")
+        page.keyboard.press("Escape")
+        expect(page.get_by_role("button", name="End negotiation")).to_have_count(0)
+        my_turn(page).click()
+        expect(page.get_by_role("button", name="Accept offer")).to_be_visible()
+        settle(page, 600)
+        save(page, "walk-han-accept-confirm")
+        page.get_by_role("button", name="Accept offer").click()
+        expect(page.get_by_text("Agreement reached").first).to_be_visible()
+        settle(page, 1200)
+        save(page, "walk-han-agreement")
+        ctx.close()
+
+        # the advanced part: the Utility Bar, the Tools menu, the settings, the views
+        ctx, page = new_page(browser, url)
+        page.goto("/play")
+        start(page)
+        play(page, 2)
+        hide_toasts(page)
+        page.get_by_test_id("launch-tools").click()
+        settle(page, 600)
+        save(page, "walk-han-tools-menu")
+        page.keyboard.press("Escape")
+        page.get_by_role("button", name="Layout").click()
+        settle(page, 600)
+        save(page, "walk-han-layout-menu")
+        page.keyboard.press("Escape")
+        page.get_by_role("button", name="My settings").click()
+        toggle = page.get_by_text("Colour the utility bars by issue").first
+        expect(toggle).to_be_visible()
+        settle(page, 600)
+        save(page, "walk-han-settings")
+        toggle.click()
+        settle(page, 600)
+        page.keyboard.press("Escape")
+        settle(page, 600)
+        play(page, 1)
+        hide_toasts(page)
+        settle(page, 1200)
+        save(page, "walk-han-by-issue")
+        set_view(page, "Focus")
+        settle(page, 800)
+        save(page, "walk-han-focus")
+        ctx.close()
+
+
+# --------------------------------------------------------------------------- #
+# Walkthrough: negotiating with the Assistant (HI)                             #
+# --------------------------------------------------------------------------- #
+LLM_ASSISTANT = f"{ASSISTANT}:LLMDocsAssistant"
+
+
+def take_walk_hi(browser, use_llm: bool) -> None:
+    env = {**WALK_ENV, "playground": {"choices": {"scenario": True, "opponent": [
+        "LinearTBNegotiator", "BoulwareTBNegotiator", "ConcederTBNegotiator"]}}}
+    with server(["--assistant", LLM_ASSISTANT], env_json=env, opponent=WALK_OPPONENT) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/play")
+        expect(page.get_by_role("button", name="Start negotiation")).to_be_visible()
+        settle(page, 1500)
+        save(page, "walk-hi-start")
+        if page.get_by_role("button", name=re.compile("Different scenario|Choose")).count():
+            page.get_by_role("button", name=re.compile("Different scenario|Choose")).first.click()
+            settle(page, 800)
+        if page.get_by_test_id("choice-pickers").count():
+            save(page.get_by_test_id("choice-pickers"), "walk-hi-choices")
+        start(page)
+        my_turn(page)
+        hide_toasts(page)
+        open_assistant(page)
+        settle(page, 1200)
+        save(page, "walk-hi-assistant-open")
+        if use_llm:
+            chat(page, "I have never negotiated before. What does the offer on the table mean for me?")
+            settle(page)
+            save(page, "walk-hi-assistant")
+        btn = page.get_by_role("banner").get_by_role("button", name="Assistant", exact=True)
+        if btn.get_attribute("aria-pressed") == "true":
+            btn.click()  # close it: on screens under 1600 px it covers the tools
+            settle(page, 600)
+        tab(page, "Negotiation Plot").first.click()
+        settle(page, 1500)
+        save(page, "walk-hi-estimate")
+        page.get_by_role("button", name="My settings").click()
+        expect(page.get_by_text(re.compile("Assistant")).first).to_be_visible()
+        settle(page, 800)
+        save(page, "walk-hi-my-settings")
+        ctx.close()
+
+    # the Assistant opens in the tool area, in the open tool's place
+    with server(["--assistant", LLM_ASSISTANT], env_json=WALK_ENV, opponent=WALK_OPPONENT,
+                assistant={"presentation": {"place": "tools"}}) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/play")
+        start(page)
+        my_turn(page)
+        hide_toasts(page)
+        open_assistant(page)
+        settle(page, 1500)
+        save(page, "walk-hi-assistant-in-tools")
+        ctx.close()
+
+    # a game against people: the person / AI choice, waiting, and two people negotiating
+    env = {"negotiation": {"n_steps": 12, "time_limit": 600, "human_opponent_choice": True,
+                           "human_opponents_first": True, "human_opponent_wait": 0}}
+    with server(["--assistant", LLM_ASSISTANT], env_json=env,
+                opponent=f"human+assistant,{WALK_OPPONENT}") as url:
+        (ca, a), (cb, b) = new_page(browser, url), new_page(browser, url)
+        try:
+            a.goto("/play")
+            expect(a.get_by_test_id("opponent-choice")).to_be_visible()
+            settle(a, 1200)
+            save(a, "walk-hi-person-or-ai")
+            a.get_by_role("button", name=re.compile(r"^Play a person")).click()
+            a.get_by_role("button", name="Start negotiation").click()
+            expect(a.get_by_text("Waiting for the other participant…").first).to_be_visible()
+            settle(a, 1200)
+            save(a, "walk-hi-waiting")
+            b.goto("/play")
+            expect(b.get_by_test_id("opponent-choice")).to_be_visible()
+            expect(b.get_by_test_id("people-waiting")).to_be_visible()
+            settle(b, 800)
+            save(b.get_by_test_id("opponent-choice"), "walk-hi-people-waiting")
+            b.get_by_role("button", name=re.compile(r"^Play a person")).click()
+            b.get_by_role("button", name="Start negotiation").click()
+            # one of the two moves first
+            mover = None
+            for _ in range(300):
+                for p in (a, b):
+                    s = p.get_by_role("button", name="Send offer")
+                    if s.count() and s.is_enabled():
+                        mover = p
+                if mover:
+                    break
+                a.wait_for_timeout(100)
+            other = b if mover is a else a
+            box = mover.get_by_placeholder(re.compile("Explain your offer"))
+            if box.count():
+                box.fill("Hello! Let us find a deal that works for both of us.")
+            mover.get_by_role("button", name="Send offer").click()
+            expect(other.get_by_role("button", name=ACCEPT).first).to_be_enabled(timeout=30000)
+            hide_toasts(other)
+            settle(other, 1500)
+            save(other, "walk-hi-person-offer")
+        finally:
+            ca.close()
+            cb.close()
+
+
+GROUPS = ("tools", "popup", "character", "app", "han", "hi", "tutorial")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", nargs="*", default=["tools", "popup", "character", "tutorial"],
-                    help="any of tools, popup, character, tutorial (default: all)")
+    ap.add_argument("what", nargs="*", default=[*GROUPS],
+                    help=f"any of {', '.join(GROUPS)} (default: all)")
     ap.add_argument("--level", type=int, action="append", help="only these tutorial levels")
     ap.add_argument("--no-llm", action="store_true", help="skip the screenshots that need a language model")
     a = ap.parse_args()
@@ -549,6 +857,12 @@ def main() -> None:
                 take_popup(browser)
             if "character" in a.what:
                 take_character(browser)
+            if "app" in a.what:
+                take_app(browser, use_llm)
+            if "han" in a.what:
+                take_walk_han(browser)
+            if "hi" in a.what:
+                take_walk_hi(browser, use_llm)
             if "tutorial" in a.what:
                 for level in a.level or sorted(LEVELS):
                     if LEVELS[level].get("llm") and not use_llm:

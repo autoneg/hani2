@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "examples" / "suppo
 
 from level10_toolsmith import ToolsmithAgent
 
+from hani2.support_agent.runtime import SupportAgent
+
 
 def opposite_estimate(session) -> dict:
     """An estimate of the opponent: every option valued the other way round from the human, and the
@@ -42,6 +44,18 @@ def opposite_estimate(session) -> dict:
 
 
 class DocsAssistant(ToolsmithAgent):
+    name = "Assistant"
+
+    def on_event(self, event_name: str, nmi=None) -> None:
+        if event_name == "negotiation_started" and self.user_enabled:
+            self.set_opponent_estimate(opposite_estimate(self.session))
+        super().on_event(event_name, nmi)
+
+
+class LLMDocsAssistant(SupportAgent):
+    """The built-in Assistant (it chats with the default language model) that also shares the rough
+    opponent estimate above, for the walkthrough screenshots and videos of the Assistant."""
+
     name = "Assistant"
 
     def on_event(self, event_name: str, nmi=None) -> None:
