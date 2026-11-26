@@ -133,6 +133,18 @@ With **Yes** (the default), generated scenarios use round numbers and plain shap
 same way are served. With **No**, any saved scenario may be served and generated ones may use any
 shape.""",
         section="Defaults", docs="scenarios.md#simple-scenarios"),
+    "force_reserved_value": Help(
+        "Forced value on disagreement", "The participant's value on disagreement in every negotiation, whatever the scenario says",
+        """\
+Empty (the default): every scenario keeps its own values. A number gives the **participant** that
+value on disagreement in every negotiation; the opponent keeps the scenario's. When two
+participants negotiate with each other, each gets their own study's value.
+
+The number is on the scenario's utility scale: 0 to 1 for normalised scenarios, so `0` means that
+any agreement is at least as good as none (and `0` is a value, not "unset"). Saved scenarios are
+never changed: the value is applied when a scenario loads, and each recorded negotiation carries the
+value that was played.""",
+        section="Defaults", docs="project-management.md#forcing-the-value-on-disagreement"),
     "n_required": Help(
         "Counted negotiations", "K: how many negotiations of each participant count (practice not included)",
         """\
@@ -491,6 +503,7 @@ REQUIRED = (
     "scenario_set",
     "strict_scenarios",
     "simple_scenarios",
+    "force_reserved_value",
     "n_required",
     "practice",
     "role_rule",

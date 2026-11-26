@@ -60,6 +60,7 @@ More: [Study management](study-management.md#study-types).
 | [Scenario set](#setting-scenario-set) | `scenario_set` | The scenario types participants negotiate, and their order |
 | [Strict scenarios](#setting-strict-scenarios) | `strict_scenarios` | Serve saved scenarios only: a missing or broken pool is an error, never a generated scenario |
 | [Simple scenarios](#setting-simple-scenarios) | `simple_scenarios` | Generate scenarios with round numbers and linear or symmetric preferences |
+| [Forced value on disagreement](#setting-force-reserved-value) | `force_reserved_value` | The participant's value on disagreement in every negotiation, whatever the scenario says |
 | [Counted negotiations](#setting-n-required) | `n_required` | K: how many negotiations of each participant count (practice not included) |
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
 | [Participant's role](#setting-role-rule) | `role_rule` | Which side of the scenario the participant takes |
@@ -122,6 +123,21 @@ same way are served. With **No**, any saved scenario may be served and generated
 shape.
 
 More: [Scenarios](scenarios.md#simple-scenarios).
+
+### Forced value on disagreement {#setting-force-reserved-value}
+
+`force_reserved_value`: *The participant's value on disagreement in every negotiation, whatever the scenario says*
+
+Empty (the default): every scenario keeps its own values. A number gives the **participant** that
+value on disagreement in every negotiation; the opponent keeps the scenario's. When two
+participants negotiate with each other, each gets their own study's value.
+
+The number is on the scenario's utility scale: 0 to 1 for normalised scenarios, so `0` means that
+any agreement is at least as good as none (and `0` is a value, not "unset"). Saved scenarios are
+never changed: the value is applied when a scenario loads, and each recorded negotiation carries the
+value that was played.
+
+More: [Project management](project-management.md#forcing-the-value-on-disagreement).
 
 ### Counted negotiations {#setting-n-required}
 
