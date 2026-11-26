@@ -6,7 +6,8 @@
   deal into the counter-offer, so their **Set Offer** button did nothing visible. It is now **Send
   offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
   does (same checks, with the message typed in the message box, which then empties). It is disabled
-  while the participant cannot send (the negotiation is not running, not their turn, text-only mode,
+  while the participant cannot send (the negotiation is not running, not their turn, the autopilot
+  is on, text-only mode,
   no deal picked or the counter-offer changed since), and its tooltip says why. Picking a row still
   only fills the counter-offer. An Assistant operating these tools picks a row (action `pick`) to
   fill the offer, and presses `send_offer` only with *Send counter-offers*; the `set_offer` action is

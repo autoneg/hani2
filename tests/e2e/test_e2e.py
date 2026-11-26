@@ -520,6 +520,7 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
     panel = side.get_by_role("tabpanel")
     tool_send = panel.get_by_role("button", name="Send offer")
     expect(tool_send).to_be_disabled()  # nothing picked yet
+    expect(tool_send).to_have_attribute("title", "Pick a deal first.")
     # wait for our turn and open the composer (the opponent may move first)
     counter = p.get_by_role("button", name="Counter-offer")
     box = p.get_by_placeholder(re.compile("Explain your offer"))
@@ -539,3 +540,9 @@ def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
     tool_send.click()
     expect(p.locator('[data-anchor="history"]').get_by_text("Sent straight from the Selector.")).to_be_visible()
     expect(tool_send).to_be_disabled()  # the deal is sent; pick again for the next offer
+    # the message was used up: on our next turn the message box is empty
+    expect(p.get_by_role("button", name=ACCEPT).first).to_be_enabled(timeout=30000)
+    if not box.count():
+        counter.first.click()
+    expect(box).to_be_enabled()
+    expect(box).to_have_value("")

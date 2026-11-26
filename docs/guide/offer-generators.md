@@ -130,7 +130,7 @@ with the same checks. Nothing is sent before you press it.
 The button is disabled while you cannot send, and its tooltip says why:
 
 - the negotiation is not running (before the start, after the end);
-- it is not your turn;
+- it is not your turn (or the autopilot is negotiating for you);
 - you have not picked a deal yet, or you changed the counter-offer after picking one (then send it
   from the offer panel, or pick again);
 - the study sends offers as messages only (*text-only mode*).

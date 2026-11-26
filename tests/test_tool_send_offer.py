@@ -107,6 +107,15 @@ def test_disabled_with_a_reason_when_the_participant_cannot_send(cls, monkeypatc
     n = len(s.history)
     assert not t.on_action("send_offer", {})["ok"] and len(s.history) == n
     monkeypatch.undo()
+    # the opponent is still thinking
+    monkeypatch.setattr(s, "thinking", True)
+    assert _button(t)["disabled"] and _button(t)["tooltip"] == "Wait for your turn to send an offer."
+    monkeypatch.undo()
+    # the autopilot negotiates
+    monkeypatch.setattr(s, "autopilot_active", True)
+    assert _button(t)["disabled"] and "autopilot" in _button(t)["tooltip"]
+    assert not t.on_action("send_offer", {})["ok"] and len(s.history) == n
+    monkeypatch.undo()
     # a study where offers are sent as messages only
     s.admin_prefs["text_only_mode"] = True
     assert _button(t)["disabled"] and "message" in _button(t)["tooltip"]

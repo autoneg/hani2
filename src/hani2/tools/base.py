@@ -432,7 +432,9 @@ class OutcomeSelector(Tool):
         sess = self.session_state.get("_session")
         if not self.session_state.get("negotiation_running") or (sess is not None and sess.phase != "running"):
             return "The negotiation is not running."
-        if sess is not None and not sess.is_my_turn():
+        if sess is not None and getattr(sess, "autopilot_active", False):
+            return "The autopilot is negotiating for you: take back control to send an offer."
+        if sess is not None and (not sess.is_my_turn() or getattr(sess, "thinking", False)):
             return "Wait for your turn to send an offer."
         if sess is not None and sess.admin_prefs.get("text_only_mode"):
             return "Offers are sent as messages only here: use the message box."
