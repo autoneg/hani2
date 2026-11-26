@@ -153,6 +153,8 @@ def test_normalise_values():
     assert C.normalise(5, "n_offers", normaliser="percentile") is None  # no reference
     with pytest.raises(ValueError):
         C.normalise(1, "n_offers", direction="up")
+    with pytest.raises(ValueError, match="unknown criterion"):
+        C.normalise(1, "q_not_a_metric")
 
 
 def test_normalise_takes_a_column_or_a_criterion():
@@ -250,11 +252,12 @@ def test_participant_answers_are_credited_only_with_one_assistant_throughout():
 EXAMPLE = {"A": (1.0, 0.2), "B": (0.8, 0.4), "C": (0.6, 0.6), "D": (0.4, 0.8)}
 
 
-def _write_recording(folder: Path, rid: str, *, n_offers: int, started: str, practice=False, answers=None):
+def _write_recording(folder: Path, rid: str, *, n_offers: int, started: str, practice=False, answers=None,
+                     admin=False, result=True):
     names = list(EXAMPLE)
     trace = [{"t": 0.1 * i, "negotiator": "H" if i % 2 == 0 else "O", "offer": [names[i % 4]]} for i in range(n_offers)]
     recs = [{"k": "header", "format": "hani2-recording", "version": 1, "id": rid, "t0": 0, "created": started,
-             "session": {"user": rid}},
+             "session": {"user": rid, "is_admin": admin}},
             {"t": 0, "k": "scenario", "name": "ex", "human_index": 0, "outcomes": [[k] for k in names],
              "utilities": [[EXAMPLE[k][0] for k in names], [EXAMPLE[k][1] for k in names]], "reserved": [0.1, 0.1],
              "issue_names": ["x"]},
@@ -262,7 +265,8 @@ def _write_recording(folder: Path, rid: str, *, n_offers: int, started: str, pra
             {"t": 59, "k": "trace", "rows": trace}]
     if answers:
         recs.append({"t": 60, "k": "questionnaire", "spec": _form(), "answers": answers})
-    recs.append({"t": 61, "k": "result", "summary": {"status": "success"}, "row": {}, "agreement": ["C"]})
+    if result:
+        recs.append({"t": 61, "k": "result", "summary": {"status": "success"}, "row": {}, "agreement": ["C"]})
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{rid}.hrec").write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
 
@@ -281,6 +285,8 @@ def project(hani2_home):
         _write_recording(sdir / "results" / f"p{i}", f"r{i}", n_offers=n, started=f"2027-01-0{i + 1}T10:00:00",
                          answers={"sat": 3 + i})
     _write_recording(sdir / "results" / "p9", "practice", n_offers=40, started="2027-01-01T09:00:00", practice=True)
+    _write_recording(sdir / "results" / "p8", "admin", n_offers=40, started="2027-01-01T09:00:00", admin=True)
+    _write_recording(sdir / "results" / "p7", "unfinished", n_offers=40, started="2027-01-01T09:00:00", result=False)
     late = projects.study_dir(projects.StudyRef("HI2027", "late")) / "results" / "q"
     _write_recording(late, "late", n_offers=40, started="2027-06-01T10:00:00")
     return "HI2027"
@@ -303,7 +309,7 @@ def test_freeze_writes_the_reference(project):
     ref = C.freeze("HI2027", ["play"])
     p = projects.project_dir("HI2027") / "results" / "normalisation.json"
     assert p.is_file() and json.loads(p.read_text())["criteria"]["n_offers"]["median"] == 4.0
-    assert ref["schema"] == C.REFERENCE_SCHEMA and ref["games"] == 3  # practice left out
+    assert ref["schema"] == C.REFERENCE_SCHEMA and ref["games"] == 3  # practice, admin and unfinished left out
     assert ref["studies"] == ["play"] and not ref["provisional"] and ref["llm"] is False
     st = ref["criteria"]["n_offers"]
     assert st["n"] == 3 and st["min"] == 2 and st["max"] == 6 and len(st["quantiles"]) == C.N_QUANTILES
@@ -383,7 +389,8 @@ def test_admin_criteria_endpoint(client, project):
     body = r.json()
     ids = {c["id"]: c for c in body["criteria"]}
     assert body["games"] == 3 and ids["agreement"]["coverage"] == 1.0 and ids["q_sat"]["coverage"] == 1.0
-    assert ids["ja_overall"]["coverage"] == 0.0
+    assert ids["ja_overall"]["coverage"] is None  # evaluated without the judge: unknown, not 0
+    assert ids["post_q_overall"]["coverage"] is None  # post-session answers are not joined here
     C.freeze("HI2027", ["play"])
     ref = client.get("/api/admin/criteria", params={"project": "HI2027"}).json()["reference"]
     assert ref["frozen"] and ref["games"] == 3 and ref["studies"] == ["play"]

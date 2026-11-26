@@ -432,15 +432,21 @@ def post_session_values(spec: dict | None, answers: dict | None) -> dict[str, fl
     return answer_values(spec, answers, prefix=FORM_PREFIX["post_session"])[0]
 
 
-def apply_rows(criteria: list[Criterion], rows: list[dict]) -> list[Criterion]:
+def apply_rows(criteria: list[Criterion], rows: list[dict], *, judged: bool | None = None) -> list[Criterion]:
     """Fill in ``coverage`` from ``rows`` and grey participant-level criteria out for HI scores when
-    some participant used several Assistants."""
+    some participant used several Assistants. Coverage stays ``None`` (unknown) for criteria the rows
+    could not contain: judged ones when the rows were evaluated without the judge (``judged`` false, or
+    no row has a judge model) and post-session answers when no row carries any."""
+    if judged is None:
+        judged = any(r.get("judge_model") for r in rows)
+    has_post = any(k.startswith("post_") for r in rows for k in r)
     by_person: dict[str, list[dict]] = {}
     for r in rows:
         by_person.setdefault(participant_key(r), []).append(r)
     mixed = sum(not one_assistant_throughout(rs) for rs in by_person.values())
     for c in criteria:
-        c.coverage = coverage(rows, c.id)
+        unknown = (c.cost == "judge" and not judged) or (c.level == "participant" and not has_post)
+        c.coverage = None if unknown else coverage(rows, c.id)
         if c.level == "participant" and mixed:
             c.hi_usable = False
             c.reason = (f"{mixed} participant(s) used more than one Assistant, so their post-session answers "
@@ -526,11 +532,11 @@ def _end_ok(started: Any, end: str | None) -> bool:
 
 def reference_rows(project: str, studies: list[str] | None = None, end: str | None = None, *,
                    use_llm: bool = False, include_simulated: bool = False) -> tuple[list[dict], list[str]]:
-    """The evaluation rows of the reference games: the counted games (no practice, no simulated
-    participants) of the given studies (default: every study of the project), started on or before
-    ``end``. Returns the rows and the studies read."""
+    """The evaluation rows of the reference games: the finished, counted games (no practice, no admin
+    sessions, no simulated participants) of the given studies (default: every study of the project),
+    started on or before ``end``. Returns the rows and the studies read."""
     from hani2 import projects
-    from hani2.evaluation import evaluate_paths
+    from hani2.evaluation import evaluate_many, load_paths
 
     names = list(studies or projects.list_studies(project))
     unknown = [s for s in names if not projects.study_exists(projects.StudyRef(project, s))]
@@ -541,8 +547,10 @@ def reference_rows(project: str, studies: list[str] | None = None, end: str | No
         res = projects.study_dir(projects.StudyRef(project, s)) / "results"
         if not res.is_dir():
             continue
+        recs = [(k, rec) for k, rec in load_paths([res])
+                if rec.result is not None and not (rec.header.get("session") or {}).get("is_admin")]
         with projects.use_study(projects.StudyRef(project, s)):
-            ev = evaluate_paths([res], use_llm=use_llm)
+            ev = evaluate_many(recs, use_llm=use_llm)
         for r in ev["rows"]:
             if r.get("practice") or (r.get("mode") == "simulated" and not include_simulated):
                 continue
@@ -596,6 +604,17 @@ def reference_for(project: str, rows: list[dict] | None = None) -> dict | None:
 # --------------------------------------------------------------------------- #
 # Normalising a value                                                          #
 # --------------------------------------------------------------------------- #
+_INDEX: dict[str, Criterion] = {}
+
+
+def _metric_index() -> dict[str, Criterion]:
+    """The metric criteria by id (rebuilt when metrics are registered after the first call)."""
+    global _INDEX
+    if not _INDEX or len(_INDEX) != sum(1 for m in REGISTRY.values() for c in m.columns if is_numeric(c)):
+        _INDEX = by_id(metric_criteria())
+    return _INDEX
+
+
 def _entry(reference: dict | None, cid: str) -> dict | None:
     e = ((reference or {}).get("criteria") or {}).get(cid)
     return e if isinstance(e, dict) else None
@@ -617,7 +636,10 @@ def normalise(value: Any, criterion: "Criterion | Column | str | None" = None, *
     if x is None:
         return None
     if isinstance(criterion, str):
-        crit = by_id(metric_criteria()).get(criterion)
+        crit = _metric_index().get(criterion)
+        if crit is None:
+            raise ValueError(f"unknown criterion {criterion!r}: pass questionnaire answers as a Criterion "
+                             "(from catalogue())")
         cid = criterion
     elif isinstance(criterion, Column):
         crit = Criterion(id=criterion.name, title=criterion.title, direction=direction_of(criterion),

@@ -255,7 +255,7 @@ Admins get the same list from `GET /api/admin/criteria?project=<project>` or
 `description`, `source`, `level`, `direction`, `normaliser`, `cost` and `coverage`. The response also
 gives the normaliser kinds and a summary of the project's reference (whether it is frozen, when, from
 which studies and how many games). Coverage is computed from the games without the judge, so judged
-criteria show 0 there until the judge has run.
+criteria and post-session answers show no coverage (`null`) there.
 
 ## Comparing
 
