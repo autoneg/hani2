@@ -169,3 +169,17 @@ def test_the_bar_shows_where_deals_are_and_the_marks():
     bar = next(c for c in b.render() if c["type"] == "range_bar")
     assert sum(bar["density"]) == len(b._space()[0])
     assert any(m["label"] == "No deal" for m in bar.get("marks", []))
+
+
+def test_the_assistant_sets_the_bar(hani2_home):
+    s = _started(support_settings={"autonomy": "suggest"})
+    sa = s.support_agent
+    b = _bar(s)
+    read = sa.read_tool("Utility Bar")
+    assert read["ok"] and "Input 'area'" in read["text"] and "[low, high]" in read["text"]
+    for given in ([40, 60], "40-60", "[40, 60]", {"low": 40, "high": 60}):
+        res = sa.use_tool("Utility Bar", inputs={"area": given, "mode": "All offers"})
+        assert res["ok"], res
+        assert b.area() == (40.0, 60.0) and b.mode() == "all", given
+    res = sa.use_tool("Utility Bar", inputs={"area": 55, "mode": "any"}, action="set_offer")
+    assert res["ok"] and b.is_click() and s.draft

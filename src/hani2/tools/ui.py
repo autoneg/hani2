@@ -60,6 +60,7 @@ __all__ = [
     "multiselect",
     "slider",
     "range_bar",
+    "range_value",
     "number",
     "checkbox",
     "switch",
@@ -361,6 +362,31 @@ def range_bar(
               density=jsonable(list(density)) if density is not None else None,
               overlay=jsonable(list(overlay)) if overlay is not None else None, overlay_label=overlay_label,
               marks=jsonable(list(marks)) if marks else None, hint=hint)
+
+
+def range_value(value: Any) -> Any:
+    """A :func:`range_bar` value ``[lo, hi]`` from what a person or a model may give:
+    ``[40, 60]``, ``"40-60"``, ``"[40, 60]"``, ``{"low": 40, "high": 60}`` or one number (a
+    point, ``[x, x]``). Anything else is returned unchanged."""
+    import re
+
+    if isinstance(value, dict):
+        lo = value.get("low", value.get("lo"))
+        hi = value.get("high", value.get("hi"))
+        value = [x for x in (lo, hi) if x is not None]
+    if isinstance(value, str):
+        value = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", value)]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return [float(value), float(value)]
+    if isinstance(value, (list, tuple)) and value:
+        try:
+            nums = [float(x) for x in list(value)[:2]]
+        except (TypeError, ValueError):
+            return value
+        return sorted(nums * (2 if len(nums) == 1 else 1))
+    return value
 
 
 def number(name: str, value: float | None, *, min: float | None = None, max: float | None = None,

@@ -20,6 +20,8 @@ The first generator, and the side pane's open tab when a negotiation starts. It 
 Utility-based Selector below, the other way round from a utility function: you choose a value and
 get deals with it, but graphically.
 
+![The Utility Bar with an estimate of the opponent: the ten deals worth 55-90% to you that the opponent likes most](../assets/screens/tool-utility-bar.png)
+
 1. Open the **Utility Bar** tab in the side pane, or, outside the full view, press **Utility Bar**
    in the offer area (see [Tools in a popup](#tools-in-a-popup)).
 2. Look at the bar: it runs from 0% (your worst deal) to 100% (your best). The grey columns show
@@ -136,6 +138,8 @@ the offer area stays usable and you see at once what a generator puts into your 
   for the first offer generator (the **Utility Bar**), which also opens the counter-offer editor,
   and **Tools**, a menu of every tool with the offer generators first. Before and after a
   negotiation the **Tools** menu is there too, for example to read your Preferences.
+
+![The Utility Bar in a popup, opened from the offer area in the simple view: the picked deal is in the counter-offer](../assets/screens/tool-popup.png)
 
 Drag the popup by its title bar and resize it from its corner; it opens where you left it. One tool
 is in the popup at a time: opening another takes its place. **Esc** or **×** closes it, **⤢**

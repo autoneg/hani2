@@ -1059,6 +1059,10 @@ def _coerce_input(component: dict, value: Any) -> Any:
     try:
         if t in ("slider", "number") and isinstance(value, str):
             return float(value)
+        if t == "range_bar":
+            from hani2.tools.ui import range_value
+
+            return range_value(value)
         if t in ("checkbox", "switch") and isinstance(value, str):
             return value.strip().lower() in ("1", "true", "yes", "on")
         if t in ("select", "radio") and component.get("options"):

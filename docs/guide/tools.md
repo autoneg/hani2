@@ -210,6 +210,8 @@ opponent** (the last two only with an [estimate of the opponent](#an-estimate-of
 or for those who may see the real preferences). Click a row to copy it into your counter-offer, or
 press **Set Offer**. See [Utility Bar](offer-generators.md#utility-bar).
 
+![The Utility Bar](../assets/screens/tool-utility-bar.png)
+
 ### Utility-based Selector
 
 **Everyone, from the start.** The deals whose value for you lies in a range you choose, best first.

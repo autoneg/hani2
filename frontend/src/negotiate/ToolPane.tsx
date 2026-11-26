@@ -375,7 +375,14 @@ export function ToolPopup() {
       aria-label={`${tool.name} (popup)`}
       tabIndex={-1}
       data-testid="tool-popup"
-      onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), closePopup())}
+      // Esc closes the popup, but not while a dialog over it (its help, a confirmation) is open:
+      // that dialog takes the Esc (React also bubbles keys from portalled dialogs up to here)
+      onKeyDown={(e) => {
+        if (e.key !== "Escape" || !box.current?.contains(e.target as Node)) return;
+        if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+        e.stopPropagation();
+        closePopup();
+      }}
       onPointerUp={save}
       className={`enter fixed z-[55] flex flex-col border border-line bg-surface shadow-pop outline-none ${
         phone ? "inset-x-0 top-14 max-h-[55dvh] rounded-b-xl border-t-0" : "max-h-[calc(100dvh-5rem)] min-h-[160px] w-[420px] min-w-[300px] max-w-[calc(100vw-1rem)] resize overflow-hidden rounded-xl"

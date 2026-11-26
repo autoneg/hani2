@@ -1108,9 +1108,7 @@ class UtilityBarTool(OutcomeSelector):
     # -- the selection ------------------------------------------------------------------
     def area(self) -> tuple[float, float]:
         """The chosen part of the bar in percent, ``(lo, hi)``; ``lo == hi`` for a click."""
-        v = self.values.get("area") or [70, 100]
-        if isinstance(v, (int, float)):
-            v = [v, v]
+        v = ui.range_value(self.values.get("area") or [70, 100])
         try:
             lo, hi = sorted(max(0.0, min(100.0, float(x))) for x in list(v)[:2])
         except Exception:
@@ -1228,7 +1226,7 @@ class UtilityBarTool(OutcomeSelector):
             out.append(ui.alert("The opponent's numbers come from an **estimate** of their preferences, which can be "
                                 "wrong.", "warning"))
         elif kind == "real":
-            out.append(ui.alert("You see the opponent's **real** preferences (administrators only).", "info"))
+            out.append(ui.alert("The opponent's numbers are their **real** preferences.", "info"))
         bar_hint = "Click a point for the nearest deals, or drag across a part of the bar."
         out.append(ui.range_bar("area", [lo, hi], label="What the deal is worth to you", density=counts,
                                 overlay=overlay, overlay_label=("Best for the opponent here" if overlay else None),

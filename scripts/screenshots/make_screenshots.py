@@ -7,6 +7,7 @@ Run it from the repository root after ``uv pip install -e ".[e2e]"`` and
 
     .venv/bin/python scripts/screenshots/make_screenshots.py            # everything
     .venv/bin/python scripts/screenshots/make_screenshots.py tools      # only the tool screenshots
+    .venv/bin/python scripts/screenshots/make_screenshots.py popup      # a tool in a popup (simple view)
     .venv/bin/python scripts/screenshots/make_screenshots.py tutorial --level 3
 
 The tools need no language model except the LLM tool and the two LLM example tools (Summary,
@@ -292,7 +293,8 @@ def take_tools(browser, use_llm: bool) -> None:
             ("Briefing", "tool-briefing"), ("Past Negotiations", "tool-past-negotiations"),
             ("Market Research", "tool-market-research"), ("Value Histogram", "tool-value-histogram"),
             ("Utility Plot", "tool-utility-plot"), ("Outcome Plot", "tool-outcome-plot"), ("Trace", "tool-trace"),
-            ("Opponent Preferences", "tool-opponent-preferences"), ("Utility-based Selector", "tool-utility-selector"),
+            ("Opponent Preferences", "tool-opponent-preferences"), ("Utility Bar", "tool-utility-bar"),
+            ("Utility-based Selector", "tool-utility-selector"),
             ("Random", "tool-random"), ("Deal Compass", "tool-deal-compass"),
             ("Offer Counter", "tool-offer-counter"), ("What If", "tool-what-if"),
             ("Concession Tracker", "tool-concession-tracker"),
@@ -500,10 +502,37 @@ def take_level(browser, level: int) -> None:
         ctx.close()
 
 
+def take_popup(browser) -> None:
+    """The simple view: the Utility Bar opened from the offer area in a popup, a part of the bar
+    dragged out and a deal picked into the counter-offer."""
+    with server([], env_json={"negotiation": {"n_steps": 12, "time_limit": None}}) as url:
+        ctx, page = new_page(browser, url)
+        page.goto("/play?view=simple")
+        start(page)
+        play(page, 2)
+        hide_toasts(page)
+        page.get_by_test_id("launch-generator").click()
+        pop = page.get_by_test_id("tool-popup")
+        bar = pop.get_by_test_id("range-bar-area")
+        expect(bar).to_be_visible()
+        pop.locator("select").first.select_option(label="Up to 10 offers")
+        box = bar.bounding_box()
+        y = box["y"] + box["height"] / 2
+        page.mouse.move(box["x"] + box["width"] * 0.5, y)
+        page.mouse.down()
+        page.mouse.move(box["x"] + box["width"] * 0.85, y, steps=6)
+        page.mouse.up()
+        expect(pop.locator("tbody tr").first).to_be_visible()
+        pop.locator("tbody tr").nth(1).click()
+        settle(page)
+        save(page, "tool-popup")
+        ctx.close()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", nargs="*", default=["tools", "character", "tutorial"],
-                    help="any of tools, character, tutorial (default: all)")
+    ap.add_argument("what", nargs="*", default=["tools", "popup", "character", "tutorial"],
+                    help="any of tools, popup, character, tutorial (default: all)")
     ap.add_argument("--level", type=int, action="append", help="only these tutorial levels")
     ap.add_argument("--no-llm", action="store_true", help="skip the screenshots that need a language model")
     a = ap.parse_args()
@@ -516,6 +545,8 @@ def main() -> None:
         try:
             if "tools" in a.what:
                 take_tools(browser, use_llm)
+            if "popup" in a.what:
+                take_popup(browser)
             if "character" in a.what:
                 take_character(browser)
             if "tutorial" in a.what:
