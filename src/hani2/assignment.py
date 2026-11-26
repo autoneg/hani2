@@ -452,6 +452,9 @@ def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | N
             levels.append(("env", items, _group_of(items)))
     if not levels:
         raw = projects.setting("assistants", None, ref=ref)
+        if raw is None:  # a Paired HAN study plays without Assistants (see hani2.study_modes)
+            info = getattr(session, "study_mode_info", None)
+            raw = info.filled.get("assistants") if info is not None else None
         items = _items(raw)
         if items:
             levels.append(("study", items, _group_of(items)))

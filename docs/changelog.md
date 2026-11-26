@@ -11,9 +11,8 @@
   tool authors: `ui.kv(..., marks=[...])` puts such an icon after a value, `ui.legend(...)` is a colour key that wraps, and
   `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a donut
   or a bar](guide/preferences.md#weights-as-a-donut-or-a-bar).
-- **The simple view is the default.** Sessions start in the simple view (`interface.view` now
-  defaults to `simple`; set it to `full` for the previous behaviour). `interface.simple_tools_side`
-  (`right`, the default, or `left`) puts its tools column on either side of the negotiation. The
+- **Tools on either side in the simple view.** `interface.simple_tools_side` (`right`, the
+  default, or `left`) puts the simple view's tools column on either side of the negotiation. The
   console's **Participant interface** page gets a *Layout* group with the starting view, the view
   lock and the tools side. See [Layout views](guide/interface.md#layout-views).
 - **Forced value on disagreement.** The project and study setting `force_reserved_value` gives
@@ -21,6 +20,18 @@
   scenario says; unset, scenarios keep their own values. In the console: *Forced value on
   disagreement* under *Projects*. See [Forcing the value on
   disagreement](guide/project-management.md#forcing-the-value-on-disagreement).
+- **The simple view is the default.** Sessions start in the simple view (the thread, the offer area
+  and one tools column) instead of the full view, unless `?view=`, a study or a project
+  (`env.json` → `interface.view`) chooses another. Set `interface.view: full` to keep the old start.
+  See [Layout views](guide/interface.md#layout-views).
+- **Walkthroughs.** Four step-by-step walkthroughs for first-time participants, against an AI and
+  with an Assistant, basics and advanced, each with a narrated video. See [Walkthroughs](walkthroughs/index.md).
+- **Send offer in the generators' popups.** An offer generator opened in a popup has the same
+  buttons and the same disabled reasons as in its pane. When its **Send offer** sends the offer
+  (with the typed message), the popup closes, whether the participant or the Assistant pressed it. When the send is refused, the popup stays open and a
+  notice gives the reason. The server tells the browser with a `tool_sent` message
+  (`OutcomeSelector.offer_sent()`, which also empties the message box). See [Tools in a
+  popup](guide/offer-generators.md#tools-in-a-popup).
 - **Send offer in the offer generators.** Picking a row in the Utility Bar or the Utility-based
   Selector already puts the deal into the counter-offer, so their **Set Offer** button did nothing
   visible. It is now **Send offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
@@ -104,7 +115,6 @@
   card with the role's hints and what you want on every issue in plain words.
   Option names in the bar charts are no longer cut: the chart makes room for them, and only a very
   long name is shortened in the middle (its start and end stay visible; hover shows it in full).
-||||||| parent of af175e6729 (feat(assistant,ui): the open Assistant can take the tool area's place (presentation.place))
 - **Utility bars by issue.** *Colour the utility bars by issue* (`color_utility_by_issue`, off by
   default) splits every utility bar (the offer on the table, the counter-offer, the confirmation, the
   result and the history) into one coloured segment per issue, the most important first, with a

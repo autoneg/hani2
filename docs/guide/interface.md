@@ -30,12 +30,12 @@ The opponent's (opponent agent's) name appears when the session is in admin mode
 
 ## Layout views
 
-The layout menu offers four views. The current view is part of the session state, so an Assistant can change it too.
+The layout menu offers four views. A session starts in the **simple** view unless the URL, the study or the project chooses another. The current view is part of the session state, so an Assistant can change it too.
 
 | View | Desktop layout |
 | --- | --- |
 | `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility Bar and the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
-| `simple` | The default. The thread and action dock, plus one tools column with the tools from all three panes: on the right, or on the left with `interface.simple_tools_side: left`. |
+| `simple` (default) | The thread and action dock, plus one tools column with the tools from all three panes: on the right, or on the left with `interface.simple_tools_side: left`. |
 | `focus` | The thread and action dock only. The action dock's **Tools** menu (and its button for the first offer generator) opens any tool in a [popup](#open-in-a-popup); when a negotiation starts, the participant's preferences open there, and the view stays the focus view. |
 | `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
 
@@ -90,7 +90,7 @@ On tablets and phones buttons and inputs are taller for touch, the autopilot mov
 
 ## Tool panes
 
-Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default pane, which you can change in `env.json` (see [Tools](tools.md)). A pane is shown only if it has at least one tool.
+Tools live in three panes: `upper`, `lower` and `side`. Each tool has a default pane, which you can change in `env.json` (see [Tools](tools.md)). A pane is shown only if it has at least one tool. The full view shows the three panes; the simple view (the default) shows the tools of all three as the tabs of one tools column, in the same order.
 
 ### Tabs
 
@@ -121,7 +121,9 @@ The popup button next to the tabs (and **Open in a popup** in the **⋯** menu) 
 tool in a small floating window that does not block the page: drag it by its title bar, resize it
 from its corner (it remembers where it was), close it with **×** or **Esc**, or enlarge it with
 **⤢**. One tool is in the popup at a time. While it is out, its pane shows **Bring it back here**.
-On a phone the popup is a sheet along the top of the screen. Opening and closing are logged as
+On a phone the popup is a sheet along the top of the screen. A tool in the popup has the same
+buttons as in its pane. When an offer generator's **Send offer** sends the offer, the popup closes.
+If the send is refused, the popup stays open and a notice gives the reason. Opening and closing are logged as
 `tool_popup_opened` (with `from`: `pane`, `dock` or `menu`) and `tool_popup_closed` events. See
 [Tools in a popup](offer-generators.md#tools-in-a-popup).
 
@@ -182,7 +184,7 @@ A pick holds for this negotiation only; the next one starts from HANI2's own pic
 
 The dock shows the **offer on the table** with its utility gauge, then the **Accept**, **Counter-offer** and **End** buttons, and the counter-offer editor when it is open. The buttons work only on your turn; otherwise "Waiting…" appears.
 
-Outside the full view (the simple and focus views, and on tablets and phones), where the offer generators are not next to the dock, two more buttons follow **Counter-offer**: the first offer generator (the **Utility Bar**), which opens in a [popup](#open-in-a-popup) and opens the counter-offer editor, and **Tools**, a menu of every tool, offer generators first, that opens the chosen one in the popup. When a tool in the popup fills the offer, the editor opens so the new offer is in view. The **Tools** menu is also in the dock before and after the negotiation. The bare view has neither.
+Outside the full view (the simple and focus views, and on tablets and phones), where the offer generators are not next to the dock, two more buttons follow **Counter-offer**: the first offer generator (the **Utility Bar**), which opens in a [popup](#open-in-a-popup) and opens the counter-offer editor, and **Tools**, a menu of every tool, offer generators first, that opens the chosen one in the popup. When a tool in the popup fills the offer, the editor opens so the new offer is in view; its **Send offer** sends the offer and closes the popup. The **Tools** menu is also in the dock before and after the negotiation. The bare view has neither.
 
 The utility gauge is a bar from 0% to 100% with a dark tick at your value on disagreement. The fill is blue for your offers and orange for your opponent's; it turns red when the value is below the tick.
 
@@ -324,7 +326,7 @@ Every notification is also kept in the session. The bell in the header shows how
 
 ## Questionnaire
 
-If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Study management](study-management.md) for the file format.
+If a per-negotiation questionnaire is configured, it replaces the result after each counted negotiation (not in the playground, and not after a round in which the participant took no action). Questions can be Likert scales with 5 or 7 points (with optional end labels), yes/no buttons, a drop-down, or free text. **Submit answers** checks that required questions are answered. See [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for the file format.
 
 ## Utility by issue
 

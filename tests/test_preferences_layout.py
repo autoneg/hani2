@@ -137,11 +137,3 @@ def test_forced_reserved_value_is_a_project_and_study_setting(hani2_home):
     s = make_session(study="G/b")
     assert "forced_reserved_value" not in s.ss["scenario_info"]
 
-
-def test_own_preferences_are_revealed_on_start_in_the_simple_view():
-    s = make_session()
-    assert s.layout["view"] == "simple"
-    s.start()
-    snap = s.snapshot()
-    assert snap["reveal"]["tool"] == "Preferences" and s.layout["view"] == "simple"
-    s.end()

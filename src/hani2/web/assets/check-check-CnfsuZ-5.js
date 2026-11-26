@@ -1,1 +1,0 @@
-import{c}from"./index-DKL4DzZI.js";const e={name:"check-check",size:24,node:[["path",{d:"M18 6 7 17l-5-5",key:"116fxf"}],["path",{d:"m22 10-7.5 7.5L13 16",key:"ke71qq"}]]};e.node;const o=c(e);export{e as __iconData,o as default};

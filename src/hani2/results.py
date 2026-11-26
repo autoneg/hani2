@@ -100,6 +100,24 @@ def _attribution(ss: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+def _han_provenance(ss: dict[str, Any], m: SAOMechanism) -> dict[str, Any]:
+    """``opponent_han_year``, ``opponent_han_source`` and ``opponent_han_version`` when the AI
+    opponent is a HAN agent (see :mod:`hani2.han_submissions`); empty otherwise."""
+    from hani2 import han_submissions
+
+    empty = {k: "" for k in han_submissions.PROVENANCE_COLUMNS}
+    if ss.get("match_id"):
+        return empty
+    try:
+        hi = int(ss.get("human_index", 0))
+        others = [n for i, n in enumerate(m.negotiators) if i != hi]
+        return han_submissions.provenance(ss.get("last_partner_type"), str(ss.get("opponent_group") or ""),
+                                          others[0] if len(others) == 1 else None)
+    except Exception as e:  # noqa: BLE001 — the row is written anyway
+        print(f"[hani2] could not tell the HAN agent's source: {e}")
+        return empty
+
+
 #: who sat in the human seat: ``mode`` (``simulated`` for a simulated participant, see
 #: :mod:`hani2.simulator`), ``participant_type`` (from the pre-questionnaire, or the persona's
 #: difficulty), ``persona`` and, for simulated participants, ``goal_met`` and ``sim_invalid`` (why the
@@ -316,6 +334,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         )
         | _condition(ss)
         | _attribution(ss)
+        | _han_provenance(ss, m)
         | _participant(ss, human_ufun, human_utility, m.agreement is not None)
         | _information(ss, m)
         | _stamp(ss)

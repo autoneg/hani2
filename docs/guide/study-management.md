@@ -6,10 +6,10 @@ A study is one data collection inside a [project](project-management.md), with i
 
 1. **Create** the study: `hani2 study create PROJECT/STUDY` (or **New study** on the admin console's [Projects & Studies](admin.md#projects-studies) page). It prints the links to give participants. The project is created when it is missing.
 2. **Configure** it: `study.yaml` and its overrides of the project's defaults (see [`study.yaml` and overrides](#studyyaml-and-overrides)), its texts and forms (see [Forms and questionnaires](#forms-and-questionnaires)) and how it assigns Assistants, opponents and scenarios (see [Assigning Assistants, opponents and scenarios](#assigning-assistants-opponents-and-scenarios)).
-3. **Test** it: open the participant link yourself with a made-up ID, and try a negotiation between two people on one machine with [`hani2 human-trial`](../getting-started/cli.md#hani2-human-trial).
+3. **Test** it: open the participant link yourself (for a Prolific study, see [Testing locally](prolific.md#testing-locally)), and try a negotiation between two people on one machine with [`hani2 human-trial`](../getting-started/cli.md#hani2-human-trial).
 4. **Run** it: start the server (`hani2 --study PROJECT/STUDY` makes it the server's default study) and give out the link.
 5. **Monitor** it: see [Monitoring](#monitoring).
-6. **Close** it: the `end` date in `study.yaml` records when it ended, and its results stay in its own folder (see [Results](#results)).
+6. **Close** it: stop giving out the link. `start` and `end` in `study.yaml` record the study's dates, and its results stay in its own folder (see [Results](#results)).
 
 ## Study types
 
@@ -129,6 +129,11 @@ wave: 1                    # any other key is available to texts as {{study_wave
 
 Settings of a study come, first match wins, from: an environment variable set by whoever starts HANI2 (`PROLIFIC_N_REQUIRED`, `PROLIFIC_MAX_MINUTES`, …), the study's `overrides`, the project's `defaults`, and the built-in default.
 
+Two settings merge instead of replacing the project's value: `scheduling` merges per dimension,
+and `pairing` key by key (a study that writes `pairing: {assign: order}` keeps the project's
+`scope`, `fallback`, …). `hani2 study create` updating an existing study merges them with the file
+in the same way.
+
 A setting given twice in `study.yaml` or `project.yaml` with different values (at the top level
 and again under `overrides:` / `defaults:`) is refused when the file is saved through the admin
 API or the command line, and reported (server log, `hani2 study show`, the admin study page's
@@ -146,6 +151,61 @@ Every settings file is looked up per session, first match wins:
 JSON files (`env.json`, `assistant_settings.json`, …) are merged in the same layers, so a study's `env.json` only needs the keys it changes. Scenarios come from the study's `scenarios/`, then `HANI2_SCENARIOS_BASE`, then the project's `scenarios/`, then the settings folder. The questionnaire after each negotiation comes from `questionnaires/per_negotiation.yaml` in the study and then the project folder (after the environment variables and `env.json`, see [Where the questionnaire is looked up](#where-the-questionnaire-is-looked-up)).
 
 User accounts are shared by all studies.
+
+## Mode
+
+A study runs in one of three modes: **Solo** (one person against an AI opponent), **Paired** (two
+people negotiate with each other) or **Mixed** (a person when someone fits, else an AI opponent).
+The project sets the default and a study overrides it:
+
+```yaml title="projects/HI2027/studies/pairs/study.yaml"
+type: online
+title: Teams against teams
+overrides:
+  study_mode: paired        # opponents: [human+assistant] is filled in (an HI project)
+  pairing: {scope: study}
+```
+
+What each mode means in an HI and in a HAN project, which pool each needs and the keys of the
+`pairing` block are in [Mode: Solo, Paired or Mixed](project-management.md#mode-solo-paired-or-mixed)
+and [Pairing defaults](project-management.md#pairing-defaults). Without `study_mode`, the mode is
+derived from `opponents`, and nothing changes for existing studies.
+
+### Checks, and how to fix the errors
+
+The study's mode is checked against its pool after the project's defaults and the study's
+overrides are merged, so a study cannot contradict its project's mode silently:
+
+| Message | Fix |
+|---|---|
+| `study_mode is 'solo' but opponents [...] lists human+assistant` | Remove the human entries, or set `study_mode: paired` (people only) or `mixed` (both) |
+| `a Paired HI study (kind: assistant) needs opponents: [human+assistant]` | Write `opponents: [human+assistant]`, or leave `opponents` out and HANI2 fills it in |
+| `a Paired HAN study (kind: opponent) needs opponents: [human]` | The same with `[human]`; people play without an Assistant (`assistants: [none]`, also filled in) |
+| `... but assistants is [none]; each side needs an Assistant` | An HI study needs an Assistant: name the Assistants or remove `assistants: [none]` |
+| `study_mode is 'mixed' but no opponents are given; name the pool` | Mixed needs a pool with a person and an AI, for example `[human+assistant, ":pan"]` |
+| `pairing: unknown key ...`, `pairing.scope must be one of ...` | Use the keys and values listed in [Pairing defaults](project-management.md#pairing-defaults) |
+| `pairing.fallback is 'wait' but human_opponent_fallback is true` | Keep one of the two settings |
+| `opponents: :han2025-all: no agents for 2025 (...)` | Name a year that `han-agents` covers, or the current year (`han.current_year`), see [HAN agents by year](project-management.md#han-agents-by-year) |
+
+On save (`hani2 study create`, the admin API's `PUT`) such a file is refused (a 400 from the
+API). A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
+`errors`, and `opponents` wins: the study runs with the derived mode.
+
+### Checks for each session
+
+When the study **declares** `study_mode`, what a page or an outside system brings for one session
+is checked too:
+
+- **Group files** (`?group=<key>`) whose `agents` do not fit the mode: in a Paired study the file's
+  AI entries are dropped (a file listing only AI agents is ignored, and the study's pool is used);
+  in a Solo study a file with a `human` or `human+assistant` entry is ignored, and the study's pool
+  is used. A Mixed study takes the file as it is.
+- **`schedule.json` slots** whose `agent_class_name` does not fit: a human entry in a Solo study, or
+  an AI agent in a Paired study, is ignored, and the study's own pool is used.
+- Each case prints a warning in the server log and adds an `error` event to the session.
+- An admin's `?opponents=` link is a test link and is never checked.
+
+A study that does not set `study_mode` takes group files and slots as before.
 
 ## Assigning Assistants, opponents and scenarios
 
@@ -326,6 +386,21 @@ the `participant_type` column of every later result. Administrators, playground 
 [simulated participants](simulation.md) never get the pre-questionnaire. A simulated participant's
 type is its persona's difficulty (`simulated-easy`, `simulated-hard`).
 
+### Questionnaire answers in scores
+
+Every numeric answer can be used in a score: `q_<id>` for each item and `scale_<name>` /
+`scale_<name>_norm` for each scale of the per-negotiation questionnaire, and `post_q_<id>` /
+`post_scale_<name>` for the post-session questionnaire. Free-text answers cannot. Each item is mapped to
+$[0, 1]$ using the bounds of its type (`likert5`, `likert7`, `yes_no`, `select`, or `min` / `max`).
+Items marked `reverse: true` are already reversed.
+
+A per-negotiation answer belongs to its game. A post-session answer is given once per person, so it is
+credited to that person's games **only when they used one Assistant throughout**. In a design where
+people meet several Assistants, such as finals where everyone meets every finalist, post-session answers
+cannot be used in HI scores. To rate each Assistant, ask the questions after each negotiation instead.
+See [Project management: scores](project-management.md#scores) and run
+`hani2 scores criteria <project>/<study>` to list a study's criteria.
+
 ## Monitoring
 
 - The admin console's study page (**Projects & Studies**, then the study) shows the number of participants and of recorded negotiations, how many counted humans each Assistant of the pool has, and every assignment (see [Admin console](admin.md#projects-studies)).
@@ -439,6 +514,9 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `opponent_info_tools` | Whether the participant's tools could show the opponent's utilities (admins, or `tools.show_opponent_utility`). |
 | `autopilot_driver` | Who drove the seat when autopilot was used (`Assistant` or a negotiator); empty otherwise. |
 | `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
+| `opponent_han_year` | The HAN year of the AI opponent when it is a HAN entrant (from a `:han<year>-<set>` group), else empty. |
+| `opponent_han_source` | Where that agent came from: `submissions` (the current year's submitted zips) or `han-agents` (the package). |
+| `opponent_han_version` | Which build played: the sha256 of the submitted zip, or the `han-agents` version. |
 | `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
 
@@ -593,6 +671,45 @@ Nothing has to move. An experiment folder `$HANI2_EXPERIMENTS/<name>/` (default 
 
 To move an experiment into a project, create the study (`hani2 study create HI2027/wave1`) and move the experiment's files into `projects/HI2027/studies/wave1/`, keeping its `results/` folder. Move texts shared by several studies (for example `consent.md`) up to the project folder.
 
+## The study's scores
+
+A study uses the project's scores (see [Project management: scores](project-management.md#scores)).
+In `study.yaml` it can add its own, redefine one of the project's **by key**, drop one with
+`key: null`, and choose which scores it shows:
+
+```yaml
+# study.yaml
+scores:
+  quick_check:                            # this study only
+    track: hi
+    components:
+      - {criterion: human_advantage, weight: 0.7}
+      - {criterion: q_satisfaction,  weight: 0.3, direction: higher}
+  hi_score:                               # replaces the project's hi_score in this study
+    track: hi
+    components:
+      - {criterion: human_advantage, weight: 1}
+  old_score: null                         # the project's old_score is not used here
+scores_enabled: [hi_score, quick_check, utility]
+```
+
+A redefined score replaces the project's definition as a whole: its components are not merged.
+`scores_enabled` in the study replaces the project's list; without it the study uses the project's
+list, or, when the project has none, every score. The study's boards, results views and exports
+show the enabled scores.
+
+The same checks apply as for a project: weights that sum to 1, known criteria (including the answers
+of the study's own questionnaires), a direction where the criterion has none, no cycles, and the rule
+for post-session answers: when some participant of the study used more than one Assistant, an HI
+score cannot use a post-session answer (run `hani2 scores check <project>/<study> --coverage`). Check
+and edit a study's scores with the same commands, giving `<project>/<study>`:
+
+```bash
+hani2 scores list HI2027/play
+hani2 scores set HI2027/play quick_check -f quick_check.yaml
+hani2 scores enable HI2027/play hi_score,quick_check,utility
+```
+
 ## Command line and admin API
 
 ### Command line
@@ -602,8 +719,9 @@ hani2 study create PROJECT/STUDY [--type prolific|online|lab] [--title TEXT] [--
                                  [--completion-url URL] [--prolific-study-id ID] [--link URL]
                                  [--start DATE] [--end DATE] [--n-required N] [--end-text TEXT] [--base-url URL]
                                  [--opponent-scheduling M] [--assistant-scheduling M] [--scenario-scheduling M]
+                                 [--study-mode solo|paired|mixed] [--opponents LIST]
 hani2 study list [PROJECT]
-hani2 study show PROJECT/STUDY [--base-url URL]
+hani2 study show PROJECT/STUDY [--base-url URL]   # settings, scheduling, mode, pairing, HAN sources, errors
 hani2 --study PROJECT/STUDY         # the default study of this server
 hani2 experiment create|list ...    # see Experiments above
 ```
@@ -618,7 +736,10 @@ These JSON endpoints are for admins only; the conventions (names, layers) are th
 
 | Endpoint | Does |
 |---|---|
-| `GET /api/admin/projects/{project}/studies/{study}` | A study: its settings, `study.yaml` as text, its links. |
-| `PUT /api/admin/projects/{project}/studies/{study}` | Create or replace `study.yaml` (the project is created when missing). What the GET adds (`path`, `links`, `participants`, `results_rows`, `scheduling_effective`, `errors`, …) is dropped, so a client may send back what it read; the top-level `scheduling` wins over the copy under `overrides`, and an empty `scheduling` (`{}`) inherits every dimension again (the same holds for a project). |
+| `GET /api/admin/projects/{project}/studies/{study}` | A study: its settings, `study.yaml` as text, its links, `study_mode_effective` (the mode in use, the declared and derived ones, `mode_error`, the merged `pairing` keys, `pairing_effective` and what was `filled` in) and `errors`. |
+| `PUT /api/admin/projects/{project}/studies/{study}` | Create or replace `study.yaml` (the project is created when missing). What the GET adds (`path`, `links`, `participants`, `results_rows`, `scheduling_effective`, `study_mode_effective`, `errors`, …) is dropped, so a client may send back what it read; a mode that disagrees with the pool is a 400; the top-level `scheduling` wins over the copy under `overrides`, and an empty `scheduling` (`{}`) inherits every dimension again (the same holds for a project). |
+| `PUT` / `DELETE /api/admin/projects/{project}/studies/{study}/scores/{key}` | Add, redefine or remove a score in `study.yaml` (the same checks as for a [project](project-management.md#admin-api)). |
+| `POST /api/admin/projects/{project}/studies/{study}/scores/{key}/duplicate` | `{"from": "..."}`: copy a score into the study. |
+| `PUT /api/admin/projects/{project}/studies/{study}/scores_enabled` | `{"enabled": [...]}`, or `null` for the project's choice. `GET /api/admin/scores?study=P/S` lists the study's scores. |
 | `GET /api/admin/projects/{project}/studies/{study}/balance` | The study's Assistant pool and how many counted humans each Assistant has, with every assignment. |
 | `GET /api/admin/projects/{project}/studies/{study}/assignments` | The study's `assignments.json`. |

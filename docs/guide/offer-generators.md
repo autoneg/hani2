@@ -5,8 +5,9 @@ panel, and you check it, change it if you like and press **Send offer** under it
 in the Utility Bar or the Utility-based Selector, or generating one with Random, already fills your
 counter-offer, so their own button is **Send offer** too: it sends that deal at once. The LLM tool
 has both **Set offer** (copy the suggestion) and **Send offer** (send it). See [Sending from the
-tool](#sending-from-the-tool). HANI2 has four built in, in the side pane next to the offer panel
-by default:
+tool](#sending-from-the-tool). HANI2 has four built in. In the simple view (the default) they are
+tabs of the tools column, and the **Utility Bar** button and the **Tools** menu in the offer area
+open them in a popup; in the full view they sit in the side pane next to the offer panel:
 
 | Generator | How it picks an offer | Who gets it | Best for |
 |-----------|-----------------------|-------------|----------|
@@ -20,14 +21,14 @@ ability, and you can [write your own](#writing-your-own).
 
 ## Utility Bar
 
-The first generator, and the side pane's open tab when a negotiation starts. It works like the
+The first generator, and the side pane's open tab when a negotiation starts in the full view. It works like the
 Utility-based Selector below, the other way round from a utility function: you choose a value and
 get deals with it, but graphically.
 
 ![The Utility Bar with an estimate of the opponent: the ten deals worth 55-90% to you that the opponent likes most](../assets/screens/tool-utility-bar.png)
 
-1. Open the **Utility Bar** tab in the side pane, or, outside the full view, press **Utility Bar**
-   in the offer area (see [Tools in a popup](#tools-in-a-popup)).
+1. Press **Utility Bar** in the offer area to open it in a popup (see [Tools in a popup](#tools-in-a-popup)),
+   or open its tab in the tools column (the side pane in the full view).
 2. Look at the bar: it runs from 0% (your worst deal) to 100% (your best). The grey columns show
    how many deals there are at each value, the coloured marks your value on disagreement (*No
    deal*), the opponent's offer on the table (*Their offer*) and your current offer (*Your offer*).
@@ -65,7 +66,8 @@ among those still good for you.
 
 ![The Utility-based Selector](../assets/screens/tool-utility-selector.png)
 
-1. Open the **Utility-based Selector** tab in the side pane.
+1. Open the **Utility-based Selector** tab in the tools column (the side pane in the full view), or
+   pick it from the **Tools** menu in the offer area.
 2. Set **Minimum utility**: the least a deal must be worth to you, in percent of the span from your
    worst to your best deal.
 3. Set **Range width**: how far above the minimum to look. 70% and 10% list every deal worth 70-80%
@@ -154,6 +156,10 @@ The button is disabled while you cannot send, and its tooltip says why:
 
 After it is sent, the deal is no longer picked: pick one again for your next offer.
 
+A generator works the same in a [popup](#tools-in-a-popup) as in its pane: the same buttons, the
+same checks and the same tooltips. A **Send offer** that sends closes the popup; one that cannot
+send (not your turn, say) leaves the popup open and says why.
+
 ## Random
 
 ![The Random tool](../assets/screens/tool-random.png)
@@ -185,6 +191,11 @@ Drag the popup by its title bar and resize it from its corner; it opens where yo
 is in the popup at a time: opening another takes its place. **Esc** or **×** closes it, **⤢**
 enlarges it. On a phone it is a sheet along the top of the screen, above the offer editor. The bare
 view has no tools at all, so it has no popup and no launcher.
+
+An offer generator in the popup has the same buttons as in its pane (see [Sending from the
+tool](#sending-from-the-tool)). Its **Send offer** sends the deal at once, with the message typed in
+the message box, like the **Send offer** button under the counter-offer, and the popup then closes.
+If the offer cannot be sent, the popup stays open and a notice gives the reason.
 
 ## Giving the admin-only generators to participants
 
@@ -226,6 +237,8 @@ If your tool fills the counter-offer as soon as a deal is picked (a table, a cha
 `sends_offer = True` and call `self.pick(offer)` when the participant picks one: the button becomes
 **Send offer** (`send_label`) and sends the picked deal, as in the [Utility Bar](#utility-bar).
 `send_blocker()` returns why it cannot send now (or `None`); the button shows it as its tooltip.
+A tool that sends the offer itself calls `self.offer_sent()` once the offer is sent: the message box
+empties and, if the tool is open in a popup, the popup closes.
 
 Save it in the tools folder (`$HANI2_HOME/tools`) and the next session has it. The [tools
 tutorial](../tutorials/tools.md#offer-pickers-outcomeselector) explains `OutcomeSelector` and

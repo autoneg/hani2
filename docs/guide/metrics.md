@@ -2506,7 +2506,7 @@ The mean answer to the items of a scale defined by your questionnaire (`scale: <
 
 ##### `q_<id>` — <id>
 
-*The numeric answer to a question without a scale*
+*The numeric answer to one question*
 
 **Range:** the question's range · **Direction:** no better direction
 
@@ -2514,7 +2514,7 @@ $$
 v'_{\text{id}}
 $$
 
-The answer to the question with this `id` when it belongs to no scale: the number for rating questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.
+The answer to the question with this `id` (whether or not it belongs to a scale): the number for rating questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.
 
 ## Soft metrics (language-model judge)
 
@@ -3521,6 +3521,40 @@ $$
 $$
 
 The share of the total weight of `hi_interaction` whose components had a value in this session: 1 when
+every component was measured, lower when (for example) there was no questionnaire or no judge.
+Compare scores only between sessions with similar coverage; the leaderboards use the same
+components for every entrant.
+
+#### `utility` — Utility
+
+*The Human side's advantage alone, for any session*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+S = \frac{\sum_{i \in P} w_i\, \phi_i(x_i)}{\sum_{i \in P} w_i}
+$$
+
+The simplest score: the share of the largest possible gain over no deal that the Human side obtained,
+with or without an Assistant. No deal scores 0. Every project and study has it.
+
+| Component | What | Weight | Normalised as |
+| --- | --- | --- | --- |
+| `human_advantage` | the Human side's advantage | 1 | an advantage clipped to [0, 1] (no better than no deal = 0): $\min(1, \max(0, x))$ |
+
+Components without a value are left out (see `utility_coverage`).
+
+#### `utility_coverage` — Utility coverage
+
+*Share of the weight of utility that had a value*
+
+**Range:** [0, 1] · **Direction:** higher is better
+
+$$
+\frac{\sum_{i \in P} w_i}{\sum_{i} w_i}
+$$
+
+The share of the total weight of `utility` whose components had a value in this session: 1 when
 every component was measured, lower when (for example) there was no questionnaire or no judge.
 Compare scores only between sessions with similar coverage; the leaderboards use the same
 components for every entrant.

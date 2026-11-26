@@ -74,7 +74,7 @@ one-sided deal. Without an agreement it equals $r_o$.
 """),
     C("human_advantage", "Human advantage", "(u − reserved) / (max − reserved) for the human team", True,
       formula=r"A_h = \frac{u_h(\omega^*) - r_h}{\bar u_h - r_h}, \qquad \bar u_h = \max_{\omega \in \Omega} u_h(\omega)",
-      range="≤ 1 (1 = the best outcome, 0 = no better than no deal)",
+      range="≤ 1 (1 = the best outcome, 0 = no better than no deal)", normaliser={"kind": "advantage"},
       details=r"""
 The share of the largest possible gain over walking away that the Human side obtained: 1 for the
 Human's best outcome, 0 for an outcome worth exactly the reservation value, negative for a deal
@@ -87,13 +87,14 @@ The maximum is over every outcome, not only those acceptable to the Opponent.
 """),
     C("opponent_advantage", "Opponent advantage", "The same for the opponent",
       formula=r"A_o = \frac{u_o(\omega^*) - r_o}{\bar u_o - r_o}, \qquad \bar u_o = \max_{\omega \in \Omega} u_o(\omega)",
-      range="≤ 1",
+      range="≤ 1", normaliser={"kind": "advantage"},
       details=r"""
 The Opponent side's share of its largest possible gain over no deal (see `human_advantage`). In the
 example $A_o = (0.45 - 0.2)/(1 - 0.2) = 0.3125$. Empty when the scenario has no utility table.
 """),
     C("welfare", "Social welfare", "Sum of every party's utility", True,
       formula=r"W = u_h(\omega^*) + u_o(\omega^*)", range="utility sum (usually [0, number of parties])",
+      normaliser={"kind": "bounded", "lo": 0, "hi": 2},
       details=r"""
 The total value created for both sides: higher means a more efficient (integrative) deal. Example:
 $0.5 + 0.45 = 0.95$. Without an agreement it is $r_h + r_o$. Compare it across scenarios with
@@ -570,6 +571,7 @@ non-Human party. Offers whose utilities are unknown are skipped.
     *_move_cols("suggested_move", "Assistant suggestion"),
     C("human_concession", "Human concession", "Utility the human gave up from the first to the last offer",
       formula=r"u_h(o^h_1) - u_h(o^h_K)", range="utility difference",
+      normaliser={"kind": "bounded", "lo": -1, "hi": 1},
       details=r"""
 How much the Human seat's own utility dropped from its first offer to its last ($K$ offers with a
 known utility, at least 2). Positive means the Human conceded, negative that they hardened. Example:

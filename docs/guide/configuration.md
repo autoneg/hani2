@@ -151,6 +151,10 @@ See [Authentication](authentication.md).
 
 A list of opponent specs and group tokens that form the default opponent pool, for example `["AspirationNegotiator", ":template"]`. Empty means the built-in default pool. It has lower precedence than the `?opponents=`/`?group=` URL parameters, `--opponents`/`HANI2_OPPONENTS` and the admin session setting `opponent_types`. The older key `agents` is still read when `opponents` is empty. See [Opponents](opponents.md).
 
+### `han`
+
+The HAN league agents of the current year: `current_year` (a year, set explicitly; that year's `:han<year>-<set>` groups come from its submitted zips, every other year from the `han-agents` package), `submissions` (per year, `{"dir": "<folder with the zips and index.json>"}`) and `import_dir` (where `hani2 han import` unpacks them, default `<HANI2_HOME>/han_submissions`). See [HAN agents of the current year](opponents.md#han-agents-of-the-current-year).
+
 ### `negotiation`
 
 Default values of the per-session negotiation settings. Every key below may appear here, in any layer. The admin console edits them on the **Negotiation** page (timing, rules, scenarios and opponents) and the **Participant interface** page (`allow_tool_switch`, `allow_moving_tools`), per layer.
@@ -204,7 +208,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | `prefs.<key>` | (the built-in defaults) | What a new session starts with, for `show_history`, `show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`, `font_scale`, `show_scenario_picture`, `scenario_picture_style` and `open_scenario_description` (see [Display settings](interface.md#display-settings)). |
 | `notifications.toast_seconds` | `6` | How long a notification stays on screen. `0`: until it is closed. Errors stay at least nine seconds. |
 | `notifications.center` | `true` | The bell in the header that lists every notification of the session. |
-| `view` | `simple` | The view a session starts in: `simple`, `full`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
+| `view` | `simple` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
 | `view_locked` | `false` | `true`: participants and the Assistant cannot leave that view (administrators still can). Use it with `view: bare` for a no-tools condition. |
 | `simple_tools_side` | `right` | Where the tools column goes in the simple view: `right` or `left` of the negotiation. |
 
@@ -444,7 +448,7 @@ See [Autopilot](autopilot.md).
 
 ## Questionnaires
 
-`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Study management](study-management.md) for the format.
+`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for the format.
 
 ## Environment variables
 

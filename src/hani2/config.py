@@ -328,6 +328,9 @@ DEFAULT_ENV: dict[str, Any] = {
     # WebMCP: expose the negotiation to AI agents running in the browser.
     "webmcp": {"enabled": True, "actions": True, "studies": False},
     "tools": {"maximize": "window", "weights_chart": "donut"},
+    # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),
+    # every other year from the han-agents package; None: every year from the package
+    "han": {"current_year": None, "submissions": {}},
 }
 
 

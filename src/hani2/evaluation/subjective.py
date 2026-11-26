@@ -3,8 +3,8 @@
 Questions carry ``scale`` (the score they belong to) and optionally
 ``reverse: true``; see ``default_settings/questionnaires/evaluation.yaml``.
 Every scale becomes a column ``scale_<name>`` (mean of its items on the
-item's own range) and ``scale_<name>_norm`` (rescaled to 0–1). Numeric
-answers to questions without a scale become ``q_<id>``.
+item's own range) and ``scale_<name>_norm`` (rescaled to 0–1). Every
+numeric answer also becomes ``q_<id>`` (reversed items already reversed).
 """
 
 from __future__ import annotations
@@ -129,10 +129,10 @@ scale names are yours. Items of different ranges in one scale are averaged on th
       formula=_SCALE_F % "s", range="the items' range",
       details=("The mean answer to the items of a scale defined by your questionnaire (`scale: <name>`), on the items' "
                "own range with reversed items (`reverse: true`) scored backwards.")),
-    C("q_<id>", "<id>", "The numeric answer to a question without a scale",
+    C("q_<id>", "<id>", "The numeric answer to one question",
       formula=r"v'_{\text{id}}", range="the question's range",
-      details=("The answer to the question with this `id` when it belongs to no scale: the number for rating "
-               "questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.")),
+      details=("The answer to the question with this `id` (whether or not it belongs to a scale): the number for "
+               "rating questions, 1/0 for yes/no, the option's position for a choice, reversed when `reverse: true`.")),
 ])
 def questionnaire(ctx: EvalContext, options: dict) -> dict:
     """Scale scores (UEQ, TAM, intention to use, opponent perception, …) and
@@ -140,12 +140,34 @@ def questionnaire(ctx: EvalContext, options: dict) -> dict:
     q = ctx.rec.questionnaire
     if q is None:
         return dict(questionnaire_answered=0)
-    spec = q.get("spec") or {}
     answers = q.get("answers") or {}
     out: dict = {"questionnaire_answered": 1}
+    vals, texts = answer_values(q.get("spec") or {}, answers)
+    out.update(vals)
+    out["_details"] = dict(answers=answers, texts=texts)
+    return out
+
+
+def item_bounds(item: dict) -> tuple[float, float] | None:
+    """The ``(lo, hi)`` range of a question's numeric answer; ``None`` for free text."""
+    if item.get("type") == "text":
+        return None
+    if item.get("type") == "select":
+        n = len(item.get("options") or [])
+        return (1.0, float(n)) if n else None
+    lo, hi = _RANGES.get(str(item.get("type")), (item.get("min", 1), item.get("max", 7)))
+    lo, hi = num(item.get("min", lo)), num(item.get("max", hi))
+    return (lo, hi) if lo is not None and hi is not None else None
+
+
+def answer_values(spec: dict, answers: dict, prefix: str = "") -> tuple[dict, dict]:
+    """``({column: value}, {id: text})`` of one form's answers: ``<prefix>q_<id>`` for every
+    numeric answer (reversed items already reversed), ``<prefix>scale_<name>`` and
+    ``<prefix>scale_<name>_norm`` for every scale, and the free-text answers apart."""
+    out: dict = {}
     scales: dict[str, list[tuple[float, float, float]]] = {}
     texts = {}
-    for item in spec.get("questions", []):
+    for item in spec.get("questions", []) or []:
         qid = item.get("id")
         if qid not in answers:
             continue
@@ -157,12 +179,10 @@ def questionnaire(ctx: EvalContext, options: dict) -> dict:
         v, lo, hi = _value(item, a)
         if v is None:
             continue
+        out[f"{prefix}q_{qid}"] = v
         if item.get("scale"):
             scales.setdefault(str(item["scale"]), []).append((v, lo, hi))
-        else:
-            out[f"q_{qid}"] = v
     for name, vals in scales.items():
-        out[f"scale_{name}"] = sum(v for v, _, _ in vals) / len(vals)
-        out[f"scale_{name}_norm"] = sum((v - lo) / (hi - lo) if hi > lo else 0.0 for v, lo, hi in vals) / len(vals)
-    out["_details"] = dict(answers=answers, texts=texts)
-    return out
+        out[f"{prefix}scale_{name}"] = sum(v for v, _, _ in vals) / len(vals)
+        out[f"{prefix}scale_{name}_norm"] = sum((v - lo) / (hi - lo) if hi > lo else 0.0 for v, lo, hi in vals) / len(vals)
+    return out, texts

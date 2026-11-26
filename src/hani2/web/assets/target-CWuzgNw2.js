@@ -1,0 +1,1 @@
+import{c as e}from"./index-CsZnwFbh.js";const c={name:"target",size:24,node:[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["circle",{cx:"12",cy:"12",r:"6",key:"1vlfrh"}],["circle",{cx:"12",cy:"12",r:"2",key:"1c9p78"}]]};c.node;const a=e(c);export{c as __iconData,a as default};

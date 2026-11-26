@@ -32,7 +32,7 @@ from typing import Any
 import numpy as np
 
 from hani2.evaluation.base import num
-from hani2.evaluation.scores import BY_NAME, _weights, score_row
+from hani2.evaluation.scores import BY_NAME, _weights, active_components, score_row
 
 #: a board warns when its ranked score uses less than this share of the score's full weight
 LOW_WEIGHT_SHARE = 0.5
@@ -99,25 +99,8 @@ def _active_components(rows: list[dict], track: str, names: list[str], min_cover
     """Per score, the components present in at least ``min_coverage`` of the
     sessions of every entrant (so every entrant is scored on the same things);
     ``blocked`` columns are never used."""
-    groups: dict[str, list[dict]] = {}
-    for r in rows:
-        groups.setdefault(entrant_of(r, track), []).append(r)
-    out: dict[str, set[str]] = {}
-    for n in names:
-        s = BY_NAME[n]
-        keep = set()
-        for c in s.components:
-            if c.column in BY_NAME:  # a score of scores: keep it if that score has components
-                if out.get(c.column):
-                    keep.add(c.column)
-                continue
-            if blocked and c.column in blocked:
-                continue
-            if groups and all(sum(1 for r in rs if num(r.get(c.column)) is not None) / len(rs) >= min_coverage
-                              for rs in groups.values()):
-                keep.add(c.column)
-        out[n] = keep
-    return out
+    return active_components(rows, [BY_NAME[n] for n in names], lambda r: entrant_of(r, track),
+                             min_coverage=min_coverage, blocked=blocked)
 
 
 def _balanced(vals: list[tuple[tuple, float]]) -> float | None:

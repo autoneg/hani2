@@ -80,7 +80,7 @@ While autopilot is active, the participant's time limit does not force a move; t
 
 ## Results
 
-A negotiation in which autopilot was switched on at any time has `autopilot` set to true in `results.csv` (see [Study management](study-management.md)). With the Assistant driver, the agent's actions are also logged as `support_agent` events.
+A negotiation in which autopilot was switched on at any time has `autopilot` set to true in `results.csv` (see [`results.csv` columns](study-management.md#resultscsv-columns)). With the Assistant driver, the agent's actions are also logged as `support_agent` events.
 
 ## Testing
 

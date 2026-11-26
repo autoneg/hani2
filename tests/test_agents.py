@@ -70,3 +70,22 @@ def test_url_file_specs_need_an_admin(tmp_path, monkeypatch):
     assert specs and not any(str(s).startswith("file:") for s in specs)
     assert not marker.exists()
     assert any(str(s).startswith("file:") for s in session_agent_override(q))  # admins keep the feature
+
+
+def test_han_group_keys_follow_the_current_year(hani2_home, monkeypatch, tmp_path):
+    """The current year (han.current_year) is listed and described from its submissions, even
+    without han-agents; a year no source covers is no known group."""
+    from conftest import write_settings
+
+    from hani2 import agents, groups
+
+    monkeypatch.setattr(agents, "han_years", lambda: [])
+    assert "han2027-all" not in groups.builtin_keys(groups.OPPONENT)
+    write_settings(hani2_home, "env.json", {"han": {"current_year": 2027,
+                                                    "submissions": {"2027": {"dir": str(tmp_path / "none")}}}})
+    keys = groups.builtin_keys(groups.OPPONENT)
+    assert {f"han2027-{k}" for k in ("all", "qualified", "finalists", "winners")} <= set(keys)
+    assert groups.builtin_description(groups.OPPONENT, "han2027-finalists").endswith("(from the submissions)")
+    assert agents.expand_agents(":han2027-all") == []  # no index yet: an empty group, not an error
+    assert agents._builtin_known(":han2027-all")
+    assert agents.expand_agents(":han2025-all") == []

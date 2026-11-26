@@ -21,7 +21,9 @@ human alone: two studies of one project, one with an Assistant and ``opponents:
 [human]``, the other without and ``opponents: [human+assistant]``.
 
 The match key is ``?match=<code>`` when the page has one (two people who share
-a code meet each other), else the project (so its studies can be paired). One
+a code meet each other), else the study's ``pairing.scope``: the project (so its
+studies can be paired; the default) or the study alone (the default of a study
+declared ``study_mode: paired``). One
 :class:`Match` owns the shared mechanism and the lock that steps it. A side
 only ever steps the mechanism for its own action; the other side is woken
 through its own :meth:`~hani2.session.NegotiationSession.submit`.
@@ -101,8 +103,25 @@ def codes_allowed(session: NegotiationSession) -> bool:
     return not (v is False or str(v).strip().lower() in ("0", "false", "no", "off"))
 
 
+def pairing_scope(session: NegotiationSession) -> str:
+    """Where this session's participant meets others (``pairing.scope``, see
+    :mod:`hani2.study_modes`): ``study``, ``project`` or ``code``. A study declared ``paired``
+    meets within itself unless it says otherwise; any other study keeps the project-wide lobby."""
+    info = getattr(session, "study_mode_info", None)
+    if info is None:
+        try:
+            from hani2 import study_modes
+
+            info = study_modes.resolve(session.study_ref)
+        except Exception:  # noqa: BLE001
+            return "project"
+    return str(info.pairing_effective.get("scope") or "project")
+
+
 def match_key(session: NegotiationSession) -> str:
-    """The lobby key of a session: ``?match=<code>`` or its study."""
+    """The lobby key of a session: ``?match=<code>`` when codes are allowed, else by the study's
+    ``pairing.scope``: ``study:<project>/<study>``, ``project:<project>`` (the default), or, for
+    ``code``, a lobby of the session's own (without a code it meets nobody)."""
     q = session.query or {}
     code = q.get("match") if codes_allowed(session) else None
     if isinstance(code, (list, tuple)):
@@ -111,7 +130,14 @@ def match_key(session: NegotiationSession) -> str:
     if code:
         return f"code:{code}"
     ref = session.study_ref
-    return f"project:{ref.project}" if ref is not None else "project:"
+    if ref is None:
+        return "project:"
+    scope = pairing_scope(session)
+    if scope == "study":
+        return f"study:{ref.project}/{ref.study}"
+    if scope == "code":
+        return f"nocode:{session.sid}"
+    return f"project:{ref.project}"
 
 
 def _pref(session: NegotiationSession, key: str, default: float) -> float:
@@ -411,6 +437,8 @@ class Lobby:
         self._loading: dict[str, threading.Lock] = {}
         #: sessions showing the "play a person / an AI" choice, by match key (told when the lobby changes)
         self._watchers: dict[str, "weakref.WeakSet[NegotiationSession]"] = {}
+        #: bumped by :meth:`clear`: a match made before it never comes back into the lobby
+        self._generation = 0
 
     def loading(self, s: NegotiationSession) -> threading.Lock:
         """The lock a session holds from looking for a partner until it waits in the lobby."""
@@ -487,12 +515,15 @@ class Lobby:
     def host(self, s: NegotiationSession, host_index: int, scenario: Any, info: dict, sdir: Any,
              evaluation: Any, want_assistant: Any = False, has_assistant: bool = False) -> Match:
         m = Match(match_key(s), s, host_index, scenario, info, sdir, evaluation, want_assistant, has_assistant)
+        m.generation = self._generation
         s.match = m  # before it is visible to a joining session
         self.requeue(m)
         return m
 
     def requeue(self, m: Match) -> None:
         with self._lock:
+            if getattr(m, "generation", self._generation) != self._generation:
+                return  # made before the lobby was cleared (tests): it never comes back
             q = self.waiting.setdefault(m.key, [])
             if m not in q:
                 q.append(m)
@@ -523,6 +554,7 @@ class Lobby:
                     m._stopped = True
             self.waiting.clear()
             self._watchers.clear()
+            self._generation += 1
 
 
 LOBBY = Lobby()

@@ -33,6 +33,7 @@ def _cols() -> list[C]:
     cols += [
         C("target_attainment", "Target attainment", "Gain over the reservation value relative to the target's", True,
           formula=r"\frac{u_h(\omega) - r_h}{u_h(\omega^\ast) - r_h}", range="(-inf, inf); 1 = the target",
+          normaliser={"kind": "bounded", "lo": 0, "hi": 1},
           details=r"""
 The human team's gain over its reservation value $r_h$, as a share of the gain the **target** deal
 $\omega^\ast$ would give. The target is the Nash bargaining solution over the zone of possible

@@ -1,0 +1,1 @@
+import{c as t}from"./index-CsZnwFbh.js";const e={name:"radio-receiver",size:24,node:[["path",{d:"M5 16v2",key:"g5qcv5"}],["path",{d:"M19 16v2",key:"1gbaio"}],["rect",{width:"20",height:"8",x:"2",y:"8",rx:"2",key:"vjsjur"}],["path",{d:"M18 12h.01",key:"yjnet6"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

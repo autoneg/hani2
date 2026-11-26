@@ -299,7 +299,7 @@ The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in
 
 An experiment is a study of the `default` project; these commands keep their earlier behaviour.
 
-Experiments are self-contained studies with their own settings, scenarios and results. See [Study management](../guide/study-management.md).
+Experiments are self-contained studies with their own settings, scenarios and results. See [Experiments](../guide/study-management.md#experiments).
 
 ### `hani2 experiment create`
 
@@ -362,6 +362,16 @@ hani2 replay evaluate -m outcome,optimality,system_use,engagement_flags -o metri
 hani2 replay compare --by support_agent --columns human_utility,suggestion_adoption,llm_tokens
 hani2 replay leaderboard results/ --track hi --llm -o hi.csv   # writes hi_outcome.csv and hi_interaction.csv
 ```
+
+## `hani2 scores`
+
+The [evaluation criteria](../guide/project-management.md#scores) a score can
+use, and the frozen reference that scales the unbounded ones.
+
+| Command | What it does |
+| --- | --- |
+| `hani2 scores freeze PROJECT [--studies a,b] [--end YYYY-MM-DD] [--llm] [--include-simulated]` | Computes the median, quantiles and scale of every criterion over the project's reference games (default: its `normalisation.reference`, else every study) and writes `projects/<project>/results/normalisation.json`. |
+| `hani2 scores criteria [PROJECT[/STUDY]] [--coverage] [-o file.json]` | Lists every criterion (metric columns and the answers of the forms in use) with its source, level, direction, default normaliser and cost; `--coverage` adds the share of the games that have a value. |
 
 ## `hani2 ablation`
 
