@@ -10,7 +10,7 @@ AI opponent; the participant is the tenant.
 from __future__ import annotations
 
 import hv
-from hv import ACCEPT_ON, CONFIRM_ACCEPT, NEC, SEND, START, tab
+from hv import ACCEPT_ON, CONFIRM_ACCEPT, NEC, SEND, START
 
 NAME = "hani2-walkthrough-han-advanced"
 W = "w"
@@ -193,7 +193,8 @@ def main() -> None:
             hv.wait_for(f, W, "text=Agreement reached")
             f.finish_speech()
             f.say(N["results"], caption="My Results and Next negotiation", kicker="After the negotiation", wait=False)
-            f.click(W, tab("My Results"))
+            f.click(W, "[data-testid=launch-tools]")
+            f.click(W, "[role=menuitem]:has-text('My Results')")
             f.sleep(2.5)
             f.point(W, "button:has-text('Next negotiation')", hold=2.0)
             f.finish_speech(); f.unring()
