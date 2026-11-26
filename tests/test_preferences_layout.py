@@ -122,18 +122,29 @@ def test_tools_on_the_left_and_full_view_per_study(hani2_home):
 # Forced value on disagreement                                                 #
 # --------------------------------------------------------------------------- #
 def test_forced_reserved_value_is_a_project_and_study_setting(hani2_home):
-    projects.create_project("F", defaults={"force_reserved_value": 0.2})
+    projects.create_project("F", defaults={"force_reserved_value": 0.123})
     projects.create_study("F/a")
     projects.create_study("F/zero", overrides={"force_reserved_value": 0})
     projects.create_study("G/b")
-    for ref, want in (("F/a", 0.2), ("F/zero", 0.0), ("G/b", None)):
+    for ref, want in (("F/a", 0.123), ("F/zero", 0.0), ("G/b", None)):
         with projects.use_study(ref):
             assert store.forced_reserved_value() == want, ref
-    for ref, want in (("F/a", 0.2), ("F/zero", 0.0)):
+    for ref, want in (("F/a", 0.123), ("F/zero", 0.0)):
         s = make_session(study=ref)
-        assert all(float(u.reserved_value) == want for u in s.scenario.ufuns), ref
+        hi = s.ss["human_index"]
+        assert float(s.scenario.ufuns[hi].reserved_value) == want, ref
         assert s.reserved_value() == want
         assert s.ss["scenario_info"]["forced_reserved_value"] == want
+    # the human only: the opponent keeps the scenario's own value
+    s = make_session(study="F/a")
+    hi = s.ss["human_index"]
+    opp = [float(u.reserved_value) for i, u in enumerate(s.scenario.ufuns) if i != hi]
+    assert opp and all(v != 0.123 for v in opp)
+    sc, _, _ = store.load_scenario("Trade", 0)
+    before = [float(u.reserved_value) for u in sc.ufuns]
+    assert store.force_reserved_value(sc, 0.5, indices=(1,))
+    assert [float(u.reserved_value) for u in sc.ufuns] == [before[0], 0.5]
+    assert not store.force_reserved_value(sc, None, indices=(0,))
     s = make_session(study="G/b")
     assert "forced_reserved_value" not in s.ss["scenario_info"]
 

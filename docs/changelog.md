@@ -16,8 +16,8 @@
   console's **Participant interface** page gets a *Layout* group with the starting view, the view
   lock and the tools side. See [Layout views](guide/interface.md#layout-views).
 - **Forced value on disagreement.** The project and study setting `force_reserved_value` gives
-  every party the same value on disagreement in every negotiation (for example `0`), whatever the
-  scenario says; unset, scenarios keep their own values. In the console: *Forced value on
+  the participant the same value on disagreement in every negotiation (for example `0`), whatever
+  the scenario says; the opponent keeps the scenario's value. Unset, scenarios keep their own values. In the console: *Forced value on
   disagreement* under *Projects*. See [Forcing the value on
   disagreement](guide/project-management.md#forcing-the-value-on-disagreement).
 - **The simple view is the default.** Sessions start in the simple view (the thread, the offer area

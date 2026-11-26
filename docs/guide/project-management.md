@@ -63,7 +63,7 @@ defaults:                  # every study of the project starts from these
   scenario_set: HI2027
   role_rule: auto
   strict_scenarios: true   # only saved scenarios; a missing pool is an error
-  force_reserved_value: 0  # every party's value on disagreement, in every negotiation
+  force_reserved_value: 0  # the participant's value on disagreement, in every negotiation
   opponents: [BoulwareTBNegotiator]
 sponsor: ACME              # any other key is available to texts as {{project_sponsor}}
 ```
@@ -72,9 +72,10 @@ sponsor: ACME              # any other key is available to texts as {{project_sp
 
 ### Forcing the value on disagreement
 
-`force_reserved_value` gives every party (the participant and the opponent) the same value on
-disagreement in every negotiation of a project or study, whatever each scenario says. It is unset by
-default, and then every scenario keeps its own values. Set it in `project.yaml` (for all the
+`force_reserved_value` gives the participant (the human) the same value on disagreement in every
+negotiation of a project or study, whatever each scenario says. The opponent's value on disagreement
+stays as the scenario sets it; when two participants negotiate with each other, each gets their own
+study's forced value. It is unset by default, and then every scenario keeps its own values. Set it in `project.yaml` (for all the
 project's studies) or `study.yaml` (for one study; a study's value wins, and `0` is a value, not
 "unset"). The number is on the scenario's utility scale: 0 to 1 for normalised scenarios, so `0`
 means that any agreement is at least as good as none. In the console it is *Forced value on
@@ -97,7 +98,7 @@ A study starts from its project:
 
 ## Defaults for its studies
 
-The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `force_reserved_value` (every party's value on disagreement in every negotiation of the study, whatever the scenario says, see [Forcing the value on disagreement](#forcing-the-value-on-disagreement)), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), `scheduling` (how each study assigns them, see [Assignment](#assignment)), `study_mode` (Solo, Paired or Mixed, see [Mode](#mode-solo-paired-or-mixed)) and `pairing` (how people are paired, see [Pairing defaults](#pairing-defaults)).
+The keys of `defaults` may also be written at the top level. They are: `scenario_set`, `n_required`, `practice`, `practice_time_limit`, `counted_time_limit`, `time_limit`, `n_steps`, `minutes`, `role_rule`, `human_roles`, `strict_scenarios` (serve saved scenarios only, see [Strict scenarios](scenarios.md#strict-scenarios)), `simple_scenarios` (round numbers and plain shapes in generated scenarios, on unless switched off, see [Simple scenarios](scenarios.md#simple-scenarios)), `information` (what the participant and the Assistant each know, see [Who knows what](information.md)), `assistant_starts_on` (Prolific and online participants start with the Assistant switched on instead of off), `force_reserved_value` (the participant's value on disagreement in every negotiation of the study, whatever the scenario says; the opponent keeps the scenario's, see [Forcing the value on disagreement](#forcing-the-value-on-disagreement)), `questionnaires` (`false`: no questionnaire at all in this study, see [Where the questionnaire is looked up](study-management.md#where-the-questionnaire-is-looked-up)), `opponents` and `assistants` (the pools below), `scheduling` (how each study assigns them, see [Assignment](#assignment)), `study_mode` (Solo, Paired or Mixed, see [Mode](#mode-solo-paired-or-mixed)) and `pairing` (how people are paired, see [Pairing defaults](#pairing-defaults)).
 
 A study changes any of them under `overrides:` in its `study.yaml`.
 

@@ -600,7 +600,7 @@ def test_compact_preferences_and_layout_settings_round_trip(admin, studies):
     body = {"tools": {"weights_chart": "bar"}, "interface": {"view": "full", "simple_tools_side": "left"}}
     assert admin.patch("/api/admin/settings/env?study=HI2027/hi-01", json=body).status_code == 200
     s = make_session(study="HI2027/hi-01")
-    assert all(float(u.reserved_value) == 0.0 for u in s.scenario.ufuns)
+    assert float(s.scenario.ufuns[s.ss["human_index"]].reserved_value) == 0.0 and s.reserved_value() == 0.0
     assert s.layout["view"] == "full" and s.snapshot()["layout"]["tools_side"] == "left"
     with projects.use_study("HI2027/hi-01"):
         from hani2.tools.ufun_views import weights_chart

@@ -1734,10 +1734,6 @@ class NegotiationSession:
                 traceback.print_exc()
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
-            if joined is None:  # (a participant who joins plays the host's scenario, already forced)
-                rv = store.forced_reserved_value(self.study_ref)
-                if store.force_reserved_value(scenario, rv):
-                    info = {**info, "forced_reserved_value": rv}
             self.round_plan = plan
             # a participant who joined plays the waiting participant's scenario (and its type)
             self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype
@@ -1768,6 +1764,15 @@ class NegotiationSession:
                     counter=self.round_number,
                 )
             self.ss["human_index"] = hi
+            # a project's or study's forced value on disagreement: this participant's side only (an AI
+            # opponent keeps the scenario's; in a match each participant forces their own side)
+            rv = store.forced_reserved_value(self.study_ref)
+            if "forced_reserved_value" in info:  # the host's, copied with the shared scenario
+                info = {k: v for k, v in info.items() if k != "forced_reserved_value"}
+                self.ss["scenario_info"] = info
+            if store.force_reserved_value(scenario, rv, indices=(hi,)):
+                info = {**info, "forced_reserved_value": rv}
+                self.ss["scenario_info"] = info
             self.ss["human_ufun"] = scenario.ufuns[hi]
             self.ss["human_id"] = f"{scenario.ufuns[hi].name} (You)"
             self._build_information(scenario, hi, sdir, info)
