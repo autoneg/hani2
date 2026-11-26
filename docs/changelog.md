@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **The simple view is the default.** Sessions start in the simple view (the thread, the offer area
+  and one tools column) instead of the full view, unless `?view=`, a study or a project
+  (`env.json` → `interface.view`) chooses another. Set `interface.view: full` to keep the old start.
+  See [Layout views](guide/interface.md#layout-views).
 - **The Assistant in the tool area.** `presentation.place: tools` (*The open Assistant goes* on the
   Assistant settings page, per layer) opens the Assistant in the tool area, in the open tool's
   place, instead of beside the page; closing it brings the same tool back. A tool open in a popup is
@@ -39,7 +43,6 @@
   card with the role's hints and what you want on every issue in plain words.
   Option names in the bar charts are no longer cut: the chart makes room for them, and only a very
   long name is shortened in the middle (its start and end stay visible; hover shows it in full).
-||||||| parent of af175e6729 (feat(assistant,ui): the open Assistant can take the tool area's place (presentation.place))
 - **Utility bars by issue.** *Colour the utility bars by issue* (`color_utility_by_issue`, off by
   default) splits every utility bar (the offer on the table, the counter-offer, the confirmation, the
   result and the history) into one coloured segment per issue, the most important first, with a

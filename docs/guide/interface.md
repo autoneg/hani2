@@ -30,12 +30,12 @@ The opponent's (opponent agent's) name appears when the session is in admin mode
 
 ## Layout views
 
-The layout menu offers four views. The current view is part of the session state, so an Assistant can change it too.
+The layout menu offers four views. A session starts in the **simple** view unless the URL, the study or the project chooses another. The current view is part of the session state, so an Assistant can change it too.
 
 | View | Desktop layout |
 | --- | --- |
 | `full` | A left column with the **upper** and **lower** tool panes. On the right, the thread runs across the top; below it sit the action dock and, next to it, the **side** pane with the offer generators (such as the Utility Bar and the Utility-based Selector), so the tools that fill your offer are beside the offer editor. |
-| `simple` | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
+| `simple` (default) | The thread and action dock, plus one tools column on the right with the tools from all three panes. |
 | `focus` | The thread and action dock only. The action dock's **Tools** menu (and its button for the first offer generator) opens any tool in a [popup](#open-in-a-popup); when a negotiation starts, the participant's preferences open there, and the view stays the focus view. |
 | `bare` | No tools at all: the thread, the action dock and, when the session has one, the Assistant. Tools stay hidden on every device (phones lose their **Tools** tab), and nothing brings them back until the view changes. |
 

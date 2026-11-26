@@ -486,7 +486,7 @@ def test_placement_per_view_in_sessions(hani2_home, monkeypatch):
     monkeypatch.setattr(ValueHistogramTool, "placement", {"simple": {"pane": "upper", "visible": False}},
                         raising=False)
     library.put_placement({"Trace": {"simple": {"pane": "side"}, "full": {"order": 3}}})
-    s = make_session()
+    s = make_session(query={"view": "full"})
     s.start()
     st = {t.name: s.tool_state(t) for t in s.tools}
     assert st["Value Histogram"]["pane"] == "lower" and st["Value Histogram"]["visible"]
@@ -502,8 +502,8 @@ def test_placement_per_view_in_sessions(hani2_home, monkeypatch):
     assert st["Value Histogram"]["visible"] and st["Trace"]["pane"] == "lower"
     s.set_layout(view="simple")
     assert s.tool_state(s.tool_controller.find("Trace"))["pane"] == "upper"
-    # a session opened in the simple view starts there
-    s2 = make_session(query={"view": "simple"})
+    # a session opened in the simple view (the default) starts there
+    s2 = make_session()
     s2.start()
     assert not s2.tool_state(s2.tool_controller.find("Value Histogram"))["visible"]
 

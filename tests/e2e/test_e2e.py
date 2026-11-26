@@ -488,7 +488,7 @@ def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
 
 def test_full_view_opens_a_pane_tool_in_a_popup_and_back(new_page):
     p = new_page(viewport={"width": 1400, "height": 900})
-    p.goto("/play")
+    p.goto("/play?view=full")
     start(p)
     expect(p.get_by_test_id("launch-generator")).to_have_count(0)  # the generators sit next to the offer
     p.get_by_role("button", name="Open Utility Bar in a popup").click()

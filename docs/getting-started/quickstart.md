@@ -101,15 +101,16 @@ The tool panes hold the built-in tools. Click a tab to switch tools. Some tools 
 
 ## Layouts
 
-The layout button in the header switches between three views:
+The page opens in the simple view. The layout button in the header switches between four views:
 
 | View | What you see |
 | --- | --- |
+| Simple (the default) | The thread and action dock, with one tools area on the right that holds every tool |
 | Full | Upper and lower tool panes on the left; on the right the thread on top, with the action dock and the offer generators side by side below it |
-| Simple | The thread and action dock, with one tools area on the right that holds every tool |
-| Focus | The thread and action dock only |
+| Focus | The thread and action dock only; the **Tools** menu in the dock opens any tool in a popup |
+| Bare | The thread and action dock with no tools at all |
 
-You can also open the page in a given view with `?view=simple` (or `full`, `focus`) in the URL.
+You can also open the page in a given view with `?view=full` (or `simple`, `focus`, `bare`) in the URL.
 
 ## Settings
 

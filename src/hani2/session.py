@@ -105,8 +105,9 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     # defaults of the participant's own settings (USER_PREFS keys; filled in so the console shows them)
     "prefs": {k: v for k, v in USER_PREFS.items() if v is not None},
     "notifications": {"toast_seconds": 6, "center": True},
-    # the view a session starts in (full | simple | focus | bare); ``?view=`` in the URL wins
-    "view": "full",
+    # the view a session starts in (full | simple | focus | bare); ``?view=`` in the URL wins.
+    # ``simple`` (the thread, the offer area and one tools column) is the default participant view.
+    "view": "simple",
     # true: nobody but an admin may leave that view (not the participant, not the Assistant)
     "view_locked": False,
 }
@@ -403,7 +404,7 @@ class NegotiationSession:
             "user_agent": user_agent,
             "view_mode": self.layout["view"],
             "view_source": "query" if self.query.get("view") in LAYOUT_VIEWS else (
-                "study" if self.interface_policy().get("view") not in (None, "full") else "default"),
+                "study" if self.interface_policy().get("view") not in (None, DEFAULT_INTERFACE["view"]) else "default"),
             "negotiation_running": False,
         }
         self.ss["actions"] = self._make_actions()
@@ -608,7 +609,7 @@ class NegotiationSession:
         for v in (self.query.get("view"), self.interface_policy().get("view")):
             if v in LAYOUT_VIEWS:
                 return str(v)
-        return "full"
+        return str(DEFAULT_INTERFACE["view"])
 
     def view_locked(self) -> bool:
         """Whether the study fixes the view (env.json → interface.view_locked); admins are never locked."""
