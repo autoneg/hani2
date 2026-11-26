@@ -34,7 +34,7 @@ $HANI2_HOME/                      default ~/negmas/hani2
     └── studies/<study>/          and their studies: study.yaml, settings files, results/
 ```
 
-See [Projects and studies](projects.md) for the project and study files. A project or study folder may hold the same library files (`scenario_links.yaml`, `tools.yaml`, `library.yaml`, `library/`, `scenarios/`); they apply to its sessions, a more specific layer winning (see [Library and groups](library.md#layers)).
+See [Project management](project-management.md) and [Study management](study-management.md) for the project and study files. A project or study folder may hold the same library files (`scenario_links.yaml`, `tools.yaml`, `library.yaml`, `library/`, `scenarios/`); they apply to its sessions, a more specific layer winning (see [Library and groups](library.md#layers)).
 
 ## Precedence
 
@@ -78,9 +78,9 @@ Text files (`consent.md`, `announcements.md`, `scenario_order.txt`) are taken fr
 
 The admin console saves each setting in the layer chosen at the top of its page: the settings folder, a project or a study (see [Layers](admin.md#layers-where-a-setting-is-saved)).
 
-Texts shown to participants (consent, welcome text, title and subtitle, questionnaire texts) may use `{{variables}}` such as `{{project_full_name}}` and `{{n_required}}`; see [Texts with variables](projects.md#texts-with-variables).
+Texts shown to participants (consent, welcome text, title and subtitle, questionnaire texts) may use `{{variables}}` such as `{{project_full_name}}` and `{{n_required}}`; see [Texts with variables](study-management.md#texts-with-variables).
 
-Scenarios, results and questionnaires follow their own rules, described in [Scenarios](scenarios.md) and [Studies and results](studies.md).
+Scenarios, results and questionnaires follow their own rules, described in [Scenarios](scenarios.md) and [Study management](study-management.md).
 
 ## `env.json`
 
@@ -121,7 +121,7 @@ The main deployment configuration.
 | `docs_url` | `"https://autoneg.github.io/hani2/"` | Documentation URL reported by `GET /api/config`. The bundled web app does not use it yet. |
 | `public_url` | none | The address participants use to reach this server, including any root path (for example `https://example.org/hani`). Used for the study links that `hani2 study` and the admin API give out. `HANI2_PUBLIC_URL` wins over it. |
 
-`title` and `subtitle` may use [text variables](projects.md#texts-with-variables), for example `"{{project_full_name}}"`.
+`title` and `subtitle` may use [text variables](study-management.md#texts-with-variables), for example `"{{project_full_name}}"`.
 
 ### `admin`
 
@@ -364,7 +364,7 @@ See [Library and groups](library.md#tool-groups).
 | `evaluation.reliability.pairs` | Judge column → questionnaire columns compared by `hani2 replay judge-reliability`, e.g. `{"jo_overall": ["scale_opponent_kindness_norm"]}`. See [Judge reliability](evaluation.md#judge-reliability). |
 | `evaluation.reliability.report` | The judge reliability report (`.json`) an official leaderboard (`--official`) uses to leave out the judged components that are not ready. Without one, an official board leaves out every judged component. |
 | `questionnaire` | The questionnaire after each negotiation, by name (`evaluation`) or path. |
-| `pre_questionnaire` | The questionnaire shown once before a participant's first negotiation, by name (`expertise`) or path; its answer sets the participant type. Off when unset. See [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types). |
+| `pre_questionnaire` | The questionnaire shown once before a participant's first negotiation, by name (`expertise`) or path; its answer sets the participant type. Off when unset. See [Pre-questionnaire and participant types](study-management.md#pre-questionnaire-and-participant-types). |
 | `post_questionnaire` | The questionnaire shown once after a study participant's last counted negotiation, by name or path. Off when unset. See [Study forms](study-forms.md#the-post-session-questionnaire). |
 
 ## `llm_settings.json`
@@ -442,7 +442,7 @@ See [Autopilot](autopilot.md).
 
 ## Questionnaires
 
-`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Studies and results](studies.md) for the format.
+`questionnaires/per_negotiation.yaml` in the experiment or the settings folder defines the questionnaire shown after each negotiation. `hani2 setup` installs an inactive example as `per_negotiation.example.yaml`. See [Study management](study-management.md) for the format.
 
 ## Environment variables
 

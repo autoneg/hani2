@@ -33,6 +33,10 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+validation:
+  links:
+    anchors: warn
+
 plugins:
   - search
   - mkdocstrings:
@@ -104,19 +108,20 @@ nav:
       - Scenario sets: guide/scenario-sets.md
       - Compositional scenarios: guide/compositional.md
       - Library and groups: guide/library.md
-      - Projects and studies: guide/projects.md
-      - Scheduling methods: guide/scheduling.md
-      - Studies and results: guide/studies.md
-      - Study forms: guide/study-forms.md
       - Recording and replay: guide/recordings.md
       - Evaluation metrics: guide/evaluation.md
       - Simulated participants: guide/simulation.md
       - Metric reference: guide/metrics.md
       - Ablations: guide/ablations.md
-      - Prolific: guide/prolific.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md
       - Configuration reference: guide/configuration.md
+  - Project and study management:
+      - Project management: guide/project-management.md
+      - Study management: guide/study-management.md
+      - Scheduling methods: guide/scheduling.md
+      - Study forms: guide/study-forms.md
+      - Prolific: guide/prolific.md
   - Tutorials:
       - Build an Assistant: tutorials/assistant.md
       - Build a tool: tutorials/tools.md

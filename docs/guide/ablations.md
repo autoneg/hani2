@@ -129,5 +129,5 @@ action on the human's seat:
 * otherwise `team` (`oracle_team`), `human_alone`, `assistant_off` or `assistant_error`.
 
 The same fields are in `results.csv` (`assistant_condition`, `oracle`, `opponent_info_tools`,
-`autopilot_driver`; see [Studies and results](studies.md#resultscsv-columns)). Recordings made
+`autopilot_driver`; see [Study management](study-management.md#resultscsv-columns)). Recordings made
 before conditions were recorded are `unknown` and are left out of every gap.

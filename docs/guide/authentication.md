@@ -307,7 +307,7 @@ To let a user of a trusted website (for example an organiser on the ANAC site) u
 
 ## Logging
 
-Logins, failed logins and logouts are written to the event log (`login`, `login_failed`, `logout`), and so are admin grants and removals by a trusted website's `admin` claim (`admin_granted`, `admin_revoked`). See [Studies and results](studies.md).
+Logins, failed logins and logouts are written to the event log (`login`, `login_failed`, `logout`), and so are admin grants and removals by a trusted website's `admin` claim (`admin_granted`, `admin_revoked`). See [Study management](study-management.md).
 
 ## Production checklist
 

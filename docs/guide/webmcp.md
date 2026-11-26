@@ -49,7 +49,7 @@ Read-only tools carry the `readOnlyHint` annotation; accept, end and counter-off
 ## Telling agents and people apart
 
 Every WebMCP tool call is logged in the event log as event type `webmcp`, with the tool name in
-`component` and the arguments in `value` (see [Studies and results](studies.md)). Filter the
+`component` and the arguments in `value` (see [Study management](study-management.md)). Filter the
 admin console's *Event analytics* by `webmcp` to see which sessions used a browser agent.
 
 ## Trying it

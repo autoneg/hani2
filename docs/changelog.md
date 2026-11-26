@@ -372,7 +372,7 @@ and many fixes. See [Features](features.md) for the full list with links.
   novice / experienced / expert) is stored in the new `participant_type` results column, and the
   leaderboard is also shown per participant type. Results also gain `mode`, `persona` and
   `goal_met` columns. See
-  [Pre-questionnaire and participant types](guide/studies.md#pre-questionnaire-and-participant-types).
+  [Pre-questionnaire and participant types](guide/study-management.md#pre-questionnaire-and-participant-types).
 - **Scenario pictures.** The *Scenario Info* tool shows a picture of the scenario under its
   title, with a *Picture* switch to hide it. Put `picture.svg` (or `.png`, `.jpg`, ...) in a
   scenario or category folder, optionally with `picture_dark.svg` for the dark theme, or name
@@ -661,7 +661,7 @@ and many fixes. See [Features](features.md) for the full list with links.
   links) and `hani2 --study`, and admin API endpoints for projects, studies, settings layers and
   text previews. Experiments keep working unchanged as studies of the `default` project
   (`HANI2_EXPERIMENT`, `--experiment`, `hani2 experiment`, the same folders and files). See
-  [Projects and studies](guide/projects.md).
+  [Project management](guide/project-management.md).
 - **Human, Assistant and Opponent.** The three parties of a negotiation now have the same names
   everywhere (interface, admin console, docs, CLI help, messages, scenario texts and prompts): the
   *human* (the participant), the *Assistant* (the AI helper that advises the human and can act for

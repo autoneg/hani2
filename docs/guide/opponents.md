@@ -89,7 +89,7 @@ The module must define the lists `HSHP`, `HSLP`, `LSHP` and `LSLP` of negotiator
 
 A group file `groups/<key>.json` names a pool of opponents. The token `:<key>` expands to the agents in it, and so does a *bare* spec `<key>` (no `:` and no dot) when such a file exists. HANI2 looks for the file in these folders, in order, and the first file found wins:
 
-1. The study's results folder, `<results>/groups/`. `<results>` is `~/negmas/hani2/db` without a study, or the study's `results/` folder (see [Studies and results](studies.md)). An outside system (for example a competition website) drops its files here, so its groups always win.
+1. The study's results folder, `<results>/groups/`. `<results>` is `~/negmas/hani2/db` without a study, or the study's `results/` folder (see [Study management](study-management.md)). An outside system (for example a competition website) drops its files here, so its groups always win.
 2. The study folder, `<study>/groups/`.
 3. The project folder, `projects/<project>/groups/`, shared by all studies of the project. For the `default` project this is the settings folder.
 4. The settings folder, `settings/groups/`, for every project.
@@ -128,7 +128,7 @@ Upload or link your own negotiators with the [library](library.md)
 groups with `hani2 library group-set opponents …`; the group files it writes hold the class specs
 and their `syspath`, so they work without the library.
 
-`hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can browse every group and its members, edit groups and upload or link their own opponent classes on the *Opponents* page of the [admin console](admin.md#opponents), or through the [admin API](projects.md#admin-api).
+`hani2 groups list` shows every group with its members, its file and whether another file shadows it; `--project <P>` lists a project's groups (its folder, its studies and the settings folder). Admins can browse every group and its members, edit groups and upload or link their own opponent classes on the *Opponents* page of the [admin console](admin.md#opponents), or through the [admin API](project-management.md#admin-api).
 
 ## Choosing the pool
 
@@ -169,7 +169,7 @@ The opponent is then chosen at random from the pool, with these exceptions:
 
 ## Latin squares
 
-In a [study](projects.md) run by HANI2 itself (no `schedule.json` for the participant), the
+In a [study](study-management.md) run by HANI2 itself (no `schedule.json` for the participant), the
 opponents follow a **balanced Latin square** (a Williams design) over the pool: every opponent
 appears once in every position, and every opponent follows every other opponent equally often,
 so order and carry-over effects cancel out across participants. With `n` opponents the square has

@@ -9,13 +9,13 @@ A study can ask its participants for consent and three kinds of questionnaires. 
 | **After each negotiation** | After every negotiation, the practice round included | `questionnaires/per_negotiation.yaml` | `negotiation_questionnaires.csv` |
 | **Post-session** | Once, after the last counted negotiation, before the completion link | `questionnaires/post_session.yaml` | `post_session.json` |
 
-The answer files are in the participant's results folder (see [Studies and results](studies.md#results)). For a Prolific participant the order is: consent, pre-questionnaire, the practice round and its questionnaire, the counted negotiations each with its questionnaire, the post-session questionnaire, then *Finish and submit*.
+The answer files are in the participant's results folder (see [Study management](study-management.md#results)). For a Prolific participant the order is: consent, pre-questionnaire, the practice round and its questionnaire, the counted negotiations each with its questionnaire, the post-session questionnaire, then *Finish and submit*.
 
 Every form is off until you set it up. Edit them in the admin console on the **Study forms** page, or write the files yourself.
 
 ## One file per layer
 
-The questionnaire files live in the same layers as every other settings file (see [Projects and studies](projects.md#settings-files-per-study)): the study folder, then its project folder, then the settings folder. The first file found wins, so a project defines the forms its studies share and a study overrides only what it changes:
+The questionnaire files live in the same layers as every other settings file (see [Study management](study-management.md#settings-files-per-study)): the study folder, then its project folder, then the settings folder. The first file found wins, so a project defines the forms its studies share and a study overrides only what it changes:
 
 ```text
 projects/HI2027/
@@ -57,7 +57,7 @@ The value is a path, or a bare name such as `evaluation`: a file `questionnaires
 
 ## The form file
 
-All three questionnaires share one format (see [Per-negotiation questionnaires](studies.md#per-negotiation-questionnaires) for every field):
+All three questionnaires share one format (see [Per-negotiation questionnaires](study-management.md#per-negotiation-questionnaires) for every field):
 
 ```yaml
 version: "1"
@@ -74,13 +74,13 @@ questions:
     type: text
 ```
 
-The question types are `likert5`, `likert7`, `yes_no`, `select` (with `options`) and `text`. Every text may use the `{{variables}}` of [Projects and studies](projects.md#texts-with-variables). `scale` and `reverse` feed the [subjective metrics](evaluation.md#subjective-metrics). A question with `requires: support_agent` is asked only when an Assistant took part in the negotiation (for the post-session questionnaire: in the last negotiation). The pre-questionnaire may also have a `participant_type` block (see [Pre-questionnaire and participant types](studies.md#pre-questionnaire-and-participant-types)).
+The question types are `likert5`, `likert7`, `yes_no`, `select` (with `options`) and `text`. Every text may use the `{{variables}}` of [Study management](study-management.md#texts-with-variables). `scale` and `reverse` feed the [subjective metrics](evaluation.md#subjective-metrics). A question with `requires: support_agent` is asked only when an Assistant took part in the negotiation (for the post-session questionnaire: in the last negotiation). The pre-questionnaire may also have a `participant_type` block (see [Pre-questionnaire and participant types](study-management.md#pre-questionnaire-and-participant-types)).
 
 The admin console checks a file before saving it: valid YAML, an `id` and a `text` for every question, unique ids, known types, and `options` for every `select`. `hani2 questionnaire check <files>` does the same on the command line.
 
 ## Consent for study participants
 
-Logged-in participants consent on the consent page (`auth.enforce_consent`, see [Consent per study](projects.md#consent-per-study)). Prolific and online / lab participants do not log in; to ask them in the session itself, switch on **Ask study participants for consent** on the Study forms page, or set it in the `env.json` of the layer:
+Logged-in participants consent on the consent page (`auth.enforce_consent`, see [Consent per study](study-management.md#consent-per-study)). Prolific and online / lab participants do not log in; to ask them in the session itself, switch on **Ask study participants for consent** on the Study forms page, or set it in the `env.json` of the layer:
 
 ```json title="projects/HI2027/env.json"
 {"auth": {"participant_consent": true}}

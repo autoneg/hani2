@@ -10,7 +10,7 @@ Point your Prolific study at the playground with the participant's ID in the que
 https://negotiate.example.org/play?PROLIFIC_PID={{%PROLIFIC_PID%}}
 ```
 
-For a study of a project, use the study's address (`hani2 study create` prints it, see [Projects and studies](projects.md#prolific)):
+For a study of a project, use the study's address (`hani2 study create` prints it, see [Study management](study-management.md#prolific)):
 
 ```text
 https://negotiate.example.org/s/HI2027/hi-2027-01/play?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
@@ -45,7 +45,7 @@ The practice round is complete only when the participant took at least one actio
 
 ### Questionnaires
 
-The questionnaire configured for the study (see [Studies and results](studies.md) and [Study forms](study-forms.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
+The questionnaire configured for the study (see [Study management](study-management.md) and [Study forms](study-forms.md)) is shown after every round, including the practice round, except after a counted round that did not count or a round in which the opponent failed. The answers go to `negotiation_questionnaires.csv` with `practice` set accordingly.
 
 ### Scenarios and opponents
 
@@ -98,7 +98,7 @@ The start and result screens show a countdown. Set a timer to `0` to switch it o
 
 ## Environment variables
 
-All Prolific settings are environment variables, read when a Prolific session is created. For a study of a project, `n_required`, `practice_time_limit`, `counted_time_limit`, `minutes` and `practice` (whether there is a practice round) can also be set in `study.yaml` or `project.yaml`; an environment variable that is set wins over them (see [Projects and studies](projects.md#studyyaml)).
+All Prolific settings are environment variables, read when a Prolific session is created. For a study of a project, `n_required`, `practice_time_limit`, `counted_time_limit`, `minutes` and `practice` (whether there is a practice round) can also be set in `study.yaml` or `project.yaml`; an environment variable that is set wins over them (see [Study management](study-management.md#studyyaml)).
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -129,7 +129,7 @@ The usual HANI2 settings apply too: the opponent pool, scenario pools, `scenario
 
 ## Files written
 
-Prolific participants have the usual result files (see [Studies and results](studies.md)) in `<results>/prolific_<PID>/`, plus:
+Prolific participants have the usual result files (see [Study management](study-management.md)) in `<results>/prolific_<PID>/`, plus:
 
 | File | Content |
 |------|---------|

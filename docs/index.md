@@ -51,7 +51,7 @@ ollama pull qwen3:4b-instruct
 - [Features](features.md) lists everything HANI2 does.
 - [Installation](getting-started/installation.md) and the [quick start](getting-started/quickstart.md) walk through a first negotiation.
 - [The interface](guide/interface.md) describes what participants see.
-- [Studies and results](guide/studies.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
+- [Study management](guide/study-management.md) and [Prolific](guide/prolific.md) explain how to run an experiment.
 - [Build an Assistant](tutorials/assistant.md) and [Build a tool](tutorials/tools.md) are hands-on tutorials.
 - [Configuration reference](guide/configuration.md) lists every setting and environment variable.
 
