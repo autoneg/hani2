@@ -106,7 +106,7 @@ def trusts_admin_claim(cfg: dict[str, Any] | None) -> bool:
 
 def this_audience() -> str:
     """The ``aud`` of this process (its ``HANI2_ROOT_PATH``): the key of the admin grants it honours."""
-    return audience(os.environ.get("HANI2_ROOT_PATH", ""))
+    return audience(os.environ.get("HANI2_ROOT_PATH", "").strip())
 
 
 def claim_admin_provider(meta: dict[str, Any]) -> str | None:
@@ -301,14 +301,30 @@ def _admin_grants(meta: dict[str, Any], aud: str, name: str, granted: bool) -> d
     return grants
 
 
-def _log_admin_change(user: str, provider: str, aud: str, granted: bool) -> None:
+def drop_admin_grant(user: str, by: str) -> bool:
+    """Remove this instance's ``admin``-claim grant of ``user`` (an admin removed the account's admin
+    rights on the Users page); the next hand-off with the claim grants it again. Whether there was one."""
+    from hani2 import auth
+
+    aud = this_audience()
+    meta = auth.get_meta(user)
+    grants = meta.get("sso_admin")
+    if not isinstance(grants, dict) or aud not in grants:
+        return False
+    auth.update_meta(user, sso_admin=_admin_grants(meta, aud, str(grants[aud]), False))
+    _log_admin_change(user, str(grants[aud]), aud, False, source=f"users page ({by})")
+    return True
+
+
+def _log_admin_change(user: str, provider: str, aud: str, granted: bool, source: str = "the token's admin claim") -> None:
     """A security event and a log line for every admin grant or removal by a hand-off."""
     from hani2 import events as ev
 
     what = "granted" if granted else "removed"
-    print(f"[sso] {provider}: admin {what} for {user} on {aud} (the token's admin claim)")
+    print(f"[sso] {provider}: admin {what} for {user} on {aud} ({source})")
     ev.log_event(None, ev.EventType.ADMIN_GRANTED if granted else ev.EventType.ADMIN_REVOKED, user=user,
-                 component="sso", value={"provider": provider, "audience": aud, "source": "admin_claim"})
+                 component="sso", value={"provider": provider, "audience": aud,
+                                         "source": "admin_claim" if source == "the token's admin claim" else source})
 
 
 def guest_study(user: str | None) -> str | None:

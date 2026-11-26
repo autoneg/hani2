@@ -380,3 +380,22 @@ def test_a_page_load_after_demotion_gets_a_new_non_admin_session(client, hani2_h
         with client.websocket_connect(f"/api/ws/{psid}") as ws:
             ws.receive_json()
     assert e.value.code == 4404 and hub.get(psid) is None
+
+
+def test_remove_admin_on_the_users_page_ends_a_claim_grant(client, hani2_home):
+    from hani2.server import hub
+
+    _trusting(hani2_home)
+    go(client, sso.sign(claims(admin=True), SECRET))
+    sid = client.post("/api/session", json={"mode": "main"}).json()["sid"]
+    assert hub.get(sid).is_admin
+    client.post("/api/auth/logout")
+    assert client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
+    row = next(u for u in client.get("/api/admin/users").json() if u["username"] == "anac_789")
+    assert row["is_admin"] and row["sso_admin"] == {"hani2": "scmlweb"}
+    assert client.patch("/api/admin/users/anac_789", json={"is_admin": False}).status_code == 200
+    assert not auth.is_admin_user("anac_789") and len(_events("admin_revoked")) == 1
+    client.post("/api/auth/logout")
+    go(client, sso.sign(claims(), SECRET))
+    assert client.post("/api/session", json={"mode": "main"}).json()["sid"] == sid
+    assert not hub.get(sid).is_admin  # the page load after the demotion

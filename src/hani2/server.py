@@ -798,13 +798,13 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 continue
             if not isinstance(msg, dict):
                 continue  # [] or 1 would end this connection at msg.get
-            if msg.get("type") == "ping":
-                await websocket.send_text('{"type":"pong"}')
-                continue
-            if _admin_lapsed(s):  # demoted while connected: no admin action on the old session
+            if _admin_lapsed(s):  # demoted while connected (checked on pings too): no admin action on the old session
                 _drop_lapsed(sid, s)
                 await websocket.close(code=4404)
                 return
+            if msg.get("type") == "ping":
+                await websocket.send_text('{"type":"pong"}')
+                continue
             r = getattr(s, "recorder", None)
             if r is not None:
                 r.inbound(msg)  # before the executors, which may reorder messages
@@ -1437,13 +1437,15 @@ def admin_create_user(body: dict = Body(...), _: str = Depends(require_admin)):
 
 
 @app.patch("/api/admin/users/{username}")
-def admin_update_user(username: str, body: dict = Body(...), _: str = Depends(require_admin)):
+def admin_update_user(username: str, body: dict = Body(...), me: str = Depends(require_admin)):
     if not auth.user_exists(username):
         raise HTTPException(404)
     if body.get("password"):
         auth.set_password(username, str(body["password"]))
     if "is_admin" in body and username != "admin":
         auth.update_meta(username, role="admin" if body["is_admin"] else "user")
+        if not body["is_admin"]:
+            sso.drop_admin_grant(username, by=me)  # "Remove admin" also ends a website's admin-claim grant
     return {"ok": True}
 
 

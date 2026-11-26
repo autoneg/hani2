@@ -189,12 +189,13 @@ then the claim is ignored.
   provider and the audience) and to the server log as
   `[sso] scmlweb: admin granted for anac_789 on hani2 (the token's admin claim)`.
 - A demoted account loses admin rights at once. API calls check the role on every request. Its next
-  page load gets a new session without the admin view. An open page's live connection is closed at
-  its next message, and the page then reconnects as a non-admin. The same happens when an admin is
-  demoted on the *Users* page.
-- The *Users* page lists the grant as `sso_admin`. Clearing *admin* there changes only the `role`:
-  the next hand-off with the claim makes the account an admin again. To stop that, change the
-  website, or turn off `trust_admin_claim`.
+  page load gets a new session without the admin view (an unfinished negotiation in the old admin
+  session is dropped). An open page's live connection is closed at its next message (pages ping every
+  25 seconds), and the page then reconnects as a non-admin. The same happens when an admin is demoted
+  on the *Users* page.
+- **Remove admin** on the *Users* page clears both the `role` and this server's claim grant (logged as
+  `admin_revoked`). The next hand-off with the claim makes the account an admin again. To stop that,
+  change the website, or turn off `trust_admin_claim`. `/api/admin/users` returns the grant as `sso_admin`.
 
 A participant who already has a session in the study and comes back through a new hand-off (a new
 "play" click on the website) after a finished negotiation gets a new negotiation. A reload of the
