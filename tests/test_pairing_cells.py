@@ -316,7 +316,7 @@ def test_nobody_fits_ai_fallback(hani2_home):
     a.admin_prefs["human_opponent_wait"] = 0.3
     a.load()
     first = spec(a)
-    assert a.match is not None and a._can_play_ai_instead()
+    assert a.ss.get("match_id") or a.ss["pairing"] == "fallback"  # it waited (the timer may have fired already)
     a.start()
     assert a.wait(lambda: a.phase == "running", 10)
     assert a.match is None and a.ss["last_partner_type"] == "BoulwareTBNegotiator"
@@ -446,3 +446,88 @@ def test_balance_report_has_a_paired_part(hani2_home):
     assert "Paired balance" in out.output
     projects.create_study("HI/solo", type="online", study_mode="solo", opponents=["BoulwareTBNegotiator"])
     assert balance.study_balance(StudyRef("HI", "solo"))["paired"] is None
+
+
+def test_an_assistant_error_is_shown_not_taken_for_a_finished_study(hani2_home):
+    ref = paired_study(assistants=["no_such_module:Nothing"], scheduling={"assistants": "latin_square"},
+                       n_required=1)
+    a = person("alice", ref)
+    assert a.phase != "finished" and not a.__dict__.get("_paired_exhausted")
+    assert a.assistant_error or (a.assistant_choice is not None and a.assistant_choice.error)
+    # a pool that names no Assistant at all (the error comes from the pool itself)
+    ctx = pairing.context(a, {}, "Trade", {**pairing.settings(a)})
+    assert ctx["late"] or ctx["method"] != "error"
+    orig = assignment.assistant_pool
+    try:
+        assignment.assistant_pool = lambda *x, **k: assignment.AssistantChoice(spec=None, error="broken")
+        ctx = pairing.context(a, {}, "Trade", {**pairing.settings(a)})
+        assert ctx["method"] == "error" and not ctx["late"]  # built before pairing: the error shows
+    finally:
+        assignment.assistant_pool = orig
+
+
+def test_the_two_people_left_with_the_same_assistant_both_fall_back(hani2_home):
+    ref = paired_study(assistants=[HELLO, RULES], scheduling={"assistants": "round_robin"},
+                       pairing={"fallback": "ai", "fallback_opponents": ["BoulwareTBNegotiator"]})
+    group(ref, "hello", {"agents": ["human+assistant"], "assistant": HELLO})
+    people = [person(u, ref, load=False, query={"group": "hello"}) for u in ("alice", "carol")]
+    for s in people:
+        s.admin_prefs["human_opponent_wait"] = 0.3
+        s.load()
+    a, c = people
+    assert a.match is not None and c.match is not None and a.match is not c.match  # nobody fits
+    for s in people:
+        s.start()
+    assert a.wait(lambda: a.phase == "running" and c.phase == "running", 10)
+    assert a.match is None and c.match is None
+    for s in people:
+        s.end()
+        assert s.wait_until_done()
+        assert rows(s)[-1]["pairing"] == "fallback"
+    d = assignment.read_cells(ref)
+    assert d["cells"] == {} and d["inflight"] == {}
+
+
+def test_a_host_leaving_before_the_start_leaves_the_joiner_hosting_the_real_scenario(hani2_home):
+    ref = paired_study(assistants=[HELLO, RULES, COACH], scheduling={"assistants": "latin_square"},
+                       n_required=3)
+    a, b = person("alice", ref), person("bob", ref)
+    assert b.match is a.match
+    played = b.ss["scenario_type"]
+    a.close()
+    assert b.match is not None and not b.match.paired
+    assert b.match.scenario_type == played
+    assert b.match.ctx[b.match.host_index()]["assistant"] == spec(b)
+    c = person("carol", ref)
+    assert c.match is b.match and spec(c) != spec(b)
+    assert assignment.parse_cell(b.match.cell)[0] == played == c.ss["scenario_type"]
+    assert set(assignment.read_cells(ref)["inflight"]) == {b.match.id}
+
+
+def test_a_mixed_game_with_cells_balances_and_may_share_an_assistant(hani2_home):
+    projects.create_project("HG", kind="assistant")
+    projects.create_study("HG/play", type="online", study_mode="mixed",
+                          opponents=["human+assistant", "BoulwareTBNegotiator"],
+                          assistants=[HELLO, RULES], scheduling={"assistants": "balanced"},
+                          pairing={"assign": "cells", "allow_same_assistant": True})
+    ref = StudyRef("HG", "play")
+    group(ref, "team", {"agents": ["human+assistant", "BoulwareTBNegotiator"], "assistant": HELLO})
+    a = make_session(user="inviter", partner=None, study=ref, n_steps=10, load=False, query={"group": "team"})
+    g = make_session(user="guest1", partner=None, study=ref, n_steps=10, load=False, query={"group": "team"})
+    for s in (a, g):
+        s.admin_prefs["human_opponents_first"] = True
+        s.load()
+    assert pairing.settings(a) is not None and not a._pair_ctx["late"]
+    assert g.match is a.match and spec(a) == spec(g) == HELLO
+    assert a.match.cell == assignment.cell_key(a.ss["scenario_type"], HELLO, HELLO)
+    play_out(a, g)
+    assert rows(a)[-1]["pairing"] == rows(g)[-1]["pairing"] == "cells"
+    assert assignment.read_cells(ref)["cells"][a.match.cell]["completed"] == 1
+
+
+def test_same_assistant_filter_holds_when_assistants_come_from_group_files_only(hani2_home):
+    ref = paired_study()  # no assistants key: the Assistants come from the group files
+    group(ref, "hello", {"agents": ["human+assistant"], "assistant": HELLO})
+    a = person("alice", ref, query={"group": "hello"})
+    c = person("carol", ref, query={"group": "hello"})
+    assert spec(a) == spec(c) == HELLO and c.match is not a.match

@@ -976,7 +976,8 @@ def remaining_assistants(session: "NegotiationSession", settings: dict, plan: di
     * ``random_each``: the whole pool (repeats allowed);
     * ``external`` (or a ``schedule.json`` naming Assistants): the Assistants of its slots, as a set.
 
-    ``[]`` means the human has used every Assistant planned for them.
+    ``[]`` means the human has used every Assistant planned for them, except with the method
+    ``"error"``: the pool could not be read (the error is shown when the Assistant is built).
     """
     from hani2 import scheduling
 
@@ -988,7 +989,7 @@ def remaining_assistants(session: "NegotiationSession", settings: dict, plan: di
         return [str(chosen)], "user"
     c = assistant_pool(session, settings, plan)
     if c.error or not c.pool:
-        return [], ""
+        return [], "error"  # not "used up": the Assistant's error is shown as usual
     if c.source in ("query", "fixed") or (c.source == "group" and len(c.pool) == 1):
         return [c.pool[0]], ""
     method = _assistant_method(session)

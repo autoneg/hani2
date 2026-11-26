@@ -1744,7 +1744,11 @@ class NegotiationSession:
                         hctx = next((c for i, c in joined.ctx.items() if i != joined.index_of(self)), {})
                         mine["scenario"] = hctx.get("scenario") or joined.scenario_type
                         mine["scenario_type"] = joined.scenario_type
+                        mine["remaining"] = [mine.get("assistant")] if mine.get("assistant") else mine.get("remaining")
                         self._pair_ctx = mine
+                        with joined.lock:  # if the host leaves before the start, this seat hosts with it
+                            if joined.index_of(self) is not None:
+                                joined.ctx[joined.index_of(self)] = dict(mine)
                         if pctx["late"]:
                             self._paired_assistant = mine.get("assistant")
                         plan["scenario_scheduling"] = "host"  # the joiner plays the host's scenario
@@ -2538,6 +2542,10 @@ class NegotiationSession:
         from hani2 import assignment
 
         pctx = self.__dict__.get("_pair_ctx") or {}
+        if self.phase == "questionnaire":
+            # still answering the consent form or pre-questionnaire: wait until they are done
+            matches.LOBBY.requeue(match)
+            return
         with self.lock:
             self.match = None
             self.ss["match_id"] = None

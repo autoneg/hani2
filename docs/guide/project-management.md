@@ -187,7 +187,7 @@ pairing:
 | `cell_scenario` | `type` | What "scenario" means in a cell: the scenario type (`type`) or the single scenario (`name`, which multiplies the number of cells by the scenarios per type). |
 | `allow_same_assistant` | `false` | Whether both sides of a match may use the same Assistant. With one Assistant in the study's pool it is always allowed (no match could be formed otherwise). |
 | `fallback` | `ai` | What happens when nobody fits within `human_opponent_wait` seconds: play an AI opponent with the Assistant already chosen (`ai`), keep waiting (`wait`, the same as `human_opponent_fallback: false`) or skip the slot (`end`: the next Assistant, or the end of the study when none is left). When `human_opponent_fallback` is also set in an `env.json` and the two disagree, the file is refused. |
-| `fallback_opponents` | the study's AI pool, else `:pan` | The AI opponents of the fallback. Human entries are refused. |
+| `fallback_opponents` | the study's AI pool, else `:pan` in a declared Paired study (else the built-in default pool) | The AI opponents of the fallback. Human entries are refused. |
 
 Every key is checked when a file is saved (unknown keys and values not listed above are refused)
 and reported when a hand-edited file has a problem. `assign`, `slack`, `cell_scenario`,

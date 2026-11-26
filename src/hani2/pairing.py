@@ -94,17 +94,22 @@ def fallback_partner(session: Any) -> Any:
     return matches.fallback_opponent(session.opponent_pool(), default)
 
 
-def _study_pool_size(ref: Any) -> int:
-    from hani2 import groups, projects
-
-    raw = projects.setting("assistants", None, ref=ref)
-    if raw is None:
-        return 1
+def _same_allowed(session: Any, eff: dict[str, Any], plan: dict) -> bool:
+    """Whether both sides may use the same Assistant: ``allow_same_assistant``, or nobody named an
+    Assistant (the configured one for everybody), or the study's pool has a single member (no
+    match could be formed otherwise)."""
+    if eff.get("allow_same_assistant"):
+        return True
+    st = session.assistant_settings
+    if st is None:
+        return True
     try:
-        with projects.use_study(ref):
-            return len(groups.expand_assistants(raw, ref))
+        c = assignment.assistant_pool(session, st, plan)
     except Exception:  # noqa: BLE001
-        return 1
+        return True
+    if c.source == "settings":
+        return True
+    return c.source in ("study", "env") and len(c.pool) < 2
 
 
 def context(session: "NegotiationSession", plan: dict, scenario_type: str | None, eff: dict[str, Any]) -> dict[str, Any]:
@@ -121,7 +126,7 @@ def context(session: "NegotiationSession", plan: dict, scenario_type: str | None
         "assign": str(eff.get("assign") or "random"),
         "slack": int(eff.get("slack") or 0),
         "cell_scenario": str(eff.get("cell_scenario") or "type"),
-        "same_ok": bool(eff.get("allow_same_assistant")) or _study_pool_size(ref) < 2,
+        "same_ok": _same_allowed(session, eff, plan),
         "declared": bool(eff.get("declared")),
         "ref": ref,
         "counted": assignment.counts_as_human(session),
@@ -150,9 +155,11 @@ def context(session: "NegotiationSession", plan: dict, scenario_type: str | None
             import traceback
 
             traceback.print_exc()
-            rest, method = [], ""
+            rest, method = [], "error"
         ctx["method"] = method
-        if not rest or not assignment.is_no_assistant(rest[0]):
+        if method == "error":
+            pass  # the Assistant is built before pairing, as elsewhere, and its error is shown
+        elif not rest or not assignment.is_no_assistant(rest[0]):
             ctx["remaining"] = rest
             ctx["late"] = True
     return ctx
