@@ -333,6 +333,146 @@ gives the normaliser kinds and a summary of the project's reference (whether it 
 which studies and how many games). Coverage is computed from the games without the judge, so judged
 criteria and post-session answers show no coverage (`null`) there.
 
+### Defining a score
+
+A **score** is a weighted mean of criteria, each first mapped to $[0, 1]$, so every score is in
+$[0, 1]$ too, with 1 as the best value. Define scores in `project.yaml` under `scores:` (at the top
+level or under `defaults:`). The key is the score's name in results, exports and boards:
+
+```yaml
+# project.yaml
+scores:
+  hi_score:
+    title: HI-score
+    description: The team's result, the Assistant's help and how people experienced it
+    track: hi                    # hi (ranks Assistants) | han (ranks opponents) | any
+    components:
+      - {criterion: human_advantage,       weight: 0.30}
+      - {criterion: welfare_optimality,    weight: 0.10}
+      - {criterion: ja_overall,            weight: 0.15}            # judged by a language model
+      - {criterion: hi_team,               weight: 0.15}            # a score inside a score
+      - {criterion: scale_tam_usefulness,  weight: 0.10}            # a questionnaire scale
+      - {criterion: q_ueq_2,               weight: 0.05}            # one questionnaire item
+      - {criterion: irrational_accept,     weight: 0.10}            # direction lower comes from the catalogue
+      - {criterion: n_offers, weight: 0.05, direction: lower,
+         normaliser: {kind: reciprocal, scale: reference_median}}
+    missing: renormalise         # renormalise | zero | skip_game
+    min_coverage: 0.5
+```
+
+Each component names a criterion and its weight. It may also give:
+
+- a `direction` (`higher` or `lower`). This is **required** when the criterion has none in the
+  catalogue (the descriptive columns such as `n_offers` or `negotiation_seconds`, and questionnaire
+  items that are not part of a scale and give no `direction`);
+- a `normaliser`, which replaces the criterion's default (see [Mapping every value to [0, 1]](#mapping-every-value-to-0-1));
+- a `label`, a short text for tables.
+
+`title`, `description`, `track` (default `any`), `missing` (default `renormalise`) and
+`min_coverage` (default 0.5) are optional.
+
+**Weights are ≥ 0 and sum to 1** (100 %, to within $10^{-6}$). The admin API and `hani2 scores set`
+refuse any other sum, and suggest rescaling (**Normalise**). A weight of 0 keeps a component in the
+definition without using it. If a file edited by hand has weights that do not sum to 1, HANI2
+rescales them when it reads the file, and writes a warning to the server log and to the project's
+or study's `errors` (shown in the admin console and by `hani2 scores check`).
+
+**Names.** A score's key starts with a letter and has only letters, digits and `_`. It must not be
+the name of a column (`agreement`, `n_offers_coverage`, …), look like a questionnaire answer
+(`q_…`, `scale_…`, `post_…`) or be a built-in score.
+
+**What is checked.** Every criterion must be known: a metric column, an answer of the questionnaires
+the project or study uses, or a score. Every component needs a direction and a normaliser, from the
+catalogue or its own. No score may contain itself, directly or through other scores. A score with a
+problem is left out of the project's scores, and `hani2 scores check` names the problem.
+
+#### Missing values
+
+A game may lack a value: no questionnaire answer, no judge run yet. `missing` says what happens then:
+
+| `missing` | A missing value | Example: `human_advantage` 0.6 (weight 0.5), `ja_overall` missing (weight 0.5) |
+| --- | --- | --- |
+| `renormalise` (default) | is left out, and the weights of the values present are rescaled to sum to 1 | 0.6 |
+| `zero` | counts as 0 | 0.3 |
+| `skip_game` | the game gets no value for this score and does not count for it | none |
+
+Whatever the policy, `<score>_coverage` is the share of the weight whose values were present (0.5 in
+the example).
+
+#### Coverage across entrants
+
+A component that is present in fewer than `min_coverage` of **some** entrant's games is dropped for
+**everyone**, and the remaining weights are rescaled to sum to 1. Every entrant is then scored on
+the same parts. If one Assistant's participants skipped the questionnaire, for example, the
+questionnaire parts are left out for every Assistant rather than counting only for some. Boards show
+the weights in effect and the parts that were dropped.
+
+#### Scores inside scores
+
+A score is already in $[0, 1]$, so it can be a component of another score (`hi_team` above). Its
+direction is `higher` and its normaliser `bounded [0, 1]`. Cycles are refused. `hani2 scores show`
+also prints the weights **flattened** down to criteria: `hi_team` with weight 0.15 shares its 0.15
+among its own parts.
+
+### Built-in scores
+
+Every project has the built-in scores. They are read-only, written in the same format, and their
+weights are shown rescaled to sum to 1:
+
+| Score | Track | What it measures |
+| --- | --- | --- |
+| `utility` | any | the Human side's advantage alone (`human_advantage`) |
+| `hi_outcome` | hi | what the human–Assistant team obtained |
+| `hi_assistant` | hi | how well the Assistant worked as an Assistant |
+| `hi_team` | hi | how well the human–Assistant team worked together |
+| `hi_interaction` | hi | the mean of `hi_assistant` and `hi_team` |
+| `han_outcome` | han | what the opponent agent obtained (0 when it failed) |
+| `han_interaction` | han | how well the opponent agent behaved as an opponent |
+
+The [Criteria and scores reference](criteria.md#source-score) and the
+[metric reference](metrics.md) give their parts and weights. To change one, **duplicate** it into
+the project, where it can be edited:
+
+```bash
+hani2 scores duplicate HI2027 hi_assistant my_assistant
+```
+
+The copy starts with the same parts, weights and normalisers. Two rules of the built-ins are not part
+of the format and are not copied: `han_outcome` is 0 when the opponent failed, and the HI interaction
+scores are empty for sessions without an Assistant.
+
+### Which scores a study uses
+
+`scores_enabled` lists the scores that are computed and shown in a study's boards, results views
+and exports. The project sets the default and a study may override it:
+
+```yaml
+# project.yaml
+scores_enabled: [hi_score, utility, hi_outcome, hi_interaction]
+```
+
+Without `scores_enabled`, every built-in score and every score of the project (and of the study) is
+enabled. An enabled score is computed together with the scores inside it. A study can also add
+scores and redefine the project's scores, key by key (see
+[Study management](study-management.md#the-studys-scores)).
+
+### Checking and editing scores
+
+```bash
+hani2 scores list HI2027                 # every score: * enabled, where it is defined, its track
+hani2 scores show HI2027/play hi_score   # weights in effect, directions, normalisers, flattened weights
+hani2 scores show HI2027/play hi_score --coverage   # and the share of the games with each value
+hani2 scores check HI2027 [--coverage]   # exits with 1 when anything is wrong
+hani2 scores set HI2027 hi_score -f hi_score.yaml   # add or replace one (refused unless it passes)
+hani2 scores remove HI2027 hi_score
+hani2 scores enable HI2027 hi_score,utility         # scores_enabled (--default removes it)
+```
+
+`check` applies the checks of saving, so weights that do not sum to 1 are a problem there, even
+though loading rescales them. With `--coverage` it also evaluates the games (without the judge),
+applies the rule for post-session answers and prints how many games have a value for each enabled
+score. A score cannot be removed while another score contains it or `scores_enabled` names it.
+
 ## Connecting a website
 
 There are two ways to run HANI2.
@@ -363,6 +503,13 @@ hani2 groups list [--project P | --study P/S] [--kind opponent|assistant] [--no-
 hani2 scheduling list [--details]   # the scheduling methods
 hani2 scores criteria [P[/S]] [--coverage] [-o file.json]   # the criteria a score can use
 hani2 scores freeze P [--studies a,b] [--end YYYY-MM-DD] [--llm] [--include-simulated]
+hani2 scores list P[/S] [-o file.json]                # the scores, enabled ones marked *
+hani2 scores show P[/S] KEY [--coverage]
+hani2 scores check P[/S] [--coverage]
+hani2 scores set P[/S] KEY (-f FILE | --json TEXT)
+hani2 scores remove P[/S] KEY
+hani2 scores enable P[/S] (KEY,KEY,... | --default)
+hani2 scores duplicate P[/S] SOURCE KEY
 ```
 
 The commands for studies (`hani2 study create`, `list`, `show`) are in [Study management](study-management.md#command-line).
@@ -377,7 +524,7 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 |---|---|
 | `GET /api/admin/projects` | The projects with their settings and study names, and the server's default study. |
 | `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`) and `errors`. |
-| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block or a HAN year no source covers is a 400 naming the problem. |
+| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block or a HAN year no source covers is a 400 naming the problem. Its `scores` get the same checks as the score endpoints below. |
 | `GET /api/admin/layers` | The layers (`settings`, `project:P`, `study:P/S`) with their folders, and the study the request is bound to (`bound`). |
 | `GET /api/admin/settings/{kind}?layer=L` | `kind`: `env`, `llm`, `assistant`, `autopilot` or a text (`consent`, `announcements`, `scenario_sets`, `scenario_order`). JSON kinds: `{"own", "effective", "inherited"}` (the layer's own file, the values in effect at that layer, and those without its file). Texts: `{"text", "exists", "effective", "source", "source_path"}` (`source`: the layer the text in effect comes from). The old `?study=P/S` / `?project=P` return the layer's raw file, and no parameter the effective settings, as before. |
 | `PATCH /api/admin/settings/{kind}?layer=L` | JSON kinds: merge the body into the layer's own file. |
@@ -388,6 +535,11 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | `GET /api/admin/scenarios/{name}?layer=L[&scenario=S][&generate=N]` | A type's details: texts, roles, issues and options, sample utilities, its pool, and a `plot_token` for the plot below. |
 | `GET /api/admin/scenarios/plot/{token}` | The outcome-space plots of the example those details showed: `plots` (one Plotly figure per pair of roles) and `plot_note`. Fetched apart so the details never wait for it; 404 once the example is no longer kept. |
 | `GET /api/admin/criteria[?project=P \| ?study=P/S][&coverage=true]` | The evaluation criteria (metric columns, the answers of the forms in use, scores) with source, level, direction, default normaliser, cost and optional coverage, the normaliser kinds and the project's reference. See [Scores](#scores). |
+| `GET /api/admin/scores?project=P` (or `?study=P/S`) | The scores: the built-ins (`builtin`, read-only) and the project's and study's definitions, each with `origin`, `enabled`, its components with their weights in effect (summing to 1), directions and normalisers, and `flattened` (the weights down to criteria); `enabled`, `enabled_set_by`, `problems` and `warnings`. |
+| `PUT /api/admin/projects/{project}/scores/{key}` | Add or replace a score in `project.yaml`: the definition as JSON. 400 unless the weights are ≥ 0 and sum to 1 and every check passes. |
+| `DELETE /api/admin/projects/{project}/scores/{key}` | Remove it; 409 while another score contains it or `scores_enabled` names it. |
+| `POST /api/admin/projects/{project}/scores/{key}/duplicate` | `{"from": "hi_team"}`: copy a score (for example a built-in) as `key`. |
+| `PUT /api/admin/projects/{project}/scores_enabled` | `{"enabled": [...]}`, or `{"enabled": null}` for every score. |
 | `GET /api/admin/groups?project=P` | The project's opponent and Assistant groups (its folder, its studies, the settings folder and the built-in groups): key, members, `syspath`, description, the group file's `assistant`, source and file. With `?study=P/S` instead: the groups as that study resolves them, `active` marking the file a token resolves to. |
 | `GET /api/admin/projects/{project}/groups/{kind}/{key}` | One group file of the project (`kind`: `opponent` or `assistant`, plural accepted). |
 | `PUT /api/admin/projects/{project}/groups/{kind}/{key}` | Create or replace it: a list of specs, or `{"description", "syspath", "agents"` (opponents) or `"assistants"`, and for opponent groups `"assistant"` and `"ai_fallback"` (a boolean)`}`. Checked before it is written. |

@@ -671,6 +671,45 @@ Nothing has to move. An experiment folder `$HANI2_EXPERIMENTS/<name>/` (default 
 
 To move an experiment into a project, create the study (`hani2 study create HI2027/wave1`) and move the experiment's files into `projects/HI2027/studies/wave1/`, keeping its `results/` folder. Move texts shared by several studies (for example `consent.md`) up to the project folder.
 
+## The study's scores
+
+A study uses the project's scores (see [Project management: scores](project-management.md#scores)).
+In `study.yaml` it can add its own, redefine one of the project's **by key**, drop one with
+`key: null`, and choose which scores it shows:
+
+```yaml
+# study.yaml
+scores:
+  quick_check:                            # this study only
+    track: hi
+    components:
+      - {criterion: human_advantage, weight: 0.7}
+      - {criterion: q_satisfaction,  weight: 0.3, direction: higher}
+  hi_score:                               # replaces the project's hi_score in this study
+    track: hi
+    components:
+      - {criterion: human_advantage, weight: 1}
+  old_score: null                         # the project's old_score is not used here
+scores_enabled: [hi_score, quick_check, utility]
+```
+
+A redefined score replaces the project's definition as a whole: its components are not merged.
+`scores_enabled` in the study replaces the project's list; without it the study uses the project's
+list, or, when the project has none, every score. The study's boards, results views and exports
+show the enabled scores.
+
+The same checks apply as for a project: weights that sum to 1, known criteria (including the answers
+of the study's own questionnaires), a direction where the criterion has none, no cycles, and the rule
+for post-session answers: when some participant of the study used more than one Assistant, an HI
+score cannot use a post-session answer (run `hani2 scores check <project>/<study> --coverage`). Check
+and edit a study's scores with the same commands, giving `<project>/<study>`:
+
+```bash
+hani2 scores list HI2027/play
+hani2 scores set HI2027/play quick_check -f quick_check.yaml
+hani2 scores enable HI2027/play hi_score,quick_check,utility
+```
+
 ## Command line and admin API
 
 ### Command line
@@ -699,5 +738,8 @@ These JSON endpoints are for admins only; the conventions (names, layers) are th
 |---|---|
 | `GET /api/admin/projects/{project}/studies/{study}` | A study: its settings, `study.yaml` as text, its links, `study_mode_effective` (the mode in use, the declared and derived ones, `mode_error`, the merged `pairing` keys, `pairing_effective` and what was `filled` in) and `errors`. |
 | `PUT /api/admin/projects/{project}/studies/{study}` | Create or replace `study.yaml` (the project is created when missing). What the GET adds (`path`, `links`, `participants`, `results_rows`, `scheduling_effective`, `study_mode_effective`, `errors`, …) is dropped, so a client may send back what it read; a mode that disagrees with the pool is a 400; the top-level `scheduling` wins over the copy under `overrides`, and an empty `scheduling` (`{}`) inherits every dimension again (the same holds for a project). |
+| `PUT` / `DELETE /api/admin/projects/{project}/studies/{study}/scores/{key}` | Add, redefine or remove a score in `study.yaml` (the same checks as for a [project](project-management.md#admin-api)). |
+| `POST /api/admin/projects/{project}/studies/{study}/scores/{key}/duplicate` | `{"from": "..."}`: copy a score into the study. |
+| `PUT /api/admin/projects/{project}/studies/{study}/scores_enabled` | `{"enabled": [...]}`, or `null` for the project's choice. `GET /api/admin/scores?study=P/S` lists the study's scores. |
 | `GET /api/admin/projects/{project}/studies/{study}/balance` | The study's Assistant pool and how many counted humans each Assistant has, with every assignment. |
 | `GET /api/admin/projects/{project}/studies/{study}/assignments` | The study's `assignments.json`. |
