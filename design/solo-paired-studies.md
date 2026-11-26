@@ -25,7 +25,7 @@ Code facts this design builds on, each checked in the code:
 | Leaderboards | `results.py` `leaderboard` (per *user*, by utility), `simulated_leaderboard`; `POST /api/replay/leaderboard` (admin, per track) | There is no per-Assistant board for the game and no endpoint an outside system can call. |
 | HAN groups | `agents.py` `han_groups()` | `:han<year>-all/-qualified/-finalists/-winners`, for every year that the installed `han-agents` package covers (only 2026 today). |
 | Auth | `server.py`, `sso.py` | Only cookie auth (`require_user` / `require_admin`) and the HS256 sign-in hand-off secret shared with scmlweb. **No service-to-service auth exists.** |
-| Group files | `groups.py` | Opponent group files take `agents`, `assistant` (old name `support_agent`), `syspath` and `ai_fallback`. **Other keys are ignored silently**. New keys must be added to `load_file`, `Group` and `to_dict`. |
+| Group files | `groups.py` | Opponent group files take `agents`, `assistant` (old name `support_agent`), `syspath`, `description` and `ai_fallback`. `load_file` ignores any other key, and `validate_data` (the admin `PUT`) **drops other keys from what it saves**, with no message. New keys must be added to `load_file`, `validate_data`, `Group` and `to_dict`. |
 | Editor | `frontend/src/admin/schema.tsx` (`Field`), `Row.tsx`, `pages/Projects.tsx` | `Field` has `hint` (a one-line grey text) and **no `help`**. `Projects.tsx` builds most rows with a bare `<Row hint=…>`, not with `Field`. The only `?` today is `ToolHelp` in `negotiate/ToolPane.tsx` (a `CircleHelp` button with a portalled dialog). Scheduling methods already bring their Markdown `details` from the server (`GET /api/admin/scheduling-methods`). |
 
 Two problems in today's code matter for fairness and are fixed below:
@@ -34,6 +34,11 @@ Two problems in today's code matter for fairness and are fixed below:
   `pick_opponent("latin_square")` both return `pool[latin_index(n, i, k)]`. Take a study with 5
   finalist Assistants and 5 HAN finalists, both on `latin_square`: Assistant $j$ meets opponent $j$
   in every single negotiation. Assistant and opponent effects then cannot be separated (§3.3).
+  Both paths use the same index and slot: `study._pick_opponent` passes `participant_index()` and
+  `counted()`, and `assignment._assistant_slot` returns `counted()` too. `scenarios: latin_square`
+  takes the same row as well. This happens **only when hani2 schedules both dimensions itself**.
+  A Prolific participant with a non-empty `schedule.json` gets the old rotation for the opponent and
+  the slot's Assistant as given (§3.5).
 - **P2: random pairing.** The lobby's `random.choice` cannot balance anything (§4).
 
 ---
@@ -90,6 +95,8 @@ editor hides it otherwise:
 pairing:
   scope: study            # study | project | code   (where people meet; §4.6)
   assign: cells           # cells | order | random   (how a match is formed; §4.2)
+  slack: 1                # cells within this count of the emptiest are tied (§4.2)
+  cell_scenario: type     # type | name: what "scenario" means in a cell (§4.1)
   allow_same_assistant: false   # may both sides use the same Assistant? (§4.4)
   fallback: ai            # ai | wait | end          (when nobody fits in human_opponent_wait s; §4.5)
   fallback_opponents: null      # the AI pool of the fallback (default: the study's non-human pool, else :pan)
@@ -164,6 +171,21 @@ Latin column and carry-over balance survives. A full design is $R\cdot n_o$ part
 pools differ in size, the shift is taken mod $n_o$ and the crossing is exact only over
 $\mathrm{lcm}$-sized blocks. The `hani2 study balance` report (WP2) shows how far coverage got.
 
+**Scope of this guarantee.** The equal-count argument holds when **both** dimensions use
+`latin_square` (or `cyclic`) and the two pools have the same size. Other combinations work as
+follows:
+
+- `assistants: balanced_subset` with a per-negotiation `opponents` method: the opponents are
+  planned **together** with the Assistants. The greedy rule of §3.2 gets a 4th criterion, the
+  (Assistant, opponent) pair counts, and the plan stores both sequences. This is still an
+  enumeration over K-tuples, with the opponent sequence fixed by the crossed square, so the cost
+  stays small.
+- `random_*` methods: balance holds in expectation only. The `balance` report shows the real
+  counts.
+- `scenarios: latin_square` gets its own block offset, $d_s(i) = \lfloor i / (R\cdot n_o)\rfloor
+  \bmod n_s$, so that scenario type is not confounded with either of them.
+- With different pool sizes, the counts stay within ±1 only over $\mathrm{lcm}$-sized blocks.
+
 The key is **`scheduling.cross: shift | none`**. It defaults to `shift` for studies created after
 WP2. A human's crossing rule is stored at first sight (`humans[u].cross`), so a study already
 running never changes plan for people already in it. *(Decision D3.)*
@@ -189,6 +211,21 @@ The opponent pool of an HI Solo study can name HAN entrants. The keys already ex
 - New result column **`opponent_han_year`** (an int, or empty), filled when the opponent came from
   a `:han<year>-*` group. `opponent_group` already keeps the group key.
 
+### 3.5 Prolific with scmlweb's `schedule.json`: who owns the plan
+
+Today, when a Prolific participant's `schedule.json` has any slot, `ProlificStudy.plan_round`
+handles the opponent with the old `fallback_rotation` (the `elif not method or sched or legacy`
+branch), and a slot's `assistant` is used as given. scmlweb writes such a schedule per PID, so
+**none of §3.2–§3.3 would run for those participants**. There are two ways out *(D14)*:
+
+- **hani2 owns the plan (recommended).** scmlweb writes a schedule that gives only what it must
+  (for example `scenario_type`), or no schedule at all, and leaves `assistant` and
+  `agent_class_name` empty. WP2 changes the branch above so that open slots use the study's methods
+  and crossing instead of the old rotation. The old rotation stays only for participants who
+  already have `fallback_rotation.txt`.
+- **scmlweb owns the plan.** scmlweb implements the same K-of-N and crossing rules and writes them
+  as complete slots. hani2 then only validates them (no repeats, K ≤ N: `external:repeat`).
+
 ---
 
 ## 4. Assignment in Paired: the match is the unit
@@ -201,7 +238,11 @@ $$
 \text{cell} = (\text{scenario},\ \text{Assistant at side 0},\ \text{Assistant at side 1})
 $$
 
-This is one canonical key per match, `"<scenario>|<A>@0|<B>@1"`. From each participant's own row,
+This is one canonical key per match, `"<scenario>|<A>@0|<B>@1"`. By default, *scenario* is the
+**scenario type** (the domain), and the scenario instance (which predefined utility functions were
+used) is recorded but not balanced. Balancing instances too, with `pairing.cell_scenario: name`,
+multiplies the number of cells by the instances per type. With 5 utility functions per domain, the
+60 cells below would become 300. *(D16)* From each participant's own row,
 the cell reads as (own Assistant, opposing Assistant, scenario, own side). One match therefore fills
 the two mirrored row-views at once, and is counted **once**. In HAN Paired (no Assistants), the cell
 is just (scenario, side).
@@ -270,6 +311,10 @@ For N = 5 and S = 3 that is 60 cells. With K = 5 matches per person and two peop
 
    where $c$ is completed + in-flight. It takes the lowest score in lexicographic order. The
    $|R_H|$ term prefers the most constrained host, which avoids dead ends at the end of a study.
+   `random` pairing today has a useful property: nobody can aim at a particular person. To keep it,
+   every candidate whose $c$ is within `pairing.slack` (default 1) of the minimum is treated as
+   tied on $c$. The remaining terms break the tie, and finally the RNG does. With `slack: 0` the
+   choice is the strictest balance, but who meets whom becomes easier to predict.
    **This is a change**: in `paired` HI studies, the joiner's `refresh_assistant` moves to *after*
    `LOBBY.pair`. Fitting does not depend on it, because every side has an Assistant. Only then is
    the joiner's Assistant built. In `mixed` studies (the game) the order stays as it is.
@@ -455,8 +500,11 @@ leaderboard:
       score: agreement
 ```
 
-**`hi_score`** is a new `Score` in `evaluation/scores.py` (track `hi`, board `game`). Its default
-components, all with configurable weights:
+**`hi_score`** is a new `Score` in `evaluation/scores.py` (track `hi`). `board` is a new third value,
+`game`: `tracks.BOARDS` gains `game`, and `TRACKS["hi"]["boards"]["game"] = ["hi_outcome",
+"hi_score"]`. `tracks.leaderboard` also gets `rank_by=<score or column>`, so that a category can
+rank by any score or any numeric column (for example `agreement`), not only by a board's first
+score. Its default components, all with configurable weights:
 
 | Component | Default weight | Live? |
 |---|---|---|
@@ -465,7 +513,14 @@ components, all with configurable weights:
 | `irrational_accept` (inverse) | 0.5 | yes (eval cache) |
 | `hi_assistant` (the judge, errors, function calls, its questionnaire items) | 1 | judge parts: offline |
 | `hi_team` (reliance, engagement, the human's errors) | 1 | judge parts: offline |
-| questionnaire scales: `scale_ueq_pragmatic_norm`, `scale_tam_usefulness_norm`, `scale_felt_heard_norm`, `scale_intention_to_use_norm` | **0** until the game asks a questionnaire | when asked |
+
+The questionnaire scales are **already inside `hi_assistant`**: `scale_ueq_pragmatic_norm`,
+`scale_tam_usefulness_norm`, `scale_felt_heard_norm` and `scale_intention_to_use_norm`, each at
+weight 0.5. Without a game questionnaire these columns are empty, and `_active_components` drops
+them for everyone, so the board needs nothing special. With a questionnaire, they enter only once
+every entrant has answers for at least `min_coverage` of its games. A questionnaire asked after only
+some games would fall under the default 0.5. A category can therefore set its own `min_coverage`,
+for example `0.3` for `hi_score` when D6 asks only after some games.
 
 Weights come, in order of precedence, from the category's `weights`, then
 `env.json evaluation.scores.hi_score.weights`, then the defaults. A weight of 0 drops a component.
@@ -509,8 +564,9 @@ post-game questionnaire, for example the four items above, optional or every *n*
 `leaderboard.source: game` is the default for HI. The tournament board, which scmlweb computes from
 its Tournament rows and which `hani2.results.simulated_leaderboard` mirrors, stays selectable:
 
-- **In hani2**: a new admin page, **Leaderboards** (WP7), with a source switch (game / simulated
-  tournament), a category switch, a games switch and strata tabs (Solo / Paired / combined; HAN
+- **In hani2**: a new admin page, **Leaderboards** (WP7), with a source switch (game / hani2's own
+  simulated table `simulated_leaderboard`, which is computed in hani2 and is *not* known to match
+  scmlweb's Tournament board), a category switch, a games switch and strata tabs (Solo / Paired / combined; HAN
   `alone` / `vs_team`).
 - **In scmlweb** (*to confirm with scmlweb*): the HI leaderboard page reads the endpoint in §8 by
   default and keeps its Tournament view as a second tab.
@@ -628,10 +684,22 @@ leaderboard:
  "ai_fallback": true}
 ```
 
-For a guest's invitation, the same file has `"own": false`.
+For a guest's invitation, the same file has `"own": false`. The new keys:
 
-**(c) Prolific:** `<results_base>/groups/<key>.json` and `schedule.json` per PID are unchanged. A
-Prolific `paired` study with `assistants: external` treats the schedule's slots as a **set** (§4.2),
+- `entrant` (string): scmlweb's id for the Assistant (a submission or team id). It is written to
+  `assistant_entrant` and becomes the endpoint's `entrant`.
+- `own` (bool): this participant belongs to the team that submitted the Assistant. It is written
+  to `own_assistant`.
+- `han_year` (int): the HAN year of the AI agents **listed in this file** when they are named by
+  class path from scmlweb's zips rather than by a `:han<year>-*` group. It is written to
+  `opponent_han_year` so those games still feed the HAN `vs_team` stratum.
+
+`validate_data` accepts these keys from WP5 on. Older hani2 versions ignore them when they read a
+file, but would drop them when an admin saves the file through the API.
+
+**(c) Prolific:** `<results_base>/groups/<key>.json` and `schedule.json` per PID keep their format.
+**What goes in the slots changes** if hani2 owns the K-of-N plan (§3.5, D14): scmlweb then leaves
+`assistant` and `agent_class_name` empty. A Prolific `paired` study with `assistants: external` treats the schedule's slots as a **set** (§4.2),
 so slot order is a preference, not a promise. *(D4)*
 
 **(d) Guest settings** (`--settings`): unchanged.
@@ -701,7 +769,13 @@ Each package ends with its tests green (`.venv/bin/pytest -q`), its docs written
 | **8. scmlweb** *(other repo, after WP5)* | Read the endpoint and make it the default HI board with the Tournament tab; write `entrant` and `own`; update `resources/hani2/projects/hi-game` | scmlweb | scmlweb's | scmlweb's |
 
 WP1 → WP2 → WP3 → WP4 → WP5 are backend only and in dependency order. WP4 and WP5 could be swapped,
-but WP5 reuses WP4's strata. WP6 can start once WP1–WP3 have fixed the keys. WP7 follows WP6.
+but WP5 reuses WP4's strata. WP6 starts after WP5, because its Leaderboard rows need WP5's keys.
+If the editor is wanted earlier, WP6 can be split: the help mechanism plus Mode, HAN, Assignment
+and Pairing after WP3, and the Leaderboard rows after WP5. WP7 follows WP6. Only one of them is
+open on `frontend/` at a time.
+
+WP2 also changes `ProlificStudy.plan_round` (§3.5) when D14 is answered "hani2 owns the plan". WP5
+also touches `evaluation/tracks.py` (the `game` board and `rank_by`).
 
 ---
 
@@ -716,7 +790,7 @@ Each question has a recommended answer.
 | D3 | Should the Assistant × opponent crossing (`cross: shift`) be on by default for new studies? It fixes the confounding P1 | **Yes**, stored per human so that running studies do not change |
 | D4 | In Paired, should a person's Assistants be a *set* (the order is only a preference), so that the cell balance can work? | **Yes.** Strict order (`assign: order`) stays available for scripted lab sessions |
 | D5 | When nobody fits in Paired: should the fallback default to playing an AI opponent with the planned Assistant, counting it as used, filling no cell and being ranked under Solo? | **Yes** (`fallback: ai`). Prolific participants are paid for the time anyway |
-| D6 | Should the game ask a short questionnaire so that HI-score can include subjective scales? | **Yes: 4 items, optional, after every 3rd game**, starting at weight 0 until enough people answer |
+| D6 | Should the game ask a short questionnaire so that HI-score can include subjective scales (the four scales already in `hi_assistant`)? | **Yes: 4 items after every game, skippable**, with `min_coverage: 0.3` on the `hi_score` category so that partial answers still count |
 | D7 | Game board adjustment: cell-adjusted means (`relative`) or the cell-balanced mean? | **`relative`**, because the game's cells are sparse and uneven. Cell-balanced for planned studies |
 | D8 | Should games where a team plays its own Assistant count? | **Count them, but require `min_participants: 3` players who are not the owners.** `exclude_own` stays available |
 | D9 | Endpoint auth: a JWT on the existing SSO secret, or a public board (no names in it)? | **The JWT** (`aud: hani2-api`). The board can be made public later with `leaderboard.public` |
@@ -724,3 +798,6 @@ Each question has a recommended answer.
 | D11 | Should same-Assistant matches (an inviter against their guest) be out of the utility category but counted once in HI-score? | **Yes.** They are not allowed at all in Paired evaluation studies |
 | D12 | Where do HAN entrants come from: the installed `han-agents` package or scmlweb's `agent_placements` and zips? | **The package for `:han<year>-*`**, with `hani2 han check` comparing it to scmlweb's list. Group files from scmlweb can still name the zips |
 | D13 | Should the HAN board show HI-Solo games against HAN agents as a separate `vs_team` stratum next to the official `alone` board, never pooled by default? | **Yes** |
+| D14 | For Prolific, who owns the K-of-N and crossing plan: hani2 (scmlweb leaves the `assistant` and `agent_class_name` slots empty) or scmlweb (it writes complete slots)? | **hani2 owns it**: one implementation of the rules. scmlweb's slots keep only what it must fix |
+| D15 | In the game, does each player always use their own team's Assistant (guests: the inviter's), or does the game assign Assistants (balanced at pairing)? With own Assistants, "balanced at pairing" balances only *whom* each Assistant meets, and the non-owner players of an Assistant are mostly invited guests | **Own Assistant for team members and their guests** (as today). Balancing at pairing goes over the opposing Assistant, the scenario and the side. Players who have no team get an Assistant through `balanced` |
+| D16 | Is the *scenario* in a match cell the type (domain) or the instance (the predefined utility functions)? | **The type.** The instance is recorded, and the instances follow the scenario method |
