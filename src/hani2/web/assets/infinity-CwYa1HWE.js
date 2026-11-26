@@ -1,1 +1,0 @@
-import{c as n}from"./index-bwLTO2HV.js";const e={name:"infinity",size:24,node:[["path",{d:"M6 16c5 0 7-8 12-8a4 4 0 0 1 0 8c-5 0-7-8-12-8a4 4 0 1 0 0 8",key:"18ogeb"}]]};e.node;const o=n(e);export{e as __iconData,o as default};

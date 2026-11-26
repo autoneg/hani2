@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The character steps aside while its conversation is open.** Clicking the Assistant's character
+  opens the conversation (next to it, or in the dock) and hides the character with its speech
+  bubbles; closing the conversation brings it back, unless the participant has hidden it.
 - **Documentation.** Every tool has its own section with a screenshot, the admin-only ones and the
   example tools included ([Tools](guide/tools.md#the-tools-one-by-one)). A new
   [Offer generators](guide/offer-generators.md) page covers the Utility-based Selector, the LLM tool

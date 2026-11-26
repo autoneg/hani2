@@ -276,6 +276,13 @@ def test_participant_hides_the_character_and_gets_the_header_button(e2e_browser,
         header_button = p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True)
         expect(character).to_be_visible()
         expect(header_button).to_have_count(0)
+        # the character steps aside while its conversation is open and comes back when it is closed
+        character.click()
+        close = p.get_by_role("button", name="Close assistant")
+        expect(close).to_be_visible()
+        expect(character).to_have_count(0)
+        close.click()
+        expect(character).to_be_visible()
         p.get_by_role("button", name=re.compile(r"^Hide ")).click()
         expect(character).to_have_count(0)
         expect(header_button).to_be_visible()

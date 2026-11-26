@@ -62,7 +62,7 @@ function useViewport() {
 /**
  * The Assistant as a character in a corner of the screen. Its notifications come out of it as
  * speech bubbles; clicking it opens the conversation next to it (or the side panel when the
- * Assistant also has the panel). The participant can drag it anywhere unless the admin fixed it;
+ * Assistant also has the panel), and the character steps aside until the conversation is closed. The participant can drag it anywhere unless the admin fixed it;
  * where it was put is kept with the layout (`persona_x`, `persona_y`: its centre as fractions of
  * the window).
  */
@@ -149,9 +149,11 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
   };
   const bubbles = toasts.filter((t) => t.source === "assistant").slice(-3);
   const chatHere = open && style === "persona";
+  // while the conversation is open (next to the character or in the side panel) the character
+  // steps aside; it comes back when the conversation is closed
   return (
     <>
-      {!chatHere && bubbles.length > 0 && (
+      {!open && bubbles.length > 0 && (
         <div data-persona-ui className={`pointer-events-none z-[45] flex w-[min(320px,calc(100vw-2rem))] gap-2 ${below ? "flex-col" : "flex-col-reverse"} ${right ? "items-end" : "items-start"}`} style={anchor} aria-live="polite">
           {bubbles.map((t) => (
             <div key={t.id} className={`enter pointer-events-auto relative flex items-start gap-2 rounded-2xl border border-you/25 bg-surface px-3 py-2 text-sm shadow-pop ${right ? "rounded-br-sm" : "rounded-bl-sm"}`} role="status">
@@ -175,7 +177,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
           <Assistant fill />
         </div>
       )}
-      {st.interface?.assistant?.may_hide && (
+      {!open && st.interface?.assistant?.may_hide && (
         <button
           data-persona-ui
           className="fixed z-[48] flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-muted shadow-lift hover:text-ink"
@@ -190,8 +192,8 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
           <EyeOff size={12} />
         </button>
       )}
-      <button
-        className={`fixed z-[47] flex touch-none select-none items-center justify-center rounded-full shadow-pop transition-transform ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"} ${movable ? "cursor-grab active:cursor-grabbing" : ""} ${open ? "ring-4 ring-you/30" : "hover:scale-105"}`}
+      {!open && <button
+        className={`fixed z-[47] flex touch-none select-none items-center justify-center rounded-full shadow-pop transition-transform ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"} ${movable ? "cursor-grab active:cursor-grabbing" : ""} hover:scale-105`}
         style={{ width: SIZE, height: SIZE, left: x - SIZE / 2, top: y - SIZE / 2 }}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -199,7 +201,6 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         onPointerCancel={() => { start.current = null; setDrag(null); }}
         onClick={click}
         aria-label={`${sup.name}${movable ? " (drag to move)" : ""}`}
-        aria-pressed={open}
         title={movable ? `${sup.name} — click to talk, drag to move` : sup.name}
         data-persona
         data-persona-ui
@@ -207,7 +208,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         {sup.busy && <span className="absolute inset-0 animate-ping rounded-full bg-you/30" aria-hidden />}
         <Bot size={26} />
         <span className={`absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
-      </button>
+      </button>}
     </>
   );
 }

@@ -197,7 +197,7 @@ The Assistant can open the same dialogs, optionally with a message of its own at
 
 ## The assistant dock
 
-When an Assistant is attached and appears as a panel, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab. When it appears as a character, clicking the character opens the same conversation next to it.
+When an Assistant is attached and appears as a panel, the **Assistant** button opens the dock. On wide screens (1600 pixels and up) it sits beside the page; on narrower desktops it slides over the right edge; on phones it fills the Assistant tab. When it appears as a character, clicking the character opens the same conversation next to it. The character steps aside while the conversation is open and comes back when it is closed.
 
 The dock contains:
 
@@ -223,8 +223,8 @@ The administrator decides, per project or study, which of these the participant 
 `assistant_settings.json → presentation.style` (the **Assistant settings** page, per layer) chooses how the Assistant appears:
 
 - `panel` (the default): the **Assistant** button in the header opens the dock;
-- `persona`: a round character in the bottom-right corner, with the same status dot. Clicking it opens the conversation in a card next to it. The header has no Assistant button while the character is shown;
-- `both`: the character and the header button. Clicking the character opens the dock;
+- `persona`: a round character in the bottom-right corner, with the same status dot. Clicking it opens the conversation in a card next to it, and the character disappears until the card is closed. The header has no Assistant button while the character is shown;
+- `both`: the character and the header button. Clicking the character opens the dock, and the character disappears until the dock is closed;
 - `choice`: the participant picks Panel, Character or Both in **My settings** (`presentation.choice_default` is the first choice).
 
 ![The Assistant as a character, with its hide button](../assets/screens/assistant-character.png)

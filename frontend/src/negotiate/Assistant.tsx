@@ -139,7 +139,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
           <span className="sr-only">Assistant on</span>
         </label>}
         {showCharacter && (
-          <button className="btn-ghost px-1.5" aria-label="Show the character" title="Show the Assistant as a character again" onClick={() => send({ type: "pref", key: "persona_hidden", value: false })}>
+          <button className="btn-ghost px-1.5" aria-label="Show the character" title="Show the Assistant as a character again" onClick={() => { setOpen(false); send({ type: "pref", key: "persona_hidden", value: false }); }}>
             <UserRound size={16} />
           </button>
         )}
