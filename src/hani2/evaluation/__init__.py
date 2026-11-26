@@ -65,9 +65,12 @@ def judge_reliability(*args, **kwargs):
 PAIRED_FIELDS = ("study_mode", "opponent_kind", "pairing", "match_id", "match_cell", "side", "opponent_assistant",
                  "opponent_assistant_entrant", "opponent_participant", "assistant_entrant", "own_assistant",
                  "assistant_position", "plan_size", "opponent_han_year", "cross_study")
+#: where a HAN opponent agent came from (see hani2.han_submissions.PROVENANCE_COLUMNS), and who left a
+#: human-opponent negotiation (``abandoned``: ``self``, ``opponent`` or empty)
+OTHER_ROW_FIELDS = ("opponent_han_source", "opponent_han_version", "abandoned")
 ID_FIELDS = ("key", "id", "user", "mode", "participant_type", "persona", "scenario", "opponent", "support_agent",
              "support_model", "experiment", "started", "practice", "judge_model", "assistant", "human_index",
-             *PAIRED_FIELDS)
+             *PAIRED_FIELDS, *OTHER_ROW_FIELDS)
 
 
 def available_metrics(full: bool = False) -> list[dict]:
@@ -103,7 +106,7 @@ def _ident(rec: Recording, key: str | None) -> dict:
     st = rec.start or {}
     sa = st.get("support_agent") or {}
     sim = rec.first("sim") or {}
-    row = (rec.result or {}).get("row") or {}
+    row = rec.result or {}  # the results row (``Recording.result`` is the result event's ``row``)
     mode = sess.get("mode")
     if sim and mode != "simulated":
         mode = "simulated"
@@ -119,7 +122,7 @@ def _ident(rec: Recording, key: str | None) -> dict:
         # the Assistant as assigned (``none`` for the no-Assistant arm), and the human's side (part of a cell)
         assistant=(st.get("assignment") or {}).get("assistant") or None, human_index=st.get("human_index"),
         # the study's mode and the pairing (from the results row; empty in recordings made without one)
-        **{k: (row.get(k) if row.get(k) not in (None, "") else None) for k in PAIRED_FIELDS},
+        **{k: (row.get(k) if row.get(k) not in (None, "") else None) for k in (*PAIRED_FIELDS, *OTHER_ROW_FIELDS)},
     )
 
 

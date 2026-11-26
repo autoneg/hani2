@@ -538,3 +538,24 @@ def test_same_assistant_filter_holds_when_assistants_come_from_group_files_only(
     a = person("alice", ref, query={"group": "hello"})
     c = person("carol", ref, query={"group": "hello"})
     assert spec(a) == spec(c) == HELLO and c.match is not a.match
+
+
+def test_evaluation_rows_from_recordings_carry_the_paired_fields(hani2_home):
+    """The rows built from a Paired match's recordings carry its ID fields (not only the CSV)."""
+    from hani2.evaluation import evaluate_paths, leaderboard
+
+    ref = paired_study()
+    a, b = person("alice", ref), person("bob", ref)
+    play_out(a, b)
+    ev = evaluate_paths([projects.study_dir(ref)], ["outcome"])
+    got = sorted((r for r in ev["rows"] if r.get("match_id")), key=lambda r: r["side"])
+    assert len(got) == 2, ev["errors"]
+    for r in got:
+        assert r["study_mode"] == "paired" and r["pairing"] == "cells" and r["match_id"] == a.match.id
+        assert r["match_cell"] == a.match.cell and r["opponent_kind"] == "human+assistant"
+        assert r["plan_size"] is not None and r["assistant_position"] is not None
+    assert [r["side"] for r in got] == [0, 1]
+    assert got[0]["opponent_participant"] is not None and got[0]["opponent_assistant"]
+    lb = leaderboard(ev["rows"], "hi", "outcome", n_boot=0)
+    assert lb["strata"] == {"solo": 0, "paired": 2} and lb["totals"]["sessions"] == 1
+    assert lb["totals"]["matches"] == 1 and lb["cells"][-2:] == ["side", "opponent_assistant"]
