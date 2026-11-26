@@ -44,9 +44,13 @@ def test_two_participants_negotiate_with_each_other(e2e_browser, human_server):
         expect(a.get_by_text("Waiting for the other participant…")).to_be_visible()
         b.get_by_role("button", name="Start negotiation").click()
         # one side moves first; the other waits for it
-        waiting = a.get_by_text("Waiting for your opponent…").or_(b.get_by_text("Waiting for your opponent…"))
-        expect(waiting.first).to_be_visible()
-        mover, other = (b, a) if a.get_by_text("Waiting for your opponent…").count() else (a, b)
+        wa, wb = a.get_by_text("Waiting for your opponent…"), b.get_by_text("Waiting for your opponent…")
+        for _ in range(150):
+            if wa.count() or wb.count():
+                break
+            a.wait_for_timeout(100)
+        assert wa.count() + wb.count() == 1, "exactly one side waits for the other"
+        mover, other = (b, a) if wa.count() else (a, b)
         if not mover.get_by_role("button", name="Send offer").count():
             mover.get_by_role("button", name="Counter-offer").click()
         box = mover.get_by_placeholder(re.compile("Explain your offer"))

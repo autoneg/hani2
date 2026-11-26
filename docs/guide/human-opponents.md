@@ -62,7 +62,7 @@ arranged in advance or for testing.
   keep waiting instead.
 - **Someone does not press Start.** When one side has pressed **Start** and the other has not within
   `human_opponent_wait` seconds, they are separated. The side that pressed waits for someone else. The
-  other keeps its scenario and side, and waits for a new partner.
+  other keeps its scenario and side, and waits for someone new.
 - **Someone leaves before the start.** The other participant waits for someone else.
 - **Someone leaves during the negotiation.** A participant has left when their session closes, or when
   they have had no open page for `human_opponent_absent` seconds (an admin setting, default `60`). A reload
