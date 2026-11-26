@@ -1017,7 +1017,7 @@ In Python, deduplicate by match before computing negotiation-level measures:
 ```python
 paired = df[df["match_id"].fillna("") != ""]
 per_match = paired.drop_duplicates("match_id")
-print(per_match["agreement"].mean(), per_match["welfare"].mean())
+print(per_match["agreement"].notna().mean(), per_match["welfare"].mean())  # agreement rate, mean welfare
 ```
 
 The leaderboard score of a participant is computed per scenario name: drop the worst result, average the best three of the rest, and score 0 for scenarios with fewer than two results. The score is the average over scenarios, times 100.

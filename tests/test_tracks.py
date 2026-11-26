@@ -554,7 +554,23 @@ def test_head_to_head_bradley_terry():
     lb = leaderboard(rows, "hi", "outcome", n_boot=0, head_to_head=True)
     assert lb["head_to_head"]["entries"][0]["entrant"] == "A"
     assert "head_to_head" not in leaderboard(rows, "hi", "outcome", n_boot=0)
+    solo = leaderboard(rows, "hi", "outcome", n_boot=0, stratum="solo", head_to_head=True)
+    assert solo["head_to_head"]["matches"] == 4  # from the Paired matches, whatever the stratum shown
     # two groups that never met
     h = head_to_head([*_paired("m1", "A", "u1", 0.8, "B", "u2", 0.2), *_paired("m2", "C", "u3", 1, "D", "u4", 0)])
     assert h["groups"] == 2 and h["notes"]
     assert head_to_head([])["entries"] == []
+
+
+def test_a_partner_row_left_out_keeps_the_cell():
+    """When one row of a match is not counted (practice here), the other still finds its opposing
+    Assistant from the partner row, so it lands in the same cell as the Assistant's other matches."""
+    rows = [*_paired("m1", "A", "u1", 0.8, "B · gpt", "u2", 0.2), *_paired("m2", "A", "u3", 0.6, "B · gpt", "u4", 0.4)]
+    for r in rows:
+        if r["support_agent"] == "B · gpt":
+            r["support_agent"], r["support_model"], r["assistant"] = "B", "gpt", "teamB.Coach"
+    rows[0]["opponent_assistant"] = rows[2]["opponent_assistant"] = "teamB.Coach"
+    rows[1]["practice"] = 1
+    lb = leaderboard(rows, "hi", "outcome", n_boot=0, stratum="paired")
+    a = next(e for e in lb["entries"] if e["entrant"] == "A")
+    assert a["n"] == 2 and a["cells"] == 1

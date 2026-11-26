@@ -470,7 +470,7 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     order = [s for s in BY_NAME if s in names or any(c.column == s for n in names for c in BY_NAME[n].components)]
     gate = _reliability_gate(reliability, official, {str(r["judge_model"]) for r in kept if r.get("judge_model")})
     active = _active_components(kept, track, order, min_coverage, gate["blocked"])
-    partners = _partners(kept)
+    partners = _partners([r for r in rows if _in_track(r, track)])  # a partner row left out still names the opponent
     scored = []
     for i, r in enumerate(kept):
         r2 = dict(r)
@@ -578,7 +578,10 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     )
     if head_to_head and track == "hi":
         col = head_to_head if isinstance(head_to_head, str) else "human_advantage"
-        out["head_to_head"] = _head_to_head(kept, col)
+        # from every counted HI row, whatever the stratum shown (only Paired matches take part)
+        every = kept if stratum in ("combined", "paired") else _filter(rows, track, include_practice,
+                                                                       include_simulated)[0]
+        out["head_to_head"] = _head_to_head(every, col)
     return out
 
 
