@@ -8,14 +8,10 @@
   person* (the page shows how many people are waiting) or *Play an AI opponent now*. While waiting,
   *Play an AI opponent instead* is always offered. Pairing is random among those waiting, and
   `human_opponent_codes: false` ignores `?match=` codes. See [A game](guide/human-opponents.md#a-game).
-- **Nothing about the other participant.** With a human opponent, the page, the tools and the
-  Assistant never get the other side's preferences, utility, user name or the match id. *My Results*
-  leaves them out too; `results.csv` keeps them.
-- **Isolated Assistants.** `assistant_isolation: process` runs participant-written Assistants in a
-  worker process of their own, with a copy of only their own package, a scrubbed environment, limits,
-  and an operating-system sandbox (`sandbox-exec` on macOS, bubblewrap on Linux) that hides other
-  participants' code and HANI2's data and cuts the network. It fails closed. See
-  [Isolated Assistants](guide/assistant.md#isolated-assistants).
+- **Invitations play with the inviter's Assistant or agent.** A group file in the page's URL that
+  names one Assistant (or `none`) always gives exactly that Assistant, over the study's pool, its
+  scheduling, the participant's choice and the on/off setting. A group file whose `agents` lists one
+  agent makes it the only opponent. See [Play against an invited agent](guide/human-opponents.md#play-against-an-invited-agent).
 - **Guests from the sign-in hand-off.** A token with `guest: true` (plus `invited_by`, `name`) signs in
   someone without an account on the website, bound to one study the provider lists in
   `guest_studies`, with one session per browser. Results record `invited_by`. A new hand-off after a

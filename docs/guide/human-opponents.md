@@ -106,15 +106,6 @@ AI opponent.
 
 ## What participants see
 
-Each participant sees only their own side. The page, the tools and the Assistant never get the other
-participant's preferences, value on disagreement or utility (the `opponent_utility` capability, the
-opponent's preferences tool and the real-utility views of the negotiation plot give nothing while the
-opponent is a person). They also never get the other participant's user name, chats, Assistant output
-or the match id. The result of the negotiation leaves out the other side's utility. **My Results** drops
-`opponent_user` and `match_id` and blanks the other side's values in those rows. All of these stay in
-`results.csv` for analysis. To keep participant-written Assistants from reading any of this in the
-server's memory or files, run them [isolated](assistant.md#isolated-assistants).
-
 The page says when the opponent is another participant: the waiting messages, a person icon instead
 of a robot, and `opponent_kind` in the page state. This holds whatever `show_opponent_type` says. While
 paired, a participant cannot change their Assistant (it decides who fits whom). Where participants may
@@ -179,7 +170,6 @@ title: Arena
     "human_opponent_wait": 120,
     "human_opponent_fallback": true,
     "human_opponent_absent": 60,
-    "assistant_isolation": "process",
     "show_opponent_type": false
   }
 }
@@ -193,7 +183,23 @@ title: Arena
   choose between a person and an AI, and play with the inviter's Assistant.
 - Logged-in accounts play as many games as they like. After a game, *Next negotiation* starts another,
   and so does a new hand-off from the website.
-- `assistant_isolation: process` runs participant-written Assistants in a sandboxed worker process,
-  and refuses to run one where no sandbox is available (`assistant_sandbox` stays `required`).
 - `time_limit` (not `counted_time_limit`, which only Prolific and `?pid=` participants use) limits
   each game of a logged-in account; `n_required` and `end_text` do not apply to them.
+
+## Play against an invited agent
+
+When participants submit opponent agents rather than Assistants, an invitation lets someone play
+against the inviter's agent. The website writes a group file whose `agents` lists that one agent:
+
+```json title="results/groups/<key>.json"
+{"syspath": ["/srv/agents/unpacked"], "agents": ["a123.module.MyNegotiator"], "assistant": "none"}
+```
+
+and sends the person (logged in, or a [guest](authentication.md#guests)) to
+`/app?study=<project>/<study>&group=<key>`. The group's `agents` are then the whole opponent pool,
+so this agent is the opponent of every negotiation:
+
+- no pairing with people (the pool has no `human` entries) and no person/AI choice screen;
+- no other agent: no fallback, and the participant's opponent choice is not offered (`choose`
+  refuses it);
+- `"assistant": "none"` keeps the study's Assistant out; leave the key out to keep the study's own.

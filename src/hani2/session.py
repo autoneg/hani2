@@ -1010,14 +1010,7 @@ class NegotiationSession:
         self.add_tool(inst, pane=spec.pane, at_front=False, focus=False,
                       by=self._opponent_estimate_by or "system")
 
-    @property
-    def opponent_is_participant(self) -> bool:
-        """This round's opponent is another participant (paired, or waiting to be)."""
-        return self.__dict__.get("match") is not None or bool(self.ss.get("match_id"))
-
     def opponent_utility(self, outcome) -> float | None:
-        if self.opponent_is_participant:  # never another participant's preferences, whoever asks
-            return None
         u = self.opponent_ufun
         if outcome is None or u is None or any(v is None for v in outcome):
             return None
@@ -1030,7 +1023,7 @@ class NegotiationSession:
         """The opponent's preferences as plain data: issue weights and option values for a linear
         additive utility function, else its ``top`` best outcomes."""
         u = self.opponent_ufun
-        if u is None or self.opponent_is_participant:
+        if u is None:
             return {}
         out: dict[str, Any] = {"reserved_value": float(getattr(u, "reserved_value", 0.0) or 0.0)}
         weights, values = getattr(u, "weights", None), getattr(u, "values", None)
@@ -1721,7 +1714,8 @@ class NegotiationSession:
         if self.phase in ("running", "starting"):
             return
         settings = self.assistant_settings
-        if settings is None or not support_agent_enabled(settings, is_admin=self.is_admin):
+        if settings is None or (not support_agent_enabled(settings, is_admin=self.is_admin)
+                                and not assignment.group_assistant(self)):
             return
         try:
             choice = assignment.choose_assistant(self, settings, plan)
@@ -1734,13 +1728,7 @@ class NegotiationSession:
                 (self.support_agent is not None or self.assistant_error):
             cur.group, cur.source, cur.pool = choice.group, choice.source, choice.pool
             return
-        old = self.__dict__.get("support_agent")
         self.support_agent = create_support_agent_for(self, choice=choice, settings=settings)
-        if old is not None and old is not self.support_agent:
-            try:
-                old.shutdown()  # an isolated Assistant's worker process ends with it
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
         if self.support_agent is not None and self.autopilot_active:
             try:  # the new Assistant drives the autopilot like the old one did
                 from hani2.support_agent import autopilot as ap
@@ -1931,7 +1919,7 @@ class NegotiationSession:
 
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}
-        if self.chosen_opponent is not None:  # the human's own pick wins over the schedule
+        if self.chosen_opponent is not None and not self._group_fixes_opponents():  # the human's own pick wins over the schedule
             self.opponent_group = ""
             return self.chosen_opponent
         if plan.get("partner"):
@@ -2059,8 +2047,8 @@ class NegotiationSession:
         ``human``, the opponent is drawn now (into ``plan``) so the session can be paired as it loads.
         With ``human_opponents_first`` every round looks for a person first, of any human kind the
         pool lists (``plan["human_kinds"]``); the pool's AI opponents are the fallback."""
-        if self.chosen_opponent is not None:  # the human's own pick (hani2.choices offers no human entries)
-            return matches.is_human(self.chosen_opponent)
+        if self.chosen_opponent is not None and not self._group_fixes_opponents():
+            return matches.is_human(self.chosen_opponent)  # the human's own pick (hani2.choices offers no human entries)
         if self.admin_mode and self.next_opponent and plan.get("partner") is None:
             return matches.is_human(self.next_opponent)
         if self.human_opponents_first():
@@ -2079,6 +2067,12 @@ class NegotiationSession:
         plan["partner"] = random.choice(pool)
         plan.setdefault("opponent_group", self.opponent_group)
         return matches.is_human(plan["partner"])
+
+    def _group_fixes_opponents(self) -> bool:
+        """The page's group file names the opponents (an invitation to play its agent): no other pick."""
+        from hani2 import assignment
+
+        return not (self.is_admin and (self.query or {}).get("opponents")) and bool(assignment.group_agents(self))
 
     def _pref_on(self, key: str, default: bool = False) -> bool:
         v = self.admin_prefs.get(key, default)
@@ -2967,8 +2961,6 @@ class NegotiationSession:
             self.recorder.finish(row, summary)
         st = m.state
         agreement = st.agreement
-        if self.ss.get("match_id"):  # another participant: their utility stays in results.csv only
-            summary = {k: (None if k == "agent_utility" else v) for k, v in summary.items()}
         with self.lock:
             self.phase = "ended"
             self.result = dict(
@@ -3664,12 +3656,6 @@ class NegotiationSession:
             self._leave_match()
         except Exception:  # noqa: BLE001
             traceback.print_exc()
-        sa = self.__dict__.get("support_agent")
-        if sa is not None:
-            try:
-                sa.shutdown()
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
         self.study.close()
         if self.recorder is not None:
             self.recorder.close()

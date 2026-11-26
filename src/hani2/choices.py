@@ -109,6 +109,16 @@ def policy(session: "NegotiationSession") -> dict[str, bool | list[str]]:
     if out["scenario"] is False and bool((getattr(session, "admin_prefs", None) or {}).get("allow_scenario_selection")) \
             and getattr(getattr(session, "study", None), "KIND", "") not in ("prolific", "participant"):
         out["scenario"] = True
+    # a group file in the page's URL that names the Assistant (or the opponents) leaves no choice of it
+    from hani2 import assignment
+
+    try:
+        if out["assistant"] is not False and assignment.group_assistant(session):
+            out["assistant"] = False
+        if out["opponent"] is not False and assignment.group_agents(session):
+            out["opponent"] = False
+    except Exception:  # noqa: BLE001 - a broken group file must not break the page
+        pass
     return out
 
 
