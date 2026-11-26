@@ -42,6 +42,40 @@ __all__ = [
 # --------------------------------------------------------------------------- #
 # Preferences                                                                  #
 # --------------------------------------------------------------------------- #
+def _viewer_role(tool: Tool) -> str:
+    return str(tool.session_state.get("human_id", "")).replace(" (You)", "")
+
+
+def _may_see_hints(tool: Tool) -> bool:
+    """Hints are drawn from the preferences: only a viewer who knows all of them sees them."""
+    sess = tool.session_state.get("_session")
+    if sess is None:
+        return True
+    st = tool.information
+    viewer = sess.current_viewer() if hasattr(sess, "current_viewer") else "human"
+    return (st.assistant_prefs if viewer == "assistant" else st.human_prefs) == "full"
+
+
+def role_hints(tool: Tool) -> dict[str, str]:
+    """The scenario's hints for the participant's role, relabelled for display
+    (empty when the viewer may not see them)."""
+    s = tool.scenario
+    if s is None or not _may_see_hints(tool):
+        return {}
+    role = _viewer_role(tool)
+    hints_all = (s.info or {}).get("hints") or {}
+    hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
+    shown = getattr(tool.session, "relabel_text", lambda t: t)
+    return {shown(str(k)): shown(str(v)) for k, v in hints.items()} if isinstance(hints, dict) else {}
+
+
+def _help_split(comps: list[ui.Component]) -> tuple[list[ui.Component], list[ui.Component]]:
+    """The view's components and its trailing (collapsed) help card."""
+    if comps and comps[-1].get("type") == "card" and comps[-1].get("title") == "How your preferences work":
+        return comps[:-1], comps[-1:]
+    return comps, []
+
+
 def preference_view(tool: Tool, ufun, *, title_prefix: str = "", help_card: bool = True) -> list[ui.Component]:
     """The preferences of ``ufun``, rendered by the view registered for its type (see :mod:`hani2.tools.ufun_views`)."""
     return render_ufun_view(tool, ufun, title_prefix=title_prefix, help_card=help_card)
@@ -54,9 +88,13 @@ class PreferencesTool(Tool):
     help = """
     **What it shows.** How much every possible deal is worth to *you*, from 0% (worst) to 100% (best).
 
+    - **In short**: your preferences in two or three sentences (always shown).
     - **Issue weights** (donut): how important each issue is; the weights add up to 100%.
     - **Value of each option** (bars): pick an issue to see what each of its options is worth to you.
-    - **Value on disagreement**: what you get if the negotiation ends without a deal.
+    - **Value on disagreement**: one sentence under the charts, e.g. "If you do not reach agreement
+      you get 10% (your best option gives you 100%)".
+    - **Hints**: the hints of your role and, for every issue, what you want in plain words
+      ("the lower, the better", "best at 5 days").
 
     **How it works.** A deal's value is the weighted sum of its options' values:
     weight₁ × value₁ + weight₂ × value₂ + … A deal worth less than your value on
@@ -83,11 +121,52 @@ class PreferencesTool(Tool):
         if not st.human_sees_reserved:
             rv_hint = "You do not know it; your Assistant does" if st.assistant_sees_reserved else "You do not know it"
         if st.human_prefs == "full":
-            return render_ufun_view(self, self.human_ufun, reserved_hint=rv_hint)
+            return self._full_view(rv_hint)
         from hani2.tools.ufun_views import partial_preference_view
 
         holder = "your Assistant" if st.assistant_prefs != "none" else "nobody"
         return partial_preference_view(self, self.human_ufun, st.human_prefs, reserved_hint=rv_hint, other_holder=holder)
+
+
+    def _full_view(self, rv_hint: str | None) -> list[ui.Component]:
+        from hani2.tools.ufun_views import issue_explanations, preference_summary
+
+        ufun = self.human_ufun
+        comps = render_ufun_view(self, ufun, reserved_hint=rv_hint)
+        if ufun is None:
+            return comps
+        body, help_ = _help_split(comps)
+        out: list[ui.Component] = []
+        summary = _safe(lambda: preference_summary(ufun))
+        if summary:
+            out.append(ui.card(ui.markdown(summary, size="sm"), title="In short"))
+        out += body
+        hints = role_hints(self)
+        s = self.scenario
+        lines = _safe(lambda: issue_explanations(
+            ufun, (s.info if s is not None else None) or {},
+            roles=[str(u.name) for u in (s.ufuns if s is not None else ())])) or []
+        if not _may_see_hints(self):
+            lines = []
+        shown = getattr(self.session, "relabel_text", lambda t: t)
+        if hints or lines:
+            parts = []
+            if hints:
+                parts.append(ui.kv(hints))
+            if lines:
+                parts.append(ui.kv([(shown(n), shown(t)) for n, t in lines], title="What you want on each issue"))
+            out.append(ui.card(*parts, title="Hints"))
+        return out + help_
+
+
+def _safe(fn):
+    try:
+        return fn()
+    except Exception:  # noqa: BLE001 - a hint must never break the view
+        import traceback
+
+        traceback.print_exc()
+        return None
 
 
 class OpponentPreferencesTool(Tool):
@@ -108,8 +187,6 @@ class OpponentPreferencesTool(Tool):
     order = 50
 
     def view(self):
-        if self.opponent_is_participant:
-            return [ui.alert("The opponent is another participant: their preferences are private.", "neutral")]
         return [ui.alert("Only visible to administrators.", "warning"),
                 *preference_view(self, self.agent_ufun, title_prefix="Opponent ", help_card=False)]
 
@@ -128,12 +205,7 @@ PICTURE_STYLE_NAMES = set(PICTURE_STYLES.values())
 
 class ScenarioInfoTool(Tool):
     def _may_see_hints(self) -> bool:
-        sess = self.session_state.get("_session")
-        if sess is None:
-            return True
-        st = self.information
-        viewer = sess.current_viewer() if hasattr(sess, "current_viewer") else "human"
-        return (st.assistant_prefs if viewer == "assistant" else st.human_prefs) == "full"
+        return _may_see_hints(self)
 
     name = "Scenario Info"
     groups = ("information",)
@@ -212,12 +284,9 @@ class ScenarioInfoTool(Tool):
                 comps.append(table)
         else:
             comps.extend(c for c in (story, table) if c)
-        hints_all = info.get("hints") or {}
-        hints = next((v for k, v in hints_all.items() if str(k).lower() == role.lower()), None) or {}
-        if hints and not self._may_see_hints():
-            hints = {}  # hints come from the preferences; this viewer knows only part of them
+        hints = role_hints(self)  # empty when this viewer knows only part of the preferences
         if hints:
-            comps.append(ui.kv({shown(str(k)): shown(str(v)) for k, v in hints.items()}, title="Hints"))
+            comps.append(ui.kv(hints, title="Hints"))
         if info.get("long_description"):
             opened = bool(prefs.get("open_scenario_description", False))
             loaded = self.session_state.get("load_at_dt")
@@ -757,9 +826,7 @@ class UserResultsTool(Tool):
     def view(self):
         from hani2.results import read_user_results
 
-        from hani2.results import own_view
-
-        return _results_view(self, own_view(read_user_results(self.session_state["user"])), leaderboard=False)
+        return _results_view(self, read_user_results(self.session_state["user"]), leaderboard=False)
 
 
 class AllResultsTool(Tool):

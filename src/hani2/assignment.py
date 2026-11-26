@@ -315,6 +315,36 @@ def _items(raw: Any) -> list[str]:
     return [str(raw).strip()]
 
 
+def group_file(session: Any):
+    """The group file the page's ``?group=`` names (``None``: none, or an admin's ``?assistants=`` wins)."""
+    q = getattr(session, "query", None) or {}
+    gkey = _query_val(q, "group")
+    if not gkey:
+        return None
+    return groups.find_file(groups.OPPONENT, gkey, getattr(session, "study_ref", None))
+
+
+def group_assistant(session: Any) -> str | None:
+    """The Assistant the page's group file names (a spec, or ``none``), else ``None``. It always wins:
+    over the study's pool, its scheduling and balance, the participant's own pick and the settings'
+    on/off switch (an invitation plays with exactly the inviter's Assistant)."""
+    if getattr(session, "is_admin", False) and _items(_query_val(getattr(session, "query", None) or {},
+                                                                  "assistants", "assistant")):
+        return None
+    g = group_file(session)
+    if g is None or g.error or not g.assistant:
+        return None
+    items = _items(g.assistant)
+    return items[0] if len(items) == 1 else None
+
+
+def group_agents(session: Any) -> list[str]:
+    """The opponents the page's group file names (``[]``: none). They are the whole opponent pool:
+    the participant cannot pick another one."""
+    g = group_file(session)
+    return list(g.members) if g is not None and not g.error else []
+
+
 def _group_of(items: list[str]) -> str:
     """The group name when a level names exactly one group token."""
     if len(items) == 1 and items[0].startswith((":", "@")):
@@ -431,6 +461,10 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
     """The Assistant this session should run now (pool + fixed, balanced pick)."""
     from hani2 import scheduling
 
+    fixed = group_assistant(session)
+    if fixed:  # the group file's Assistant (an invitation, a test link): nothing replaces it
+        return AssistantChoice(spec=fixed, group=_query_val(session.query or {}, "group").lstrip(":"),
+                               source="group", pool=[fixed])
     chosen = (getattr(session, "__dict__", None) or {}).get("chosen_assistant")
     if chosen:  # the human's own pick for this negotiation (see hani2.choices): used as given, not recorded
         return AssistantChoice(spec=str(chosen), source="user", pool=[str(chosen)], scheduling="user")

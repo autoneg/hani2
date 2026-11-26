@@ -11,6 +11,7 @@ from negmas import (
     Scenario,
 )
 from hani2.config import DEFAULT_SCENRIOS, INFO_FILE_NAME
+from . import simple
 from hani2.display import OfferContext, OfferDisplay
 from .common import IntRange, float_in, int_in, FloatRange
 
@@ -134,7 +135,7 @@ def make_grocery_scenario(
     info["hints"]["human"]["Most Important Item"] = best["human"]
     info["hints"]["human"]["Least Important Item"] = worst["human"]
     scenario = Scenario(outcome_space=os, ufuns=tuple(ufuns), info=info)
-    return scenario
+    return simple.simplify_scenario(scenario) if simple.active() else scenario
 
 
 class GroceryOutcomeDisplay(OfferDisplay):

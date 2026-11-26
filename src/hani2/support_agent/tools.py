@@ -912,7 +912,8 @@ class ToolDispatcher:
         return _fn(
             "set_interface",
             "Adjust the participant's interface when they ask. prefs: their display settings, any "
-            "of show_history (false: only the latest offer), show_human_offers, last_offer_on_top, "
+            "of show_history (false: only the latest offer), show_human_offers, color_utility_by_issue "
+            "(utility bars split into one coloured segment per issue), last_offer_on_top, "
             "offer_panel_always_visible, offer_display ('text' | 'table'), font_scale (0.7-1.6), "
             "show_scenario_picture, scenario_picture_style ('small' | 'large' | 'watermark'). "
             "custom_css: a style sheet added to the page (replaces the previous one; '' removes "

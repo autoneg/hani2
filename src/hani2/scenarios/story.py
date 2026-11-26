@@ -37,6 +37,8 @@ from negmas.preferences.value_fun import TableFun
 from hani2.display import OfferContext, OfferDisplay
 from hani2.tools import ui
 
+from . import simple as _simple
+
 __all__ = [
     "Issue",
     "Side",
@@ -215,6 +217,8 @@ def up(values: Sequence[Any], rng: Rng, curve: tuple[float, float] = (0.6, 1.8))
     top options really count)."""
     n = len(values)
     e = rng.uniform(*curve)
+    if _simple.active():  # simple scenarios: every step is worth the same
+        e = 1.0
     return {v: (i / (n - 1)) ** e if n > 1 else 1.0 for i, v in enumerate(values)}
 
 
@@ -232,6 +236,9 @@ def peak(values: Sequence[Any], at: int, rng: Rng, below: tuple[float, float] = 
     at = max(0, min(n - 1, at))
     out = [0.0] * n
     out[at] = 1.0
+    if _simple.active():  # simple scenarios: a symmetric triangle around the best option
+        span = max(at, n - 1 - at) or 1
+        return {v: 1.0 - abs(i - at) / span for i, v in enumerate(values)}
     for i in range(at - 1, -1, -1):
         out[i] = max(0.0, out[i + 1] - rng.uniform(*below))
     for i in range(at + 1, n):
@@ -241,18 +248,24 @@ def peak(values: Sequence[Any], at: int, rng: Rng, below: tuple[float, float] = 
 
 def scores(values: Sequence[Any], base: Sequence[float], rng: Rng, noise: float = 0.1) -> dict[Any, float]:
     """Given scores per option, with a little noise so no two draws are equal."""
+    if _simple.active():
+        noise = 0.0
     return {v: max(0.0, b + rng.uniform(-noise, noise)) for v, b in zip(values, base)}
 
 
 def taste(values: Sequence[Any], rng: Rng, favourite: Any = None) -> dict[Any, float]:
     """A random taste over unordered options (``favourite`` scores highest)."""
     out = {v: rng.random() for v in values}
+    if _simple.active():  # simple scenarios: tastes on a coarse grid
+        out = {v: float(rng.randint(0, 10)) for v in values}
     if favourite is not None:
         out[favourite] = max(out.values()) + 0.3
     return out
 
 
 def jitter(d: dict[Any, float], rng: Rng, noise: float = 0.1) -> dict[Any, float]:
+    if _simple.active():
+        return dict(d)
     return {k: max(0.0, v + rng.uniform(-noise, noise)) for k, v in d.items()}
 
 
@@ -266,6 +279,8 @@ def weights(rng: Rng, **ranges: tuple[float, float]) -> dict[str, float]:
 # Building the scenario                                                       #
 # --------------------------------------------------------------------------- #
 def _rescale(d: dict[Any, float]) -> dict[Any, float]:
+    if _simple.active():
+        return _simple.snap_values(d)
     lo, hi = min(d.values()), max(d.values())
     if hi - lo < 1e-9:
         return {k: 1.0 for k in d}
@@ -287,6 +302,8 @@ def _draw(story: Story, rng: Rng):
             raise ValueError(f"{story.type}/{role}: no preferences for {missing}")
         total = sum(max(0.0, side.weights[i.name]) for i in issues) or 1.0
         ws = tuple(max(0.0, side.weights[i.name]) / total for i in issues)
+        if _simple.active():
+            ws = tuple(_simple.snap_weights(ws))
         tables = []
         for i in issues:
             vals = side.values[i.name]
@@ -296,10 +313,15 @@ def _draw(story: Story, rng: Rng):
                                  f"scenario are {list(i.values)}, the role function scored {list(vals)})")
             tables.append(TableFun(_rescale({v: float(vals[v]) for v in i.values})))
         ufuns.append(LinearAdditiveUtilityFunction(
-            tuple(tables), weights=ws, reserved_value=round(rng.uniform(*story.reserved), 4),
+            tuple(tables), weights=ws, reserved_value=_reserved_draw(story, rng),
             name=role, id=role, outcome_space=os))
         sides[role] = side
     return ctx, issues, os, ufuns, sides
+
+
+def _reserved_draw(story: Story, rng: Rng) -> float:
+    r = rng.uniform(*story.reserved)
+    return _simple.snap_reserved(r) if _simple.active() else round(r, 4)
 
 
 def _opposition(os, ufuns) -> float:
@@ -431,7 +453,10 @@ def make_story_scenario(story: Story, index: int = 0, rng: Rng | None = None) ->
             best = (dist, issues, os, ufuns, sides)
     assert best is not None
     _, issues, os, ufuns, sides = best
-    return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=_info(story, issues, sides, ufuns, os))
+    info = _info(story, issues, sides, ufuns, os)
+    if _simple.active():
+        info[_simple.SIMPLE_KEY] = True
+    return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=info)
 
 
 # --------------------------------------------------------------------------- #

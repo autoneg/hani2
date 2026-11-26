@@ -375,26 +375,6 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
 # --------------------------------------------------------------------------- #
 # Reading                                                                      #
 # --------------------------------------------------------------------------- #
-#: columns about the other side of a negotiation with another participant (hani2.matches): kept in
-#: results.csv for analysis, never shown to the participant
-OTHER_SIDE_COLUMNS = ("agent_utility", "welfare", "nash_optimality", "kalai_optimality", "pareto_optimality",
-                      "max_welfare_optimality", "opponent_user", "match_id", "agent_ufun", "agent_reserved_value")
-
-
-def own_view(df: pd.DataFrame) -> pd.DataFrame:
-    """A participant's own results without anything about another participant they negotiated with:
-    the ``match_id`` / ``opponent_user`` columns go, and the other side's values are blanked in those rows."""
-    if df is None or len(df) == 0 or "match_id" not in df.columns:
-        return df
-    df = df.copy()
-    human = df["match_id"].fillna("").astype(str).str.strip() != ""
-    for c in df.columns:
-        if c in OTHER_SIDE_COLUMNS or c.startswith(("agent_utility", "opponent_")) and c != "opponent_kind":
-            df[c] = df[c].astype(object)
-            df.loc[human, c] = None
-    return df.drop(columns=[c for c in ("match_id", "opponent_user") if c in df.columns])
-
-
 def read_user_results(user: str) -> pd.DataFrame:
     f = results_root() / user / "results.csv"
     if not f.is_file():

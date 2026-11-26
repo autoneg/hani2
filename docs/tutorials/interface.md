@@ -130,7 +130,7 @@ self.set_interface(custom_css="")                # remove the style sheet
 ```
 
 `prefs` takes the settings of the participant's **My settings** drawer: `show_history`,
-`show_human_offers`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`,
+`show_human_offers`, `color_utility_by_issue`, `last_offer_on_top`, `offer_panel_always_visible`, `offer_display`,
 `font_scale` (0.7 to 1.6), `show_scenario_picture` and `scenario_picture_style`.
 
 The style sheet can target `[data-region=header]`, `[data-region=dock]`, `[data-region=tools]`,

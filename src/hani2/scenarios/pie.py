@@ -11,6 +11,7 @@ module only holds the functions that draw each role's preferences.
 
 from __future__ import annotations
 
+from . import simple
 from .story import Side, Story, down, peak, scores, up, weights
 
 
@@ -79,7 +80,8 @@ EXCLUSIVITY = ["Non-exclusive", "Exclusive in one region", "Worldwide exclusive"
 
 
 def _license_setup(rng):
-    return {"p_inventor": round(rng.uniform(0.5, 0.85), 2), "p_firm": round(rng.uniform(0.1, 0.4), 2)}
+    step = 0.1 if simple.active() else 0.01  # simple scenarios: round estimates
+    return {"p_inventor": simple.snap(rng.uniform(0.5, 0.85), step), "p_firm": simple.snap(rng.uniform(0.1, 0.4), step)}
 
 
 def _inventor(rng, ctx):

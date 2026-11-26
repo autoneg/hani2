@@ -69,6 +69,9 @@ USER_PREFS: dict[str, Any] = {
     "open_scenario_description": False,
     # how the picture is shown: small | large | watermark (None: the scenario's picture_style, else small)
     "scenario_picture_style": None,
+    # colour the utility bars by issue: each issue's share of the utility, most important first
+    # (linear additive preferences only; needs the participant to know their utilities and weights)
+    "color_utility_by_issue": False,
 }
 
 #: What a participant may adjust in their own settings (env.json → interface.participant_settings,
@@ -76,6 +79,8 @@ USER_PREFS: dict[str, Any] = {
 PARTICIPANT_SETTINGS: dict[str, tuple[str, str]] = {
     "show_history": ("Show the whole history", "Off: only the latest offer stays visible"),
     "show_human_offers": ("Show my offers in the history", ""),
+    "color_utility_by_issue": ("Colour the utility bars by issue",
+                               "Each issue's share of the value, most important first (additive preferences only)"),
     "last_offer_on_top": ("Newest offer on top", ""),
     "offer_panel_always_visible": ("Keep the offer editor open", ""),
     "offer_display": ("Offers shown as sentences or issue chips", ""),
@@ -152,6 +157,9 @@ ADMIN_PREFS: dict[str, Any] = {
     "allow_moving_tools": True,
     "load_existing": True,
     "generate_on_failure": True,
+    # Generate simple scenarios (round numbers, linear and symmetric preferences); a project or
+    # study setting `simple_scenarios` wins over this global default (see hani2.scenarios.simple).
+    "simple_scenarios": True,
     "predefined_order": True,
     "allow_scenario_selection": False,
     # The scenario set to use (None: HANI2_SCENARIO_SET, then the default set).
@@ -732,9 +740,10 @@ class NegotiationSession:
 
     def _shown_history(self) -> list[dict[str, Any]]:
         """The history as the human may see it (no deal values when they may not know them)."""
-        if self.sees_totals("human"):
+        if self.shows_utility_parts():
             return list(self.history)
-        return [{k: v for k, v in h.items() if k not in ("utility", "below_reserved")} for h in self.history]
+        hide = ("utility_parts",) if self.sees_totals("human") else ("utility", "below_reserved", "utility_parts")
+        return [{k: v for k, v in h.items() if k not in hide} for h in self.history]
 
     def tool_available(self, tool) -> bool:
         """Whether ``tool`` is offered this round (a tool can depend on the information split)."""
@@ -795,6 +804,46 @@ class NegotiationSession:
             return float(self.human_ufun(tuple(outcome)))
         except Exception:
             return None
+
+    # ------------------------------------------------------------------ #
+    # The utility issue by issue (the colour-coded utility bars)           #
+    # ------------------------------------------------------------------ #
+    def utility_issue_order(self) -> list[str] | None:
+        """The issues of the human's linear additive utility function, most important (largest
+        weight) first (ties in issue order), or ``None`` when it is not additive."""
+        u = self.human_ufun
+        if u is None or not information.is_additive(u):
+            return None
+        names = [str(i.name) for i in u.outcome_space.issues]  # type: ignore[union-attr]
+        ws = [float(w) for w in u.weights]
+        return [names[k] for k in sorted(range(len(names)), key=lambda k: (-ws[k], k))]
+
+    def utility_parts(self, outcome) -> list[float] | None:
+        """What each issue adds to the human's utility of ``outcome`` (weight x option value), in
+        :meth:`utility_issue_order`; ``None`` when the utility is not a plain weighted sum of
+        non-negative parts (not additive, a bias, a negative or missing value)."""
+        u = self.human_ufun
+        if outcome is None or u is None or not information.is_additive(u):
+            return None
+        try:
+            outcome = tuple(outcome)
+            raw = [float(w) * float(fn(x)) for x, w, fn in zip(outcome, u.weights, u.values)]
+            total = float(u(outcome))
+        except Exception:  # noqa: BLE001
+            return None
+        if any(not math.isfinite(v) or v < -1e-9 for v in raw) or abs(sum(raw) - total) > 1e-6:
+            return None
+        ws = [float(w) for w in u.weights]
+        order = sorted(range(len(raw)), key=lambda k: (-ws[k], k))
+        return [round(max(0.0, raw[k]), 6) for k in order]
+
+    def shows_utility_parts(self) -> bool:
+        """Whether the human may see their utility issue by issue: they see the totals and know
+        their whole preferences (the parts reveal the weights)."""
+        return self.sees_totals("human") and self.information.human_prefs == "full"
+
+    def shown_utility_parts(self, outcome) -> list[float] | None:
+        return self.utility_parts(outcome) if self.shows_utility_parts() else None
 
     # ------------------------------------------------------------------ #
     # The opponent's utility (the Assistant's ``opponent_utility`` oracle) #
@@ -1018,14 +1067,7 @@ class NegotiationSession:
         self.add_tool(inst, pane=spec.pane, at_front=False, focus=False,
                       by=self._opponent_estimate_by or "system")
 
-    @property
-    def opponent_is_participant(self) -> bool:
-        """This round's opponent is another participant (paired, or waiting to be)."""
-        return self.__dict__.get("match") is not None or bool(self.ss.get("match_id"))
-
     def opponent_utility(self, outcome) -> float | None:
-        if self.opponent_is_participant:  # never another participant's preferences, whoever asks
-            return None
         u = self.opponent_ufun
         if outcome is None or u is None or any(v is None for v in outcome):
             return None
@@ -1038,7 +1080,7 @@ class NegotiationSession:
         """The opponent's preferences as plain data: issue weights and option values for a linear
         additive utility function, else its ``top`` best outcomes."""
         u = self.opponent_ufun
-        if u is None or self.opponent_is_participant:
+        if u is None:
             return {}
         out: dict[str, Any] = {"reserved_value": float(getattr(u, "reserved_value", 0.0) or 0.0)}
         weights, values = getattr(u, "weights", None), getattr(u, "values", None)
@@ -1368,6 +1410,7 @@ class NegotiationSession:
     def push_draft(self, by_agent: bool = False) -> None:
         """Send the draft (and the custom controls drawn from it) to the browser."""
         self.emit({"type": "draft", "draft": self.draft, "utility": self.shown_utility(self.draft_outcome(), "human"),
+                   "utility_parts": self.shown_utility_parts(self.draft_outcome()),
                    "controls": self.draft_controls(), "by_agent": by_agent})
 
     # ------------------------------------------------------------------ #
@@ -1629,6 +1672,8 @@ class NegotiationSession:
                         generate_on_failure=bool(self.admin_prefs.get("generate_on_failure", True)),
                         name=plan.get("name"),
                         strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
+                        simple_mode=store.simple_scenarios(self.study_ref,
+                                                           self.admin_prefs.get("simple_scenarios", True)),
                     )
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
@@ -1734,7 +1779,8 @@ class NegotiationSession:
         if self.phase in ("running", "starting"):
             return
         settings = self.assistant_settings
-        if settings is None or not support_agent_enabled(settings, is_admin=self.is_admin):
+        if settings is None or (not support_agent_enabled(settings, is_admin=self.is_admin)
+                                and not assignment.group_assistant(self)):
             return
         try:
             choice = assignment.choose_assistant(self, settings, plan)
@@ -1747,13 +1793,7 @@ class NegotiationSession:
                 (self.support_agent is not None or self.assistant_error):
             cur.group, cur.source, cur.pool = choice.group, choice.source, choice.pool
             return
-        old = self.__dict__.get("support_agent")
         self.support_agent = create_support_agent_for(self, choice=choice, settings=settings)
-        if old is not None and old is not self.support_agent:
-            try:
-                old.shutdown()  # an isolated Assistant's worker process ends with it
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
         if self.support_agent is not None and self.autopilot_active:
             try:  # the new Assistant drives the autopilot like the old one did
                 from hani2.support_agent import autopilot as ap
@@ -1944,7 +1984,7 @@ class NegotiationSession:
 
     def choose_partner(self) -> str:
         plan = getattr(self, "round_plan", {}) or {}
-        if self.chosen_opponent is not None:  # the human's own pick wins over the schedule
+        if self.chosen_opponent is not None and not self._group_fixes_opponents():  # the human's own pick wins over the schedule
             self.opponent_group = ""
             return self.chosen_opponent
         if plan.get("partner"):
@@ -2072,8 +2112,8 @@ class NegotiationSession:
         ``human``, the opponent is drawn now (into ``plan``) so the session can be paired as it loads.
         With ``human_opponents_first`` every round looks for a person first, of any human kind the
         pool lists (``plan["human_kinds"]``); the pool's AI opponents are the fallback."""
-        if self.chosen_opponent is not None:  # the human's own pick (hani2.choices offers no human entries)
-            return matches.is_human(self.chosen_opponent)
+        if self.chosen_opponent is not None and not self._group_fixes_opponents():
+            return matches.is_human(self.chosen_opponent)  # the human's own pick (hani2.choices offers no human entries)
         if self.admin_mode and self.next_opponent and plan.get("partner") is None:
             return matches.is_human(self.next_opponent)
         if self.human_opponents_first():
@@ -2092,6 +2132,12 @@ class NegotiationSession:
         plan["partner"] = random.choice(pool)
         plan.setdefault("opponent_group", self.opponent_group)
         return matches.is_human(plan["partner"])
+
+    def _group_fixes_opponents(self) -> bool:
+        """The page's group file names the opponents (an invitation to play its agent): no other pick."""
+        from hani2 import assignment
+
+        return not (self.is_admin and (self.query or {}).get("opponents")) and bool(assignment.group_agents(self))
 
     def _pref_on(self, key: str, default: bool = False) -> bool:
         v = self.admin_prefs.get(key, default)
@@ -2505,6 +2551,7 @@ class NegotiationSession:
                     text=self._shown_text(text, data, by_human),
                     data=extra or None,
                     utility=util,
+                    utility_parts=self.utility_parts(offer),
                     below_reserved=(util is not None and util < self.reserved_value()),
                     step=int(step) if step is not None else None,
                     relative_time=float(rel) if rel is not None else None,
@@ -2740,6 +2787,7 @@ class NegotiationSession:
                 applied[issue.name] = ui.jsonable(v)
         util = self.utility(self.draft_outcome())
         self.emit({"type": "draft", "draft": self.draft, "utility": util if self.sees_totals("human") else None,
+                   "utility_parts": self.shown_utility_parts(self.draft_outcome()),
                    "controls": self.draft_controls(),
                    "by_agent": by_agent})
         if self.recorder is not None and applied:
@@ -2980,8 +3028,6 @@ class NegotiationSession:
             self.recorder.finish(row, summary)
         st = m.state
         agreement = st.agreement
-        if self.ss.get("match_id"):  # another participant: their utility stays in results.csv only
-            summary = {k: (None if k == "agent_utility" else v) for k, v in summary.items()}
         with self.lock:
             self.phase = "ended"
             self.result = dict(
@@ -2991,6 +3037,7 @@ class NegotiationSession:
                 step=st.step,
                 relative_time=st.relative_time,
                 reserved_value=self.reserved_value(),
+                utility_parts=self.utility_parts(agreement),
             )
             if agreement is not None:
                 msg = f"Agreement reached: {self.result['agreement_str']}"
@@ -3135,7 +3182,8 @@ class NegotiationSession:
             "relative_time": getattr(st, "relative_time", None),
             "time_left": max(0.0, self.deadline - time.time()) if self.deadline else None,
             "history": history,
-            "result": self.result,
+            # the issue-by-issue parts reveal the weights: not in the Assistant's view
+            "result": None if self.result is None else {k: v for k, v in self.result.items() if k != "utility_parts"},
             "tools": [t.name for t in self.tools if self.tool_available(t)],
             **({"information": self._information_note(audience)} if self.information.split else {}),
             **({"names": "Values are shown with these names: "
@@ -3562,15 +3610,21 @@ class NegotiationSession:
                 if partner is None
                 else dict(values=self.outcome_to_dict(partner), text=self.relabel_text(self.outcome_str(partner)),
                           utility=self.shown_utility(partner, "human"), view=self.offer_view("table", partner),
+                          utility_parts=self.shown_utility_parts(partner),
                           message=(pdata or {}).get("text") if isinstance(pdata, dict) else None),
                 "reserved_value": self.shown_reserved_value("human"),
                 "information": self._information_client_state(),
                 "draft": dict(values=dict(self.draft), text=self.draft_text,
                               utility=self.shown_utility(draft_t, "human")
                               if draft_t and all(v is not None for v in draft_t) else None,
+                              utility_parts=self.shown_utility_parts(draft_t)
+                              if draft_t and all(v is not None for v in draft_t) else None,
                               controls=self.draft_controls()),
                 "result": None if self.result is None else {
-                    **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str"))},
+                    **self.result, "agreement_str": self.relabel_text(self.result.get("agreement_str")),
+                    "utility_parts": self.result.get("utility_parts") if self.shows_utility_parts() else None},
+                # the issues of the colour-coded utility bars, most important first
+                "utility_issues": self.utility_issue_order() if self.shows_utility_parts() else None,
                 "history": self._shown_history(),  # a copy: the list grows while the state is sent
                 "tools": tools,
                 "active_tabs": dict(self.active_tabs),
@@ -3677,12 +3731,6 @@ class NegotiationSession:
             self._leave_match()
         except Exception:  # noqa: BLE001
             traceback.print_exc()
-        sa = self.__dict__.get("support_agent")
-        if sa is not None:
-            try:
-                sa.shutdown()
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
         self.study.close()
         if self.recorder is not None:
             self.recorder.close()

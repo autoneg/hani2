@@ -204,7 +204,7 @@ export const useStore = create<Store>((set, get) => ({
               ? {
                   state: {
                     ...s.state,
-                    draft: { ...s.state.draft, values: msg.draft, utility: msg.utility, ...("controls" in msg ? { controls: msg.controls } : {}) },
+                    draft: { ...s.state.draft, values: msg.draft, utility: msg.utility, utility_parts: msg.utility_parts ?? null, ...("controls" in msg ? { controls: msg.controls } : {}) },
                   },
                 }
               : {},

@@ -249,7 +249,7 @@ def test_human_full_assistant_values_keeps_hints_from_the_assistant():
 def test_reserved_value_to_the_assistant_only():
     s = session_with({"preferences": {"reserved_value": "assistant"}})
     assert s.snapshot()["reserved_value"] is None
-    assert "Unknown" in dump(render(s, "Preferences"))
+    assert "You do not know what you get" in dump(render(s, "Preferences"))
     assert s.context()["reserved_value"] is not None
     assert "participant_value_on_disagreement" in s.support_agent.private_information()
 
@@ -481,10 +481,9 @@ def test_briefing_redirected_to_the_assistant():
 
 
 def test_scenario_briefing_from_info_yaml(hani2_home):
-    from hani2.scenario_store import save_scenario, write_info
-    from hani2.scenarios import registry
+    from hani2.scenario_store import make_scenario, save_scenario, write_info
 
-    sc = registry.MAKERS["Lease"](0)
+    sc = make_scenario("Lease", 0, simple_mode=True)  # served: simple scenarios are the default
     folder = hani2_home / "settings" / "scenarios" / "Lease" / "0000Lease"
     save_scenario(sc, folder)
     sc.info["briefing"] = {"Tenant": {"text": "Your partner insists on a 1 year lease.",
@@ -599,3 +598,18 @@ def test_role_named_human_is_a_role():
     sc2.info["briefing"] = {"assistant": "only for the Assistant"}  # not a role of Lease: an audience
     st = info.build_state(sc2, human_index=1, settings={})
     assert st.briefings[0]["to"] == "assistant"
+
+
+def test_preferences_summary_and_hints():
+    s = session_with({}, scenario="Lease")
+    view = render(s, "Preferences")
+    t = titles(view)
+    assert t[0] == "In short" and "Hints" in t
+    assert "What you want on each issue" in dump(view)
+    assert "If you do not reach agreement you get" in dump(view)
+
+
+def test_partial_preferences_show_no_hints():
+    s = session_with({"preferences": {"human": "weights", "assistant": "values"}}, scenario="Lease")
+    t = titles(render(s, "Preferences"))
+    assert "Hints" not in t and "In short" not in t

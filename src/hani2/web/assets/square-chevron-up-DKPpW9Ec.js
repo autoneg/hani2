@@ -1,0 +1,1 @@
+import{c as a}from"./index-b5LEevyu.js";const e={name:"square-chevron-up",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m8 14 4-4 4 4",key:"fy2ptz"}]],aliases:["chevron-up-square"]};e.node;const o=a(e);export{e as __iconData,o as default};

@@ -186,6 +186,7 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer }: { titl
         <Select label="Scenario set" value={v.scenario_set ?? ""} onChange={(x) => put("scenario_set", x)} options={[{ value: "", label: inherit }, ...sets]} />
       </Row>
       <Row label="Strict scenarios" hint="strict_scenarios: serve saved scenarios only; a missing or broken pool is an error, never a generated scenario">{tri("strict_scenarios")}</Row>
+      <Row label="Simple scenarios" hint="simple_scenarios: generate scenarios with round numbers and linear or symmetric preferences, and serve only saved scenarios generated that way">{tri("simple_scenarios")}</Row>
       <Row label="Counted negotiations" hint="n_required: negotiations per participant">{num("n_required")}</Row>
       <Row label="Practice round" hint="A first negotiation that does not count">{tri("practice")}</Row>
       <Row label="Practice time limit (s)">{num("practice_time_limit", 30)}</Row>

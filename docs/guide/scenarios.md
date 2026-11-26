@@ -77,6 +77,26 @@ In a strict study HANI2 serves saved scenarios only:
 
 It is off by default. A study can turn it off again for itself (`strict_scenarios: false` in `study.yaml`, for example in a practice study), and admins set it in the console under *Projects* (*Strict scenarios*: inherit, yes or no). It is a project and study setting only: the per-session admin settings cannot switch it off. Before you open a strict study, run `hani2 sets` (inside the study, `HANI2_STUDY=project/study hani2 sets`): it prints how many saved scenarios each type has and flags the types a strict study cannot serve. `hani2 scenario check` then checks that each of them loads.
 
+### Simple scenarios
+
+Generated scenarios are **simple** by default, so that preferences are as easy to understand as possible:
+
+- every option's value is a multiple of 5% (a linear issue with five options reads 0%, 25%, 50%, 75%, 100%), never 34.6%;
+- issue weights are multiples of 10% that add up to 100% (5% with more than ten issues), none of them zero;
+- the value on disagreement is a multiple of 5%;
+- "more is better" and "less is better" issues are linear, and an issue whose best option lies in the middle falls off at the same rate on both sides (a symmetric triangle);
+- the random noise generators add is switched off, and drawn facts in hints (an estimate, points per item) are rounded too.
+
+A scenario generated this way is marked `simple: true` in its `_info.yaml`. While the setting is on, a pool serves only its scenarios marked simple; when it has none, HANI2 generates a simple scenario instead. Saved scenarios are never changed when they are served. A [strict](#strict-scenarios) study serves its saved set either way: if the pool has simple scenarios only those are used, otherwise the whole pool as it is saved.
+
+Switch it off globally in the console (*Settings* → *Scenarios and opponents* → *Simple scenarios*, `negotiation.simple_scenarios` in `env.json`), for a project (`project.yaml`) or for one study (`study.yaml`); a study wins over its project and the project over the global setting. Admins set the project and study values under *Projects* (*Simple scenarios*: inherit, yes or no).
+
+```yaml title="projects/Pilot/study-a/study.yaml"
+simple_scenarios: false   # the original, finer-grained preferences
+```
+
+`hani2 generate` follows the same setting (`--simple` / `--no-simple` override it). It keeps existing slots, so pass `--force` to regenerate an old pool as simple scenarios. In code, `with hani2.scenarios.simple.simple_mode(): ...` generates simple scenarios and `simplify_scenario(s)` simplifies any linear-additive scenario.
+
 The [Prolific](prolific.md) study has its own rules for the type and slot.
 
 ## Scenario sets

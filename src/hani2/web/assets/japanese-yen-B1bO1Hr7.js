@@ -1,0 +1,1 @@
+import{c as a}from"./index-b5LEevyu.js";const e={name:"japanese-yen",size:24,node:[["path",{d:"M12 12v8",key:"1by136"}],["path",{d:"m6 4 6 8 6-8",key:"15qpi5"}],["path",{d:"M8 13h8",key:"1s9po7"}],["path",{d:"M8 17h8",key:"wh5c61"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

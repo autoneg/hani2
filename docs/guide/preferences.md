@@ -6,9 +6,25 @@ preferences in many ways, so HANI2 picks a *view* that fits the type of the
 utility function and falls back to a general view for anything it does not
 know.
 
-Every view shows the **value on disagreement** (what you get if no agreement
-is reached) and a short, plain-language explanation of how the total is worked
-out.
+Every view shows the **value on disagreement** as one sentence under the
+charts ("If you do not reach agreement you get 10% (your best option gives you
+100%)."), and a short, plain-language explanation of how the total is worked
+out (collapsed at the bottom). The charts carry a one-line caption saying what
+they mean.
+
+The Preferences tool also shows, for every scenario:
+
+- **In short** (always visible, at the top): the preferences in two or three
+  sentences, such as the issues that matter most and least and their weights.
+- **Hints** (below the charts): the hints of the participant's role and, for
+  every issue, what the participant wants in plain words. The sentence follows
+  the shape of the issue's value function: "The higher, the better (every step
+  is worth the same).", "The lower, the better.", "Best at 5 days; the further
+  away from it, the worse.", "Worst at …; the further away from it, the
+  better.", "The more clocks you get, the better." (item splits), or the
+  options from best to worst for unordered options. A participant who knows
+  only part of their preferences ([Who knows what](information.md)) sees no
+  hints.
 
 ## Supported types
 

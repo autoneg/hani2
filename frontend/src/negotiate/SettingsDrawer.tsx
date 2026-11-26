@@ -11,7 +11,7 @@ import { useTheme } from "./Header";
 export const mayAdjust = (st: SessionState | null | undefined, key: string) => st?.interface?.participant_settings?.[key] !== false;
 
 /** The participant settings shown in the drawer. */
-const DRAWER_KEYS = ["show_history", "show_human_offers", "last_offer_on_top", "offer_panel_always_visible", "offer_display", "show_scenario_picture", "scenario_picture_style", "open_scenario_description", "device", "font_scale", "theme"];
+const DRAWER_KEYS = ["show_history", "show_human_offers", "color_utility_by_issue", "last_offer_on_top", "offer_panel_always_visible", "offer_display", "show_scenario_picture", "scenario_picture_style", "open_scenario_description", "device", "font_scale", "theme"];
 
 /** Whether the drawer has anything for this user (the header hides the settings button otherwise). */
 export const drawerHasControls = (st: SessionState | null | undefined) =>
@@ -103,6 +103,9 @@ export function SettingsDrawer({ open, onClose }: { open: boolean; onClose: () =
           <Section title="Display">
             {may("show_history") && <Toggle label="Show the whole history" hint="Off: only the latest offer stays visible" value={p.show_history as boolean} onChange={(v) => setP("show_history", v)} extra={h("show_history")} />}
             {may("show_human_offers") && <Toggle label="Show my offers in the history" value={p.show_human_offers as boolean} onChange={(v) => setP("show_human_offers", v)} extra={h("show_human_offers")} />}
+            {may("color_utility_by_issue") && st.utility_issues !== null && (
+              <Toggle label="Colour the utility bars by issue" hint="Each issue's share of the value, most important first (additive preferences only)" value={!!p.color_utility_by_issue} onChange={(v) => setP("color_utility_by_issue", v)} extra={h("color_utility_by_issue")} />
+            )}
             {may("last_offer_on_top") && <Toggle label="Newest offer on top" value={p.last_offer_on_top as boolean} onChange={(v) => setP("last_offer_on_top", v)} extra={h("last_offer_on_top")} />}
             {may("offer_panel_always_visible") && <Toggle label="Keep the offer editor open" value={p.offer_panel_always_visible as boolean} onChange={(v) => setP("offer_panel_always_visible", v)} extra={h("offer_panel_always_visible")} />}
             {may("offer_display") && (

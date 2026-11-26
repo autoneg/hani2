@@ -1,0 +1,1 @@
+import{c as a}from"./index-b5LEevyu.js";const e={name:"lens-concave",size:24,node:[["path",{d:"M7 2a1 1 0 0 0-.8 1.6 14 14 0 0 1 0 16.8A1 1 0 0 0 7 22h10a1 1 0 0 0 .8-1.6 14 14 0 0 1 0-16.8A1 1 0 0 0 17 2z",key:"109j23"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

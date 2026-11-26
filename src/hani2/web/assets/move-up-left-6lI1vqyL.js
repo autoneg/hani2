@@ -1,1 +1,0 @@
-import{c as o}from"./index-CHL7heHD.js";const e={name:"move-up-left",size:24,node:[["path",{d:"M5 11V5H11",key:"3q78g9"}],["path",{d:"M5 5L19 19",key:"5zm2fv"}]]};e.node;const a=o(e);export{e as __iconData,a as default};

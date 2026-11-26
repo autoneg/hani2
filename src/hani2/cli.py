@@ -343,6 +343,43 @@ def setup(
     _setup.run_setup(force=force, admin_password=admin_password)
 
 
+@app.command("human-trial")
+def human_trial(
+    assistant: Annotated[bool, typer.Option("--assistant/--no-assistant", help="Give both participants the Assistant (opponents human+assistant).")] = False,
+    port: Annotated[int, typer.Option("--port", "-p", help="Port to listen on (0: any free port).")] = 0,
+    home: Annotated[Optional[Path], typer.Option("--home", help="Home folder of the trial server (settings, results). Default: ~/negmas/hani2-trial, never your normal settings folder.")] = None,
+    wait: Annotated[float, typer.Option("--wait", help="Seconds to wait for the other participant before an AI opponent takes over (0: wait forever).")] = 0,
+    time_limit: Annotated[Optional[int], typer.Option("--time-limit", help="Time limit of each negotiation in seconds (default: the usual one).")] = None,
+    open_browser: Annotated[bool, typer.Option("--browser/--no-browser", help="Open both participants' pages.")] = True,
+):
+    """Try a human-against-human negotiation on this machine: a trial server and two linked pages."""
+    import socket
+
+    from hani2 import trial
+
+    for var in trial.INHERITED:
+        os.environ.pop(var, None)
+    t = trial.prepare(home or trial.default_home(), assistant=assistant, wait=wait, time_limit=time_limit)
+    os.environ["HANI2_HOME"] = str(t.home)
+    if not assistant:
+        os.environ.setdefault("HANI2_MODEL_PROBE", "off")  # no language model is needed without the Assistant
+    if port == 0:
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+    base = f"http://localhost:{port}"
+    typer.secho("\n  Human against human trial", bold=True)
+    typer.echo(f"  Participant A  {base}{t.path(0)}")
+    typer.echo(f"  Participant B  {base}{t.path(1)}")
+    typer.echo(f"  Results        {t.study_dir / 'results'}")
+    typer.echo("  Each link is one participant; two tabs of one browser are enough. Press Start in both.")
+    typer.echo("  Stop with Ctrl-C.")
+    if open_browser:
+        _open_when_ready(base + t.path(0))
+        _open_when_ready(base + t.path(1))
+    _serve("127.0.0.1", port, None)
+
+
 @app.command()
 def info():
     """Show where HANI2 keeps its files and how it is configured."""

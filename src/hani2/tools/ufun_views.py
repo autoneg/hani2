@@ -28,7 +28,7 @@ import traceback
 import warnings
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import plotly.graph_objects as go
@@ -42,6 +42,10 @@ __all__ = [
     "find_ufun_view",
     "render_ufun_view",
     "PREFERENCES_HELP_MD",
+    "reserved_sentence",
+    "describe_issue",
+    "issue_explanations",
+    "preference_summary",
     "MAX_DEPTH",
     "MAX_OUTCOMES",
 ]
@@ -150,24 +154,31 @@ class UfunViewContext:
             path=f"{self.path}_{label}" if self.path else label,
         )
 
+    @property
+    def opponent(self) -> bool:
+        """The view shows someone else's preferences (the Opponent Preferences tool)."""
+        return bool(self.title_prefix)
+
     def reserved_stat(self) -> ui.Component:
+        """The value on disagreement, as one sentence."""
         self.rv_shown = True
-        if self.rv_hidden:
-            return ui.stat("Value on disagreement", "Unknown", hint=self.rv_hidden_hint)
-        return ui.stat("Value on disagreement", _fmt_value(_reserved(self.ufun)),
-                       hint="What you get if no agreement is reached")
+        return ui.alert(reserved_sentence(self.ufun, hidden=self.rv_hidden, hidden_hint=self.rv_hidden_hint,
+                                          opponent=self.opponent), "neutral")
 
     def layout(self, *left: ui.Component | None, right: ui.Component | None = None) -> ui.Component:
         """The standard two-column layout: summary on the left, details on the right.
 
-        The value on disagreement is added to the left column.
+        The value on disagreement goes under both columns (also when they stack
+        on a narrow pane).
         """
         left_items = [c for c in left if c]
-        if not self.nested:
-            left_items.append(self.reserved_stat())
         if right is None:
-            return ui.column(*left_items)
-        return ui.grid(ui.column(*left_items), right, cols=2)
+            body = ui.column(*left_items) if left_items else None
+        else:
+            body = ui.grid(ui.column(*left_items), right, cols=2) if left_items else right
+        if self.nested:
+            return body or ui.column()
+        return ui.column(body, self.reserved_stat())
 
     def explain(self, markdown: str) -> list[ui.Component]:
         if not self.help_card or self.nested:
@@ -251,7 +262,7 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
             traceback.print_exc()
             comps = [ui.alert("These preferences cannot be shown.", "neutral")]
     if not ctx.nested and not ctx.rv_shown:
-        comps.insert(0, ctx.reserved_stat())
+        comps.append(ctx.reserved_stat())
     return comps
 
 
@@ -291,7 +302,42 @@ def _reserved(ufun: Any) -> float | None:
 def _fmt_value(v: float | None) -> str:
     if v is None:
         return "Not set"
-    return f"{v:.1%}" if -1e-9 <= v <= 1 + 1e-9 else f"{v:.3g}"
+    if -1e-9 <= v <= 1 + 1e-9:
+        return _pct(v)
+    return f"{v:.3g}"
+
+
+def _pct(v: float) -> str:
+    """A share as a percentage: ``10%``, ``12.5%`` (no trailing ``.0``)."""
+    p = round(100 * float(v), 1)
+    return f"{p:.0f}%" if abs(p - round(p)) < 1e-9 else f"{p:.1f}%"
+
+
+def reserved_sentence(ufun: Any, *, hidden: bool = False, hidden_hint: str = "", opponent: bool = False) -> str:
+    """The value on disagreement in one sentence: "If you do not reach agreement you
+    get 10% (your best option gives you 100%)." ``hidden``: the viewer does not know it."""
+    who, gets, its = ("the opponent", "gets", "its best option gives it") if opponent else \
+        ("you", "get", "your best option gives you")
+    if hidden:
+        rest = hidden_hint.split(";", 1)[1].strip() if ";" in hidden_hint else ""
+        out = f"You do not know what {who} {gets} if no agreement is reached."
+        return out + (f" {rest[:1].upper()}{rest[1:]}." if rest else "")
+    rv = _reserved(ufun)
+    lead = "If you do not reach agreement you" if not opponent else "If no agreement is reached the opponent"
+    if rv is None:
+        return f"{lead} {gets} nothing set by these preferences."
+    if _unit_scale(ufun) and -1e-9 <= rv <= 1 + 1e-9:
+        return f"{lead} {gets} {_pct(rv)} ({its} 100%)."
+    return f"{lead} {gets} {rv:.3g}."
+
+
+def _unit_scale(ufun: Any) -> bool:
+    """Whether the best deal is worth exactly 1 (100%), so percentages read naturally."""
+    try:
+        _, hi = ufun.minmax()
+        return abs(float(hi) - 1.0) < 1e-6
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _num(x: Any) -> float:
@@ -342,16 +388,38 @@ def _label(v: Any) -> str:
     return f"{v:.4g}" if isinstance(v, (float, np.floating)) else str(v)
 
 
+#: axis labels longer than this are shortened in the middle (start and end stay visible)
+MAX_AXIS_LABEL = 28
+
+
+def _short_labels(labels: list[str], limit: int = MAX_AXIS_LABEL) -> list[str]:
+    """Axis labels that fit: a long one keeps its start and end around "…"; every
+    label stays distinct (a category axis merges equal ones)."""
+    out: list[str] = []
+    for full in labels:
+        lab = full if len(full) <= limit else f"{full[:(limit - 1) // 2 + (limit - 1) % 2].rstrip()}…" \
+                                              f"{full[-((limit - 1) // 2):].lstrip()}"
+        base, k = lab, 2
+        while lab in out:
+            lab = f"{base} ({k})"
+            k += 1
+        out.append(lab)
+    return out
+
+
 def _bars(labels: list, vals: list[float], *, color: str = HUMAN_COLOR) -> ui.Component:
-    """Horizontal bars; percentages when every value is within 0..1."""
+    """Horizontal bars; percentages when every value is within 0..1. The labels
+    are shown in full (the margin grows to fit them) unless excessively long."""
     pct = _unit(vals)
     xs = [100 * v if pct else v for v in vals]
+    full = [_label(v) for v in labels]
     fig = go.Figure(data=[go.Bar(
-        y=[_label(v) for v in labels], x=xs, orientation="h", marker_color=color,
-        hovertemplate="%{y}: %{x:.3g}" + ("%" if pct else "") + "<extra></extra>")])
+        y=_short_labels(full), x=xs, orientation="h", marker_color=color, customdata=full,
+        hovertemplate="%{customdata}: %{x:.3g}" + ("%" if pct else "") + "<extra></extra>")])
     xaxis: dict[str, Any] = dict(range=[0, 100], ticksuffix="%") if pct else dict(zeroline=True)
     fig.update_layout(**base_layout(max(160, 26 * len(labels) + 40), legend=False, xaxis=xaxis,
-                                    yaxis=dict(type="category", autorange="reversed")))
+                                    yaxis=dict(type="category", autorange="reversed", automargin=True),
+                                    margin=dict(l=8, r=16, t=12, b=40)))
     return ui.plot(fig)
 
 
@@ -386,10 +454,13 @@ def _weights_plot(names: list[str], weights: list[float]) -> ui.Component:
                                         margin=dict(l=24, r=24, t=28, b=28)))
         return ui.plot(fig)
     colors = [HUMAN_COLOR if w >= 0 else "#ef4444" for w in weights]
-    fig = go.Figure(data=[go.Bar(y=names, x=weights, orientation="h", marker_color=colors,
-                                 hovertemplate="%{y}: %{x:.3g}<extra></extra>")])
+    fig = go.Figure(data=[go.Bar(y=_short_labels([str(n) for n in names]), x=weights, orientation="h",
+                                 marker_color=colors, customdata=[str(n) for n in names],
+                                 hovertemplate="%{customdata}: %{x:.3g}<extra></extra>")])
     fig.update_layout(**base_layout(max(160, 26 * len(names) + 40), legend=False,
-                                    xaxis=dict(zeroline=True), yaxis=dict(type="category", autorange="reversed")))
+                                    xaxis=dict(zeroline=True),
+                                    yaxis=dict(type="category", autorange="reversed", automargin=True),
+                                    margin=dict(l=8, r=16, t=12, b=40)))
     return ui.plot(fig)
 
 
@@ -403,13 +474,33 @@ def _bias_stat(ufun: Any) -> ui.Component | None:
     return ui.stat("Starting amount", f"{b:+.3g}", hint="Added to the total of every deal")
 
 
+#: the short texts under the chart titles (``(you, opponent)``)
+WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal: a bigger slice is a more important "
+                   "issue. The slices add up to 100%.",
+                   "How much each issue counts in the opponent's total for a deal: a bigger slice is a more "
+                   "important issue. The slices add up to 100%.")
+SIGNED_WEIGHTS_CAPTION = ("How much your total changes for every extra unit of each issue (red: it goes down).",
+                          "How much the opponent's total changes for every extra unit of each issue (red: it "
+                          "goes down).")
+PARTS_CAPTION = ("How much each set of preferences counts in your total. The slices add up to 100%.",
+                 "How much each set of preferences counts in the opponent's total. The slices add up to 100%.")
+VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: 100% is your favourite option "
+                  "of that issue, 0% your least favourite.",
+                  "Pick an issue to see what each of its options is worth to the opponent: 100% is its "
+                  "favourite option of that issue, 0% its least favourite.")
+
+
+def _caption(ctx: UfunViewContext, texts: tuple[str, str]) -> ui.Component:
+    return ui.text_block(texts[1] if ctx.opponent else texts[0], muted=True)
+
+
 def _per_issue_card(ctx: UfunViewContext, funs: list, *, title: str | None = None) -> ui.Component | None:
     """A select over issues and the chart of the selected issue's value function."""
     names = ctx.issue_names
     if not names or not funs:
         return None
     selected, select = ctx.choose("issue", names, "Issue")
-    children = [select]
+    children = [_caption(ctx, VALUES_CAPTION), select]
     idx = names.index(selected)
     if idx < len(funs):
         children += _section(lambda: _fun_plot(ctx.issues[idx], funs[idx]))
@@ -417,8 +508,11 @@ def _per_issue_card(ctx: UfunViewContext, funs: list, *, title: str | None = Non
 
 
 def _weights_card(ctx: UfunViewContext, names: list[str], weights: list[float],
-                  title: str = "Issue weights") -> ui.Component:
-    return ui.card(_weights_plot(names, weights), title=f"{ctx.title_prefix}{title}")
+                  title: str = "Issue weights", caption: tuple[str, str] | None = None) -> ui.Component:
+    if caption is None:
+        signed = not (all(w >= 0 for w in weights) and sum(weights) > 0)
+        caption = SIGNED_WEIGHTS_CAPTION if signed else WEIGHTS_CAPTION
+    return ui.card(_caption(ctx, caption), _weights_plot(names, weights), title=f"{ctx.title_prefix}{title}")
 
 
 def _plain(ctx: UfunViewContext, text: str) -> ui.Component | None:
@@ -497,10 +591,9 @@ The **value on disagreement** is what you get if the negotiation ends with
 
 
 def generic_view(ctx: UfunViewContext) -> list[ui.Component]:
-    out: list[ui.Component] = []
+    out: list[ui.Component] = list(ranking_components(ctx))
     if not ctx.nested:
         out.append(ctx.reserved_stat())
-    out += ranking_components(ctx)
     out += ctx.explain(GENERIC_HELP_MD)
     return out
 
@@ -543,7 +636,7 @@ def linear_view(ctx: UfunViewContext) -> list[ui.Component]:
     right = ui.card(ui.text_block(f"Total = {terms}"), ui.table(
         [{"Issue": n, "Weight": w} for n, w in zip(names, weights)], formats={"Weight": "float"}, sortable=False),
         title=f"{ctx.title_prefix}How the total is worked out")
-    left = [ui.card(_weights_plot(names, weights), title=f"{ctx.title_prefix}Issue weights"), bias]
+    left = [_weights_card(ctx, names, weights), bias]
     comps = [ctx.layout(*left, right=right)]
     comps += _section(lambda: ranking_components(ctx, top=5))
     return comps + ctx.explain(LINEAR_HELP_MD)
@@ -781,7 +874,8 @@ def weighted_view(ctx: UfunViewContext) -> list[ui.Component]:
     parts = list(u.values)
     names = [_component_name(p, i) for i, p in enumerate(parts)]
     weights = [float(w) for w in u.weights]
-    comps = [ctx.layout(*_section(lambda: _weights_card(ctx, names, weights, "Weights of the parts")))]
+    comps = [ctx.layout(*_section(lambda: _weights_card(ctx, names, weights, "Weights of the parts",
+                                                         caption=PARTS_CAPTION)))]
     comps += _nested_cards(ctx, parts)
     comps += _section(lambda: ranking_components(ctx, top=5))
     return comps + ctx.explain(WEIGHTED_HELP_MD)
@@ -844,10 +938,11 @@ def rank_only_view(ctx: UfunViewContext) -> list[ui.Component]:
     scored = sorted([(o, u) for o, u in scored if _finite(u)], key=lambda t: -t[1])
     names = ctx.issue_names
     rows = [{"Rank": i + 1, **_outcome_row(names, o)} for i, (o, _) in enumerate(scored)]
-    comps = [] if ctx.nested else [ctx.reserved_stat()]
-    comps.append(ui.card(ui.table(rows, sortable=False, page_size=15, max_height=360),
-                         title=f"{ctx.title_prefix}Deals from best to worst"
-                               + ("" if complete else f" (a sample of {len(rows)})")))
+    comps: list[ui.Component] = [ui.card(ui.table(rows, sortable=False, page_size=15, max_height=360),
+                                         title=f"{ctx.title_prefix}Deals from best to worst"
+                                               + ("" if complete else f" (a sample of {len(rows)})"))]
+    if not ctx.nested:
+        comps.append(ctx.reserved_stat())
     return comps + ctx.explain(
         "Only the **order** of deals is known: the table lists them from the one you like most to the "
         "one you like least. How much better one deal is than another is not recorded.")
@@ -872,10 +967,11 @@ The **value on disagreement** is what you get if the negotiation ends with
 
 
 def prob_view(ctx: UfunViewContext) -> list[ui.Component]:
-    out = [] if ctx.nested else [ctx.reserved_stat()]
-    out.append(ui.text_block("The value of a deal is uncertain; deals are ranked by their expected value.",
-                             muted=True))
+    out = [ui.text_block("The value of a deal is uncertain; deals are ranked by their expected value.",
+                         muted=True)]
     out += ranking_components(ctx)
+    if not ctx.nested:
+        out.append(ctx.reserved_stat())
     return out + ctx.explain(PROB_HELP_MD)
 
 
@@ -944,3 +1040,173 @@ def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: s
     except Exception:  # noqa: BLE001
         traceback.print_exc()
         return [ui.alert("These preferences cannot be shown.", "neutral")]
+
+
+# --------------------------------------------------------------------------- #
+# Preferences in words: a short summary and one line per issue                 #
+# --------------------------------------------------------------------------- #
+def _is_number(v: Any) -> bool:
+    return isinstance(v, (int, float, np.integer, np.floating)) and not isinstance(v, bool)
+
+
+def _fmt_option(v: Any, fmt: str = "{}") -> str:
+    try:
+        return fmt.format(v)
+    except (ValueError, TypeError, IndexError, KeyError):
+        return _label(v)
+
+
+def _shape(vals: list[float], eps: float = 1e-9) -> tuple[str, int]:
+    """``(kind, index)`` of a value curve over ordered options: ``flat``, ``up``,
+    ``down``, ``peak`` / ``valley`` (index of the best / worst option) or ``mixed``."""
+    if max(vals) - min(vals) < eps:
+        return "flat", 0
+    d = [b - a for a, b in zip(vals, vals[1:])]
+    if all(x >= -eps for x in d):
+        return "up", len(vals) - 1
+    if all(x <= eps for x in d):
+        return "down", 0
+    top = int(np.argmax(vals))
+    if all(x >= -eps for x in d[:top]) and all(x <= eps for x in d[top:]):
+        return "peak", top
+    low = int(np.argmin(vals))
+    if all(x <= eps for x in d[:low]) and all(x >= -eps for x in d[low:]):
+        return "valley", low
+    return "mixed", top
+
+
+def _pace(vals: list[float], eps: float = 1e-6) -> str:
+    """How a monotone curve rises: evenly, mostly at first or mostly at the end."""
+    d = [abs(b - a) for a, b in zip(vals, vals[1:])]
+    # rounding to a 5% grid makes an even curve a little uneven: allow for it
+    if len(d) < 2 or max(d) - min(d) < max(eps, 0.06 * (max(vals) - min(vals))):
+        return "even"
+    half = len(d) // 2
+    first, last = sum(d[:half]) / max(1, half), sum(d[-half:]) / max(1, half)
+    return "early" if first > last else "late"
+
+
+def describe_issue(issue: Any, fn: Any, *, fmt: str = "{}", unit: tuple[str, str] | None = None,
+                   own: Callable[[Any], Any] | None = None, opponent: bool = False) -> str | None:
+    """One plain sentence on what the owner of value function ``fn`` wants on
+    ``issue``: "The lower, the better (every step is worth the same).", "Best at
+    5 days; the further away from it, the worse.", "Best: Red, then Blue; worst:
+    Green." ``unit`` (an item split): the issue counts items, ``own`` maps an
+    issue value to how many items the owner gets. ``None`` when nothing can be said."""
+    try:
+        labels = _issue_labels(issue, n_cont=21)
+        vals = [_apply(fn, v) for v in labels]
+    except Exception:  # noqa: BLE001
+        return None
+    if not labels or not all(_finite(v) for v in vals):
+        return None
+    you = "the opponent" if opponent else "you"
+    kind, at = _shape(vals)
+    if kind == "flat":
+        return f"It does not matter to {you}: every option is worth the same."
+    numeric = all(_is_number(v) for v in labels)
+    if unit is not None and numeric:
+        many = unit[1] if len(unit) > 1 else str(issue.name)
+        mine = [own(v) if own else v for v in labels]
+        pairs = sorted(zip(mine, vals), key=lambda t: t[0])
+        k, _ = _shape([v for _, v in pairs])
+        who = "the opponent gets" if opponent else "you get"
+        if k == "up":
+            return f"The more {many} {who}, the better."
+        if k == "down":
+            return f"The fewer {many} {who}, the better."
+    if numeric and len(labels) > 2:
+        # how the value grows on the way from the worst option to the best one
+        pace = _pace(vals if kind == "up" else vals[::-1]) if kind in ("up", "down") else ""
+        how = {"even": " (every step is worth the same)",
+               "early": " (the first steps away from the worst option matter most)",
+               "late": " (only the steps close to the best option really count)"}.get(pace, "")
+        if kind == "up":
+            return f"The higher, the better{how}."
+        if kind == "down":
+            return f"The lower, the better{how}."
+        best = _fmt_option(labels[at], fmt)
+        if kind == "peak":
+            return f"Best at {best}; the further away from it, the worse."
+        if kind == "valley":
+            return f"Worst at {_fmt_option(labels[at], fmt)}; the further away from it, the better."
+    order = sorted(range(len(labels)), key=lambda i: -vals[i])
+    names = [_fmt_option(labels[i], fmt) for i in order]
+    if len(names) == 2:
+        return f"Best: {names[0]}; worst: {names[1]}."
+    if len(names) <= 5:
+        return f"From best to worst: {', '.join(names)}."
+    return f"Best: {names[0]}, then {names[1]}; worst: {names[-1]}."
+
+
+def _issue_funs(ufun: Any) -> list | None:
+    """One value function per issue, for utility functions built that way."""
+    funs = getattr(ufun, "values", None)
+    issues = list(getattr(getattr(ufun, "outcome_space", None), "issues", None) or [])
+    try:
+        funs = list(funs) if funs is not None and not callable(funs) else None
+    except TypeError:
+        return None
+    return funs if funs and len(funs) == len(issues) else None
+
+
+def issue_explanations(ufun: Any, info: dict | None = None, *, roles: Sequence[str] = (),
+                       opponent: bool = False) -> list[tuple[str, str]]:
+    """``[(issue, sentence)]``: what the owner of ``ufun`` wants on every issue
+    (see :func:`describe_issue`), using the formats and item units of the
+    scenario ``info``. ``roles`` are the scenario's role names (in an item split
+    the issues count the items of the role ``human``). Empty for utility
+    functions without one value function per issue."""
+    funs = _issue_funs(ufun)
+    if not funs:
+        return []
+    info = info or {}
+    fmts = info.get("issue_format") or {}
+    split = info.get("split") or {}
+    units, totals = split.get("units") or {}, split.get("totals") or {}
+    lower = {str(r).lower() for r in roles}
+    flipped = bool(split) and "human" in lower and str(getattr(ufun, "name", "")).lower() != "human"
+    out = []
+    for issue, fn in zip(ufun.outcome_space.issues, funs):
+        name = str(issue.name)
+        unit = tuple(units[name]) if name in units else None
+        own = None
+        if unit is not None and flipped:
+            total = totals.get(name, issue.max_value)
+            own = (lambda v, t=total: t - v)
+        text = describe_issue(issue, fn, fmt=fmts.get(name, "{}"), unit=unit, own=own,  # type: ignore[arg-type]
+                              opponent=opponent)
+        if text:
+            out.append((name, text))
+    return out
+
+
+def preference_summary(ufun: Any, *, opponent: bool = False) -> str:
+    """A short, always-visible summary of ``ufun`` in plain words (markdown)."""
+    you, your = ("the opponent", "its") if opponent else ("you", "your")
+    if ufun is None:
+        return ""
+    unit = _unit_scale(ufun)
+    scale = (f"Every possible deal is worth between 0% and 100% to {you}: 100% is {your} best deal."
+             if unit else f"Every possible deal has a value for {you}; higher is better.")
+    ws = getattr(ufun, "weights", None)
+    names = [str(i.name) for i in getattr(getattr(ufun, "outcome_space", None), "issues", None) or []]
+    funs = _issue_funs(ufun)
+    try:
+        ws = [float(w) for w in ws] if ws is not None and funs else None
+    except Exception:  # noqa: BLE001
+        ws = None
+    if ws and len(ws) == len(names) and all(w >= 0 for w in ws) and sum(ws) > 0:
+        tot = sum(ws)
+        ranked = sorted(zip(names, [w / tot for w in ws]), key=lambda t: -t[1])
+        if len(ranked) == 1:
+            imp = f"Only **{ranked[0][0]}** is negotiated."
+        else:
+            imp = f"What matters most: {', then '.join(f'**{n}** ({_pct(w)})' for n, w in ranked[:2])}"
+            imp += (f"; least: **{ranked[-1][0]}** ({_pct(ranked[-1][1])})." if len(ranked) > 2 else ".")
+        how = (f"A deal is worth the weighted sum of the values of its options, so give way on the issues "
+               f"that matter little to {you} to win the ones that matter most.")
+        return f"{scale} {imp} {how}"
+    if funs:
+        return f"{scale} Each issue adds its own part to the total; the charts show what each option is worth."
+    return f"{scale} The table shows the deals {you} like{'s' if opponent else ''} most."

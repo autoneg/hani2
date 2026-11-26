@@ -78,7 +78,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
         if generate is not None:
             if reg is None:
                 raise HTTPException(400, f"{name} has no generator")
-            s = registry.MAKERS[name](generate)
+            s = store.make_scenario(name, generate, store.simple_scenarios())  # as this layer would serve it
             generated = True
         elif folder is not None and store.pool_of(folder):
             folders = store.pool_of(folder)
@@ -96,7 +96,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
                 raise HTTPException(400, f"cannot load {path}: {e}") from None
             s.info = store._read_info(path) or (s.info or {})
         elif reg is not None:
-            s = registry.MAKERS[name](0)
+            s = store.make_scenario(name, 0, store.simple_scenarios())
             generated = True
         elif (DEFAULT_SCENARIOS / name).is_dir():
             path = DEFAULT_SCENARIOS / name

@@ -80,6 +80,7 @@ export const NEGOTIATION: FieldGroup[] = [
     fields: [
       { id: "load-existing", path: "negotiation.load_existing", label: "Use saved scenario pools", hint: "Off: generate a fresh scenario each time", type: "toggle" },
       { id: "generate-on-failure", path: "negotiation.generate_on_failure", label: "Generate a scenario when none is saved", type: "toggle" },
+      { id: "simple-scenarios", path: "negotiation.simple_scenarios", label: "Simple scenarios", hint: "Round numbers, linear and symmetric preferences; a project or study setting wins", type: "toggle" },
       { id: "scenario-set-session", path: "negotiation.scenario_set", label: "Scenario set", hint: "Empty: the default set (Scenarios page)", type: "custom" },
       { id: "predefined-order", path: "negotiation.predefined_order", label: "Follow the scenario order", type: "toggle" },
       { id: "allow-scenario-selection", path: "negotiation.allow_scenario_selection", label: "Participants may choose the scenario", hint: "The old switch (any type, every layer); prefer \"What participants may choose\" below", type: "toggle" },
@@ -167,6 +168,7 @@ const PREF_DEFAULTS: FieldGroup = {
   fields: [
     { id: "pref-show-history", path: "interface.prefs.show_history", label: "Show the whole history", type: "toggle" },
     { id: "pref-show-human-offers", path: "interface.prefs.show_human_offers", label: "Show the participant's offers in the history", type: "toggle" },
+    { id: "pref-color-utility", path: "interface.prefs.color_utility_by_issue", label: "Colour the utility bars by issue", hint: "Each issue's share of the value, most important first; linear additive preferences only, and only when the participant knows their utilities and weights", type: "toggle", keywords: "color colour segments stacked issues weights utility bar gauge" },
     { id: "pref-last-on-top", path: "interface.prefs.last_offer_on_top", label: "Newest offer on top", type: "toggle" },
     { id: "pref-offer-panel", path: "interface.prefs.offer_panel_always_visible", label: "Keep the offer editor open", type: "toggle" },
     { id: "pref-offer-display", path: "interface.prefs.offer_display", label: "Offers shown as", type: "select", options: [{ value: "text", label: "Sentences" }, { value: "table", label: "Issue chips" }] },
