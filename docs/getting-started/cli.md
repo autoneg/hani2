@@ -268,7 +268,7 @@ available entry.
 
 ## `hani2 project` and `hani2 study`
 
-Create and inspect [projects and studies](../guide/projects.md):
+Create and inspect projects and studies (see [Project management](../guide/project-management.md) and [Study management](../guide/study-management.md)):
 
 ```bash
 hani2 project create HI2027 --kind assistant --full-name "Human-AI Interaction League 2027" --year 2027 \
@@ -299,7 +299,7 @@ The links start with `--base-url`, else `HANI2_PUBLIC_URL`, else `public_url` in
 
 An experiment is a study of the `default` project; these commands keep their earlier behaviour.
 
-Experiments are self-contained studies with their own settings, scenarios and results. See [Studies and results](../guide/studies.md).
+Experiments are self-contained studies with their own settings, scenarios and results. See [Study management](../guide/study-management.md).
 
 ### `hani2 experiment create`
 

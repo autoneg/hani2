@@ -361,7 +361,7 @@ participant's tools (10), and finally an interface shaped by the participant's r
 - [Who knows what](../guide/information.md) gives the Assistant information the participant does not
   have, and the other way round, and [estimating the opponent](../guide/assistant.md#estimating-the-opponent)
   lets it share its picture of the opponent through the participant's tools.
-- [Studies and results](../guide/studies.md) and [Evaluation metrics](../guide/evaluation.md)
+- [Study management](../guide/study-management.md) and [Evaluation metrics](../guide/evaluation.md)
   explain how to compare Assistants with real participants, and
   [Simulated participants](../guide/simulation.md) how to test them before that.
 

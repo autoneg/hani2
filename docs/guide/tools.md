@@ -159,7 +159,7 @@ value on disagreement. See [Market research](information.md#market-research).
 **Logged-in users (not guests and Prolific participants).** Your score, the number of negotiations and
 agreements, a table of scores per scenario
 and a searchable table of every negotiation you finished. **Columns** picks the columns of the last
-table (the [results columns](studies.md)). Practice rounds appear in the table but not in the score
+table (the [results columns](study-management.md)). Practice rounds appear in the table but not in the score
 or the counts.
 
 The score takes, for every scenario, the mean of your best results (up to three) leaving out your
