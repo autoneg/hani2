@@ -1,6 +1,6 @@
 # Design note: Solo and Paired studies, fair assignment, HAN opponents in HI, the game leaderboard
 
-Status: **draft for review, nothing built yet** (2026-11-26; scores and per-project boards added the same day). This note is internal and is not in the
+Status: **decisions settled, nothing built yet** (2026-11-26). The next step is WP0. This note is internal and is not in the
 MkDocs nav (it lives outside `docs/`). It should not be published as written. Each work package
 writes its user docs into the Project Management and Study Management pages (§11).
 
@@ -23,7 +23,7 @@ Code facts this design builds on, each checked in the code:
 | Tracks | `evaluation/tracks.py` | A row belongs to `hi` if it has an Assistant and to `han` otherwise. **So an HI session against a HAN agent gives that agent nothing.** HI cells are scenario × opponent, HAN cells are scenario. The 95 % bootstrap resamples participants and falls back to sessions when there is only one participant. |
 | Scores | `evaluation/scores.py` | `hi_outcome` (= `human_advantage`), `hi_assistant`, `hi_team`, `hi_interaction`, `han_outcome`, `han_interaction`. They are weighted means of normalised components, with weights overridable in `env.json` under `evaluation.scores.<score>.weights`. |
 | Leaderboards | `results.py` `leaderboard` (per *user*, by utility), `simulated_leaderboard`; `POST /api/replay/leaderboard` (admin, per track) | There is no per-Assistant board for the game and no endpoint an outside system can call. |
-| HAN groups | `agents.py` `han_groups()` | `:han<year>-all/-qualified/-finalists/-winners`, for every year that the installed `han-agents` package covers (only 2026 today). |
+| HAN groups | `agents.py` `han_groups()` | `:han<year>-all/-qualified/-finalists/-winners`, for every year that the installed `han-agents` package covers (only 2026 today). There is no source for the current year's submitted zips yet (§3.4). |
 | Auth | `server.py`, `sso.py` | Only cookie auth (`require_user` / `require_admin`) and the HS256 sign-in hand-off secret shared with scmlweb. **No service-to-service auth exists.** |
 | Group files | `groups.py` | Opponent group files take `agents`, `assistant` (old name `support_agent`), `syspath`, `description` and `ai_fallback`. `load_file` ignores any other key, and `validate_data` (the admin `PUT`) **drops other keys from what it saves**, with no message. New keys must be added to `load_file`, `validate_data`, `Group` and `to_dict`. |
 | Editor | `frontend/src/admin/schema.tsx` (`Field`), `Row.tsx`, `pages/Projects.tsx` | `Field` has `hint` (a one-line grey text) and **no `help`**. `Projects.tsx` builds most rows with a bare `<Row hint=…>`, not with `Field`. The only `?` today is `ToolHelp` in `negotiate/ToolPane.tsx` (a `CircleHelp` button with a portalled dialog). Scheduling methods already bring their Markdown `details` from the server (`GET /api/admin/scheduling-methods`). |
@@ -199,15 +199,41 @@ The opponent pool of an HI Solo study can name HAN entrants. The keys already ex
 - **The year is always stored explicitly** as the group key. In the editor, "this year" and
   "last year" are only labels, computed from the **project's `year` field, not from the clock**.
   For a project with `year: 2027`, "last year" writes `:han2026-…`. A year not covered by
-  `han_years()` is shown greyed out ("han-agents covers only 2026"). On save it is refused with the
-  same message, and when a hand-edited file is loaded it is reported (the group expands to nothing,
+  either source is shown greyed out ("no agents for 2025": `han-agents` covers the past years,
+  and the submissions index covers `han.current_year`). On save it is refused with the same
+  message, and when a hand-edited file is loaded it is reported (the group expands to nothing,
   and the study falls back as today).
-- **Which agents count as 2026 finalists:** the installed `han-agents` package decides, through
-  `han_groups()`. scmlweb chooses agents by `agent_placements.year`, from zips in
-  `~/anac/_agents_han`. *To confirm with scmlweb:* both lists must name the same agents. WP1 adds
-  `hani2 han check --year 2026 --expect <file>`, which compares the package's groups with a list
-  that scmlweb exports. In a game invitation, scmlweb may instead write a group file listing the
-  unpacked zips (with `syspath`), as it does today for invited agents.
+- **Where the agents of a year come from: the current year comes from the submitted zips, every
+  other year from `han-agents`** (decided). The current year is an explicit setting, never the
+  clock: `env.json` → `han.current_year: 2027`. The rule:
+  - `:han<current_year>-<set>` resolves from the **submissions index** of that year;
+  - `:han<other year>-<set>` resolves from the installed `han-agents` package (`han_groups()`), as
+    today;
+  - a year that neither source covers is an error, refused on save and reported on load;
+  - when a year's agents have been packaged into `han-agents` and the competition moves on, an
+    admin raises `han.current_year`. From then on that year comes from the package. Studies
+    already run keep their recorded source (below).
+- **The submissions index** (*its format is to confirm with scmlweb*). `han.submissions` in
+  `env.json` names a folder per year, such as `{"2027": {"dir": "~/anac/_agents_han/2027"}}`.
+  The folder holds the zips and an `index.json` that scmlweb writes from `agent_placements`, one
+  entry per submission:
+  `{"entrant": "sub_0981", "team": "t17", "zip": "t17.zip", "class": "t17_agent.agent:MyNegotiator",
+  "qualified": true, "finalist": false, "winner": false}`.
+  - `hani2 han import --year 2027` unpacks each zip into
+    `<data>/han_submissions/2027/<entrant>/<sha256 of the zip>/`. Untrusted archives get their own
+    empty folder, and nothing in them is run while unpacking. It also checks that the class
+    imports.
+  - The sets `all`, `qualified`, `finalists` and `winners` come from the index flags, so they
+    follow scmlweb's placements.
+  - A new upload (a new hash) is a new folder. Each game records which one it used, so an agent
+    can be updated without changing what past games mean.
+  - `hani2 han check --year <y>` lists the entries, their sets and whether each imports. It reports
+    entries whose class does not import and zips that the index does not list.
+- **What every game records:** `opponent_han_year` (below), `opponent_han_source`
+  (`submissions` or `han-agents`) and `opponent_han_version` (the zip hash, or the `han-agents`
+  version). Boards can therefore always tell which build of an agent was played.
+- In a game invitation, scmlweb may still write a group file that lists unpacked agents with
+  `syspath` and `han_year` (§9.3). The submissions index is the normal path.
 - New result column **`opponent_han_year`** (an int, or empty), filled when the opponent came from
   a `:han<year>-*` group. `opponent_group` already keeps the group key.
 
@@ -737,7 +763,7 @@ kind: assistant
 year: 2027
 defaults:
   study_mode: mixed
-  opponents: [human+assistant, ":han2026-finalists"]   # "last year" until han-agents covers 2027
+  opponents: [human+assistant, ":han2027-qualified"]   # this year: from the submitted zips (§3.4)
   scheduling: {assistants: balanced}
   pairing: {scope: study, assign: cells, allow_same_assistant: true, fallback: ai}
 scores: {hi_score: {…}}                 # §7.3
@@ -837,7 +863,7 @@ rows by hand. The only `?` is `ToolHelp` (`CircleHelp`, a portalled dialog) for 
   shows the derived mode and a red note when the mode and the pool disagree. In a HAN project,
   choosing Paired shows the note "tests no HAN agent; its results are not ranked".
 - **Opponents**: the pool editor offers only what the mode allows. A structured **HAN agents**
-  picker (year: the years in `han_years()`, labelled "this year" / "last year" from the project's
+  picker (year: the years in `han_years()` plus `han.current_year`, labelled "this year" / "last year" from the project's
   `year`; set: all / qualified / finalists / winners) writes `:han<year>-<set>`.
 - **Assignment** (the Scheduling group): the methods valid for the mode. The row shows K
   (`n_required`) against N (the pool size), with a warning when K > N and repeats are off, and a
@@ -998,7 +1024,7 @@ Each package ends with its tests green (`.venv/bin/pytest -q`), its docs written
 | WP | What | Files | Tests | Docs |
 |---|---|---|---|---|
 | **0. Docs restructure** | The two management pages from existing content, the new nav section, links and anchors updated, the old `projects.md` and `studies.md` removed | `docs/guide/*.md`, `docs/getting-started/*.md`, `mkdocs.yml`, `README.md` | new `tests/test_docs_build.py` (`mkdocs build --strict`) | — |
-| **1. Mode keys and validation** | `study_mode`, the `pairing` block (parsed, merged, validated against `opponents`, the Assistant and the project kind), the derived mode, per-session checks of group files and slots, `hani2 study show` output, `hani2 han check` | `projects.py` (`DEFAULT_KEYS`, `file_problems`), `matches.py` (`study:` scope in `match_key`), `session.py` (per-session filter, reusing `people_only`), `assignment.py` (group-file checks), `cli.py` | `tests/test_projects.py`, `tests/test_human_opponents.py` (scope, contradictions), `tests/test_agents.py` (han check) | Project management §3 (mode, pairing defaults, HAN agents); Study management §2–§4 (types, overrides, mode) |
+| **1. Mode keys and validation** | `study_mode`, the `pairing` block (parsed, merged, validated against `opponents`, the Assistant and the project kind), the derived mode, per-session checks of group files and slots, `hani2 study show` output, the HAN source rule (`han.current_year`, the submissions index, `hani2 han import/check`, the `opponent_han_*` columns) | `projects.py` (`DEFAULT_KEYS`, `file_problems`), `agents.py` (resolving `:han<year>-*`), new `han_submissions.py`, `config.py`, `matches.py` (`study:` scope in `match_key`), `session.py` (per-session filter, reusing `people_only`), `assignment.py` (group-file checks), `cli.py` | `tests/test_projects.py`, `tests/test_human_opponents.py` (scope, contradictions), `tests/test_agents.py` and new `tests/test_han_submissions.py` (which source wins per year, import of a test zip into its own folder, a new hash gives a new version, unknown years refused) | Project management §3 (mode, pairing defaults, HAN agents); Study management §2–§4 (types, overrides, mode) |
 | **2. Solo assignment** | The K ≤ N check, `assistant_repeats`, `balanced_subset`, `random_subset`, the `cross: shift` crossing, the open-slot branch of `ProlificStudy.plan_round` (§3.5, D14), the `hani2 study balance` report (Solo part) | `scheduling.py` (registry, rules, generated docs), `assignment.py` (plans in `assignments.json`), `study.py` | `tests/test_scheduling.py` (subset and position balance, crossing coverage for 5 × 5 over 50 people, P1 regression), `tests/test_study.py` | Study management §5, §7 (assignment, designs); Scheduling methods (regenerated with `python -m hani2.scheduling`) |
 | **3. Paired assignment** | The `match_cells.json` store, host commit, joiner late binding, cell-aware `Lobby.pair` with `slack`, in-flight reservation and release, completion hook, `pairing.fallback`, scenario fit for `by_participant`, `used_assistants`, the result columns of §5, the Paired part of `hani2 study balance` | `matches.py`, `session.py` (≈1655–1765, `_leave_match`, end of round), `assignment.py` (cell store), `results.py`, `events.py` | new `tests/test_pairing_cells.py` (hard guarantees, dead-end fallback, abandon releases, two concurrent joiners), `tests/test_human_opponents.py`, `tests/test_session.py` | Study management §6, §9, §10 (Paired, monitoring, results columns); `human-opponents.md` (what participants see) |
 | **4. Evaluation strata** | Paired cells per row, match dedup, same-Assistant collapse, `ci_unit: match`, the `study_mode` strata, HAN `vs_team`, `excluded["human opponent"]`, optional head-to-head | `evaluation/__init__.py` (`ID_FIELDS`), `evaluation/tracks.py`, `evaluation/base.py` | `tests/test_tracks.py` | Study management §10 (reading Paired results); `evaluation.md` (strata) |
@@ -1017,11 +1043,13 @@ WP9 follows WP8.
 
 ---
 
-## 13. Decisions for the user
+## 13. Decisions (settled 2026-11-26)
 
-Each question has a recommended answer.
+You settled D12 yourself. For every other decision you accepted the recommendation, so the right
+column is now the decision.
 
-| # | Question | Recommended |
+
+| # | Question | Decision |
 |---|---|---|
 | D1 | Should the new setting be called `study_mode` (`mode` is taken by `simulated`), with the values `solo`, `paired` and `mixed`? | **Yes.** The UI says "Mode: Solo / Paired / Mixed" |
 | D2 | Should Solo K-of-N with K < N use the new `balanced_subset` (balanced co-occurrence), or is `latin_square` enough? | **`balanced_subset` for K < N**, and `latin_square` for K = N (the finals) |
@@ -1034,7 +1062,7 @@ Each question has a recommended answer.
 | D9 | API auth: a JWT on the existing SSO secret, or public boards (no names in them)? | **The JWT** (`aud: hani2-api`) for non-public boards. Boards with `visibility: public` need none |
 | D10 | Should scmlweb pull from the endpoint, or should hani2 push tournament-style results? | **Pull**, cached on `data_version` |
 | D11 | Should same-Assistant matches (an inviter against their guest) be out of `utility` but counted once in other scores? | **Yes.** They are not allowed at all in Paired evaluation studies |
-| D12 | Where do HAN entrants come from: the installed `han-agents` package or scmlweb's `agent_placements` and zips? | **The package for `:han<year>-*`**, with `hani2 han check` comparing it to scmlweb's list. Group files from scmlweb can still name the zips |
+| D12 | Where do HAN entrants come from? | **Decided by you:** the current year (`han.current_year`, set explicitly) from the submitted zips through scmlweb's index; every other year from `han-agents` (§3.4) |
 | D13 | Should the HAN board show HI-Solo games against HAN agents as a separate `vs_team` stratum next to the official `alone` board, never pooled by default? | **Yes** |
 | D14 | For Prolific, who owns the K-of-N and crossing plan: hani2 (scmlweb leaves the `assistant` and `agent_class_name` slots empty) or scmlweb (it writes complete slots)? | **hani2 owns it**: one implementation of the rules. scmlweb's slots keep only what it must fix |
 | D15 | In the game, does each player always use their own team's Assistant (guests: the inviter's), or does the game assign Assistants (balanced at pairing)? With own Assistants, "balanced at pairing" balances only *whom* each Assistant meets, and the non-owner players of an Assistant are mostly invited guests | **Own Assistant for team members and their guests** (as today). Balancing at pairing goes over the opposing Assistant, the scenario and the side. Players who have no team get an Assistant through `balanced` |
