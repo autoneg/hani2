@@ -173,9 +173,9 @@ def test_sides_that_do_not_fit_are_not_paired(hani2_home):
     # a participant alone who wants a participant alone fits neither
     c = make_session(user="carol", opponent="human", query={"match": code}, assistant_settings={"mode": "off"})
     assert c.match not in (a.match, b.match)
-    # a participant alone who wants a team fits alice (who wants someone alone)
+    # a participant alone who wants a team fits alice or bob (who want someone alone): one at random
     d = make_session(user="dan", opponent="human+assistant", query={"match": code}, assistant_settings={"mode": "off"})
-    assert d.match is a.match
+    assert d.match in (a.match, b.match) and d.match.paired
 
 
 def test_human_opponents_pair_across_studies_of_a_project(hani2_home):

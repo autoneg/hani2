@@ -99,10 +99,28 @@ def candidates(form: Form | str) -> list[tuple[str, Path]]:
     return out
 
 
+def switched_off() -> str:
+    """Where the current study switches every questionnaire off (``""``: it does not):
+    ``questionnaires: false`` in study.yaml / project.yaml, or in env.json (any layer). It wins over
+    the environment variables that name a form (``HANI2_PER_NEG_YAML``, ``PROLIFIC_PER_NEG_YAML``, ...)."""
+    from hani2 import projects
+    from hani2.config import get_env
+
+    if projects.setting("questionnaires", True, cast=bool) is False:
+        return "study"
+    v = get_env("questionnaires", True)
+    if v is False or (isinstance(v, str) and v.strip().lower() in ("0", "false", "no", "off")):
+        return "env.json"
+    return ""
+
+
 def resolve(form: Form | str) -> Resolved:
     """The form in effect for the current study (unrendered), and where it comes from."""
     import yaml
 
+    off = switched_off()
+    if off:
+        return Resolved(None, None, off, disabled=True)
     for origin, p in candidates(form):
         if not p.is_file():
             continue

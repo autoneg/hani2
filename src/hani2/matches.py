@@ -41,6 +41,7 @@ import threading
 import time
 import traceback
 import uuid
+import weakref
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -78,10 +79,32 @@ def canonical(spec: Any) -> str:
     return HUMAN_ASSISTED if wants_assistant(spec) else HUMAN
 
 
+def kinds(want: Any) -> frozenset[bool]:
+    """What a side accepts as its opponent, as a set of "has an Assistant" values: ``True`` (a
+    ``human+assistant`` side), ``False`` (a ``human`` side) or both (any person)."""
+    if isinstance(want, (set, frozenset, list, tuple)):
+        return frozenset(bool(x) for x in want)
+    return frozenset({bool(want)})
+
+
+def kinds_of(pool: list) -> frozenset[bool]:
+    """The human kinds a pool lists (``human`` → ``False``, ``human+assistant`` → ``True``)."""
+    return frozenset(wants_assistant(p) for p in pool if is_human(p))
+
+
+def codes_allowed(session: NegotiationSession) -> bool:
+    """Whether ``?match=<code>`` pairs this session (admins always; others unless the study sets
+    ``human_opponent_codes: false``)."""
+    if getattr(session, "is_admin", False):
+        return True
+    v = (getattr(session, "admin_prefs", None) or {}).get("human_opponent_codes", True)
+    return not (v is False or str(v).strip().lower() in ("0", "false", "no", "off"))
+
+
 def match_key(session: NegotiationSession) -> str:
     """The lobby key of a session: ``?match=<code>`` or its study."""
     q = session.query or {}
-    code = q.get("match")
+    code = q.get("match") if codes_allowed(session) else None
     if isinstance(code, (list, tuple)):
         code = code[0] if code else None
     code = str(code or "").strip()
@@ -132,8 +155,8 @@ class Match:
         self.evaluation = evaluation
         self.host = host
         self.seats: dict[int, NegotiationSession] = {host_index: host}
-        #: per seat: whether it wants an opponent with an Assistant / has an Assistant itself
-        self.wants: dict[int, bool] = {host_index: bool(want_assistant)}
+        #: per seat: which opponents it accepts (see :func:`kinds`) / whether it has an Assistant itself
+        self.wants: dict[int, frozenset[bool]] = {host_index: kinds(want_assistant)}
         self.has: dict[int, bool] = {host_index: bool(has_assistant)}
         self.ready: set[int] = set()
         self.left: set[int] = set()
@@ -164,10 +187,11 @@ class Match:
     def free_index(self) -> int:
         return 1 - next(iter(self.seats))
 
-    def accepts(self, want_assistant: bool, has_assistant: bool) -> bool:
-        """Whether a side that wants / has an Assistant fits the waiting seat (and the seat fits it)."""
+    def accepts(self, want_assistant: Any, has_assistant: bool) -> bool:
+        """Whether a side that accepts ``want_assistant`` (see :func:`kinds`) and has / has not an
+        Assistant fits the waiting seat, and the seat fits it."""
         i = next(iter(self.seats))
-        return self.has[i] == bool(want_assistant) and self.wants[i] == bool(has_assistant)
+        return self.has[i] in kinds(want_assistant) and bool(has_assistant) in self.wants[i]
 
     def has_left(self, s: NegotiationSession) -> bool:
         i = self.index_of(s)
@@ -321,7 +345,7 @@ class Match:
         # not started: free the seat; the one left waits for someone else, and the one who
         # stalled gets a match of their own for the scenario they hold
         with self.lock:
-            want, has = self.wants.get(i, False), self.has.get(i, False)
+            want, has = self.wants.get(i, kinds(False)), self.has.get(i, False)
             o = self.seats.get(1 - i)
         if o is not None:
             s.__dict__.setdefault("_avoid_sids", set()).add(o.sid)
@@ -385,6 +409,8 @@ class Lobby:
         self._lock = threading.Lock()
         self.waiting: dict[str, list[Match]] = {}
         self._loading: dict[str, threading.Lock] = {}
+        #: sessions showing the "play a person / an AI" choice, by match key (told when the lobby changes)
+        self._watchers: dict[str, "weakref.WeakSet[NegotiationSession]"] = {}
 
     def loading(self, s: NegotiationSession) -> threading.Lock:
         """The lock a session holds from looking for a partner until it waits in the lobby."""
@@ -392,37 +418,74 @@ class Lobby:
         with self._lock:
             return self._loading.setdefault(key, threading.Lock())
 
-    def pair(self, s: NegotiationSession, want_assistant: bool = False, has_assistant: bool = False) -> Match | None:
-        """A waiting match ``s`` can join (it is then seated), else ``None``. ``want_assistant``:
-        ``s`` asks for an opponent with an Assistant; ``has_assistant``: ``s`` has one."""
+    def _fits(self, m: Match, s: NegotiationSession, want: Any, has: bool, queue: list) -> bool:
+        """Whether waiting ``m`` fits ``s`` (drops matches whose host is gone); call with the lock held."""
+        with m.lock:
+            host = m.host
+            # a host may be answering the pre-questionnaire / consent form of its first round
+            if host.closed or host.phase not in ("ready", "starting", "questionnaire") or host.match is not m:
+                if m in queue:
+                    queue.remove(m)
+                m.cancel_timer()
+                return False
+            if host is s or m.paired or not m.accepts(want, has):
+                return False
+            if host.sid in getattr(s, "_avoid_sids", ()) or s.sid in getattr(host, "_avoid_sids", ()):
+                return False  # these two were just separated (one did not press Start)
+            return True
+
+    def pair(self, s: NegotiationSession, want_assistant: Any = False, has_assistant: bool = False) -> Match | None:
+        """A waiting match ``s`` can join (it is then seated), else ``None``: one at random among those
+        that fit. ``want_assistant``: the opponents ``s`` accepts (see :func:`kinds`); ``has_assistant``:
+        whether ``s`` has an Assistant."""
         key = match_key(s)
         with self._lock:
             queue = self.waiting.get(key) or []
-            for m in list(queue):
-                with m.lock:
-                    host = m.host
-                    # a host may be answering the pre-questionnaire / consent form of its first round
-                    if host.closed or host.phase not in ("ready", "starting", "questionnaire") or host.match is not m:
-                        queue.remove(m)
-                        m.cancel_timer()
-                        continue
-                    if host is s or m.paired or not m.accepts(want_assistant, has_assistant):
-                        continue
-                    if host.sid in getattr(s, "_avoid_sids", ()) or s.sid in getattr(host, "_avoid_sids", ()):
-                        continue  # these two were just separated (one did not press Start)
-                    queue.remove(m)
-                    m.cancel_timer()
-                    i = m.free_index()
-                    m.seats[i] = s
-                    m.wants[i], m.has[i] = bool(want_assistant), bool(has_assistant)
-                    if m.ready:  # the waiting side already pressed Start: the clock for the other starts now
-                        m._first_ready_at = time.time()
-                    m.watch()  # from now on: partners who never press Start, pages closed for good
-                    return m
-        return None
+            fits = [m for m in list(queue) if self._fits(m, s, want_assistant, has_assistant, queue)]
+            if not fits:
+                return None
+            m = random.choice(fits)  # random among the people waiting: nobody can aim at someone
+            with m.lock:
+                queue.remove(m)
+                m.cancel_timer()
+                i = m.free_index()
+                m.seats[i] = s
+                m.wants[i], m.has[i] = kinds(want_assistant), bool(has_assistant)
+                if m.ready:  # the waiting side already pressed Start: the clock for the other starts now
+                    m._first_ready_at = time.time()
+            m.watch()  # from now on: partners who never press Start, pages closed for good
+        self.notify(key)
+        return m
+
+    def n_fitting(self, s: NegotiationSession, want_assistant: Any, has_assistant: bool) -> int:
+        """How many people waiting now ``s`` could be paired with."""
+        key = match_key(s)
+        with self._lock:
+            queue = self.waiting.get(key) or []
+            return sum(1 for m in list(queue) if self._fits(m, s, want_assistant, has_assistant, queue))
+
+    def watch_choice(self, s: NegotiationSession, on: bool = True) -> None:
+        """``s`` shows the choice between a person and an AI: push its state when the lobby changes."""
+        key = match_key(s)
+        with self._lock:
+            ws = self._watchers.setdefault(key, weakref.WeakSet())
+            if on:
+                ws.add(s)
+            else:
+                ws.discard(s)
+
+    def notify(self, key: str) -> None:
+        with self._lock:
+            ws = list(self._watchers.get(key) or ())
+        for w in ws:
+            if not w.closed:
+                try:
+                    w.push_state()
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
 
     def host(self, s: NegotiationSession, host_index: int, scenario: Any, info: dict, sdir: Any,
-             evaluation: Any, want_assistant: bool = False, has_assistant: bool = False) -> Match:
+             evaluation: Any, want_assistant: Any = False, has_assistant: bool = False) -> Match:
         m = Match(match_key(s), s, host_index, scenario, info, sdir, evaluation, want_assistant, has_assistant)
         s.match = m  # before it is visible to a joining session
         self.requeue(m)
@@ -435,6 +498,7 @@ class Lobby:
                 q.append(m)
         m.arm(wait_seconds(m.host))
         m.watch()
+        self.notify(m.key)
 
     def withdraw(self, m: Match) -> None:
         with self._lock:
@@ -443,6 +507,7 @@ class Lobby:
                 q.remove(m)
             if not q:
                 self.waiting.pop(m.key, None)
+        self.notify(m.key)
 
     def n_waiting(self, key: str | None = None) -> int:
         with self._lock:
@@ -457,6 +522,7 @@ class Lobby:
                     m.cancel_timer()
                     m._stopped = True
             self.waiting.clear()
+            self._watchers.clear()
 
 
 LOBBY = Lobby()

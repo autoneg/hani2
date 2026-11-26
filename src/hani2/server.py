@@ -345,7 +345,7 @@ def sso_login(name: str, next: str = "/app"):
 def sso_callback(name: str, token: str = "", next: str = "/app"):
     try:
         claims = sso.verify(name, token, root_path=root_path())
-        user = sso.sign_in(name, claims)
+        user = sso.sign_in(name, claims, next)
     except sso.SSOError as e:
         print(f"[sso] {name}: refused ({e.code}): {e}")
         r = RedirectResponse(root_path() + f"/login?error=sso_{e.code}", status_code=303)
@@ -464,6 +464,13 @@ def api_session(request: Request, response: Response, body: dict = Body(default=
 
 def _api_session(request: Request, response: Response, body: dict, query: dict, ref) -> dict:
     mode = "guest" if body.get("mode") == "guest" else "main"
+    signed_in = current_user(request)
+    gstudy = sso.guest_study(signed_in)
+    if gstudy is not None:
+        # an invited guest (hani2.sso): only the one study their invitation names, as a participant
+        if ref is None or f"{ref.project}/{ref.study}" != gstudy:
+            raise HTTPException(403, "guest_study")
+        return _guest_session(request, response, body, query, ref, signed_in)
     pid = query.get("PROLIFIC_PID") or query.get("prolific_pid")
     st = projects.get_study(ref)
     participant = None
@@ -523,9 +530,57 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
     )
     if not created:
         s.query.update(query)
+        if mode == "main" and user and user.startswith(tuple(sso.reserved_prefixes())):
+            _new_round_after_handoff(s, auth.get_meta(user))
         s.refresh_assistant(getattr(s, "round_plan", None))  # a new ?group= may name another Assistant
+    elif mode == "main" and user:
+        s._handoff_seen = float(auth.get_meta(user).get("last_handoff") or 0)
     s.last_seen = time.time()
     return {"sid": sid}
+
+
+def _guest_session(request: Request, response: Response, body: dict, query: dict, ref, account: str) -> dict:
+    """The session of an invited guest: one per browser (several people may share one invitation, hence
+    one account), results in ``<account>~<browser>``, never admin, no URL overrides for admins."""
+    meta = auth.get_meta(account)
+    gid = _guest_id(request, response)
+    user, sid = f"{account}~{gid}", _session_sid(f"main:{account}~{gid}", ref)
+    display = meta.get("full_name") or "Guest"
+    ua = request.headers.get("user-agent", "")
+
+    def make():
+        s = NegotiationSession(sid, user, mode="main", is_admin=False, admin_mode=False, query=query, hub=hub,
+                               user_agent=ua, display_name=display, study=ref)
+        return s
+
+    def init(s):
+        _bind_account(s, account, meta)
+        s.load()
+
+    s, created = hub.get_or_create(sid, make, fresh=bool(body.get("fresh")), init=init)
+    if not created:
+        s.query.update(query)
+        _bind_account(s, account, meta)
+        _new_round_after_handoff(s, meta)
+        s.refresh_assistant(getattr(s, "round_plan", None))
+    s.last_seen = time.time()
+    return {"sid": sid}
+
+
+def _bind_account(s: NegotiationSession, account: str, meta: dict) -> None:
+    s.account = account  # the login the WebSocket checks
+    s.ss["invited_by"] = str(meta.get("invited_by") or "")
+    s.ss["guest"] = bool(meta.get("guest"))
+
+
+def _new_round_after_handoff(s: NegotiationSession, meta: dict) -> None:
+    """A fresh hand-off from the website (a new "play" click) after a finished negotiation opens a new
+    one, instead of the old result; a reload of the page does not."""
+    t = float(meta.get("last_handoff") or 0)
+    if t and t > float(getattr(s, "_handoff_seen", 0) or 0):
+        s._handoff_seen = t
+        if s.phase == "ended":
+            s.submit(s.load)
 
 
 def _dispatch(s: NegotiationSession, msg: dict[str, Any]) -> Any:
@@ -541,6 +596,11 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         return s.load(msg.get("scenario_type"), msg.get("name"))
     if t == "start":
         return s.start()
+    if t == "opponent_choice":  # play a person, or an AI opponent now (also while waiting)
+        r = s.choose_opponent_kind(str(msg.get("kind", "")))
+        if not r.get("ok"):
+            s.toast(r.get("error", "Could not choose"), "warning")
+        return r
     if t == "draft":
         return s.set_draft(msg.get("values") or {})
     if t == "draft_input":
@@ -697,7 +757,7 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 user = _serializer().loads(tok, max_age=MAX_AGE)
             except BadSignature:
                 user = None
-        if auth_mode() != "none" and user != (getattr(s, "admin_viewer", None) or s.user):
+        if auth_mode() != "none" and user != (getattr(s, "account", None) or getattr(s, "admin_viewer", None) or s.user):
             await websocket.close(code=4401)
             return
     elif sid.startswith("guest:"):

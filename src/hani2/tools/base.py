@@ -144,10 +144,16 @@ class Tool:
 
     @property
     def agent_ufun(self):
+        """The opponent's utility function; ``None`` when the opponent is another participant (their
+        preferences are theirs alone, whatever the tool or the viewer)."""
         s = self.scenario
-        if s is None:
+        if s is None or self.opponent_is_participant:
             return None
         return s.ufuns[1 - self.human_index]
+
+    @property
+    def opponent_is_participant(self) -> bool:
+        return bool(getattr(self.session, "opponent_is_participant", False))
 
     @property
     def issues(self) -> list:
@@ -161,7 +167,10 @@ class Tool:
     @property
     def may_see_opponent(self) -> bool:
         """Whether this participant may see the opponent's utilities: admins
-        always; everyone when env.json → ``tools.show_opponent_utility`` is true."""
+        always; everyone when env.json → ``tools.show_opponent_utility`` is true. Nobody when the
+        opponent is another participant."""
+        if self.opponent_is_participant:
+            return False
         if self.is_admin:
             return True
         from hani2.config import get_env

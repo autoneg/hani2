@@ -21,6 +21,12 @@ Token claims: ``iss`` (the issuer), ``aud`` (``hani2`` plus this server's root p
 
 Emails from the website are not verified by HANI2, so these accounts never become admins
 through ``admin.emails``.
+
+Guests: a token with ``guest: true`` (optionally ``invited_by`` and ``name``) signs in a person who has no
+account on the website (for example someone a participant invited). The account ``<prefix><sub>`` is
+flagged as a guest and bound to the one study ``next`` names, which must be listed in the provider's
+``guest_studies``; it can open nothing else (no other study, no admin page). A guest account never
+becomes a normal one, nor the other way round.
 """
 
 from __future__ import annotations
@@ -175,22 +181,85 @@ def _use_once(name: str, jti: str, until: float, now: float) -> None:
         tmp.replace(path)
 
 
-def sign_in(name: str, claims: dict[str, Any]) -> str:
-    """Create or update the account for verified ``claims``; returns its user name."""
+def _truthy(v: Any) -> bool:
+    return v is True or (isinstance(v, (int, float)) and v == 1) or \
+        (isinstance(v, str) and v.strip().lower() in ("1", "true", "yes"))
+
+
+def study_of_next(next_path: str | None) -> str | None:
+    """The study (``project/study``) a ``next`` path names: ``?study=P/S`` or a ``/s/P/S/`` prefix."""
+    from urllib.parse import parse_qs, urlsplit
+
+    from hani2 import projects
+
+    v = safe_next(next_path)
+    parts = urlsplit(v)
+    raw = (parse_qs(parts.query).get("study") or [None])[0]
+    if not raw:
+        segs = [x for x in parts.path.split("/") if x]
+        if len(segs) >= 3 and segs[0] == "s":
+            raw = f"{segs[1]}/{segs[2]}"
+    if not raw:
+        return None
+    try:
+        ref = projects.parse_ref(raw)
+    except ValueError:
+        return None
+    return f"{ref.project}/{ref.study}" if ref is not None else None
+
+
+def guest_studies(cfg: dict[str, Any]) -> list[str]:
+    raw = cfg.get("guest_studies") or []
+    if isinstance(raw, str):
+        raw = [x for x in raw.replace(",", " ").split() if x]
+    return [str(x).strip().strip("/") for x in raw if str(x).strip()]
+
+
+def sign_in(name: str, claims: dict[str, Any], next_path: str | None = None) -> str:
+    """Create or update the account for verified ``claims``; returns its user name. A guest token
+    (``guest: true``) needs ``next_path`` to name a study in the provider's ``guest_studies``."""
     from hani2 import auth
 
     cfg = providers()[name]
     user = f"{cfg['prefix']}{claims['sub']}"
     leagues = [str(x) for x in claims.get("leagues") or [] if isinstance(x, (str, int))][:16]
-    fields = dict(email=str(claims.get("email") or "")[:200], full_name=str(claims.get("name") or "")[:200],
-                  sso=name, sso_sub=str(claims["sub"]), leagues=leagues)
+    fields: dict[str, Any] = dict(email=str(claims.get("email") or "")[:200],
+                                  full_name=str(claims.get("name") or "")[:200],
+                                  sso=name, sso_sub=str(claims["sub"]), leagues=leagues)
+    guest = _truthy(claims.get("guest"))
+    if guest:
+        study = study_of_next(next_path)
+        allowed = guest_studies(cfg)
+        if not study or study not in allowed:
+            raise SSOError("guest", f"guest sign-in is not open for {study or 'this page'} "
+                                    f"(the provider's guest_studies: {', '.join(allowed) or 'none'})")
+        inviter = claims.get("invited_by")
+        fields.update(guest=True, guest_study=study, email="",
+                      invited_by=str(inviter)[:64] if isinstance(inviter, (str, int)) and str(inviter) else "")
     if not auth.user_exists(user):
         auth.create_user(user, None, **fields)
-    elif auth.get_meta(user).get("sso") != name:
-        raise SSOError("conflict", f"the account {user} was not made by {name}")
     else:
+        meta = auth.get_meta(user)
+        if meta.get("sso") != name:
+            raise SSOError("conflict", f"the account {user} was not made by {name}")
+        if bool(meta.get("guest")) != guest:
+            raise SSOError("conflict", f"the account {user} is {'a guest' if meta.get('guest') else 'not a guest'} "
+                                       f"account; a {'guest' if guest else 'normal'} token cannot sign it in")
         auth.update_meta(user, **fields)
+    auth.update_meta(user, last_handoff=time.time())
     return user
+
+
+def guest_study(user: str | None) -> str | None:
+    """The one study a guest account may open (``None``: not a guest)."""
+    from hani2 import auth
+
+    if not user:
+        return None
+    meta = auth.get_meta(user)
+    if not meta.get("guest"):
+        return None
+    return str(meta.get("guest_study") or "") or "-"  # a guest without a study opens nothing
 
 
 def safe_next(value: str | None) -> str:

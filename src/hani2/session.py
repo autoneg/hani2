@@ -1010,7 +1010,14 @@ class NegotiationSession:
         self.add_tool(inst, pane=spec.pane, at_front=False, focus=False,
                       by=self._opponent_estimate_by or "system")
 
+    @property
+    def opponent_is_participant(self) -> bool:
+        """This round's opponent is another participant (paired, or waiting to be)."""
+        return self.__dict__.get("match") is not None or bool(self.ss.get("match_id"))
+
     def opponent_utility(self, outcome) -> float | None:
+        if self.opponent_is_participant:  # never another participant's preferences, whoever asks
+            return None
         u = self.opponent_ufun
         if outcome is None or u is None or any(v is None for v in outcome):
             return None
@@ -1023,7 +1030,7 @@ class NegotiationSession:
         """The opponent's preferences as plain data: issue weights and option values for a linear
         additive utility function, else its ``top`` best outcomes."""
         u = self.opponent_ufun
-        if u is None:
+        if u is None or self.opponent_is_participant:
             return {}
         out: dict[str, Any] = {"reserved_value": float(getattr(u, "reserved_value", 0.0) or 0.0)}
         weights, values = getattr(u, "weights", None), getattr(u, "values", None)
@@ -1576,17 +1583,28 @@ class NegotiationSession:
                                                         self.admin_prefs.get("scenario_set"))
             self._leave_match()
             joined, hosting = None, False
-            if self._plans_human(plan):
+            decision, self._opponent_decision = getattr(self, "_opponent_decision", None), None
+            self._choice_kinds = None
+            matches.LOBBY.watch_choice(self, False)
+            if decision == "ai":
+                self._plan_ai(plan)
+            if decision != "ai" and self._plans_human(plan):
                 # a human opponent: join a participant waiting for one (and take their scenario). Who
                 # has an Assistant decides who fits whom, so settle this round's Assistant first.
                 self.refresh_assistant(plan)
-                want, has = matches.wants_assistant(plan["partner"]), self.support_agent is not None
+                want = plan.get("human_kinds") or matches.kinds(matches.wants_assistant(plan["partner"]))
+                has = self.support_agent is not None
                 self._warn_unpairable(want, has)
-                # one load at a time per match key, from looking for a partner to waiting: two
-                # participants loading together must not both end up waiting
-                hold.enter_context(matches.LOBBY.loading(self))
-                joined = matches.LOBBY.pair(self, want, has)
-                hosting = joined is None
+                if decision is None and self.opponent_choice_enabled():
+                    # the participant first chooses between a person and an AI: nobody is paired yet
+                    self._choice_kinds = (want, has)
+                    matches.LOBBY.watch_choice(self, True)
+                else:
+                    # one load at a time per match key, from looking for a partner to waiting: two
+                    # participants loading together must not both end up waiting
+                    hold.enter_context(matches.LOBBY.loading(self))
+                    joined = matches.LOBBY.pair(self, want, has)
+                    hosting = joined is None
             try:
                 if joined is not None:
                     scenario, info, sdir = joined.scenario, dict(joined.info or {}), joined.sdir
@@ -1933,6 +1951,9 @@ class NegotiationSession:
         with self.lock:
             if self.phase != "ready" or self.scenario is None:
                 return
+            if self.opponent_choice_pending:
+                self.toast("Choose first: play a person or an AI opponent.", "info")
+                return
             self.phase = "starting"
             self.thinking = True
             match = self.match
@@ -2012,18 +2033,46 @@ class NegotiationSession:
         if i is None:
             return matches.HUMAN
         o = 1 - i
-        has = m.has.get(o, m.wants.get(i, False))  # before pairing: what this side asked for
-        return matches.HUMAN_ASSISTED if has else matches.HUMAN
+        if o in m.has:
+            return matches.HUMAN_ASSISTED if m.has[o] else matches.HUMAN
+        # before pairing: what this side asked for
+        return matches.HUMAN_ASSISTED if m.wants.get(i) == frozenset({True}) else matches.HUMAN
+
+    def _opponent_choice_state(self) -> dict[str, Any] | None:
+        ck = self.__dict__.get("_choice_kinds")
+        if ck is None or not self.opponent_choice_pending:
+            return None
+        try:
+            n = matches.LOBBY.n_fitting(self, ck[0], ck[1])
+        except Exception:  # noqa: BLE001
+            n = 0
+        return {"people_waiting": n}
+
+    def _can_play_ai_instead(self) -> bool:
+        m = self.match
+        if m is None or m.paired or m.began or self.phase not in ("ready", "starting"):
+            return False
+        return self.opponent_choice_enabled() or self._pref_on("human_opponent_fallback", True)
 
     def _plans_human(self, plan: dict) -> bool:
         """Whether the coming round's opponent is another participant. When the pool contains
-        ``human``, the opponent is drawn now (into ``plan``) so the session can be paired as it loads."""
+        ``human``, the opponent is drawn now (into ``plan``) so the session can be paired as it loads.
+        With ``human_opponents_first`` every round looks for a person first, of any human kind the
+        pool lists (``plan["human_kinds"]``); the pool's AI opponents are the fallback."""
         if self.chosen_opponent is not None:  # the human's own pick (hani2.choices offers no human entries)
             return matches.is_human(self.chosen_opponent)
+        if self.admin_mode and self.next_opponent and plan.get("partner") is None:
+            return matches.is_human(self.next_opponent)
+        if self.human_opponents_first():
+            pool = self.opponent_pool()
+            found = matches.kinds_of(pool)
+            if found:
+                plan["partner"] = matches.HUMAN_ASSISTED if found == {True} else matches.HUMAN
+                plan["human_kinds"] = found
+                plan.setdefault("opponent_group", self.opponent_group)
+                return True
         if plan.get("partner") is not None:
             return matches.is_human(plan["partner"])
-        if self.admin_mode and self.next_opponent:
-            return matches.is_human(self.next_opponent)
         pool = self.opponent_pool()
         if not any(matches.is_human(x) for x in pool):
             return False
@@ -2031,13 +2080,74 @@ class NegotiationSession:
         plan.setdefault("opponent_group", self.opponent_group)
         return matches.is_human(plan["partner"])
 
-    def _warn_unpairable(self, want: bool, has: bool) -> None:
+    def _pref_on(self, key: str, default: bool = False) -> bool:
+        v = self.admin_prefs.get(key, default)
+        if isinstance(v, str):
+            return v.strip().lower() in ("1", "true", "yes", "on")
+        return bool(v)
+
+    def human_opponents_first(self) -> bool:
+        """``human_opponents_first`` (a study / admin setting): look for a person first in every round."""
+        return self._pref_on("human_opponents_first")
+
+    def opponent_choice_enabled(self) -> bool:
+        """Whether the participant chooses between a person and an AI before pairing:
+        ``human_opponent_choice`` (a study / admin setting) or ``?opponent_choice=1`` on the page."""
+        q = (self.query or {}).get("opponent_choice")
+        if isinstance(q, (list, tuple)):
+            q = q[0] if q else None
+        return self._pref_on("human_opponent_choice") or str(q or "").strip().lower() in ("1", "true", "yes", "on")
+
+    def _plan_ai(self, plan: dict) -> None:
+        """This round's opponent is an AI from the rest of the pool."""
+        plan["partner"] = matches.fallback_opponent(self.opponent_pool())
+        plan.pop("human_kinds", None)
+
+    @property
+    def opponent_choice_pending(self) -> bool:
+        return self.__dict__.get("_choice_kinds") is not None and self.phase in ("ready", "questionnaire")
+
+    def choose_opponent_kind(self, kind: str) -> dict:
+        """The participant's choice before pairing (``person`` or ``ai``), or, while waiting for a
+        person, ``ai``: an AI opponent now."""
+        kind = str(kind or "").strip().lower()
+        if kind not in ("person", "ai"):
+            return {"ok": False, "error": "choose 'person' or 'ai'"}
+        with self.lock:
+            m = self.match
+            waiting = m is not None and not m.paired and not m.began and self.phase in ("ready", "starting")
+            pending = self.opponent_choice_pending
+            if not (pending or (kind == "ai" and waiting)):
+                return {"ok": False, "error": "There is nothing to choose now."}
+            starting = self.phase == "starting"
+        ev.log_event(self.sid, ev.EventType.BUTTON_CLICKED, user=self.user, component="opponent_choice",
+                     action=f"play_{kind}", value=None)
+        if kind == "person":
+            self._opponent_decision = "person"
+            self.load()
+            return {"ok": True}
+        with self.lock:
+            if waiting:
+                self._leave_match()
+                self.ss["match_id"] = None
+            self._choice_kinds = None
+            matches.LOBBY.watch_choice(self, False)
+            plan = dict(getattr(self, "round_plan", {}) or {})
+            self._plan_ai(plan)
+            self.round_plan = plan
+        if starting:
+            self._start_with_agent()
+        else:
+            self.push_state()
+        return {"ok": True}
+
+    def _warn_unpairable(self, want: Any, has: bool) -> None:
         """A side that wants the same kind of opponent as it is (``human`` with an Assistant, or
         ``human+assistant`` without one) can only meet another study's participants: say so once."""
-        if want == has or getattr(self, "_warned_unpairable", False):
+        if has in matches.kinds(want) or getattr(self, "_warned_unpairable", False):
             return
         self._warned_unpairable = True
-        need = "with" if want else "without"
+        need = "with" if True in matches.kinds(want) else "without"
         msg = (f"{self.user} has {'an' if has else 'no'} Assistant and wants a human opponent {need} one: "
                f"only participants of another study in this project (or with the same ?match= code) fit; "
                f"otherwise the fallback applies after human_opponent_wait seconds")
@@ -2857,6 +2967,8 @@ class NegotiationSession:
             self.recorder.finish(row, summary)
         st = m.state
         agreement = st.agreement
+        if self.ss.get("match_id"):  # another participant: their utility stays in results.csv only
+            summary = {k: (None if k == "agent_utility" else v) for k, v in summary.items()}
         with self.lock:
             self.phase = "ended"
             self.result = dict(
@@ -3419,6 +3531,9 @@ class NegotiationSession:
                 # another participant is the opponent (they may or may not have an Assistant)
                 "opponent_kind": self._opponent_kind(),
                 "waiting_for_opponent": self.waiting_for_opponent,
+                # before pairing: play a person (how many fit right now) or an AI opponent now
+                "opponent_choice": self._opponent_choice_state(),
+                "can_play_ai_instead": self._can_play_ai_instead(),
                 "negotiation": dict(
                     running=self.phase == "running",
                     thinking=self.thinking,
