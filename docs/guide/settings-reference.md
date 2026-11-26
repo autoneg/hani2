@@ -282,6 +282,8 @@ More: [Project management](project-management.md#han-agents-by-year).
 |---|---|---|
 | [Opponent assignment](#setting-scheduling-opponents) | `scheduling.opponents` | How each participant's opponents are chosen from the pool |
 | [Assistant assignment](#setting-scheduling-assistants) | `scheduling.assistants` | How each participant's Assistants are chosen: one for all negotiations, or a new one each time |
+| [Repeats](#setting-scheduling-assistant-repeats) | `scheduling.assistant_repeats` | May a person get the same Assistant twice? Off, K > N is refused for the at-most-once methods |
+| [Crossing](#setting-scheduling-cross) | `scheduling.cross` | shift: cross the Assistant with the opponent so every pair meets equally often; none: no crossing |
 | [Scenario assignment](#setting-scheduling-scenarios) | `scheduling.scenarios` | How each negotiation's scenario type is chosen from the scenario set |
 | [K of N](#setting-assignment-k-of-n) | `n_required` | K counted negotiations per person over N Assistants: with K > N an Assistant repeats |
 
@@ -307,14 +309,15 @@ More: [Scheduling](scheduling.md#opponents).
 
 `scheduling.assistants`: *How each participant's Assistants are chosen: one for all negotiations, or a new one each time*
 
-Two families of methods:
+| You want | Method | Each person gets |
+|---|---|---|
+| One Assistant per person (between-subjects designs, the game) | `balanced` (default), `random_fixed`, `round_robin` | one Assistant for all $K$ negotiations |
+| Every Assistant once (a final evaluation: $K = N$) | `latin_square` (or `cyclic`) | every Assistant once, in a counterbalanced order |
+| $K$ of $N$ Assistants (screening: $K < N$) | `balanced_subset` (or `random_subset`) | $K$ different Assistants, with totals, positions and pairs balanced |
 
-- **One Assistant per person** (`balanced`, `random_fixed`, `round_robin`): the participant keeps
-  one Assistant for all $K$ negotiations. Use them for between-subjects designs and the game.
-- **A new Assistant each negotiation** (`latin_square`, `cyclic`, `random_each`): each
-  participant meets several Assistants. With $K \le N$ (counted negotiations at most the pool size),
-  `latin_square` and `cyclic` use each Assistant **at most once** per person; $K = N$ (every
-  Assistant once) is the design of a final evaluation.
+$K$ is **Counted negotiations** and $N$ the Assistants in the pool. The methods that promise each
+Assistant at most once refuse $K > N$ unless **Repeats** is on. `random_each` draws each
+negotiation independently.
 
 In a Paired study the method gives each person a **set** of Assistants, and the order is only a
 preference. The methods are listed below.
@@ -326,10 +329,52 @@ preference. The methods are listed below.
 | `random_each` | Every negotiation draws a new Assistant at random (within-subjects). |
 | `latin_square` | Every human works with every Assistant, in an order from a balanced (Williams) Latin square (within-subjects). |
 | `cyclic` | Human i starts with Assistant i and goes round the pool, one Assistant per negotiation (within-subjects). |
+| `balanced_subset` | Each human gets K different Assistants of the N, chosen on arrival to balance totals, pairs and positions. |
+| `random_subset` | Each human gets the first K of a random order of the N Assistants. |
 | `round_robin` | Human i keeps Assistant i modulo the pool size. |
 | `external` | Only an outside system decides: the participant's schedule.json names the Assistant. |
 
 More: [Scheduling](scheduling.md#assistants).
+
+### Repeats {#setting-scheduling-assistant-repeats}
+
+`scheduling.assistant_repeats`: *May a person get the same Assistant twice? Off, K > N is refused for the at-most-once methods*
+
+`latin_square`, `cyclic`, `balanced_subset`, `random_subset` and `external` promise that a person
+gets **each Assistant at most once**, which is possible only when $K \le N$ (counted negotiations at
+most the Assistants of the pool).
+
+| Repeats | Effect |
+|---|---|
+| unset or **No** | a file with $K > N$ is refused on save ("n_required = 6 negotiations but only 5 Assistants"); `random_each` is allowed unless **No** is set explicitly |
+| **Yes** | the Assistants wrap around on purpose, so a person meets some of them twice |
+
+A study already running with $K > N$ only gets a warning, and the Assistants wrap around.
+
+More: [Scheduling](scheduling.md#assistant-repeats).
+
+### Crossing {#setting-scheduling-cross}
+
+`scheduling.cross`: *shift: cross the Assistant with the opponent so every pair meets equally often; none: no crossing*
+
+When the Assistants change every negotiation and the opponents use `latin_square` or `cyclic`, the
+two rules would line up: with 5 Assistants and 5 opponents, Assistant $j$ would always meet
+opponent $j$, and an Assistant's effect could not be told apart from its opponent's. With
+**shift** (the default) participant $i$'s opponent sequence is shifted by a block offset
+
+$$
+d(i) = \left\lfloor i / R \right\rfloor \bmod n_o
+$$
+
+($R$: the rows of the opponents' square, $n_o$: the opponents), so over $R \cdot n_o$ participants
+every (Assistant, opponent) pair occurs equally often: 50 participants for 5 × 5.
+
+- It applies only to that combination of methods; otherwise it changes nothing.
+- Each person keeps the rule they started with, so changing it in a running study changes nothing
+  for people already in it.
+- **none** turns it off; HANI2 then warns when the Assistant and the opponent are confounded.
+
+More: [Scheduling](scheduling.md#crossing).
 
 ### Scenario assignment {#setting-scheduling-scenarios}
 
@@ -357,10 +402,11 @@ $K$ is **Counted negotiations** (`n_required`) and $N$ the number of Assistants 
 the groups are expanded.
 
 - With a method that keeps one Assistant per person, $K$ and $N$ are independent.
-- With a method that gives a new Assistant each negotiation (`latin_square`, `cyclic`), each
-  Assistant is used at most once per person **only when $K \le N$**. With $K > N$ the Assistants
-  wrap around and a person meets some of them twice, which a within-person comparison must allow
-  for. The row turns orange then.
+- With a method that promises each Assistant at most once per person (`latin_square`, `cyclic`,
+  `balanced_subset`, `random_subset`), $K \le N$ is required: with $K > N$ the row turns orange,
+  and saving is refused unless **Repeats** is on (then the Assistants wrap around and a person
+  meets some of them twice).
+- $K = N$ is "every Assistant once"; $K < N$ is a $K$-of-$N$ design, best with `balanced_subset`.
 - `random_each` draws each negotiation independently, so repeats can happen for any $K$.
 
 More: [Study management](study-management.md#assigning-assistants-opponents-and-scenarios).

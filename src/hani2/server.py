@@ -942,12 +942,14 @@ def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
     with study_modes._layer(ref, None if ref is not None else project):
         current = han_submissions.current_year()
         years = han_submissions.package_years()
-    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "pairing": {}}
+    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "pairing": {},
+                                 "scheduling": {}}
     if ref is not None:
         d = pr.defaults
         inherited = {"n_required": d.get("n_required") if d.get("n_required") is not None else 5,
                      "study_mode": d.get("study_mode"), "opponents": d.get("opponents"),
-                     "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {}}
+                     "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {},
+                     "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {}}
     return {"kind": pr.kind, "project_year": pr.year, "han": {"package_years": years, "current_year": current},
             "inherited": inherited}
 

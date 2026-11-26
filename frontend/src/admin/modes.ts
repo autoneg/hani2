@@ -111,15 +111,29 @@ export interface KofN {
   text: string;
 }
 
-export function kOfN(method: string | null | undefined, k: number | null | undefined, n: number | null | undefined): KofN {
+/** K counted negotiations against N Assistants under ``method``; ``repeats`` is
+ *  ``scheduling.assistant_repeats`` in effect (``null``: unset). */
+export function kOfN(method: string | null | undefined, k: number | null | undefined, n: number | null | undefined, repeats: boolean | null = null): KofN {
   const m = method ?? "";
   const per = PER_NEGOTIATION.includes(m);
   const K = k ?? null;
   const N = n ?? null;
   const head = `K = ${K ?? "?"} counted negotiations, N = ${N ?? "?"} Assistants`;
   if (!per) return { perNegotiation: false, warn: false, text: `${head}: one Assistant per person (${m || "the default method"})` };
-  if (m === "random_each") return { perNegotiation: true, warn: false, text: `${head}: drawn each negotiation, so repeats can happen` };
+  if (m === "random_each")
+    return repeats === false
+      ? { perNegotiation: true, warn: true, text: `${head}: random_each can repeat an Assistant, but Repeats is off: saving is refused` }
+      : { perNegotiation: true, warn: false, text: `${head}: drawn each negotiation, so repeats can happen` };
   if (K == null || N == null || N <= 0) return { perNegotiation: true, warn: false, text: head };
-  if (K > N) return { perNegotiation: true, warn: true, text: `${head}: K > N, so the Assistants wrap around and a person meets some of them twice` };
+  if (K > N)
+    return repeats === true
+      ? { perNegotiation: true, warn: false, text: `${head}: K > N, and Repeats is on: the Assistants wrap around` }
+      : { perNegotiation: true, warn: true, text: `${head}: K > N but each Assistant is used at most once: saving is refused (lower K, add Assistants or turn Repeats on)` };
   return { perNegotiation: true, warn: false, text: `${head}: each Assistant at most once per person${K === N ? " (every Assistant once)" : ""}` };
 }
+
+/** Opponent methods the crossing shifts. */
+export const CROSSED_OPPONENTS = ["latin_square", "cyclic"];
+/** Whether ``cross: shift`` changes anything for these methods. */
+export const crossingActive = (assistants: string | null | undefined, opponents: string | null | undefined, cross: string | null | undefined) =>
+  cross === "shift" && PER_NEGOTIATION.includes(assistants ?? "") && CROSSED_OPPONENTS.includes(opponents ?? "");

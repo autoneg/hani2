@@ -17,7 +17,7 @@ import { Checks } from "../controls/Checks";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
 import { useScheduling as useSchedulingMethods } from "../help";
-import { HAN_SETS, MODE_LABEL, derive, hanEntry, hanToken, hanYearLabel, hanYears, items, kOfN, modeProblems } from "../modes";
+import { HAN_SETS, MODE_LABEL, crossingActive, derive, hanEntry, hanToken, hanYearLabel, hanYears, items, kOfN, modeProblems } from "../modes";
 import { ScoresGroup } from "../ScoreBuilder";
 
 const PROJECT_FIELDS = ["name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact"];
@@ -132,13 +132,26 @@ function usePoolSize(layer: string | undefined, version: unknown) {
 }
 
 /** How each dimension is scheduled: this file's choice, else ``inherit`` (``effective``: what the study uses). */
-function SchedulingGroup({ value, onChange, inherit, effective, k, layer, version }: { value: any; onChange: (v: any) => void; inherit: string; effective?: Record<string, string>; k?: number | null; layer?: string; version?: unknown }) {
+function SchedulingGroup({ value, onChange, inherit, effective, k, layer, version, inherited }: { value: any; onChange: (v: any) => void; inherit: string; effective?: Record<string, string>; k?: number | null; layer?: string; version?: unknown; inherited?: Record<string, any> }) {
   const m = useScheduling();
   const n = usePoolSize(layer, version);
   if (!m) return m === null ? null : <Spinner />;
   const v = value ?? {};
   const dims: [string, string, string][] = [["opponents", "Opponents", "scheduling.opponents"], ["assistants", "Assistants", "scheduling.assistants"], ["scenarios", "Scenarios", "scheduling.scenarios"]];
-  const kn = kOfN(v.assistants ?? effective?.assistants ?? m.defaults?.assistants, k, n);
+  const method = (dim: string) => v[dim] ?? effective?.[dim] ?? m.defaults?.[dim];
+  const setOpt = (key: string, x: any) => {
+    const nv = { ...v };
+    if (x === null || x === undefined || x === "") delete nv[key];
+    else nv[key] = x;
+    onChange(nv);
+  };
+  // the options are merged like the dimensions: this file's value, else the project's, else the default
+  const repeats: boolean | null = v.assistant_repeats ?? inherited?.assistant_repeats ?? null;
+  const cross: string = v.cross ?? inherited?.cross ?? m.options?.cross?.default ?? "shift";
+  const kn = kOfN(method("assistants"), k, n, repeats);
+  const crossOn = crossingActive(method("assistants"), method("opponents"), cross);
+  const inhRepeats = inherited?.assistant_repeats;
+  const inhCross = inherited?.cross ?? m.options?.cross?.default;
   return (
     <Group title="Scheduling" footer={`How HANI2 assigns each human. “${inherit}” keeps the value from the ${inherit === "Default" ? "server default" : "project"}.`} id="setting-scheduling">
       {dims.map(([k, l, help]) => {
@@ -164,6 +177,17 @@ function SchedulingGroup({ value, onChange, inherit, effective, k, layer, versio
       })}
       <Row id="assignment-k-of-n" help="assignment.k_of_n" label="K of N" hint={kn.perNegotiation ? "Counted negotiations against the Assistants in the pool" : "Counted negotiations and the Assistants in the pool"}>
         <span className={`text-right text-sm ${kn.warn ? "font-medium text-warn" : "text-muted"}`} data-k-of-n={kn.warn ? "warn" : "ok"}>{kn.text}</span>
+      </Row>
+      <Row id="scheduling-assistant-repeats" help="scheduling.assistant_repeats" label="Repeats" hint="assistant_repeats: may a person get the same Assistant twice?" overridden={v.assistant_repeats !== undefined} onReset={() => setOpt("assistant_repeats", null)}>
+        <Select
+          label="Repeats"
+          value={v.assistant_repeats === undefined ? "" : v.assistant_repeats ? "yes" : "no"}
+          onChange={(x) => setOpt("assistant_repeats", x === "" ? null : x === "yes")}
+          options={[{ value: "", label: `${inherit} (${inhRepeats === undefined ? "unset" : inhRepeats ? "yes" : "no"})` }, { value: "yes", label: "Yes: wrap around" }, { value: "no", label: "No: at most once" }]}
+        />
+      </Row>
+      <Row id="scheduling-cross" help="scheduling.cross" label="Crossing" hint={crossOn ? "Active: the opponents are shifted against the Assistants" : cross === "shift" ? "Applies only when the Assistants change every negotiation and the opponents use latin_square or cyclic" : "Off: the Assistant and the opponent may be confounded"} overridden={v.cross !== undefined} onReset={() => setOpt("cross", null)}>
+        <Select label="Crossing" value={v.cross ?? ""} onChange={(x) => setOpt("cross", x || null)} options={[{ value: "", label: `${inherit} (${inhCross})` }, { value: "shift", label: "shift" }, { value: "none", label: "none" }]} />
       </Row>
       <Disclosure id="scheduling-about" icon={<Info size={16} className="text-you" />} label="About these methods" hint="What each method does, with examples, advantages and disadvantages" title="Scheduling methods" render={() => <SchedulingAbout m={m} />} />
     </Group>
@@ -649,7 +673,7 @@ export function StudyView({ project, study }: { project: string; study: string }
         </Row>
       </Group>
       <DefaultsGroup title="Overrides of the project's defaults" value={data.overrides} onChange={(v) => set("overrides", v)} meta={meta} inherit="Project" ed={d.editor} effective={d.study_mode_effective} />
-      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Project" effective={d.scheduling_effective} k={data.overrides?.n_required ?? d.editor?.inherited?.n_required} layer={`study:${project}/${study}`} version={d} />
+      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Project" effective={d.scheduling_effective} k={data.overrides?.n_required ?? d.editor?.inherited?.n_required} layer={`study:${project}/${study}`} version={d} inherited={d.editor?.inherited?.scheduling} />
       <ScoresGroup project={project} study={study} onChange={refreshScores} />
       <ScoresEnabledGroup value={data.overrides?.scores_enabled} onChange={(x) => set("overrides", putKey(data.overrides, "scores_enabled", x))} project={project} study={study} inherit="Project" version={scoresVersion} />
       <ExtraGroup data={data} keys={extraKeys(data, STUDY_FIELDS, "overrides")} onChange={set} prefix="study" />

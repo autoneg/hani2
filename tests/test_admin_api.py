@@ -636,12 +636,12 @@ def test_every_required_editor_choice_has_help(admin):
 
 
 def test_help_texts_name_no_later_settings():
-    """The texts are published as docs: no settings this version does not have."""
+    """The texts are published as docs: no settings this version does not have, no other projects."""
     from hani2 import help_texts
 
     for k, h in help_texts.HELP.items():
         text = " ".join([k, h.summary, h.details])
-        for word in ("leaderboard", "assistant_repeats", "scheduling.cross", "HANI ", "scmlweb"):
+        for word in ("leaderboard", "HANI ", "scmlweb"):
             assert word not in text, (k, word)
 
 
@@ -659,7 +659,7 @@ def test_editor_block_of_project_and_study(admin, studies):
     ed = p["editor"]
     assert ed["kind"] == "assistant"
     assert set(ed["han"]) == {"package_years", "current_year"}
-    assert ed["inherited"]["n_required"] == 5
+    assert ed["inherited"]["n_required"] == 5 and ed["inherited"]["scheduling"] == {}
     s = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
     assert s["editor"]["inherited"]["n_required"] == 2  # the project's default
     # the block is read-only: sending it back does not end up in study.yaml

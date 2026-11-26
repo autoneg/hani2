@@ -5,7 +5,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { resolveHelp } from "../src/admin/helpKeys.ts";
-import { derive, hanToken, hanYearLabel, hanYears, kOfN, modeProblems } from "../src/admin/modes.ts";
+import { crossingActive, derive, hanToken, hanYearLabel, hanYears, kOfN, modeProblems } from "../src/admin/modes.ts";
 
 const here = new URL(".", import.meta.url).pathname;
 const py = readFileSync(join(here, "../../src/hani2/help_texts.py"), "utf8");
@@ -70,9 +70,21 @@ test("HAN years: labels from the project's year, uncovered years greyed out", ()
 
 test("K versus N", () => {
   assert.ok(kOfN("latin_square", 6, 5).warn);
+  assert.ok(kOfN("balanced_subset", 6, 5, false).warn);
+  assert.ok(!kOfN("latin_square", 6, 5, true).warn, "Repeats on: the Assistants wrap around");
+  assert.ok(kOfN("random_each", 3, 5, false).warn, "random_each with Repeats off is refused");
+  assert.ok(!kOfN("balanced_subset", 3, 5).warn);
   assert.ok(!kOfN("latin_square", 5, 5).warn);
   assert.match(kOfN("latin_square", 5, 5).text, /every Assistant once/);
   assert.ok(!kOfN("balanced", 6, 5).warn, "one Assistant per person");
   assert.ok(!kOfN("random_each", 6, 5).warn);
   assert.ok(!kOfN("cyclic", 6, null).warn, "unknown N: no warning");
+});
+
+test("the crossing applies only to per-negotiation Assistants against latin_square or cyclic opponents", () => {
+  assert.ok(crossingActive("latin_square", "latin_square", "shift"));
+  assert.ok(crossingActive("balanced_subset", "cyclic", "shift"));
+  assert.ok(!crossingActive("balanced", "latin_square", "shift"));
+  assert.ok(!crossingActive("latin_square", "random", "shift"));
+  assert.ok(!crossingActive("latin_square", "latin_square", "none"));
 });
