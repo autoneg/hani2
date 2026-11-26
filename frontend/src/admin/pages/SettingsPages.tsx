@@ -80,6 +80,7 @@ export const NEGOTIATION: FieldGroup[] = [
     fields: [
       { id: "load-existing", path: "negotiation.load_existing", label: "Use saved scenario pools", hint: "Off: generate a fresh scenario each time", type: "toggle" },
       { id: "generate-on-failure", path: "negotiation.generate_on_failure", label: "Generate a scenario when none is saved", type: "toggle" },
+      { id: "simple-scenarios", path: "negotiation.simple_scenarios", label: "Simple scenarios", hint: "Round numbers, linear and symmetric preferences; a project or study setting wins", type: "toggle" },
       { id: "scenario-set-session", path: "negotiation.scenario_set", label: "Scenario set", hint: "Empty: the default set (Scenarios page)", type: "custom" },
       { id: "predefined-order", path: "negotiation.predefined_order", label: "Follow the scenario order", type: "toggle" },
       { id: "allow-scenario-selection", path: "negotiation.allow_scenario_selection", label: "Participants may choose the scenario", hint: "The old switch (any type, every layer); prefer \"What participants may choose\" below", type: "toggle" },

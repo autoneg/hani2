@@ -26,7 +26,7 @@ from negmas.helpers.inout import load
 from hani2 import scenario_sets
 from hani2.config import DEFAULT_SCENARIOS, scenarios_dir
 from hani2.display import OfferDisplay
-from hani2.scenarios import registry
+from hani2.scenarios import registry, simple
 
 #: ``{type: maker}`` / ``{type: display}`` of the registered generators (live views of the registry).
 MAKER_MAP: dict[str, Callable[[int], Scenario]] = registry.MAKERS
@@ -243,6 +243,39 @@ def strict_scenarios(ref: Any = None) -> bool:
     return bool(projects.setting("strict_scenarios", False, cast=bool, **kw))
 
 
+def simple_scenarios(ref: Any = None, default: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study generates *simple* scenarios (round
+    numbers, linear and symmetric preferences, see :mod:`hani2.scenarios.simple`):
+    the ``simple_scenarios`` setting of its ``study.yaml``, else of its project's
+    ``project.yaml``, else ``default`` (the global setting ``negotiation.simple_scenarios``
+    in ``env.json``, see :data:`hani2.session.ADMIN_PREFS`); **on** by default."""
+    from hani2 import projects
+
+    if default is None:
+        from hani2.config import get_env
+
+        default = (get_env("negotiation", {}) or {}).get("simple_scenarios", True)
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        return bool(projects.setting("simple_scenarios", bool(default), cast=bool, **kw))
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return bool(default)
+
+
+def _simple_dir(path: Path) -> bool:
+    return bool(_read_info(path).get(simple.SIMPLE_KEY))
+
+
+def make_scenario(type_: str, index: int, simple_mode: bool = False) -> Scenario:
+    """Generate slot ``index`` of ``type_``; ``simple_mode`` makes it a simple scenario
+    (a maker that knows nothing about the mode is simplified afterwards)."""
+    if not simple_mode:
+        return MAKER_MAP[type_](index)
+    with simple.simple_mode():
+        s = MAKER_MAP[type_](index)
+        return s if simple.is_simple(s) else simple.simplify_scenario(s)
+
+
 def pool_problems(types: list[str]) -> dict[str, str]:
     """``{type: problem}`` for the types strict scenarios could not serve (no saved
     scenarios, or saved scenarios that do not load)."""
@@ -303,6 +336,7 @@ def load_scenario(
     generate_on_failure: bool = True,
     name: str | None = None,
     strict: bool = False,
+    simple_mode: bool = False,
 ) -> tuple[Scenario, dict[str, Any], str | None]:
     """Return ``(scenario, basic_info, scenario_dir)`` for slot ``index`` of ``type_``.
 
@@ -314,10 +348,23 @@ def load_scenario(
     always used, and a missing pool, a missing named scenario or a folder that
     cannot be loaded raises :class:`StrictScenarioError` instead of falling back
     to a generated scenario or a bundled sample.
+
+    ``simple_mode`` (the setting ``simple_scenarios``, on by default) serves simple
+    scenarios: saved scenarios generated in simple mode, else (or when the pool
+    has none) a scenario generated in simple mode. With ``strict`` the saved set
+    wins: a pool without simple scenarios is served as it is. Saved scenarios are
+    never changed when they are served.
     """
     if strict:
         load_existing, generate_on_failure = True, False
     pool = _pool(type_) if load_existing else []
+    if simple_mode:
+        registry.load_plugins()
+        simple_pool = [p for p in pool if _simple_dir(p)] if type_ in MAKER_MAP else pool
+        if simple_pool or not strict:
+            pool = simple_pool
+        if type_ not in MAKER_MAP or (strict and not simple_pool):
+            simple_mode = False  # served as saved: nothing can (or may) generate a simple one
     if strict and not pool:
         raise StrictScenarioError(f"strict scenarios: no saved scenarios of type {type_!r} in {base_dir() / type_}")
     if name:
@@ -346,9 +393,10 @@ def load_scenario(
                 return s, dict(index=index, load_index=None, load_path=str(sample),
                                scenario_name=type_, generated=False, scenario_type=type_), None
         raise ValueError(f"Unknown scenario type {type_!r}")
-    s = MAKER_MAP[type_](index)
+    s = make_scenario(type_, index, simple_mode)
     info = dict(index=index, load_index=None, load_path=None,
-                scenario_name=s.outcome_space.name, generated=True, scenario_type=type_)
+                scenario_name=s.outcome_space.name, generated=True, scenario_type=type_,
+                **({"simple": True} if simple_mode else {}))
     return s, info, None
 
 

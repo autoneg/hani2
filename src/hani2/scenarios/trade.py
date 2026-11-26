@@ -12,6 +12,7 @@ from negmas import (
 )
 from hani2.config import DEFAULT_SCENRIOS, INFO_FILE_NAME
 from hani2.display import OfferContext, OfferDisplay
+from . import simple
 from .common import IntRange, FloatIssueRange, FloatRange, float_in, int_in, range_in
 
 
@@ -65,6 +66,10 @@ def make_trade_scenario(
         target = max(target, os.issues[0].min_value)
         target = min(target, os.issues[0].max_value)
         e = float_in(price_exponent)
+        if simple.active():  # simple scenarios: a linear price and a symmetric quantity triangle
+            e = 1.0
+            p = simple.snap(float_in(shortfall_penalty), 0.1) or 0.1
+            shortfall_penalty = excess_penalty = (p, p)
         quantities = list(os.issues[0].all)
         prices = list(os.issues[1].all)
 
@@ -131,6 +136,10 @@ def make_trade_scenario(
     if not seller_starts:
         ufuns.reverse()
 
+    if simple.active():
+        ufuns = [simple.simplify_ufun(u) for u in ufuns]
+        seller_quantity_weight = float(next(u for u in ufuns if u.name == "Seller").weights[0])
+        buyer_quantity_weight = float(next(u for u in ufuns if u.name == "Buyer").weights[0])
     info = load(DEFAULT_SCENRIOS / "Trade" / INFO_FILE_NAME)
     info["hints"]["Seller"]["Target Quantity"] = int(seller_target)
     info["hints"]["Buyer"]["Target Quantity"] = int(buyer_target)
@@ -138,6 +147,8 @@ def make_trade_scenario(
     info["hints"]["Buyer"]["Quantity Importance"] = round(buyer_quantity_weight, 3)
     info["hints"]["Seller"]["Price Importance"] = round(1.0 - seller_quantity_weight, 3)
     info["hints"]["Buyer"]["Price Importance"] = round(1.0 - buyer_quantity_weight, 3)
+    if simple.active():
+        info[simple.SIMPLE_KEY] = True
     return Scenario(outcome_space=os, ufuns=tuple(ufuns), info=info)
 
 

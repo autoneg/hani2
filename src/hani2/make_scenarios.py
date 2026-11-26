@@ -71,12 +71,16 @@ def scenario_opposition(scenario: Scenario) -> float:
 
 
 def set_reservation_values(scenario: Scenario, human_index: int, rng: random.Random,
-                           user_max: float, agent_max: float) -> tuple[float, float]:
+                           user_max: float, agent_max: float, simple: bool = False) -> tuple[float, float]:
     """Set small disagreement values on the ufuns' [0,1] scale: the human at or
-    below ``user_max``, every other (agent) negotiator at or below ``agent_max``.
-    Returns (human_reserved, agent_reserved)."""
+    below ``user_max``, every other (agent) negotiator at or below ``agent_max``
+    (``simple``: rounded to 5%). Returns (human_reserved, agent_reserved)."""
     human_r = round(rng.uniform(0.0, user_max), 4)
     agent_r = round(rng.uniform(0.0, agent_max), 4)
+    if simple:
+        from hani2.scenarios.simple import snap_reserved
+
+        human_r, agent_r = snap_reserved(human_r), snap_reserved(agent_r)
     for i, uf in enumerate(scenario.ufuns):
         try:
             uf.reserved_value = human_r if i == human_index else agent_r
@@ -92,28 +96,32 @@ def slot_seed(seed: int | str, scenario_type: str, slot: int) -> str:
 
 
 def make_in_band(scenario_type: str, slot: int,
-                 min_opp: float, max_opp: float, max_tries: int, seed: int | str | None = None):
+                 min_opp: float, max_opp: float, max_tries: int, seed: int | str | None = None,
+                 simple: bool = False):
     """Draw scenarios from the (random) maker until opposition_level falls in
     [min_opp, max_opp]. Returns (scenario, opposition, tries). Raises after
     max_tries with the closest-to-band attempt so we never write nothing.
 
     With ``seed`` the draws are reproducible: Python's random generator (which
-    every built-in maker uses) is seeded from :func:`slot_seed` first."""
+    every built-in maker uses) is seeded from :func:`slot_seed` first. ``simple``
+    generates simple scenarios (see :mod:`hani2.scenarios.simple`)."""
     if seed is None:
-        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries)
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple)
     state = random.getstate()
     random.seed(slot_seed(seed, scenario_type, slot))
     try:
-        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries)
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple)
     finally:
         random.setstate(state)
 
 
-def _make_in_band(scenario_type: str, slot: int, min_opp: float, max_opp: float, max_tries: int):
-    maker = MAKER_MAP[scenario_type]
+def _make_in_band(scenario_type: str, slot: int, min_opp: float, max_opp: float, max_tries: int,
+                  simple: bool = False):
+    from hani2.scenario_store import make_scenario
+
     best = None  # (distance_outside_band, scenario, opp)
     for attempt in range(1, max_tries + 1):
-        scenario = maker(slot)
+        scenario = make_scenario(scenario_type, slot, simple)
         opp = scenario_opposition(scenario)
         if min_opp <= opp <= max_opp:
             return scenario, opp, attempt
@@ -160,7 +168,7 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
                  force: bool, cache_inverter: bool, rng: random.Random,
                  min_opp: float, max_opp: float, set_reservations: bool,
                  user_max: float, agent_max: float, max_tries: int,
-                 seed: int | str | None = None) -> tuple[bool, str]:
+                 seed: int | str | None = None, simple: bool = False) -> tuple[bool, str]:
     """Generate (or skip) one scenario directory, optionally caching its inverse.
 
     Returns (wrote, message)."""
@@ -175,7 +183,7 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
         return False, f"skip {out_dir.name} (exists)"
 
     scenario, opp, tries = make_in_band(
-        scenario_type, index, min_opp, max_opp, max_tries, seed
+        scenario_type, index, min_opp, max_opp, max_tries, seed, simple
     )
     if seed is not None:
         rng = random.Random(slot_seed(seed, scenario_type, index) + ":reserved")
@@ -186,7 +194,7 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
         from hani2.scenario_store import assign_human
 
         human_r, agent_r = set_reservation_values(
-            scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max
+            scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max, simple
         )
         res_note = f" res h={human_r}/a={agent_r}"
     # <Type>.yml / per-role ufuns / _info.yml, including the reservation values we just set
@@ -265,6 +273,11 @@ def generate(
         "--force", help="Regenerate even if the scenario dir already exists")] = False,
     scenario_set: Annotated[Optional[str], typer.Option(
         "--set", help="Generate the types of this scenario set (default: the active set).")] = None,
+    simple: Annotated[Optional[bool], typer.Option(
+        "--simple/--no-simple",
+        help="Simple scenarios: round numbers, linear and symmetric preferences (default: the "
+        "simple_scenarios setting of the current project/study, else of env.json; on unless switched off). Existing slots are "
+        "kept unless --force.")] = None,
 ):
     """Generate a pool of scenarios, optionally with cached utility inverses."""
     from hani2 import scenario_sets
@@ -308,6 +321,11 @@ def generate(
     print(f"Reservations  : {'set' if set_reservations else 'maker defaults'}"
           + (f" (user<={user_reserved_max} agent<={agent_reserved_max})"
              if set_reservations else ""))
+    if simple is None:
+        from hani2.scenario_store import simple_scenarios
+
+        simple = simple_scenarios()
+    print(f"Simple        : {simple}")
     print(f"Force rewrite : {force}")
     print("-" * 60)
 
@@ -322,7 +340,7 @@ def generate(
                 did_write, msg = generate_one(
                     scenario_type, i, type_dir, human_index, force, cache_inverter,
                     rng, min_opposition, max_opposition, set_reservations,
-                    user_reserved_max, agent_reserved_max, max_tries, seed,
+                    user_reserved_max, agent_reserved_max, max_tries, seed, bool(simple),
                 )
             except Exception as e:
                 total_err += 1

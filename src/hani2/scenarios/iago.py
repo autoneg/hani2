@@ -14,6 +14,7 @@ module only holds the functions that draw each role's preferences.
 
 from __future__ import annotations
 
+from . import simple
 from .story import Side, Story
 
 
@@ -59,11 +60,12 @@ ESTATE = {"Records": 6, "Clocks": 3, "Paintings": 2, "Books": 3}
 def _estate_setup(rng):
     # Both heirs value the record collection most; they differ on clocks and books; paintings vary.
     out = {}
+    digits = 0 if simple.active() else 1  # simple scenarios: whole points
     for heir in ("agent", "human"):
-        pts = {"Records": round(rng.uniform(3.0, 4.0), 1), "Paintings": round(rng.uniform(1.0, 4.0), 1)}
+        pts = {"Records": round(rng.uniform(3.0, 4.0), digits), "Paintings": round(rng.uniform(1.0, 4.0), digits)}
         clocks_first = rng.random() < 0.5
-        pts["Clocks"] = round(rng.uniform(2.0, 3.0) if clocks_first else rng.uniform(0.5, 1.5), 1)
-        pts["Books"] = round(rng.uniform(0.5, 1.5) if clocks_first else rng.uniform(2.0, 3.0), 1)
+        pts["Clocks"] = round(rng.uniform(2.0, 3.0) if clocks_first else rng.uniform(0.5, 1.5), digits)
+        pts["Books"] = round(rng.uniform(0.5, 1.5) if clocks_first else rng.uniform(2.0, 3.0), digits)
         out[heir] = pts
     return out
 

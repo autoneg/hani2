@@ -121,12 +121,16 @@ def texts(x):
     return json.dumps(jsonable(x))
 
 
+def shows_disagreement(t: str) -> bool:
+    return "If you do not reach agreement you get" in t or "If no agreement is reached the opponent" in t
+
+
 @pytest.mark.parametrize("name", sorted(build()) + ["ip", "prob_map"])
 def test_every_ufun_type_renders(name):
     u = build().get(name) or prob_ufuns().get(name)
     comps = render(u)
     t = texts(comps)
-    assert "Value on disagreement" in t
+    assert shows_disagreement(t)
     assert "failed" not in t and "cannot be shown" not in t
 
 
@@ -195,7 +199,7 @@ def test_custom_view_takes_precedence_and_priority():
         uv.register_ufun_view(Mine, lambda ctx: [ui.text_block("high")], priority=5)
         t = texts(render(u))
         assert "high" in t
-        assert "Value on disagreement" in t  # always shown
+        assert shows_disagreement(t)  # always shown
     finally:
         uv.unregister_ufun_view(Mine)
     assert "Best deals" in texts(render(u))
@@ -208,10 +212,18 @@ def test_preference_tools_render_in_session():
     for name in ("Preferences", "Opponent Preferences"):
         t = s.tool_controller.find(name)
         view = t.render()
-        assert "Value on disagreement" in texts(view)
+        assert shows_disagreement(texts(view))
         assert isinstance(t, Tool)
 
 
 def test_mapping_and_rank_views_list_best_deals():
     assert "Best deals" in texts(render(build()["mapping"]))
     assert "Deals from best to worst" in texts(render(build()["rank"]))
+
+
+def test_long_option_labels_keep_start_and_end():
+    labels = uv._short_labels(["Same terms", "x" * 10 + "middle" * 10 + "END"])
+    assert labels[0] == "Same terms"
+    assert len(labels[1]) <= uv.MAX_AXIS_LABEL and labels[1].startswith("xxxx") and labels[1].endswith("END")
+    fig = uv._bars(["Same terms", "Performance bonuses"], [0.3, 1.0])
+    assert fig["figure"]["layout"]["yaxis"]["automargin"] is True

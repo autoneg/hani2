@@ -1,0 +1,1 @@
+import{c as t}from"./index-D9bUNdtR.js";const e={name:"toggle-right",size:24,node:[["circle",{cx:"15",cy:"12",r:"3",key:"1afu0r"}],["rect",{width:"20",height:"14",x:"2",y:"5",rx:"7",key:"g7kal2"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

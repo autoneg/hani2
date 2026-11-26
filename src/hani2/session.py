@@ -144,6 +144,9 @@ ADMIN_PREFS: dict[str, Any] = {
     "allow_moving_tools": True,
     "load_existing": True,
     "generate_on_failure": True,
+    # Generate simple scenarios (round numbers, linear and symmetric preferences); a project or
+    # study setting `simple_scenarios` wins over this global default (see hani2.scenarios.simple).
+    "simple_scenarios": True,
     "predefined_order": True,
     "allow_scenario_selection": False,
     # The scenario set to use (None: HANI2_SCENARIO_SET, then the default set).
@@ -1616,6 +1619,8 @@ class NegotiationSession:
                         generate_on_failure=bool(self.admin_prefs.get("generate_on_failure", True)),
                         name=plan.get("name"),
                         strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
+                        simple_mode=store.simple_scenarios(self.study_ref,
+                                                           self.admin_prefs.get("simple_scenarios", True)),
                     )
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Simple scenarios, on by default.** Generated scenarios use round numbers (option values in steps
+  of 5%, weights in steps of 10% that add up to 100%, the value on disagreement in steps of 5%),
+  linear "more/less is better" issues and symmetric triangles. A pool serves only its scenarios
+  marked `simple: true` while the setting is on (else a simple one is generated). Switch it off
+  globally (`negotiation.simple_scenarios`), per project or per study (`simple_scenarios`); see
+  [Simple scenarios](guide/scenarios.md#simple-scenarios).
+- **A clearer Preferences tool.** An always-visible summary at the top, a caption under *Issue
+  weights* and *Value of each option*, the value on disagreement as one sentence under the charts
+  ("If you do not reach agreement you get 10% (your best option gives you 100%).") and a *Hints*
+  card with the role's hints and what you want on every issue in plain words.
+  Option names in the bar charts are no longer cut: the chart makes room for them, and only a very
+  long name is shortened in the middle (its start and end stay visible; hover shows it in full).
+
 - **Games: people play each other whenever they like.** `human_opponents_first` makes every
   negotiation look for a person first, of any human kind the pool lists, with the AI entries as the
   fallback. `human_opponent_choice` (or `?opponent_choice=1`) lets the participant choose *Play a
