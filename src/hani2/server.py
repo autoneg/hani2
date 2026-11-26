@@ -932,6 +932,26 @@ def _count_rows(files: list[Path]) -> int:
     return n
 
 
+def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
+    """What the project and study editor needs besides the file: the project's kind and year (the
+    "this year" / "last year" labels of the HAN picker), the years each HAN source covers (read in
+    the file's own layer, as the save checks do), and what a study inherits from its project."""
+    from hani2 import han_submissions, study_modes
+
+    pr = projects.load_project(project)
+    with study_modes._layer(ref, None if ref is not None else project):
+        current = han_submissions.current_year()
+        years = han_submissions.package_years()
+    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "pairing": {}}
+    if ref is not None:
+        d = pr.defaults
+        inherited = {"n_required": d.get("n_required") if d.get("n_required") is not None else 5,
+                     "study_mode": d.get("study_mode"), "opponents": d.get("opponents"),
+                     "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {}}
+    return {"kind": pr.kind, "project_year": pr.year, "han": {"package_years": years, "current_year": current},
+            "inherited": inherited}
+
+
 def _study_info(ref: "projects.StudyRef") -> dict:
     from hani2 import scheduling, study_modes
 
@@ -948,8 +968,18 @@ def _study_info(ref: "projects.StudyRef") -> dict:
             "scheduling_effective": effective,
             # the mode in use (declared, else derived from opponents) and the merged pairing keys
             "study_mode_effective": mode.to_dict(),
+            "editor": _editor_info(ref.project, ref),
             "errors": list(dict.fromkeys([*st.errors, *sched_errors, *mode.errors])),
             "links": projects.participant_links(ref, projects.public_base_url())}
+
+
+@app.get("/api/admin/help")
+def admin_help(_: str = Depends(require_admin)):
+    """The texts of the editor's ``?`` buttons, keyed by setting id (title, one-line summary, Markdown
+    details), and the ids every editor choice that is not self-explanatory must have."""
+    from hani2 import help_texts
+
+    return help_texts.api_payload()
 
 
 @app.get("/api/admin/scheduling-methods")
@@ -1160,7 +1190,8 @@ def admin_project(project: str, _: str = Depends(require_admin)):
     mode = study_modes.resolve_project(project)
     return {**pr.to_dict(), "path": str(pr.path) if pr.path else None, "yaml": f.read_text(encoding="utf-8") if f.exists() else "",
             "scheduling": dict(sched) if isinstance(sched, dict) else {},
-            "study_mode_effective": mode.to_dict(), "errors": list(dict.fromkeys([*pr.errors, *mode.errors])),
+            "study_mode_effective": mode.to_dict(), "editor": _editor_info(project),
+            "errors": list(dict.fromkeys([*pr.errors, *mode.errors])),
             "studies": [_study_info(projects.StudyRef(project, s)) for s in projects.list_studies(project)]}
 
 
@@ -1181,7 +1212,7 @@ def _yaml_body(body: dict) -> dict:
 #: keys the GET endpoints add that are not part of project.yaml / study.yaml (dropped on PUT, so a
 #: client may send back what it read)
 _READ_ONLY_KEYS = ("path", "legacy", "participants", "results_rows", "default", "links", "yaml", "studies",
-                   "scheduling_effective", "study_mode_effective", "errors")
+                   "scheduling_effective", "study_mode_effective", "editor", "errors")
 
 
 def _writable(data: dict, nested: str) -> dict:

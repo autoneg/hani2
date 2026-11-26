@@ -85,7 +85,7 @@ def up(c, url, data):
 # --------------------------------------------------------------------------- #
 ADMIN_GETS = ["/api/admin/layers", "/api/admin/settings/env?layer=settings", "/api/admin/pools/opponent",
               "/api/admin/scenarios/Trade", "/api/admin/projects/default/studies/x/balance",
-              "/api/admin/library/scenarios/default", "/api/admin/scheduling-methods"]
+              "/api/admin/library/scenarios/default", "/api/admin/scheduling-methods", "/api/admin/help"]
 
 
 def test_admin_only(client):
@@ -607,3 +607,63 @@ def test_compact_preferences_and_layout_settings_round_trip(admin, studies):
         from hani2.tools.ufun_views import weights_chart
 
         assert weights_chart() == "bar"
+
+
+# --------------------------------------------------------------------------- #
+# The editor's ? texts                                                         #
+# --------------------------------------------------------------------------- #
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_every_required_editor_choice_has_help(admin):
+    from hani2 import help_texts
+
+    assert help_texts.problems() == []
+    r = admin.get("/api/admin/help")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["required"] == list(help_texts.REQUIRED)
+    for k in help_texts.REQUIRED:
+        h = d["help"][k]
+        assert h["title"] and h["summary"] and "\n" not in h["summary"], k
+        assert h["details"].strip(), f"{k}: a ? needs details"
+    # the scheduling rows point at the scheduling registry, whose dimensions exist
+    from hani2 import scheduling
+
+    for k, h in d["help"].items():
+        if h["scheduling"]:
+            assert h["scheduling"] in scheduling.DIMENSIONS, k
+
+
+def test_help_texts_name_no_later_settings():
+    """The texts are published as docs: no settings this version does not have."""
+    from hani2 import help_texts
+
+    for k, h in help_texts.HELP.items():
+        text = " ".join([k, h.summary, h.details])
+        for word in ("leaderboard", "assistant_repeats", "scheduling.cross", "HANI ", "scmlweb"):
+            assert word not in text, (k, word)
+
+
+def test_settings_reference_page_is_in_sync():
+    from hani2 import help_texts
+
+    page = (ROOT / "docs" / "guide" / "settings-reference.md").read_text(encoding="utf-8")
+    assert help_texts.docs_section(page) == help_texts.markdown_reference(), \
+        "run: python -m hani2.help_texts docs/guide/settings-reference.md"
+    assert "guide/settings-reference.md" in (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+
+
+def test_editor_block_of_project_and_study(admin, studies):
+    p = admin.get("/api/admin/projects/HI2027").json()
+    ed = p["editor"]
+    assert ed["kind"] == "assistant"
+    assert set(ed["han"]) == {"package_years", "current_year"}
+    assert ed["inherited"]["n_required"] == 5
+    s = admin.get("/api/admin/projects/HI2027/studies/hi-01").json()
+    assert s["editor"]["inherited"]["n_required"] == 2  # the project's default
+    # the block is read-only: sending it back does not end up in study.yaml
+    data = {k: v for k, v in s.items() if k not in ("name", "project")}
+    assert admin.put("/api/admin/projects/HI2027/studies/hi-01", json={"data": data}).status_code == 200
+    saved = yaml.safe_load((projects.study_dir(projects.StudyRef("HI2027", "hi-01")) / "study.yaml").read_text())
+    assert "editor" not in saved and "study_mode_effective" not in saved
