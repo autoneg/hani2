@@ -128,7 +128,7 @@ The main deployment configuration.
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `admin.password` | `"adminpass"` | Initial password of the `admin` account, used when the account is created. |
-| `auth.sso` | `{}` | Sign-in from trusted websites: per provider `secret`, `login_url`, `label`, `prefix`, `issuer`. See [Authentication](authentication.md#sign-in-from-a-trusted-website). |
+| `auth.sso` | `{}` | Sign-in from trusted websites: per provider `secret`, `login_url`, `label`, `prefix`, `issuer`, `guest_studies`, `trust_admin_claim` (default `false`: `true` lets the token's `"admin": true` make admins of this server), `enabled`. See [Authentication](authentication.md#sign-in-from-a-trusted-website). |
 | `admin.emails` | `[]` | Users whose email is in this list are admins (case-insensitive). Emails typed at self-registration are unverified and never count. |
 
 ### `auth` and `oauth`
@@ -407,7 +407,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `max_tokens` | `2000` | Maximum answer length. |
 | `max_tool_iterations` | `10` | Maximum rounds of function calls per user message; then one last call without functions gives the answer. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` except `opponent_utility` | The twenty-one capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `presentation`, `panels`, `tool_add`, `tool_use`, `private_info`, `opponent_model`, and the admin-only oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)). |
+| `capabilities` | all `true` except `opponent_utility` | The twenty-four capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `offer_display`, `interface`, `presentation`, `panels`, `tool_add`, `tool_use`, `llm_tool`, `private_info`, `opponent_model`, and the admin-only oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)). |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |

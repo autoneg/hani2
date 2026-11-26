@@ -234,6 +234,31 @@ export const useStore = create<Store>((set, get) => ({
 
 export const send = (msg: Record<string, any>) => useStore.getState().send(msg);
 
+/* The message box sends what is typed a moment after the last key press (draft_text). A tool
+ * button that sends the offer (Send offer in the Selector or the Utility Bar) must see the
+ * latest text, so tool actions flush it first. */
+let draftTextTimer: number | undefined;
+let draftTextPending: string | null = null;
+/** Send the typed message to the server shortly (debounced). */
+export const queueDraftText = (text: string, delay = 250) => {
+  draftTextPending = text;
+  window.clearTimeout(draftTextTimer);
+  draftTextTimer = window.setTimeout(flushDraftText, delay);
+};
+/** Send a message still waiting in {@link queueDraftText} now. */
+export const flushDraftText = () => {
+  window.clearTimeout(draftTextTimer);
+  if (draftTextPending === null) return;
+  const text = draftTextPending;
+  draftTextPending = null;
+  send({ type: "draft_text", text });
+};
+/** Drop a message waiting in {@link queueDraftText} (it is sent another way). */
+export const cancelDraftText = () => {
+  window.clearTimeout(draftTextTimer);
+  draftTextPending = null;
+};
+
 /** Send a decision or message the participant must not lose: when the socket is down it is
  * not sent, a toast says so and ``false`` tells the caller to keep the dialog / typed text. */
 export const sendOrWarn = (msg: Record<string, any>) => {

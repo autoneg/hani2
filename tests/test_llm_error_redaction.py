@@ -78,10 +78,36 @@ def _instruction_tool_status(monkeypatch, is_admin):
 
     monkeypatch.setattr(llm, "_call_llm", _boom)
     s = make_session(is_admin=is_admin)
+    s.support_agent.user_enabled = False  # the tool's own prompt (the Assistant's is below)
     tool = ResponseGeneratorTool(s.ss)
     tool.values["instruction"] = "ask for more"
     tool._generate()
     return tool.status
+
+
+def _assistant_suggestion_status(monkeypatch, is_admin):
+    from types import SimpleNamespace
+
+    from hani2.tools.builtin import ResponseGeneratorTool
+
+    s = make_session(is_admin=is_admin)
+    a = s.support_agent
+    monkeypatch.setattr(a, "model", lambda: SimpleNamespace(ok=True, is_harness=False))
+    monkeypatch.setattr(a, "_complete", _boom)
+    tool = ResponseGeneratorTool(s.ss)
+    tool.values["instruction"] = "ask for more"
+    tool._generate()
+    return tool.status
+
+
+def test_assistant_suggestion_failure_is_generic_for_participants(monkeypatch):
+    status = _assistant_suggestion_status(monkeypatch, False)
+    assert status.startswith("Error: ") and conns.LLM_ERROR_MESSAGE.split(".")[0] in status and KEY not in status
+
+
+def test_assistant_suggestion_failure_is_redacted_for_admins(monkeypatch):
+    status = _assistant_suggestion_status(monkeypatch, True)
+    assert KEY not in status and "Incorrect API key" in status
 
 
 def test_instruction_tool_failure_is_generic_for_participants(monkeypatch):

@@ -375,14 +375,26 @@ class Tool:
 class OutcomeSelector(Tool):
     """A tool that proposes an outcome and fills the offer with it.
 
-    Override :meth:`get_outcome`; a **Set Offer** button is appended to
-    :meth:`selector_view` automatically.
+    Override :meth:`get_outcome`; a **Set Offer** button (``button_label``) that fills the
+    human's counter-offer with it is appended to :meth:`selector_view` automatically.
+
+    A tool where picking a deal already fills the counter-offer (the Utility-based Selector,
+    the Utility Bar) sets ``sends_offer = True`` and calls :meth:`pick` when a deal is picked;
+    its button is then **Send offer** (``send_label``), which sends the picked deal as the
+    human's offer, with the message they typed, exactly like the Send offer button under the
+    counter-offer. It is disabled while the human cannot send; :meth:`send_blocker` gives the
+    reason, shown as its tooltip.
     """
 
     pane = "side"
     icon = "wand-sparkles"
     groups = ("recommendation",)
     button_label = "Set Offer"
+    #: True: picking a deal fills the counter-offer, and the button sends the picked deal
+    sends_offer = False
+    send_label = "Send offer"
+    #: the tooltip of the disabled **Send offer** button while nothing is picked
+    nothing_picked = "Pick a deal first."
 
     def get_outcome(self) -> Outcome | None:
         s = self.scenario
@@ -394,24 +406,96 @@ class OutcomeSelector(Tool):
     def can_set(self) -> bool:
         return bool(self.session_state.get("negotiation_running"))
 
+    # -- picking a deal and sending it (``sends_offer``) ------------------------------------
+    def picked_outcome(self) -> dict[str, Any] | None:
+        """The deal picked in the tool (issue name to value), or ``None``."""
+        picked = self.values.get("picked")
+        return dict(picked) if picked else None
+
+    def pick(self, offer: dict[str, Any], index: int | None = None) -> dict:
+        """Pick ``offer`` (row ``index`` of the tool's table): fill the counter-offer with it."""
+        self.values["selected"] = index
+        self.values["picked"] = None
+        r = self.set_offer(offer)
+        if r.get("ok", True):
+            self.values["picked"] = dict(r.get("applied") or offer)
+        else:
+            self.values["selected"] = None
+        self.refresh()
+        return r
+
+    def unpick(self) -> None:
+        """Forget the picked deal (the counter-offer keeps it)."""
+        self.values["selected"] = None
+        self.values["picked"] = None
+
+    def send_blocker(self) -> str | None:
+        """Why the **Send offer** button cannot send now, or ``None`` when it can."""
+        sess = self.session_state.get("_session")
+        if not self.session_state.get("negotiation_running") or (sess is not None and sess.phase != "running"):
+            return "The negotiation is not running."
+        if sess is not None and getattr(sess, "autopilot_active", False):
+            return "The autopilot is negotiating for you: take back control to send an offer."
+        if sess is not None and (not sess.is_my_turn() or getattr(sess, "thinking", False)):
+            return "Wait for your turn to send an offer."
+        if sess is not None and sess.admin_prefs.get("text_only_mode"):
+            return "Offers are sent as messages only here: use the message box."
+        if self.picked_outcome() is None:
+            return self.nothing_picked
+        return None
+
+    def send_outcome(self) -> dict:
+        """Send the picked deal as the human's offer, with the message they typed, as the
+        Send offer button under the counter-offer does."""
+        reason = self.send_blocker()
+        if reason:
+            return {"ok": False, "error": reason}
+        offer = self.picked_outcome() or {}
+        r = self.set_offer(offer)
+        if not r.get("ok", True):
+            return r
+        res = self.session_state["actions"]["reject_counter"]() or {}
+        if res.get("ok"):
+            self.unpick()
+            sess = self.session_state.get("_session")
+            if sess is not None:
+                sess.emit({"type": "draft_text", "text": ""})  # the message box empties, as after Send offer
+            self.refresh()
+        return res
+
+    def draft_changed(self, session_state: dict[str, Any], draft: dict[str, Any]) -> None:
+        """The counter-offer changed: a deal no longer in it is no longer picked."""
+        picked = self.picked_outcome()
+        if picked and any(draft.get(k) != v for k, v in picked.items()):
+            self.unpick()
+            self.refresh()
+
+    def negotiation_started(self, session_state: dict[str, Any], nmi: SAONMI) -> None:
+        self.unpick()
+        super().negotiation_started(session_state, nmi)
+
     def view(self) -> list[ui.Component]:
-        return [
-            *self.selector_view(),
-            ui.button(
-                self.button_label,
-                "set_offer",
-                variant="primary",
-                icon="arrow-left-to-line",
-                disabled=not self.can_set(),
-                full=True,
-            ),
-        ]
+        if self.sends_offer:
+            reason = self.send_blocker()
+            button = ui.button(self.send_label, "send_offer", variant="primary", icon="send", disabled=reason is not None,
+                               full=True, tooltip=reason or "Send the picked deal as your offer, with your message")
+        else:
+            button = ui.button(self.button_label, "set_offer", variant="primary", icon="arrow-left-to-line",
+                               disabled=not self.can_set(), full=True)
+        return [*self.selector_view(), button]
 
     def set_outcome(self) -> dict:
         return self.set_offer(self.get_outcome())
 
-    def on_action(self, action: str, payload: dict[str, Any]) -> None:
-        if action == "set_offer":
+    def on_action(self, action: str, payload: dict[str, Any]) -> Any:
+        if action == "send_offer":
+            r = self.send_outcome()
+            if not r.get("ok", True):
+                self.toast(r.get("error", "Could not send the offer"), "warning")
+            return r
+        if action == "set_offer":  # fill the counter-offer (still accepted from code and the Assistant)
             r = self.set_outcome()
             if not r.get("ok", True):
                 self.toast(r.get("error", "Could not set the offer"), "warning")
+            return r
+        return None

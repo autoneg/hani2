@@ -1,0 +1,1 @@
+import{c as a}from"./index-Lp30WbBV.js";const e={name:"philippine-peso",size:24,node:[["path",{d:"M4 12h16",key:"1lakjw"}],["path",{d:"M4 8h16",key:"y22wk4"}],["path",{d:"M6 20V5a1 1 0 011-1h5a6 6 0 010 12H6",key:"1szfpi"}]]};e.node;const i=a(e);export{e as __iconData,i as default};

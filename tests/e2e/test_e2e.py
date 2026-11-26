@@ -17,7 +17,7 @@ ACCEPT = re.compile(r"^Accept")
 
 def start(p):
     p.get_by_role("button", name="Start negotiation").click()
-    expect(p.get_by_role("button", name="Counter-offer").or_(p.get_by_role("button", name="Send offer")).first).to_be_visible()
+    expect(p.get_by_role("button", name="Counter-offer").or_(p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).first).to_be_visible()
 
 
 def wait_for_my_turn_with_an_offer(p):
@@ -36,7 +36,7 @@ def wait_for_my_turn_with_an_offer(p):
 def send_counter(p, message: str):
     """Send an offer with a message once it is our turn. The opponent may move first: its offer then
     arrives while we look, and the page shows Counter-offer instead of the composer."""
-    send = p.get_by_role("button", name="Send offer")
+    send = p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
     counter = p.get_by_role("button", name="Counter-offer")
     box = p.get_by_placeholder(re.compile("Explain your offer"))
     for _ in range(300):
@@ -406,7 +406,7 @@ def test_bare_view_shows_no_tools_on_desktop_and_phone(new_page):
     phone = new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     phone.goto("/play?view=bare")
     phone.get_by_role("button", name="Start negotiation").click()
-    expect(phone.get_by_role("button", name="Counter-offer").or_(phone.get_by_role("button", name="Send offer")).first).to_be_visible()
+    expect(phone.get_by_role("button", name="Counter-offer").or_(phone.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).first).to_be_visible()
     expect(phone.get_by_role("navigation", name="Sections")).to_have_count(0)  # no Tools tab, no Assistant
     expect(phone.locator("[data-region=tools]")).to_have_count(0)
 
@@ -479,7 +479,7 @@ def test_the_action_panel_opens_the_utility_bar_in_a_popup(new_page, view):
     expect(rows.first).to_be_visible()
     rows.first.click()
     # the counter-offer editor opens with the deal; the popup does not cover the offer area
-    expect(p.get_by_role("button", name="Send offer")).to_be_visible()
+    expect(p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")).to_be_visible()
     # a click on the bar picks the nearest deal
     box = bar.bounding_box()
     p.mouse.click(box["x"] + box["width"] * 0.5, box["y"] + box["height"] / 2)
@@ -507,3 +507,100 @@ def test_full_view_opens_a_pane_tool_in_a_popup_and_back(new_page):
     p.get_by_role("button", name="Bring it back here").click()
     expect(popup).to_have_count(0)
     expect(p.get_by_test_id("range-bar-area")).to_be_visible()
+
+
+def test_send_offer_in_the_selector_sends_the_picked_deal(new_page):
+    """Picking a deal in the Utility-based Selector only fills the counter-offer; its Send offer button
+    then sends the deal at once, with the message typed in the message box, and it lands in the history."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    start(p)
+    side = p.locator('[data-anchor="pane:side"]')
+    side.get_by_role("tab", name="Utility-based Selector").click()
+    panel = side.get_by_role("tabpanel")
+    tool_send = panel.get_by_role("button", name="Send offer")
+    expect(tool_send).to_be_disabled()  # nothing picked yet
+    expect(tool_send).to_have_attribute("title", "Pick a deal first.")
+    # wait for our turn and open the composer (the opponent may move first)
+    counter = p.get_by_role("button", name="Counter-offer")
+    box = p.get_by_placeholder(re.compile("Explain your offer"))
+    for _ in range(300):
+        if counter.count() and counter.first.is_enabled() and not box.count():
+            counter.first.click()
+        if box.count() and box.first.is_enabled():
+            break
+        p.wait_for_timeout(100)
+    expect(box).to_be_enabled()
+    n_rows = panel.locator("tbody tr")
+    expect(n_rows.first).to_be_visible()
+    n_rows.first.click()
+    expect(tool_send).to_be_enabled()
+    # typed just before the click: the message must still go with the offer
+    box.fill("Sent straight from the Selector.")
+    tool_send.click()
+    expect(p.locator('[data-anchor="history"]').get_by_text("Sent straight from the Selector.")).to_be_visible()
+    expect(tool_send).to_be_disabled()  # the deal is sent; pick again for the next offer
+    # the message was used up: on our next turn the message box is empty
+    expect(p.get_by_role("button", name=ACCEPT).first).to_be_enabled(timeout=30000)
+    if not box.count():
+        counter.first.click()
+    expect(box).to_be_enabled()
+    expect(box).to_have_value("")
+
+
+def test_random_generates_a_deal_and_send_offer_sends_it(new_page):
+    """The Random generator (admins): Generate fills the counter-offer, its Send offer sends that deal."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    fresh_admin(p)
+    p.goto("/app")
+    start(p)
+    side = p.locator('[data-anchor="pane:side"]')
+    side.get_by_role("tab", name="Random").click()
+    panel = side.get_by_role("tabpanel")
+    tool_send = panel.get_by_role("button", name="Send offer")
+    expect(tool_send).to_have_attribute("title", "Generate a deal first.")
+    expect(panel.get_by_role("button", name="Set Offer")).to_have_count(0)
+    accept = p.get_by_role("button", name=ACCEPT).first
+    dock_send = p.locator("[data-anchor=send]").get_by_role("button", name="Send offer")
+    for _ in range(300):  # our turn: the opponent may move first
+        if (accept.count() and accept.is_enabled()) or (dock_send.count() and dock_send.is_enabled()):
+            break
+        p.wait_for_timeout(100)
+    expect(p.locator('[data-anchor="history"]').get_by_text("You", exact=True)).to_have_count(0)
+    panel.get_by_role("button", name="Generate").click()
+    expect(panel.get_by_text("Generated deal")).to_be_visible()
+    expect(tool_send).to_be_enabled()
+    tool_send.click()
+    expect(tool_send).to_be_disabled()
+    expect(panel.get_by_text("Generated deal")).to_have_count(0)
+    expect(p.locator('[data-anchor="history"]').get_by_text("You", exact=True).first).to_be_visible()
+
+
+def test_the_llm_tool_recommends_an_offer_when_nothing_is_typed(new_page):
+    """With an empty instruction the LLM tool's button reads Recommend an offer; typing makes it Generate."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    fresh_admin(p)
+    p.goto("/app")
+    start(p)
+    side = p.locator('[data-anchor="pane:side"]')
+    side.get_by_role("tab", name="LLM").click()
+    panel = side.get_by_role("tabpanel")
+    expect(panel.get_by_role("button", name="Recommend an offer")).to_be_visible()
+    panel.locator("textarea").fill("hold firm on the price")
+    expect(panel.get_by_role("button", name="Generate")).to_be_visible()
+    panel.locator("textarea").fill("")
+    expect(panel.get_by_role("button", name="Recommend an offer")).to_be_visible()
+    panel.get_by_text("Text only").click()
+    expect(panel.get_by_role("button", name="Write a message")).to_be_visible()
+
+
+def fresh_admin(p) -> str:
+    """Log ``p`` in as a new admin account: sessions resume per user, so tests that share the built-in
+    admin would find each other's negotiation running."""
+    name = "adm" + uuid.uuid4().hex[:8]
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    r = p.request.post("/api/admin/users", data={"username": name, "password": "secret1", "is_admin": True})
+    assert r.ok, r.text()
+    assert p.request.post("/api/auth/logout").ok
+    assert p.request.post("/api/auth/login", data={"username": name, "password": "secret1"}).ok
+    return name

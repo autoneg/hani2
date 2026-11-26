@@ -8,6 +8,39 @@
   See [Layout views](guide/interface.md#layout-views).
 - **Walkthroughs.** Four step-by-step walkthroughs for first-time participants, against an AI and
   with an Assistant, basics and advanced, each with a narrated video. See [Walkthroughs](walkthroughs/index.md).
+- **Send offer in the offer generators.** Picking a row in the Utility Bar or the Utility-based
+  Selector already puts the deal into the counter-offer, so their **Set Offer** button did nothing
+  visible. It is now **Send offer**: it sends the picked deal at once, as the **Send offer** button under the counter-offer
+  does (same checks, with the message typed in the message box, which then empties). It is disabled
+  while the participant cannot send (the negotiation is not running, not their turn, the autopilot
+  is on, text-only mode,
+  no deal picked or the counter-offer changed since), and its tooltip says why. Picking a row still
+  only fills the counter-offer. An Assistant operating these tools picks a row (action `pick`) to
+  fill the offer, and presses `send_offer` only with *Send counter-offers*; the `set_offer` action is
+  no longer offered on them (code calling `on_action("set_offer", ...)` still fills the offer).
+  **Random** gets **Generate** (fills the counter-offer with a random deal, shown in the tool) and
+  **Send offer** (sends it). The **LLM** tool's **Apply to my offer** is now **Set offer** (copies the
+  suggestion), next to **Send offer** (sends the suggested offer with its message). With an empty
+  instruction its button reads **Recommend an offer** (**Write a message** with *Text only*) and asks
+  for that (`ui.button(..., empty_label=, empty_input=)` switches a button's text in the browser
+  while an input is empty). When the participant has an Assistant, the LLM tool asks the Assistant
+  (`Assistant.suggest_offer`: its own model, instructions and conversation, no functions called)
+  instead of the tool's own prompt. This is the new Assistant capability `llm_tool` (*Answer the
+  LLM tool*, on by default); the tool's own prompt stays for no Assistant, an Assistant switched off
+  or without that capability (or without *Fill the offer* / *Write the message* for the mode), a
+  harness model, and Generate pressed by the Assistant itself. Custom
+  `OutcomeSelector`s keep **Set Offer**; one opts in with `sends_offer = True` and `pick()`. See [Sending from the
+  tool](guide/offer-generators.md#sending-from-the-tool).
+- **Admins from a trusted website.** With `"trust_admin_claim": true` in a hand-off provider's settings
+  (`auth.sso.<name>`, off by default), a valid, non-guest token with `"admin": true` (the JSON boolean
+  only) makes the account an admin of this server. Every hand-off decides again: a token without the
+  claim removes that grant. The grant is stored apart from the `role` (as `sso_admin`, per server), so
+  admins made on the *Users* page, with `admin.emails` or the built-in `admin` account are never
+  demoted. Grants and removals go to the event log (`admin_granted`, `admin_revoked`) and the server
+  log. A demoted account (by the claim or on the *Users* page) now loses its admin session at once:
+  its next page load gets a new session, and an open page's live connection is closed at its next
+  message. Before, the old admin session lasted until the server restarted. See
+  [Admins from the website](guide/authentication.md#admins-from-the-website).
 - **People-only invitations.** `"ai_fallback": false` in an opponent group file keeps the
   participants arriving with `?group=<key>` to people: no wait-time fallback (they keep waiting), no
   **Play an AI opponent instead** button, no person/AI choice screen, no AI entries in the opponent

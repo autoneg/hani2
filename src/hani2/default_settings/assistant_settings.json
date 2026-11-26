@@ -30,6 +30,7 @@
     "interface": true,
     "tool_add": true,
     "tool_use": true,
+    "llm_tool": true,
     "private_info": true,
     "opponent_model": true,
     "opponent_utility": false

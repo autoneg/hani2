@@ -45,9 +45,9 @@ def test_two_tabs_of_one_browser_negotiate_with_each_other(e2e_browser, trial_se
             a.wait_for_timeout(100)
         assert wa.count() + wb.count() == 1, "exactly one side waits for the other"
         mover, other = (b, a) if wa.count() else (a, b)
-        if not mover.get_by_role("button", name="Send offer").count():
+        if not mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").count():
             mover.get_by_role("button", name="Counter-offer").click()
-        mover.get_by_role("button", name="Send offer").click()
+        mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").click()
         expect(other.get_by_role("button", name=ACCEPT).first).to_be_enabled()
         other.get_by_role("button", name=ACCEPT).first.click()
         other.get_by_role("button", name="Accept offer").click()

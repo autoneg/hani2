@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Bot, Check, CircleCheck, CircleX, FileText, Handshake, Loader2, Plane, Play, RefreshCw, Send, Sparkles, UsersRound, Wand2, X } from "lucide-react";
 import { api } from "../api";
-import { send, sendOrWarn, useStore, useUiState } from "../store";
+import { cancelDraftText, queueDraftText, send, sendOrWarn, useStore, useUiState } from "../store";
 import { now as clockNow } from "../clock";
 import type { IssueSpec, Questionnaire, SessionState } from "../types";
 import { Anchor } from "../ui/Anchor";
@@ -211,7 +211,6 @@ function Running({ st, launcher }: { st: SessionState; launcher: boolean }) {
   const [countering, setCountering] = useUiState("dock.countering", false);
   const [text, setText] = useUiState("dock.text", st.draft.text || "");
   const [textOnly, setTextOnly] = useUiState("dock.textOnly", !!st.settings.text_only_mode);
-  const timer = useRef<number | undefined>(undefined);
   useEffect(() => setText(st.draft.text || ""), [draftVersion]); // agent wrote the message
   useEffect(() => {
     if (!myTurn) setCountering(false);
@@ -232,11 +231,10 @@ function Running({ st, launcher }: { st: SessionState; launcher: boolean }) {
   const cols = Math.min(3, Math.max(1, st.scenario?.n_issue_columns ?? 2));
   const onText = (v: string) => {
     setText(v);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => send({ type: "draft_text", text: v }), 250);
+    queueDraftText(v);
   };
   const doSend = () => {
-    window.clearTimeout(timer.current);
+    cancelDraftText();
     // text_only is the admin's per-message switch; for participants the study setting decides (server side)
     const msg: Record<string, any> = { type: "send", text, values: useStore.getState().state?.draft.values };
     if (st.is_admin) msg.text_only = textOnly;

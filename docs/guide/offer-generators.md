@@ -1,10 +1,13 @@
 # Offer generators
 
-Offer generators are tools that fill your counter-offer for you. They never send it: the offer
-appears in the offer panel, and you check it, change it if you like and press **Send offer**
-yourself. HANI2 has four built in. In the simple view (the default) they are tabs of the tools column,
-and the **Utility Bar** button and the **Tools** menu in the offer area open them in a popup; in the
-full view they sit in the side pane next to the offer panel:
+Offer generators are tools that fill your counter-offer for you: the offer appears in the offer
+panel, and you check it, change it if you like and press **Send offer** under it. Picking a deal
+in the Utility Bar or the Utility-based Selector, or generating one with Random, already fills your
+counter-offer, so their own button is **Send offer** too: it sends that deal at once. The LLM tool
+has both **Set offer** (copy the suggestion) and **Send offer** (send it). See [Sending from the
+tool](#sending-from-the-tool). HANI2 has four built in. In the simple view (the default) they are
+tabs of the tools column, and the **Utility Bar** button and the **Tools** menu in the offer area
+open them in a popup; in the full view they sit in the side pane next to the offer panel:
 
 | Generator | How it picks an offer | Who gets it | Best for |
 |-----------|-----------------------|-------------|----------|
@@ -41,8 +44,8 @@ get deals with it, but graphically.
    | **Best for the opponent** | the deal in the part worth most to the opponent | the best for the opponent among the ten nearest |
    | **Top 10 for the opponent** | the ten deals in the part worth most to the opponent | the ten nearest, best for the opponent first |
 
-5. Click a row to copy that deal into your counter-offer, or press **Set Offer** for the selected (or
-   first) one.
+5. Click a row to copy that deal into your counter-offer, then press **Send offer** in the tool to
+   send it right away, or change it in the counter-offer and send it from there.
 
 The two opponent choices appear only when the tool knows what deals are worth to the opponent: when
 an [estimate of the opponent's preferences](tools.md#an-estimate-of-the-opponents-preferences) is
@@ -69,8 +72,8 @@ among those still good for you.
    worst to your best deal.
 3. Set **Range width**: how far above the minimum to look. 70% and 10% list every deal worth 70-80%
    to you; the default width of 100% lists every deal from the minimum up to your best.
-4. Click a row to copy that deal into your counter-offer, or press **Set Offer** to have one picked
-   from the range.
+4. Click a row to copy that deal into your counter-offer, then press **Send offer** in the tool to
+   send it right away, or change it in the counter-offer and send it from there.
 
 The table is sorted best first, can be sorted by any column and is paged for large scenarios.
 
@@ -92,12 +95,15 @@ preferences](tools.md#an-estimate-of-the-opponents-preferences).
 ![The LLM tool](../assets/screens/tool-llm.png)
 
 1. Open the **LLM** tab.
-2. Write an instruction in plain words.
+2. Write an instruction in plain words, or leave the box empty: the button then reads **Recommend
+   an offer** (**Write a message** with *Text only*) and asks for exactly that.
 3. Choose what to generate: **Text & offer** (an offer and a message that goes with it), **Text
    only** (a message for the offer you already have) or **Offer only**.
 4. Press **Generate** and read the suggestion: the offer with what it is worth to you, and the
    message.
-5. Press **Apply to my offer** to copy them into your counter-offer.
+5. Press **Set offer** to copy them into your counter-offer (to change them, or send them from
+   there), or **Send offer** to send the suggested offer with its message right away. A *Text
+   only* suggestion is sent with your counter-offer as it is.
 
 Instructions that work well:
 
@@ -109,22 +115,53 @@ Instructions that work well:
 | "Counter with a tough offer and explain why politely" | A demanding offer with a friendly message |
 | "Write a short, friendly message for this offer" | With **Text only**: a message for your current offer |
 
-The model sees the issues, your preferences, the opponent's current offer and the last turns of
-the negotiation, and it is told to return an offer that exists in the scenario. It does not see the
-opponent's preferences. The prompt is the `instruction_prompt` template of `llm_settings.json`
-(see [Prompt templates](llms.md#prompt-templates)).
+**When you have an Assistant**, your Assistant writes the suggestion: the tool says *Your Assistant
+writes the suggestions*, and your instruction goes to the Assistant's own model, with its own
+instructions, what it knows of the negotiation and your conversation with it (it calls no
+functions). The conversation then remembers what you asked and what it suggested, so you can ask
+about it in the chat. This is the Assistant's *Answer the LLM tool* capability (`llm_tool`,
+on by default; see [Capabilities](assistant.md#capabilities)). The tool's own prompt is used instead
+when the Assistant is switched off, lacks that capability, may not fill the offer (or the message)
+that the mode asks for, runs through an agent harness, or presses **Generate** itself. A Python Assistant can answer in its own way by overriding
+`suggest_offer` (see [Methods to override](assistant.md#methods-to-override)).
 
-**Requirements.** A configured language model (see [Language models](llms.md); by default a local
-model through Ollama) and a running negotiation. Without a model the tool shows a warning.
+**Without an Assistant**, the model sees the issues, your preferences, the opponent's current offer
+and the last turns of the negotiation, and it is told to return an offer that exists in the scenario.
+It does not see the opponent's preferences. The prompt is the `instruction_prompt` template of
+`llm_settings.json` (see [Prompt templates](llms.md#prompt-templates)).
+
+**Requirements.** An Assistant with a model, or a configured language model (see [Language
+models](llms.md); by default a local model through Ollama), and a running negotiation. Without
+either the tool shows a warning.
 
 **When to use it.** You think in strategies rather than numbers, want a message that explains your
 offer, or want to compare what a language model proposes with your own idea.
+
+## Sending from the tool
+
+In the Utility Bar and the Utility-based Selector, clicking a row is all it takes to put that deal
+into your counter-offer; in Random, **Generate** does the same with a random deal. Their **Send
+offer** button then sends it, exactly as the **Send offer** button under the counter-offer does:
+with the message you typed in the message box, if any, and with the same checks. The LLM tool's
+**Send offer** sends its suggestion with the suggested message. Nothing is sent before you press
+it.
+
+The button is disabled while you cannot send, and its tooltip says why:
+
+- the negotiation is not running (before the start, after the end);
+- it is not your turn (or the autopilot is negotiating for you);
+- you have not picked (or generated) a deal yet, or you changed the counter-offer after picking one
+  (then send it from the offer panel, or pick again);
+- the study sends offers as messages only (*text-only mode*).
+
+After it is sent, the deal is no longer picked: pick one again for your next offer.
 
 ## Random
 
 ![The Random tool](../assets/screens/tool-random.png)
 
-Press **Set Offer** to fill your counter-offer with a random deal; press it again for another.
+Press **Generate** to fill your counter-offer with a random deal (shown in the tool); press it again
+for another. **Send offer** sends the generated deal.
 
 **When to use it.** Early exploration of what is possible, breaking a deadlock with an unexpected
 offer, or checking how an opponent reacts to offers far from the usual path.
@@ -163,7 +200,7 @@ in the admin console, or set `tools.overrides.<name>.admin_only` to `false` in `
 An offer generator is a tool that derives from `hani2.tools.OutcomeSelector`. Override
 `get_outcome()` to return an outcome (a tuple with one value per issue, in the scenario's issue
 order) and, optionally, `selector_view()` to show controls above the **Set Offer** button the base
-class adds:
+class adds (it fills the counter-offer with `get_outcome()`):
 
 ```python
 from hani2.tools import OutcomeSelector, ui
@@ -186,6 +223,11 @@ class HalfwayOffer(OutcomeSelector):
         outcomes = ufun.outcome_space.enumerate_or_sample(max_cardinality=5000)
         return min(outcomes, key=lambda o: abs(float(ufun(o)) - target))
 ```
+
+If your tool fills the counter-offer as soon as a deal is picked (a table, a chart), set
+`sends_offer = True` and call `self.pick(offer)` when the participant picks one: the button becomes
+**Send offer** (`send_label`) and sends the picked deal, as in the [Utility Bar](#utility-bar).
+`send_blocker()` returns why it cannot send now (or `None`); the button shows it as its tooltip.
 
 Save it in the tools folder (`$HANI2_HOME/tools`) and the next session has it. The [tools
 tutorial](../tutorials/tools.md#offer-pickers-outcomeselector) explains `OutcomeSelector` and

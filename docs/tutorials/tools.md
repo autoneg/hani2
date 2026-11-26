@@ -118,7 +118,7 @@ Sliders send their value when the participant releases the handle; select, radio
 
 ### Tables with clickable rows
 
-`ui.table(rows, on_select="pick")` makes rows clickable. A click calls `on_action("pick", {"row": <row dict>, "index": <int>})`. Pass `selected=<index>` to highlight the chosen row on the next render. The built-in Utility-based Selector uses this to fill the offer from a row:
+`ui.table(rows, on_select="pick")` makes rows clickable. A click calls `on_action("pick", {"row": <row dict>, "index": <int>})`. Pass `selected=<index>` to highlight the chosen row on the next render. A plain tool can fill the offer from a row like this (the built-in Utility-based Selector does the same through `OutcomeSelector.pick`, see [below](#offer-pickers-outcomeselector)):
 
 ```python
 def on_action(self, action, payload):
@@ -311,7 +311,33 @@ class BestForMe(OutcomeSelector):
         return self.human_ufun.best() if self.human_ufun is not None else None
 ```
 
-`OutcomeSelector` defaults to `pane = "side"` and the `wand-sparkles` icon. Override `can_set()` to change when the button is enabled, and `button_label` to rename it. The built-in Random and Utility-based Selector tools are `OutcomeSelector` subclasses.
+`OutcomeSelector` defaults to `pane = "side"` and the `wand-sparkles` icon. Override `can_set()` to change when the button is enabled, and `button_label` to rename it. The built-in Random, Utility Bar and Utility-based Selector tools are `OutcomeSelector` subclasses.
+
+### Picking fills, the button sends
+
+When picking a deal in the tool (a table row, a point on a chart) already fills the counter-offer, a **Set Offer** button has nothing left to do. Set `sends_offer = True` and call `self.pick(offer, index)` when the participant picks one: the button becomes **Send offer** (`send_label`) and sends the picked deal as the participant's offer, with the message they typed, exactly like the **Send offer** button under the counter-offer. The Utility Bar and the Utility-based Selector work this way.
+
+```python
+class Shortlist(OutcomeSelector):
+    name = "Shortlist"
+    sends_offer = True
+
+    def selector_view(self):
+        rows = [self.outcome_dict(o) for o in self.shortlist()]
+        return [ui.table(rows, on_select="pick", selected=self.values.get("selected"))]
+
+    def on_action(self, action, payload):
+        if action == "pick":
+            return self.pick(payload.get("row") or {}, payload.get("index"))
+        return super().on_action(action, payload)
+```
+
+| Method | What it does |
+|--------|--------------|
+| `pick(offer, index=None)` | Fill the counter-offer with `offer` and remember it as the picked deal (row `index` stays highlighted). |
+| `picked_outcome()` | The picked deal, or `None`. A change to the counter-offer that no longer matches it, a new negotiation and a sent offer forget it; call `unpick()` when your inputs change the list. |
+| `send_blocker()` | Why the button cannot send now (the negotiation is not running, not the participant's turn, text-only mode, nothing picked), or `None`. The button is disabled and shows it as its tooltip; override it to add your own conditions. |
+| `send_outcome()` | Send the picked deal (the button's `send_offer` action). An Assistant pressing the button needs *Send counter-offers*, as for any other send. |
 
 ## Long-running work
 
@@ -534,7 +560,7 @@ Every input has a `name`. Changing it calls the tool's `on_input(name, value)`.
 
 | Function | Renders |
 |----------|---------|
-| `button(label, action, *, payload=None, variant="secondary", icon=None, disabled=False, full=False, tooltip=None)` | A button that calls `on_action(action, payload)`, with the current input values merged into `payload`. `variant`: `primary`, `secondary`, `success`, `danger` or `ghost`. `icon` is a lucide icon name. `full` stretches it to the full width. |
+| `button(label, action, *, payload=None, variant="secondary", icon=None, disabled=False, full=False, tooltip=None, empty_label=None, empty_input=None)` | A button that calls `on_action(action, payload)`, with the current input values merged into `payload`. `variant`: `primary`, `secondary`, `success`, `danger` or `ghost`. `icon` is a lucide icon name. `full` stretches it to the full width. `tooltip` is shown on hover (also while disabled, for example to say why). `empty_label` is shown instead of `label` while the input named `empty_input` is empty; it follows the typing in the browser (the LLM tool's **Recommend an offer**). |
 
 ### Layout
 

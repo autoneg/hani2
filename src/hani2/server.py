@@ -345,7 +345,7 @@ def sso_login(name: str, next: str = "/app"):
 def sso_callback(name: str, token: str = "", next: str = "/app"):
     try:
         claims = sso.verify(name, token, root_path=root_path())
-        user = sso.sign_in(name, claims, next)
+        user = sso.sign_in(name, claims, next, root_path=root_path())
     except sso.SSOError as e:
         print(f"[sso] {name}: refused ({e.code}): {e}")
         r = RedirectResponse(root_path() + f"/login?error=sso_{e.code}", status_code=303)
@@ -520,12 +520,18 @@ def _api_session(request: Request, response: Response, body: dict, query: dict, 
         viewer, is_admin, admin_mode = user, False, False
         user, sid = f"{user}~participant", f"{sid}~participant"
     sid = _session_sid(sid, ref)
+    # A session keeps the admin flag it was made with (tools, settings and the view are built from it), so
+    # an account that became or stopped being an admin since (a hand-off's admin claim, the Users page)
+    # gets a new session instead of the old one.
+    old = hub.get(sid)
+    stale = old is not None and (bool(old.is_admin) != bool(is_admin)
+                                 or (getattr(old, "admin_viewer", None) or None) != (viewer or None))
     # atomic per sid: a double page load, two tabs or a retry must not each make (and replace) a session
     s, created = hub.get_or_create(
         sid,
         lambda: NegotiationSession(sid, user, mode=mode, is_admin=is_admin, admin_mode=admin_mode, query=query,
                                    hub=hub, user_agent=ua, display_name=display, study=ref, admin_viewer=viewer),
-        fresh=bool(body.get("fresh")),
+        fresh=bool(body.get("fresh")) or stale,
         init=lambda s: s.load(),
     )
     if not created:
@@ -769,6 +775,10 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
         if websocket.cookies.get(GUEST_COOKIE) != sid.split("::", 1)[0].split(":", 1)[1]:
             await websocket.close(code=4401)
             return
+    if _admin_lapsed(s):
+        _drop_lapsed(sid, s)
+        await websocket.close(code=4404)  # the page asks for a new (non-admin) session
+        return
     await websocket.accept()
     hub.connect(sid, websocket)
     loop = asyncio.get_running_loop()
@@ -788,6 +798,10 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
                 continue
             if not isinstance(msg, dict):
                 continue  # [] or 1 would end this connection at msg.get
+            if _admin_lapsed(s):  # demoted while connected (checked on pings too): no admin action on the old session
+                _drop_lapsed(sid, s)
+                await websocket.close(code=4404)
+                return
             if msg.get("type") == "ping":
                 await websocket.send_text('{"type":"pong"}')
                 continue
@@ -806,6 +820,18 @@ async def ws_endpoint(websocket: WebSocket, sid: str):
         traceback.print_exc()
     finally:
         hub.disconnect(sid, websocket)
+
+
+def _admin_lapsed(s: NegotiationSession) -> bool:
+    """Whether an admin session (or an admin's ``?as_participant=1`` one) belongs to an account that is no
+    longer an admin (checked again on every WebSocket message: the role is read fresh, never cached)."""
+    owner = getattr(s, "admin_viewer", None) or (s.user if s.is_admin else None)
+    return bool(owner) and not auth.is_admin_user(owner)
+
+
+def _drop_lapsed(sid: str, s: NegotiationSession) -> None:
+    if hub.get(sid) is s:  # not a new session another page load made meanwhile
+        hub.remove(sid)
 
 
 # --------------------------------------------------------------------------- #
@@ -1394,7 +1420,7 @@ def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
 def admin_users(_: str = Depends(require_admin)):
     meta = auth.load_users_meta()
     return [dict(username=u, is_admin=auth.is_admin_user(u), **{k: v for k, v in meta.get(u, {}).items()
-                                                                if k in ("email", "full_name", "consented", "created", "oauth", "role")})
+                                                                if k in ("email", "full_name", "consented", "created", "oauth", "role", "sso", "sso_admin")})
             for u in sorted(auth.load_users())]
 
 
@@ -1411,13 +1437,15 @@ def admin_create_user(body: dict = Body(...), _: str = Depends(require_admin)):
 
 
 @app.patch("/api/admin/users/{username}")
-def admin_update_user(username: str, body: dict = Body(...), _: str = Depends(require_admin)):
+def admin_update_user(username: str, body: dict = Body(...), me: str = Depends(require_admin)):
     if not auth.user_exists(username):
         raise HTTPException(404)
     if body.get("password"):
         auth.set_password(username, str(body["password"]))
     if "is_admin" in body and username != "admin":
         auth.update_meta(username, role="admin" if body["is_admin"] else "user")
+        if not body["is_admin"]:
+            sso.drop_admin_grant(username, by=me)  # "Remove admin" also ends a website's admin-claim grant
     return {"ok": True}
 
 

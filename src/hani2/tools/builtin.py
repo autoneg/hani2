@@ -869,8 +869,8 @@ class UtilitySelectorTool(OutcomeSelector):
 
     **How to use it.** Set *Minimum utility* and *Range width* with the sliders (70% and 10%
     lists every deal worth 70–80% to you). Click a row to copy that deal into your
-    counter-offer, or press **Set Offer** to have one picked from the range. The offer is
-    only filled in: you still send it yourself.
+    counter-offer, then press **Send offer** to send it as your offer right away (with the
+    message you typed, if any), or adjust it in your counter-offer and send it from there.
 
     **With an estimate of the opponent.** When an estimate of the opponent's preferences is
     set (for example by your Assistant), the table can also show what each deal is worth to the
@@ -882,6 +882,9 @@ class UtilitySelectorTool(OutcomeSelector):
     pane = "side"
     timing = "start"
     order = 0
+    sends_offer = True
+    agent_hint = ("Select a row with action 'pick' to fill the participant's counter-offer with that deal; "
+                  "'send_offer' then sends the picked deal as their offer.")
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
@@ -1025,17 +1028,14 @@ class UtilitySelectorTool(OutcomeSelector):
         return out
 
     def on_input(self, name, value):
-        self.values["selected"] = None
+        self.unpick()
         super().on_input(name, value)
 
     def on_action(self, action, payload):
         if action == "pick":
             row = payload.get("row") or {}
-            self.values["selected"] = payload.get("index")
-            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", OPP_COLUMN)})
-            self.refresh()
-            return
-        super().on_action(action, payload)
+            return self.pick({k: v for k, v in row.items() if k not in ("Utility", OPP_COLUMN)}, payload.get("index"))
+        return super().on_action(action, payload)
 
     def get_outcome(self) -> Outcome | None:
         try:
@@ -1078,20 +1078,23 @@ class UtilityBarTool(OutcomeSelector):
       to the opponent (only when an estimate of the opponent's preferences is set, or for
       administrators, who see the real ones).
 
-    Click a row to copy that deal into your counter-offer, or press **Set Offer** for the
-    selected (or first) one. The offer is only filled in: you still send it yourself. The
-    keyboard works too: the arrow keys move the selection, shift and an arrow widens it.
+    Click a row to copy that deal into your counter-offer, then press **Send offer** to send
+    it as your offer right away (with the message you typed, if any), or adjust it in your
+    counter-offer and send it from there. The keyboard works too: the arrow keys move the
+    selection, shift and an arrow widens it.
 
     **The opponent's numbers** come from an *estimate* when one is set, and estimates can be
     wrong; a banner says which you see.
     """
     agent_hint = ("Set the input 'area' to [low, high] in percent of the participant's utility (or [x, x] for the "
                   "deals nearest x) and 'mode' to one of any, some, all, opp_best, opp_top; then select a row "
-                  "with action 'pick' or use 'set_offer'.")
+                  "with action 'pick' to fill the participant's counter-offer with it; 'send_offer' then sends "
+                  "the picked deal as their offer.")
     icon = "ruler-dimension-line"
     pane = "side"
     timing = "start"
     order = -10
+    sends_offer = True
     #: outcomes considered at most (larger outcome spaces are sampled)
     max_outcomes = 200_000
     #: rows shown at most by "All offers"
@@ -1332,11 +1335,12 @@ class UtilityBarTool(OutcomeSelector):
             out.append(ui.button("Another", "draw", icon="dices", variant="ghost"))
         return out
 
-    def draft_changed(self, *_a) -> None:
+    def draft_changed(self, session_state, draft) -> None:
+        super().draft_changed(session_state, draft)
         self.refresh()
 
     def on_input(self, name, value):
-        self.values["selected"] = None
+        self.unpick()
         if name == "area":
             # a new part of the bar: a new random pick for "Any offer"
             self.values["draw"] = 0
@@ -1345,16 +1349,14 @@ class UtilityBarTool(OutcomeSelector):
     def on_action(self, action, payload):
         if action == "pick":
             row = payload.get("row") or {}
-            self.values["selected"] = payload.get("index")
-            self.set_offer({k: v for k, v in row.items() if k not in ("Utility", "Opponent", "Opponent (estimate)")})
-            self.refresh()
-            return
+            return self.pick({k: v for k, v in row.items() if k not in ("Utility", "Opponent", "Opponent (estimate)")},
+                             payload.get("index"))
         if action == "draw":
             self.values["draw"] = int(self.values.get("draw", 0) or 0) + 1
-            self.values["selected"] = None
+            self.unpick()
             self.refresh()
-            return
-        super().on_action(action, payload)
+            return None
+        return super().on_action(action, payload)
 
     def get_outcome(self) -> Outcome | None:
         res = self.results()
@@ -1368,18 +1370,35 @@ class UtilityBarTool(OutcomeSelector):
 class RandomOutcomeTool(OutcomeSelector):
     name = "Random"
     groups = ("recommendation",)
-    description = "Fill the offer with a random outcome (admins only)."
+    description = "Fill the offer with a random outcome and send it (admins only)."
     help = """
-    **What it does.** Puts a random deal into your counter-offer when you press
-    **Set Offer**. The offer is only filled in, not sent. Only administrators get this tool;
-    it is meant for testing.
+    **What it does.** **Generate** puts a random deal into your counter-offer (press it again
+    for another); **Send offer** then sends that deal as your offer, with the message you typed,
+    if any. Only administrators get this tool; it is meant for testing.
     """
     icon = "dices"
     admin_only = True
     order = 20
+    sends_offer = True
+    nothing_picked = "Generate a deal first."
+    agent_hint = "Press 'generate' to fill the participant's counter-offer with a random deal; 'send_offer' sends it."
 
     def selector_view(self):
-        return [ui.markdown("Samples a random outcome and puts it in your offer.")]
+        comps: list[ui.Component] = [ui.markdown("Samples a random outcome and puts it in your offer.")]
+        picked = self.picked_outcome()
+        if picked:
+            comps.append(ui.outcome(picked, label="Generated deal"))
+        comps.append(ui.button("Generate another" if picked else "Generate", "generate", icon="dices",
+                               variant="secondary", disabled=not self.can_set(), full=True))
+        return comps
+
+    def on_action(self, action, payload):
+        if action == "generate":
+            r = self.pick(self.outcome_dict(self.get_outcome()) or {})
+            if not r.get("ok", True):
+                self.toast(r.get("error", "Could not set the offer"), "warning")
+            return r
+        return super().on_action(action, payload)
 
     def get_outcome(self):
         s = self.scenario
@@ -1400,15 +1419,29 @@ class ResponseGeneratorTool(OutcomeSelector):
     **What it does.** Turns an instruction in plain words ("propose a fair middle ground",
     "improve my last offer slightly") into a suggested offer and/or message.
 
-    **How it works.** Your instruction, the issues, your preferences and the recent offers
-    are sent to the configured language model. Choose whether it writes the message, the
-    offer or both, press **Generate**, check the suggestion, then press
-    **Apply to my offer** to copy it into your counter-offer. Nothing is sent until you send
-    it yourself. Only administrators get this tool.
+    **How it works.** Choose whether it writes the message, the offer or both, and press
+    **Generate**. With no instruction the button reads **Recommend an offer** (or **Write a
+    message**) and asks for exactly that. When you have an Assistant, your Assistant answers,
+    with what it knows of the negotiation and your conversation; otherwise your instruction, the
+    issues, your preferences and the recent offers go to the configured language model. Check
+    the suggestion. **Set offer** copies it into your
+    counter-offer (to change it or send it from there); **Send offer** sends it as your offer
+    right away, with its message. Only administrators get this tool.
     """
     icon = "sparkles"
     admin_only = True
     order = 10
+    sends_offer = True
+    nothing_picked = "Generate a suggestion first."
+    agent_hint = ("Write the input 'instruction' and press 'generate'; then 'apply' copies the suggestion into the "
+                  "participant's counter-offer and message, and 'send_offer' sends it as their offer.")
+
+    #: what an empty instruction asks for, and the Generate button's text then, per mode
+    DEFAULT_INSTRUCTIONS = {
+        "both": ("Recommend an offer, with a message to go with it.", "Recommend an offer"),
+        "outcome_only": ("Recommend an offer.", "Recommend an offer"),
+        "text_only": ("Write a message to the opponent for my current offer.", "Write a message"),
+    }
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
@@ -1416,6 +1449,21 @@ class ResponseGeneratorTool(OutcomeSelector):
         self.generated: dict[str, Any] | None = None
         self.status = ""
         self.busy = False
+        self._by_agent = False
+
+    def assistant(self):
+        """The participant's Assistant when it writes the suggestions (it is on and has the
+        ``llm_tool`` capability for the chosen mode), else ``None``."""
+        sa = getattr(self.session, "support_agent", None)
+        if sa is None or not getattr(sa, "user_enabled", False):
+            return None
+        answers = getattr(sa, "answers_llm_tool", None)
+        return sa if answers is None or answers(self.values.get("mode", "both")) else None
+
+    def instruction(self) -> str:
+        """The typed instruction, or the mode's default when nothing is typed."""
+        typed = str(self.values.get("instruction") or "").strip()
+        return typed or self.DEFAULT_INSTRUCTIONS.get(self.values.get("mode", "both"), self.DEFAULT_INSTRUCTIONS["both"])[0]
 
     def negotiation_started(self, session_state, nmi):
         self.generated = None
@@ -1425,17 +1473,23 @@ class ResponseGeneratorTool(OutcomeSelector):
     def view(self):
         from hani2.llm_service import get_llm_status
 
-        st = get_llm_status()
         comps: list[ui.Component] = []
-        if not st.get("configured"):
-            comps.append(ui.alert(f"The LLM is not configured (provider `{st.get('provider')}`).", "warning"))
+        if self.assistant() is not None:
+            comps.append(ui.text_block("Your Assistant writes the suggestions.", muted=True))
+        else:
+            st = get_llm_status()
+            if not st.get("configured"):
+                comps.append(ui.alert(f"The LLM is not configured (provider `{st.get('provider')}`).", "warning"))
+        empty_label = self.DEFAULT_INSTRUCTIONS.get(self.values.get("mode", "both"), self.DEFAULT_INSTRUCTIONS["both"])[1]
         comps += [
             ui.textarea("instruction", self.values.get("instruction", ""), rows=3,
-                        placeholder="e.g. Propose a fair middle ground, or: improve my last offer slightly"),
+                        placeholder="e.g. Propose a fair middle ground, or: improve my last offer slightly "
+                                    "(leave it empty for a recommendation)"),
             ui.radio("mode", {"Text & offer": "both", "Text only": "text_only", "Offer only": "outcome_only"},
                      self.values.get("mode", "both")),
             ui.button("Generating…" if self.busy else "Generate", "generate", variant="primary", icon="sparkles",
-                      disabled=self.busy or not self.can_set(), full=True),
+                      disabled=self.busy or not self.can_set(), full=True,
+                      empty_label=None if self.busy else empty_label, empty_input="instruction"),
         ]
         if self.status:
             comps.append(ui.alert(self.status, "error" if self.status.startswith("Error") else "info"))
@@ -1445,16 +1499,64 @@ class ResponseGeneratorTool(OutcomeSelector):
                 comps.append(ui.outcome(g["outcome"], g.get("utility"), label="Suggested offer"))
             if g.get("text"):
                 comps.append(ui.card(ui.markdown(g["text"]), title="Suggested message"))
-            comps.append(ui.button("Apply to my offer", "apply", variant="success", icon="arrow-left-to-line", full=True))
+            reason = self.send_blocker()
+            comps.append(ui.row(
+                ui.button("Set offer", "apply", variant="secondary", icon="arrow-left-to-line",
+                          tooltip="Copy the suggestion into your counter-offer and message"),
+                ui.button(self.send_label, "send_offer", variant="primary", icon="send", disabled=reason is not None,
+                          tooltip=reason or "Send the suggestion as your offer, with its message"),
+            ))
         return comps
+
+    # the suggestion is what Send offer sends (an edited counter-offer does not discard it)
+    def picked_outcome(self):
+        g = self.generated
+        if not g:
+            return None
+        if g.get("outcome"):
+            return dict(g["outcome"])
+        # a message only: it goes with the counter-offer as it is
+        return dict(self.session.draft) if g.get("text") and self.session.draft else None
+
+    def unpick(self) -> None:
+        self.generated = None
+
+    def draft_changed(self, session_state, draft) -> None:
+        if self.generated and not self.generated.get("outcome"):
+            self.refresh()  # a message-only suggestion is sent with the current counter-offer
+
+    def send_outcome(self) -> dict:
+        reason = self.send_blocker()
+        if reason:
+            return {"ok": False, "error": reason}
+        g = dict(self.generated or {})
+        if g.get("outcome"):
+            r = self.set_offer(g["outcome"])
+            if not r.get("ok", True):
+                return r
+        if g.get("text") and self.session.admin_prefs.get("allow_text_human", True):
+            r = self.set_text(g["text"])
+            if not r.get("ok", True):
+                return r
+        res = self.session_state["actions"]["reject_counter"]() or {}
+        if res.get("ok"):
+            self.generated = None
+            self.session.emit({"type": "draft_text", "text": ""})
+            self.refresh()
+        return res
 
     def on_input(self, name, value):
         self.values[name] = value  # no re-render while typing
+        if name == "mode":
+            self.refresh()  # the button's text follows the mode
 
     def on_action(self, action, payload):
         if action == "generate":
             if payload.get("instruction") is not None:
                 self.values["instruction"] = payload["instruction"]
+            if payload.get("mode") in self.DEFAULT_INSTRUCTIONS:
+                self.values["mode"] = payload["mode"]
+            self._by_agent = self.session._actor() == "agent"
             self.busy, self.status = True, ""
             self.refresh()
             self.session.submit(self._generate)
@@ -1463,19 +1565,40 @@ class ResponseGeneratorTool(OutcomeSelector):
                 self.set_offer(self.generated["outcome"])
             if self.generated.get("text"):
                 self.set_text(self.generated["text"])
-            self.toast("Applied to your offer", "success")
+            self.toast("Copied into your offer", "success")
+        elif action == "send_offer":
+            r = self.send_outcome()
+            if not r.get("ok", True):
+                self.toast(r.get("error", "Could not send the offer"), "warning")
+            return r
 
     def _generate(self):
         from hani2.connections import llm_error
         from hani2.llm_service import generate_from_instruction
 
         try:
-            instr = (self.values.get("instruction") or "").strip()
-            if not instr:
-                self.status = "Error: write an instruction first."
+            instr = self.instruction()
+            mode = self.values.get("mode", "both")
+            # the Assistant answers the participant; when it pressed Generate itself (it is waiting on
+            # this tool, holding its turn) or does not answer, the tool's own prompt does
+            sa = None if self._by_agent else self.assistant()
+            suggestion = sa.suggest_offer(instr, mode) if sa is not None else None
+            if suggestion is not None:
+                if suggestion.get("error"):
+                    self.status = f"Error: {suggestion['error']}"
+                    return
+                out = suggestion.get("outcome") or None
+                utility = None
+                if out:
+                    try:
+                        utility = self.session.utility(tuple(out.get(i.name) for i in self.issues))
+                    except Exception:  # noqa: BLE001
+                        utility = None
+                self.generated = {"outcome": out, "text": suggestion.get("text"), "utility": utility}
+                self.status = ""
                 return
             res = generate_from_instruction(instruction=instr, issues=self.issues, context=self.session.llm_context(),
-                                            output_mode=self.values.get("mode", "both"))
+                                            output_mode=mode)
             if res.error:
                 self.status = f"Error: {llm_error(res.error, admin=self.session.is_admin)}"
                 return

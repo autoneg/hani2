@@ -715,6 +715,79 @@ class SupportAgent:
             return "(system) The negotiation ended. Give a one-sentence debrief."
         return None
 
+    #: what each mode of :meth:`suggest_offer` asks the model for
+    _SUGGEST_FORMAT = {
+        "both": 'Reply with JSON only: {"text": "<the message to the opponent>", "outcome": {"<issue>": <value>, ...}, '
+                '"reasoning": "<one sentence>"}. Give a value for every issue.',
+        "outcome_only": 'Reply with JSON only: {"text": null, "outcome": {"<issue>": <value>, ...}, '
+                        '"reasoning": "<one sentence>"}. Give a value for every issue.',
+        "text_only": 'Reply with JSON only: {"text": "<the message to the opponent, for the current counter-offer>", '
+                     '"outcome": null, "reasoning": "<one sentence>"}.',
+    }
+
+    def answers_llm_tool(self, mode: str = "both") -> bool:
+        """Whether this Assistant writes the LLM offer tool's suggestions in ``mode``: it is on and
+        has ``llm_tool`` plus ``fill_offer`` and/or ``fill_text`` for what the mode asks."""
+        if not self.user_enabled or not self.capabilities.has(Capability.LLM_TOOL):
+            return False
+        needs = {"both": (Capability.FILL_OFFER, Capability.FILL_TEXT), "outcome_only": (Capability.FILL_OFFER,),
+                 "text_only": (Capability.FILL_TEXT,)}.get(mode, (Capability.FILL_OFFER, Capability.FILL_TEXT))
+        return all(self.capabilities.has(c) for c in needs)
+
+    def suggest_offer(self, instruction: str, mode: str = "both", timeout: float = 120.0) -> dict | None:
+        """The participant wrote ``instruction`` in the LLM offer tool: suggest an offer and/or a
+        message (``mode``: ``both``, ``outcome_only`` or ``text_only``) for the tool to show.
+
+        Returns ``{"outcome": {issue: value} | None, "text": str | None, "error": str | None}``, or
+        ``None`` when this Assistant does not answer (switched off, without the ``llm_tool``
+        capability, not allowed to fill the offer or message the mode asks for, or no plain chat
+        model: the tool then uses its own prompt). See :meth:`answers_llm_tool`.
+        The default runs one completion on this Assistant's model with its own system prompt and
+        conversation (no functions are called), and remembers the request and the suggestion in
+        the conversation. Override it for a rule-based Assistant."""
+        if not self.answers_llm_tool(mode):
+            return None
+        try:
+            res = self.model()
+        except Exception:  # noqa: BLE001
+            return None
+        if res is None or not getattr(res, "ok", False) or getattr(res, "is_harness", False):
+            return None
+        from hani2.llm_service import _parse_instruction_response
+
+        sess = self.session
+        if not self._busy.acquire(timeout=timeout):
+            return {"outcome": None, "text": None, "error": "The Assistant is busy. Try again in a moment."}
+        self._set_busy_state()
+        try:
+            request = (f"{self._context_snapshot() or ''}\n\n---\nThe participant asks you, in the LLM offer tool, "
+                       f"for a suggestion: {instruction}\n\n{self._SUGGEST_FORMAT.get(mode, self._SUGGEST_FORMAT['both'])}")
+            conversation = self.messages
+            # the JSON exchange stays out of the conversation (it would pull later replies towards JSON)
+            self.messages = [*conversation, {"role": "user", "content": request}]
+            try:
+                reply = self._complete(self.dispatcher.schemas(), no_tools=True)
+            finally:
+                self.messages = conversation
+            parsed = _parse_instruction_response(reply.get("content") or "", list(sess.issues), mode)
+            if parsed.error:
+                return {"outcome": None, "text": None, "error": parsed.error}
+            outcome = sess.outcome_to_dict(parsed.outcome) if parsed.outcome is not None else None
+            said = "; ".join(x for x in (f"offer {outcome}" if outcome else "", f'message "{parsed.text}"'
+                                         if parsed.text else "") if x)
+            self.messages += [{"role": "user", "content": f"(In the LLM offer tool the participant asked: {instruction})"},
+                              {"role": "assistant", "content": f"(I suggested there: {said or 'nothing'}.)"}]
+            _log_agent_action(self.session_state, "suggest_offer", instruction[:120])
+            return {"outcome": outcome, "text": parsed.text, "error": None}
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            from hani2.connections import llm_error
+
+            return {"outcome": None, "text": None, "error": llm_error(e, admin=sess.is_admin)}
+        finally:
+            self._busy.release()
+            self._set_busy_state()
+
     def on_panel_action(self, panel_id: str, action: str, payload: dict[str, Any]) -> None:
         """A button in one of your panels was clicked. Default: tell the LLM."""
         if not self.user_enabled:

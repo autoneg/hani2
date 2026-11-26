@@ -1,1 +1,0 @@
-import{c as t}from"./index-CrK71GnS.js";const e={name:"panel-top-close",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"m9 16 3-3 3 3",key:"1idcnm"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

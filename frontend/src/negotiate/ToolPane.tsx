@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bot, CircleHelp, EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
-import { send, useStore, useUiState } from "../store";
+import { flushDraftText, send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
 import { Icon } from "../ui/Icon";
@@ -107,7 +107,10 @@ export function ToolBody({ tool }: { tool: ToolInfo }) {
       ctx={{
         reserved: rv,
         onInput: (name, value) => send({ type: "tool_input", id: tool.id, name, value }),
-        onAction: (action, payload) => send({ type: "tool_action", id: tool.id, action, payload }),
+        onAction: (action, payload) => {
+          flushDraftText(); // a tool may send the offer with the typed message
+          send({ type: "tool_action", id: tool.id, action, payload });
+        },
       }}
     />
   );
