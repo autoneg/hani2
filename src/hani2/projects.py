@@ -43,6 +43,7 @@ DEFAULT_KEYS = (
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
     "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
+    "scores", "scores_enabled", "normalisation",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -251,12 +252,15 @@ def _split(data: dict, fields: tuple[str, ...], nested: str) -> tuple[dict, dict
     return known, settings, extra
 
 
-def file_problems(data: dict, nested: str) -> list[str]:
+def file_problems(data: dict, nested: str, *, strict: bool = True) -> list[str]:
     """What is wrong with a project.yaml (``nested="defaults"``) or study.yaml
     (``nested="overrides"``) mapping: a setting given both at the top level and under
     ``nested`` with different values (they mean the same thing), unknown
-    scheduling methods, and a ``study_mode`` or ``pairing`` block that is not valid on its own
-    (the checks against the pool and the project are :func:`hani2.study_modes.resolve`)."""
+    scheduling methods, a ``study_mode`` or ``pairing`` block that is not valid on its own
+    (the checks against the pool and the project are :func:`hani2.study_modes.resolve`), and
+    the form of ``scores``, ``scores_enabled`` and ``normalisation``. With ``strict`` false (a
+    file being loaded) score weights that do not sum to 1 are not problems: see
+    :func:`file_warnings`."""
     from hani2 import scheduling, study_modes
 
     out: list[str] = []
@@ -280,7 +284,45 @@ def file_problems(data: dict, nested: str) -> list[str]:
         except ValueError as e:
             out.append(str(e))
         out += study_modes.check_pairing(src.get("pairing"))[1]
+    out += _evaluation_problems(data, inner, nested, strict)[0]
     return list(dict.fromkeys(out))
+
+
+def file_warnings(data: dict, nested: str) -> list[str]:
+    """What loading a project.yaml or study.yaml fixes: score weights that do not sum to 1 are
+    rescaled."""
+    inner = data.get(nested) if isinstance(data.get(nested), dict) else {}
+    return _evaluation_problems(data, inner, nested, False)[1]
+
+
+def _evaluation_problems(data: dict, inner: dict, nested: str, strict: bool) -> tuple[list[str], list[str]]:
+    from hani2.evaluation import scores as _scores
+
+    problems: list[str] = []
+    warnings: list[str] = []
+    for where, layer in (("", data), (f"{nested}.", inner)):
+        p, w = _scores.file_problems(layer.get("scores"), f"{where}scores", strict=strict)
+        problems += p
+        warnings += w
+        problems += _scores.enabled_problems(layer.get("scores_enabled"), f"{where}scores_enabled")
+        norm = layer.get("normalisation")
+        if norm is None:
+            continue
+        if nested == "overrides":
+            problems.append(f"'{where}normalisation' is a project setting: set it in project.yaml")
+            continue
+        ref = norm.get("reference") if isinstance(norm, dict) else None
+        if not isinstance(norm, dict) or (ref is not None and not isinstance(ref, dict)):
+            problems.append(f"'{where}normalisation' must be a mapping like "
+                            "{reference: {studies: [play], end: 2027-03-31}}")
+            continue
+        st = (ref or {}).get("studies")
+        if st is not None and not (isinstance(st, str) or (isinstance(st, list) and all(isinstance(x, str) for x in st))):
+            problems.append(f"'{where}normalisation.reference.studies' must be a list of study names")
+        end = (ref or {}).get("end")
+        if end is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}(T.*)?", str(end)):
+            problems.append(f"'{where}normalisation.reference.end' must be a date (YYYY-MM-DD), not {end!r}")
+    return problems, warnings
 
 
 def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = None,
@@ -300,13 +342,13 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
     return data
 
 
-def _report(problems: list[str], where: Path) -> list[str]:
+def _report(problems: list[str], where: Path, level: str = "ERROR") -> list[str]:
     for p in problems:
         key = f"{where}: {p}"
         if key not in _REPORTED:
             _REPORTED.add(key)
-            print(f"[hani2] ERROR: {key}")
-    return problems
+            print(f"[hani2] {level}: {key}")
+    return [f"warning: {p}" for p in problems] if level == "WARNING" else problems
 
 
 _REPORTED: set[str] = set()
@@ -334,7 +376,8 @@ def load_project(name: str) -> Project:
     kind = str(known.pop("kind", "none") or "none").lower()
     return Project(name=name, kind=kind if kind in KINDS else "none", defaults=defaults, extra=extra,
                    path=path if path.is_dir() else None,
-                   errors=_report(file_problems(data, "defaults"), path / PROJECT_FILE),
+                   errors=_report(file_problems(data, "defaults", strict=False), path / PROJECT_FILE)
+                   + _report(file_warnings(data, "defaults"), path / PROJECT_FILE, "WARNING"),
                    **{k: v for k, v in known.items()})
 
 
@@ -353,7 +396,8 @@ def load_study(ref: "StudyRef | str") -> Study:
             known[k] = str(known[k])
     return Study(name=ref.study, project=ref.project, type=stype if stype in STUDY_TYPES else "prolific",
                  overrides=overrides, extra=extra, path=folder, legacy=not f.exists(),
-                 errors=_report(file_problems(data, "overrides"), f), **known)
+                 errors=_report(file_problems(data, "overrides", strict=False), f)
+                 + _report(file_warnings(data, "overrides"), f, "WARNING"), **known)
 
 
 def list_projects() -> list[str]:
@@ -378,13 +422,18 @@ def list_studies(project: str) -> list[str]:
 
 
 def _merge_fields(data: dict, fields: dict) -> None:
-    """``data.update(fields)`` without ``None`` values; ``scheduling`` merges per dimension and
-    ``pairing`` key by key."""
+    """``data.update(fields)`` without ``None`` values; ``scheduling`` merges per dimension,
+    ``pairing`` key by key and ``scores`` per key (a key given as ``None`` removes that score)."""
     for k, v in fields.items():
         if v is None:
             continue
         if k in ("scheduling", "pairing") and isinstance(v, dict) and isinstance(data.get(k), dict):
             data[k] = {**data[k], **v}
+        elif k == "scores" and isinstance(v, dict):
+            merged = {**(data.get(k) if isinstance(data.get(k), dict) else {}), **v}
+            data[k] = {n: d for n, d in merged.items() if d is not None}
+            if not data[k]:
+                data.pop(k)
         else:
             data[k] = v
 

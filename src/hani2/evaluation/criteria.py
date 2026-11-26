@@ -369,8 +369,50 @@ def catalogue(project: str | None = None, study: str | None = None, rows: list[d
                 continue
             known[c.id] = c
             out.append(c)
+    for c in defined_score_criteria(project, study, known):
+        known[c.id] = c
+        out.append(c)
     if rows is not None:
         apply_rows(out, rows)
+    return out
+
+
+def defined_score_criteria(project: str | None, study: str | None, known: dict[str, Criterion]) -> list[Criterion]:
+    """A criterion for every score defined in the project's (and study's) files, so one score can
+    contain another. The checks are :func:`hani2.evaluation.scores.resolve`'s; here a score is listed
+    when its definition parses."""
+    from hani2 import projects
+    from hani2.evaluation import scores as S
+
+    if not project:
+        return []
+    try:
+        defs = dict(S._file_scores(projects.load_project(project).defaults))
+        if study:
+            for k, v in S._file_scores(projects.load_study(projects.StudyRef(project, study)).overrides).items():
+                if v is None:
+                    defs.pop(k, None)
+                else:
+                    defs[k] = v
+    except ValueError:
+        return []
+    parsed = {}
+    for k, d in defs.items():
+        sc = S.parse_definition(k, d, strict=False)[0]
+        if sc is not None and k not in known:
+            parsed[k] = sc
+    for cyc in S._cycles(parsed):
+        for k in cyc:
+            parsed.pop(k, None)
+    out: list[Criterion] = []
+    cost: dict[str, str] = {}
+    for k in S._order(parsed):
+        sc = parsed[k]
+        cost[k] = _max_cost(cost.get(c.column) or (known[c.column].cost if c.column in known else "live")
+                            for c in sc.components)
+        out.append(Criterion(id=k, title=sc.title, description=sc.description or f"The score {k}",
+                             source="score", direction="higher", normaliser={"kind": "bounded", "lo": 0.0, "hi": 1.0},
+                             cost=cost[k], metric="", range="[0, 1]"))
     return out
 
 
@@ -501,13 +543,12 @@ def load_reference(project: str) -> dict | None:
 
 def reference_setting(project: str) -> dict[str, Any]:
     """The project's ``normalisation.reference`` (``{"studies": [...], "end": "YYYY-MM-DD"}``), from
-    ``project.yaml`` at the top level or under ``defaults:``. Empty when unset."""
+    ``project.yaml`` at the top level or under ``defaults:`` (``normalisation`` is one of
+    :data:`hani2.projects.DEFAULT_KEYS`). Empty when unset."""
     from hani2 import projects
 
     pr = projects.load_project(project)
     norm = pr.defaults.get("normalisation")
-    if norm is None:
-        norm = pr.extra.get("normalisation")
     ref = (norm or {}).get("reference") if isinstance(norm, dict) else None
     if not isinstance(ref, dict):
         return {}

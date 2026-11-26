@@ -38,7 +38,7 @@ With direction `lower`, every rule is turned around ($1 - \cdot$). `reciprocal` 
 
 ## Metric columns
 
-188 numeric columns of 25 metrics: 114 hard, 35 soft, 23 subjective, 16 score. 110 have a direction; the other 78 are descriptive, so a score that uses one of them must state its direction. Every one is a game-level criterion.
+190 numeric columns of 25 metrics: 114 hard, 35 soft, 23 subjective, 18 score. 112 have a direction; the other 78 are descriptive, so a score that uses one of them must state its direction. Every one is a game-level criterion.
 
 ### Measured from the log (hard) {#source-hard}
 
@@ -247,6 +247,8 @@ With direction `lower`, every rule is turned around ($1 - \cdot$). `reciprocal` 
 | `hi_team_coverage` | HI team coverage | higher | bounded [0, 1] | judge | [`scores`](metrics.md) |
 | `hi_interaction` | HI interaction | higher | bounded [0, 1] | judge | [`scores`](metrics.md) |
 | `hi_interaction_coverage` | HI interaction coverage | higher | bounded [0, 1] | judge | [`scores`](metrics.md) |
+| `utility` | Utility | higher | bounded [0, 1] | live | [`scores`](metrics.md) |
+| `utility_coverage` | Utility coverage | higher | bounded [0, 1] | live | [`scores`](metrics.md) |
 
 These 12 columns are not numbers and cannot be chosen: `status`, `ended_by`, `first_critical`, `factor_issues`, `factor_opposition`, `factor_zopa`, `factor_constraint`, `factor_deception`, `factor_time_pressure`, `condition`, `assistant_condition`, `autopilot_driver`.
 
