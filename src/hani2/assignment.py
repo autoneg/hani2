@@ -662,23 +662,31 @@ def _warn_repeats(session: Any, method: str, pool: list[str]) -> None:
 
 
 def _schedule_repeats(session: Any, spec: str) -> bool:
-    """Whether the outside schedule names ``spec`` for an earlier counted slot too (an
-    ``external:repeat`` error unless ``assistant_repeats: true``); logged as an ``ERROR`` event."""
+    """Whether the outside schedule's slot for this negotiation names ``spec`` and an earlier counted
+    slot names it too (an ``external:repeat`` error); logged as an ``ERROR`` event. Only per-slot
+    ``assistant`` entries count (a top-level ``assistant`` is one Assistant for every negotiation),
+    and only when the study's method promises each Assistant at most once and
+    ``assistant_repeats`` is not ``true``."""
     from hani2 import scheduling
 
     st = getattr(session, "study", None)
-    fn = getattr(st, "schedule_assistant", None)
-    if not callable(fn) or not callable(getattr(st, "is_practice_next", None)) or st.is_practice_next():
+    if not callable(getattr(st, "schedule", None)) or not callable(getattr(st, "is_practice_next", None)) \
+            or st.is_practice_next():
         return False
     ref = getattr(session, "study_ref", None)
-    if ref is None or scheduling.options_for(ref).get("assistant_repeats") is True:
+    if ref is None or scheduling.repeats_allowed(_assistant_method(session), scheduling.options_for(ref)):
         return False
     slot = _assistant_slot(session)
     try:
-        earlier = [fn(j, False) for j in range(slot)]
+        sched = st.schedule()
     except Exception:  # noqa: BLE001
         return False
-    if spec not in [str(e) for e in earlier if e]:
+
+    def named(j: int) -> str:
+        e = sched[j] if 0 <= j < len(sched) and isinstance(sched[j], dict) else {}
+        return str(e.get("assistant") or "")
+
+    if named(slot) != spec or spec not in {named(j) for j in range(slot)}:
         return False
     msg = (f"schedule.json names the Assistant {spec!r} again for {session.user}'s negotiation {slot + 1}; "
            "each Assistant should be used at most once per person (set scheduling.assistant_repeats: true "

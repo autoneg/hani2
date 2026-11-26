@@ -330,8 +330,10 @@ def _file_repeat_problems(project_defaults: dict, overrides: dict | None, ref: A
     raw = pick("assistants")
     if raw is None and method != "random_each":
         return []  # the pool comes from the server's settings: unknown here
-    try:
-        k = int(pick("n_required", 5))
+    import os
+
+    try:  # PROLIFIC_N_REQUIRED wins, as it does when the study runs
+        k = int((os.environ.get("PROLIFIC_N_REQUIRED") or "").strip() or pick("n_required", 5))
     except (TypeError, ValueError):
         return []
     errors: list[str] = []
@@ -995,8 +997,8 @@ $$
 `cyclic`) too, the same rule would give Assistant $j$ the same opponent $j$ in
 every negotiation, so their effects could not be told apart. With
 `scheduling.cross: shift` (the default) the opponent sequence is shifted by a
-block offset instead; see [Crossing Assistants with opponents](#crossing).
-With `cross: none` HANI2 warns about the confounding (a
+block offset instead (see *Crossing Assistants with opponents* under the
+scheduling options). With `cross: none` HANI2 warns about the confounding (a
 `scheduling_confounded` event).
 """)
 
@@ -1030,7 +1032,8 @@ $$
   (`latin_square` balances it too).
 
 Like `latin_square`, it is crossed with a `latin_square` or `cyclic` opponent
-method when `scheduling.cross` is `shift` (see [Crossing](#crossing)).
+method when `scheduling.cross` is `shift` (see *Crossing Assistants with
+opponents* under the scheduling options).
 """)
 
 register("assistants", "balanced_subset", "Balanced subset (K of N, each negotiation)",
@@ -1069,8 +1072,9 @@ $$
 in lexicographic order, ties broken by a random draw seeded by the study and
 the human. Every ordered tuple is tried when $N \le 8$ and $K \le 5$; above that
 the tuple is filled one position at a time with the same criteria. The last
-criterion uses the human's own opponent sequence $o(i, p)$ (crossed as in
-[Crossing](#crossing)), so Assistants and opponents are planned together.
+criterion uses the human's own opponent sequence $o(i, p)$ (crossed as
+described under the scheduling options), so Assistants and opponents are
+planned together.
 
 **Advantages**
 

@@ -10,6 +10,9 @@ plans kept in ``assignments.json``. Its Solo part covers one human per negotiati
 * humans who got one Assistant more than once, humans who completed all K;
 * the crossing rule each human was given (``cross``) and the warnings about the files.
 
+Only the counted humans are included: the people in ``assignments.json`` (not admins, playground
+sessions or simulated participants).
+
 A negotiation is *counted* by the same rule as a Prolific study: not a practice round, and with at
 least one action by the human (or an opponent that failed). :func:`study_balance` returns a plain
 dict (``--json``); :func:`render` turns it into text.
@@ -87,6 +90,8 @@ def study_balance(ref: "projects.StudyRef | str") -> dict[str, Any]:
     data = assignment.read_assignments(r)
     with projects.use_study(r):
         root = results_root()
+    # the counted humans are the ones assignments.json knows (a study from before it existed: everyone)
+    counted_humans = set(data.get("humans", {}))
     people: dict[str, list[dict[str, Any]]] = {}
     paired_rows = 0
     if root.is_dir():
@@ -94,6 +99,8 @@ def study_balance(ref: "projects.StudyRef | str") -> dict[str, Any]:
             rows = _rows(d / "results.csv")
             if not rows or _simulated(d.name, rows):
                 continue
+            if counted_humans and d.name not in counted_humans:
+                continue  # admins, playground sessions: never assigned, never counted
             counted = [x for x in rows if counted_row(x)]
             solo = [x for x in counted if str(x.get("opponent_kind") or "agent") not in _HUMAN_KINDS]
             paired_rows += len(counted) - len(solo)

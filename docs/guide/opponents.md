@@ -235,8 +235,10 @@ negotiation uses position `k mod n` of that row. With four opponents A, B, C, D:
 
 Admins and playground guests are not counted and keep the random choice, and so do admin-mode sessions and logged-in users whose pool comes from the URL (an admin's `?opponents=`, `?group=`, a test link); Prolific, online and lab participants arriving with `?group=` follow the square over that group. Participants are
 counted per study, so each study is balanced on its own. A participant with a `schedule.json`
-gets the schedule's opponents; participants of a study started before this rule (with a
-`fallback_rotation.txt`) and sessions outside a study keep the older rotation. Each participant
+gets the opponents its slots name, and the square for the slots it leaves open; participants
+who started on the older rotation (with a `fallback_rotation.txt`) and sessions outside a study
+keep that rotation. When the Assistants also change every negotiation, the square is crossed with
+them (`scheduling.cross: shift`, see [Crossing Assistants with opponents](scheduling.md#crossing)). Each participant
 of a study also gets the scenario type `i mod t` of the active scenario set's `t` types.
 
 The Latin square is the default `opponents` [scheduling method](scheduling.md#opponents). A study

@@ -52,7 +52,7 @@ The questionnaire configured for the study (see [Per-negotiation questionnaires]
 - **Scenario type.** Each participant is assigned one scenario type from the active [scenario set](scenario-sets.md). In a study, participant number *i* (in order of arrival) gets type `i mod t` of the set's `t` types, so the types are spread evenly; without a study the type comes from a hash of the Prolific ID. They keep that type for the whole study, unless a schedule says otherwise.
 - **Scenario slot.** Each round uses the next slot of that type's pool (the participant's counter in `last_scenario.txt`). Prolific rounds always use the saved pools.
 - **Practice opponent.** A random agent from `PROLIFIC_PRACTICE_OPPONENTS` (default `:pan`; the old name `PROLIFIC_PRACTICE_AGENTS` also works). If that list resolves to no agents, HANI2 uses the normal opponent pool.
-- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset. In a study, participants face them in the order of a balanced Latin square (see [Latin squares](opponents.md#latin-squares)). Without a study, or for a participant who already has a `fallback_rotation.txt`, HANI2 rotates through them: round *k* uses agent `(offset + k) mod n`, and each new participant gets the next offset.
+- **Counted opponents.** HANI2 takes the agents in `PROLIFIC_FINALISTS`, or the normal opponent pool when it is unset. In a study, participants face them in the order of a balanced Latin square (see [Latin squares](opponents.md#latin-squares)), crossed with the Assistants when those change every negotiation; slots a `schedule.json` leaves open are filled the same way (see [Schedules from an outside system](study-management.md#schedules-from-an-outside-system-who-owns-the-plan)). Without a study, or for a participant who already has a `fallback_rotation.txt`, HANI2 rotates through them: round *k* uses agent `(offset + k) mod n`, and each new participant gets the next offset.
 - **Assistant.** With an Assistant pool, each participant keeps one Assistant for the whole study, balanced across participants (see [Assistant pools and assignment](assistant.md#assistant-pools-and-assignment)). To have every participant work with every Assistant once, in a counterbalanced order, set the study's `assistants` scheduling method to `latin_square` or `cyclic` (see [Scheduling methods](scheduling.md#assistants)).
 
 ### Schedules
@@ -139,7 +139,7 @@ Prolific participants have the usual result files (see [Results](study-managemen
 | `consent.json` | Only when the study asks for consent in the session (see [Study forms](study-forms.md#consent-for-study-participants)). |
 | `pre_questionnaire.json`, `post_session.json` | The answers to the pre- and post-session questionnaires, when configured. |
 
-The shared counter for the rotation offsets is `<results>/_prolific_fallback_counter.txt`. In a study, `<results>/assignments.json` holds every participant's index (for the Latin square and the scenario type) and Assistant.
+The shared counter for the rotation offsets is `<results>/_prolific_fallback_counter.txt`. In a study, `<results>/assignments.json` holds every participant's index (for the Latin square and the scenario type), crossing rule (`cross`) and Assistant (or Assistant plan).
 
 The `practice` column of `results.csv` marks the practice round.
 

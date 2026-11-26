@@ -929,3 +929,40 @@ def test_external_schedule_naming_an_assistant_twice_is_flagged(study, monkeypat
     assert [r["assistant_scheduling"] for r in _rows(s)] == ["external", "external:repeat"]
     db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
     assert db.execute("SELECT COUNT(*) FROM events WHERE action='scheduling_repeat'").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("method, schedule", [
+    ("external", {"version": 2, "assistant": RULES, "negotiations": [{"slot": 0}, {"slot": 1}]}),  # top level
+    ("balanced", {"version": 2, "negotiations": [{"slot": 0, "assistant": RULES}, {"slot": 1, "assistant": RULES}]}),
+])
+def test_one_assistant_throughout_is_not_a_repeat(study, monkeypatch, method, schedule):
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "2")
+    _set_study(study, opponents=POOL, practice=False, scheduling={"assistants": method})
+    d = projects.study_dir(study) / "results" / "prolific_ONE"
+    d.mkdir(parents=True)
+    (d / "schedule.json").write_text(json.dumps(schedule), encoding="utf-8")
+    s = prolific("ONE", study)
+    _play(s)
+    s.load()
+    _play(s)
+    assert [r["assistant_scheduling"] for r in _rows(s)] == ["external", "external"]
+    db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
+    assert db.execute("SELECT COUNT(*) FROM events WHERE action='scheduling_repeat'").fetchone()[0] == 0
+
+
+def test_balance_report_leaves_out_people_who_are_not_counted(study, monkeypatch):
+    from hani2 import balance
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    _set_study(study, assistants=[HELLO, RULES], opponents=POOL, practice=False, n_required=1)
+    s = prolific("C1", study)
+    _play(s)
+    other = projects.study_dir(study) / "results" / "an_admin"  # e.g. an admin who played in the study
+    other.mkdir(parents=True)
+    with open(other / "results.csv", "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=["assistant", "agent_type", "practice", "n_human_actions", "status"])
+        w.writeheader()
+        w.writerow({"assistant": COACH, "agent_type": POOL[0], "practice": "False", "n_human_actions": 3,
+                    "status": "success"})
+    rep = balance.study_balance(study)
+    assert rep["participants"] == 1 and COACH not in rep["totals"]
