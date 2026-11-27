@@ -282,21 +282,21 @@ def check_outcome(value: Any, os_: Any) -> tuple | None:
 
 def encode_state(state: Any, me: str | None = None) -> dict:
     """The parts of an SAO state a hosted opponent needs (plain JSON); ``current_proposer`` is ``self``,
-    ``partner`` or ``None``."""
+    ``other`` (the human's side) or ``None``."""
     prop = getattr(state, "current_proposer", None)
     data = getattr(state, "current_data", None)
     return json_safe({
         "step": getattr(state, "step", 0), "time": getattr(state, "time", 0.0),
         "relative_time": getattr(state, "relative_time", 0.0), "running": getattr(state, "running", True),
         "current_offer": list(state.current_offer) if getattr(state, "current_offer", None) is not None else None,
-        "current_proposer": None if prop is None else ("self" if me is not None and prop == me else "partner"),
+        "current_proposer": None if prop is None else ("self" if me is not None and prop == me else "other"),
         "current_text": (data or {}).get("text") if isinstance(data, dict) else None,
         "current_data": data if isinstance(data, dict) else None,
         "n_acceptances": getattr(state, "n_acceptances", 0),
     })
 
 
-def decode_state(d: dict, me: str | None = None, partner: str | None = None) -> Any:
+def decode_state(d: dict, me: str | None = None, other: str | None = None) -> Any:
     """An :class:`negmas.sao.SAOState` from :func:`encode_state` (on the host)."""
     from negmas.sao import SAOState
 
@@ -305,7 +305,7 @@ def decode_state(d: dict, me: str | None = None, partner: str | None = None) -> 
     return SAOState(running=bool(d.get("running", True)), started=True, step=int(d.get("step") or 0),
                     time=float(d.get("time") or 0.0), relative_time=float(d.get("relative_time") or 0.0),
                     current_offer=tuple(offer) if offer is not None else None,
-                    current_proposer=me if prop == "self" else (partner if prop == "partner" else None),
+                    current_proposer=me if prop == "self" else (other if prop == "other" else None),
                     current_data=d.get("current_data") or ({"text": d["current_text"]} if d.get("current_text") else None),
                     n_acceptances=int(d.get("n_acceptances") or 0), n_negotiators=2)
 

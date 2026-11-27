@@ -116,7 +116,7 @@ class OpponentRunner:
         from negmas.sao import SAOMechanism, SAONegotiator, SAOResponse
         from negmas import ResponseType
 
-        class _Partner(SAONegotiator):  # the human side of the stand-in mechanism; never asked
+        class _Other(SAONegotiator):  # the human's side of the stand-in mechanism; never asked
             def __call__(self, state, dest=None):
                 return SAOResponse(ResponseType.REJECT_OFFER, None)
 
@@ -126,14 +126,14 @@ class OpponentRunner:
                                       time_limit=setup.get("time_limit") or None, ignore_negotiator_exceptions=False)
         name = str(setup.get("name") or "opponent")
         self.negotiator = factory(name=name)
-        self.partner = _Partner(name="partner")
+        self.other = _Other(name="other")
         self.mechanism.add(self.negotiator, ufun=ufun)
-        self.mechanism.add(self.partner)
+        self.mechanism.add(self.other)
         self.model = model
         self._started = False
 
     def step(self, body: dict) -> dict:
-        state = decode_state(body.get("state") or {}, me=self.negotiator.id, partner=self.partner.id)
+        state = decode_state(body.get("state") or {}, me=self.negotiator.id, other=self.other.id)
         self.mechanism._current_state = state  # what self.nmi.state reads
         if not self._started:
             self._started = True

@@ -137,7 +137,7 @@ request carries `Authorization: Bearer <token>`.
 * `setup` holds `name`, `ufun` (negmas serialisation as YAML, or a table of outcomes and values),
   `outcome_space`, `issues`, `n_steps`, `time_limit` and `reserved_value`.
 * A step holds `state`: `step`, `relative_time`, `current_offer` (values in issue order),
-  `current_proposer` (`self` or `partner`), `current_text` and `n_acceptances`.
+  `current_proposer` (`self` or `other`), `current_text` and `n_acceptances`.
 * Reply with `{response: accept | reject | end, outcome: [...] | {issue: value}, text?}`.
 
 **Assistant.**
