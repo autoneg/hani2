@@ -124,14 +124,14 @@ def test_sourced_sets_are_read_only_in_the_api(admin, lib_dir):
 def test_add_a_new_set(admin, lib_dir):
     blank = admin.get(API).json()["blank"]
     assert admin.post(f"{API}/check", json={"text": blank}).json()["problems"] == []
-    r = admin.post(API, json={"text": _text({**OWN, "id": "HAN2026-PreSession"})})
+    r = admin.post(API, json={"text": _text({**OWN, "id": "HAN2027-PreSession"})})
     assert r.status_code == 200, r.text
-    assert (lib_dir / "HAN2026-PreSession.yaml").exists()
-    s = _set(admin, "HAN2026-PreSession")
+    assert (lib_dir / "HAN2027-PreSession.yaml").exists()
+    s = _set(admin, "HAN2027-PreSession")
     assert s["origin"] == "own" and not s["read_only"]
-    assert admin.post(API, json={"text": _text({**OWN, "id": "HAN2026-PreSession"})}).status_code == 422
+    assert admin.post(API, json={"text": _text({**OWN, "id": "HAN2027-PreSession"})}).status_code == 422
     # it is offered by the Study forms picker
-    assert "HAN2026-PreSession" in {x["id"] for x in admin.get("/api/admin/questionnaires/library").json()["sets"]}
+    assert "HAN2027-PreSession" in {x["id"] for x in admin.get("/api/admin/questionnaires/library").json()["sets"]}
 
 
 def test_copy_as_new_from_a_sourced_set(admin, lib_dir):
