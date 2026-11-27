@@ -185,7 +185,9 @@ is the one a session of the study would play, first match wins:
 4. the built-in pool.
 
 So a Solo study is refused when its project folder's `env.json` names `human+assistant`, and a
-Mixed study may take its pool from `env.json`. `hani2 --opponents` (`HANI2_OPPONENTS`) replaces the
+Mixed study may take its pool from `env.json`. When the pool comes from an `env.json`, the message
+ends with where, for example `(the opponents come from project env.json)`: fix that file, or name
+the pool in `study.yaml`. `hani2 --opponents` (`HANI2_OPPONENTS`) replaces the
 pool for every session of one server: it is not a setting of the study, so it is never a reason to
 refuse a file, but `hani2 study show` prints a `WARNING` when it contradicts the study's mode.
 `hani2 study show` also prints the pools in use and where each comes from (`pools (in use)`).
@@ -294,7 +296,8 @@ after groups are expanded, first match wins:
 1. `assistants` in `study.yaml`, else in `project.yaml`;
 2. `[none]`, which a Paired HAN study fills in (a study without Assistants is never a repeat);
 3. `agent_class` in `assistant_settings.json`: the study folder's, else the project folder's, else
-   the settings folder's, else the built-in Assistant. This is one Assistant, so N = 1.
+   the settings folder's, else the built-in Assistant. This is one Assistant, so N = 1, and the
+   message ends with where it comes from, for example `(the Assistants come from built-in)`.
 
 A project that sets `scheduling.assistants: latin_square` and `n_required: 4` but names no Assistants
 is therefore refused. K is `n_required`, or `PROLIFIC_N_REQUIRED` when the server sets it.
