@@ -630,8 +630,8 @@ class ToolDispatcher:
     def _schema_define_model_sequence(self) -> dict:
         return _fn("define_model_sequence",
                    "Define your own language-model sequence for this session (tried in order). Each entry is "
-                   "'provider:model' or an object with provider, model, params (temperature, effort, thinking, "
-                   "...), and optionally api_key_env / api_base for your own server.",
+                   "an object with provider, model, params (temperature, effort, thinking, ...) and api_key and/or "
+                   "api_base (your own key or server; the study's models are used through its sequences).",
                    {"name": {"type": "string", "description": "A new sequence name."},
                     "entries": {"type": "array", "items": {}, "description": "The entries, first choice first."},
                     "description": {"type": "string", "description": "What the sequence is for."}},

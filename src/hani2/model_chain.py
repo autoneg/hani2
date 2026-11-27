@@ -327,6 +327,28 @@ def read_layer_file(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def unknown_refs(data: Any) -> list[str]:
+    """Problems of the sequences a models.json body's purposes name, against the sequences in
+    effect at the current layer (and the body's own): missing or disabled ones."""
+    try:
+        parsed = parse_models(data, strict=False)
+    except ChainError as e:
+        return [str(e)]
+    out: list[str] = []
+    for purpose, name in parsed.refs.items():
+        own = parsed.sequences.get(name)
+        if own is not None:
+            if own.disabled:
+                out.append(f"{purpose!r} names the sequence {name!r}, which this file disables")
+            continue
+        if name in ("default", *PURPOSES):
+            continue
+        _ch, _src, why = sequence_chain(name)
+        if why:
+            out.append(f"{purpose!r} names the sequence {name!r}: {why}")
+    return out
+
+
 def check_chains(data: Any) -> list[str]:
     """Problems of a models.json body (``[]``: none)."""
     try:
@@ -373,10 +395,16 @@ class Source:
         """This layer's chain of ``purpose`` (its own, the sequence it names, or its default)."""
         for p in (purpose, "default"):
             if p in self.refs:
-                return _ref_chain(self.refs[p]) or None
+                return _ref_chain(self.refs[p])  # [] when it is missing or disabled: stops the walk
             if self.chains.get(p):
                 return self.chains[p]
         return None
+
+    def ref_of(self, purpose: str) -> str:
+        """The sequence this layer's chain of ``purpose`` names (``""``: none)."""
+        if purpose in self.refs:
+            return self.refs[purpose]
+        return "" if self.chains.get(purpose) else self.refs.get("default", "")
 
     def mentions(self, purpose: str) -> bool:
         return bool(self.chains.get(purpose) or purpose in self.refs)
@@ -589,9 +617,11 @@ def sources(include_legacy: bool = True, include_builtin: bool = True) -> list[S
 
 
 def chain_for(purpose: str) -> tuple[list[Entry], Source | None]:
+    """The chain of ``purpose`` and the layer it comes from. A layer whose chain names a sequence
+    that is missing or disabled gives an empty chain (it fails visibly, see :func:`resolve`)."""
     for src in sources():
         ch = src.chain(purpose)
-        if ch:
+        if ch is not None:
             return ch, src
     return [], None
 
@@ -826,7 +856,11 @@ def resolve(purpose: str, *, start: int = 0, chain: list[Entry] | None = None, s
         res.entry, res.index, res.connection, res.status = e, i, c, "unverified"
         return res
     what = f"model sequence {sequence!r}" if sequence else f"{purpose} chain"
-    if not chain:
+    ref = source.ref_of(purpose) if (source is not None and not sequence and not chain) else ""
+    if ref:
+        _ch, _src, why = sequence_chain(ref)
+        res.error = f"the {purpose} chain of {res.source} names the model sequence {ref!r}: {why or 'it has no entries'}"
+    elif not chain:
         res.error = f"no {what}"
     else:
         reasons = "; ".join(f"#{s['position']} {s['entry']}: {s['reason']}" for s in res.skipped)
@@ -981,17 +1015,21 @@ def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[
 # An Assistant's own sequences                                                 #
 # --------------------------------------------------------------------------- #
 #: sign-in keys an Assistant's own entry may carry (an admin's entries may not: see SECRET_PARAMS)
-OWN_SIGN_IN = ("api_key", "api_key_env", "api_base", "base_url")
+OWN_SIGN_IN = ("api_key", "api_base", "base_url")
 
 
 def parse_own_entry(x: Any, sequence: str = "own", index: int = 0) -> Entry:
-    """An entry of an Assistant's own sequence. Besides an admin's entry forms it may sign in
-    itself: ``{"provider": "openai", "model": "gpt-5", "api_key": "sk-…"}`` (or ``api_key_env``, the
-    name of an environment variable of this server, and ``api_base``, its own server's address).
-    The key is used only for the calls and masked in every log and error; it is never stored."""
-    if isinstance(x, str) or not isinstance(x, dict) or not any(k in x for k in OWN_SIGN_IN):
-        return parse_entry(x)
+    """An entry of an Assistant's own sequence. It signs in by itself, never with the server's
+    connections or keys: ``{"provider": "openai", "model": "gpt-5", "api_key": "sk-…"}`` (the
+    provider's usual address) and/or ``"api_base": "https://…"`` (its own server; without a key
+    nothing is sent to sign in). The key is used only for the calls and masked in every log and
+    error; it is never stored. The study's models are used through the study's sequences."""
+    if not isinstance(x, dict) or not any(x.get(k) for k in OWN_SIGN_IN):
+        raise ChainError("an entry of an Assistant's own sequence signs in by itself: give 'api_key' and/or "
+                         "'api_base' (the study's own models are used through its named sequences)")
     d = dict(x)
+    if "api_key_env" in d:
+        raise ChainError("an Assistant's own entry cannot read the server's environment (api_key_env); give api_key")
     sign = {k: d.pop(k) for k in OWN_SIGN_IN if k in d}
     if d.get("connection"):
         raise ChainError("an entry with its own api_key / api_base names a provider, not a connection")
@@ -1000,13 +1038,12 @@ def parse_own_entry(x: Any, sequence: str = "own", index: int = 0) -> Entry:
     if p is None or p.harness or not p.offered:
         raise ChainError(f"provider {e.provider!r} cannot be used in an Assistant's own sequence")
     key = str(sign.get("api_key") or "")
-    env = str(sign.get("api_key_env") or "")
     base = str(sign.get("api_base") or sign.get("base_url") or "")
     if key:
         conns.remember_secret(key)
+    # auth is "inline" (its key) or "none": never the provider's environment variable
     c = conns.Connection(name=f"assistant-{sequence}-{index + 1}", provider=p.id,
-                         auth="inline" if key else ("api_key_env" if env or p.env else "none"),
-                         api_key_env=env, base_url=base, implicit=True,
+                         auth="inline" if key else "none", base_url=base, implicit=True,
                          litellm_provider=e.provider if p.id == "litellm" else "")
     c.inline_key = key
     e.inline = c
@@ -1142,11 +1179,22 @@ class SessionModels:
     def records(self) -> dict[str, dict[str, Any]]:
         return {p: r.record() for p, r in self.pinned.items()}
 
+    def assistant_sequence(self) -> str:
+        """The named sequence the session's Assistant uses for its replies (``""``: its chain)."""
+        sa = getattr(self.session, "support_agent", None)
+        try:
+            return str(sa._sequence() or "") if sa is not None and hasattr(sa, "_sequence") else ""
+        except Exception:  # noqa: BLE001
+            return ""
+
     def attribution(self) -> dict[str, str]:
-        """Results columns (added after the existing ones)."""
+        """Results columns (added after the existing ones). ``assistant_llm`` is the entry of the
+        sequence the Assistant uses for its replies when it chose one."""
         out = {}
+        aseq = self.assistant_sequence()
         for p in ("assistant", "opponent"):
-            r = self.pinned.get(p)
+            r = self.pinned.get(f"{p}@{aseq}") if p == "assistant" and aseq else None
+            r = r or self.pinned.get(p)
             out[f"{p}_llm"] = r.short() if r is not None else ""
             out[f"{p}_llm_entry"] = f"{r.source}#{r.index + 1}" if r is not None and r.ok else ""
         out["llm_models"] = json.dumps(self.records(), default=str) if self.pinned else ""
