@@ -1083,6 +1083,35 @@ def admin_scores(project: str | None = None, study: str | None = None, _: str = 
     return jsonable(S.resolve(project, name).to_dict())
 
 
+@app.post("/api/admin/scores/preview")
+def admin_score_preview(project: str | None = None, study: str | None = None, body: Any = Body(...),
+                        _: str = Depends(require_admin)):
+    """A score that is not saved (``{"key": …, "score": {definition}}``, or the definition itself) on the
+    current data of the board of ``project`` (or of ``study`` = ``project/study``): the weights in effect
+    after coverage, the dropped parts, the distribution of the score over the counted games and the top
+    entrants. Nothing is written; a definition that cannot be computed gives its ``problems``."""
+    from hani2.evaluation import boards
+
+    try:
+        ref = projects.parse_ref(study) if study else None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if ref is not None and project and ref.project != project:
+        raise HTTPException(400, f"study {ref} is not in project {project!r}")
+    if ref is None and not project:
+        raise HTTPException(400, "give a project or a study (project/study)")
+    project, name = _score_target(ref.project if ref is not None else str(project), ref.study if ref else None)
+    if not isinstance(body, dict):
+        raise HTTPException(400, "send the score's definition as a JSON object")
+    key = body.get("key") if isinstance(body.get("key"), str) else None
+    definition = body.get("score") if isinstance(body.get("score"), dict) else \
+        {k: v for k, v in body.items() if k not in ("key", "origin", "enabled", "flattened")}
+    try:
+        return jsonable(boards.preview(project, name, definition, key))
+    except boards.BoardNotFound as e:
+        raise HTTPException(404, str(e)) from None
+
+
 def _save_score(project: str, study: str | None, key: str, body: Any) -> dict:
     from hani2.evaluation import scores as S
 
