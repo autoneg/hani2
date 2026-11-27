@@ -826,6 +826,11 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
             x[0] += int(a)
             x[1] += 1
     minimum_g, minimum_p = int(rules.get("min_games") or 0), int(rules.get("min_participants") or 0)
+    # the cell adjustment (each game against its cell's mean, plus the overall mean) and the bootstrap can
+    # step past a value's bounds: a rate cannot exceed 1, a score is in [0, 1]; means and interval ends are
+    # clipped to the bounds and the notes say so
+    bounds = {k: value_bounds(k, ss, crit) for k in value_keys}
+    clipped: dict[str, int] = {}
     entries, unranked = [], []
     main = q["sort"]
     sign = -1.0 if directions.get(main) == "lower" else 1.0
@@ -844,9 +849,13 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
             unranked.append({"entrant": name, "label": label_of(info["spec"] or name), "games": {"all": info["games"]},
                              "reason": reason})
             continue
-        vals = {k: {"mean": _clean_number(e["scores"][k]["mean"]),
-                    "ci": [_clean_number(e["scores"][k]["lo"]), _clean_number(e["scores"][k]["hi"])]}
-                for k in value_keys}
+        vals = {}
+        for k in value_keys:
+            sc = e["scores"][k]
+            three = [_clip(_clean_number(sc[x]), bounds[k]) for x in ("mean", "lo", "hi")]
+            if any(moved for _, moved in three):
+                clipped[k] = clipped.get(k, 0) + 1
+            vals[k] = {"mean": three[0][0], "ci": [three[1][0], three[2][0]]}
         ar = ab.get(name)
         entries.append({"rank": None, "tied_with_leader": False, "entrant": name, "assistant": info["spec"] or name,
                         "label": label_of(info["spec"] or name), "values": vals, "games": vg,
@@ -904,6 +913,14 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
     else:
         notes.append("normalisation: no frozen reference yet; unbounded criteria are scaled on the current games, "
                      "so the values are provisional (`hani2 scores freeze`)")
+    if clipped:
+        def _name(k: str) -> str:
+            return ss.scores[k].title if k in ss.scores else (getattr(crit.get(k), "title", "") or k)
+
+        notes.append("clipped to their bounds after the cell adjustment: "
+                     + ", ".join(f"{_name(k)} ({n} entrant{'s' if n != 1 else ''}, to "
+                                 f"[{bounds[k][0]:g}, {bounds[k][1]:g}])" for k, n in clipped.items())
+                     + "; an interval that reaches a bound is cut there")
     if rules.get("adjust", "relative") == "relative":
         notes.append("means are cell-adjusted (each game against the mean of its cell), shown on the values' scale")
     else:
@@ -920,6 +937,34 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
         "totals": {k: lb["totals"].get(k) for k in ("sessions", "matches", "agreement_rate", "welfare")},
         "reference": rsum, "_reference": ref,
     }
+
+
+def value_bounds(key: str, ss: Any, crit: dict[str, Any]) -> tuple[float, float] | None:
+    """The bounds a value of ``key`` can take: [0, 1] for a score, a bounded criterion's own ``lo`` and ``hi``
+    (its ``bounded`` or ``clip`` normaliser), else ``None`` (unbounded, such as counts and seconds)."""
+    if key in ss.scores:
+        return (0.0, 1.0)
+    c = crit.get(key)
+    if c is None:
+        return None
+    if c.source == "score":
+        return (0.0, 1.0)
+    n = c.normaliser or {}
+    if n.get("kind") in ("bounded", "clip"):
+        try:
+            lo, hi = float(n["lo"]), float(n["hi"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return (min(lo, hi), max(lo, hi))
+    return None
+
+
+def _clip(x: Any, b: tuple[float, float] | None) -> tuple[Any, bool]:
+    """``x`` within ``b`` (and whether it had to move)."""
+    if b is None or not isinstance(x, (int, float)) or isinstance(x, bool) or math.isnan(x):
+        return x, False
+    y = min(max(float(x), b[0]), b[1])
+    return y, y != x
 
 
 def _in_stratum(r: dict, track: str, stratum: str) -> bool:

@@ -169,6 +169,37 @@ def test_relative_means_stay_on_the_values_scale(hi):
     assert any("cell-adjusted" in n for n in out["notes"])
 
 
+def test_values_are_clipped_to_their_bounds_after_the_adjustment(hi):
+    """A rate near 1 in a hard cell: the cell adjustment (x - cell mean + overall mean) would put it above 1."""
+    set_board({"sort_options": ["agreement", "utility"], "columns": ["agreement", "utility", "games"],
+               "rules": {**RULES0, "adjust": "relative"}})
+    hi["HI/play"] = [*(row(f"a{i}", A, 0.9, scenario="hard", agreement=1.0) for i in range(4)),
+                     *(row(f"b{i}", B, 0.0, scenario="hard", agreement=0.0) for i in range(4)),
+                     *(row(f"c{i}", B, 1.0, scenario="easy", agreement=1.0) for i in range(8))]
+    out = boards.board("HI", None, {"sort": "agreement"}, n_boot=200)
+    e = {x["entrant"]: x for x in out["entries"]}
+    for x in e.values():
+        for k in ("agreement", "utility"):
+            m, (lo, hi_) = x["values"][k]["mean"], x["values"][k]["ci"]
+            assert 0.0 <= lo <= m <= hi_ <= 1.0, (x["entrant"], k, m, lo, hi_)
+    # without the clip Helper's agreement would be 1 - 0.5 + 0.75 = 1.25
+    assert e[A]["values"]["agreement"]["mean"] == 1.0 and e[A]["values"]["agreement"]["ci"][1] == 1.0
+    assert any(n.startswith("clipped to their bounds") and "Agreement" in n for n in out["notes"]), out["notes"]
+    # a board whose values stay inside their bounds says nothing about clipping
+    hi["HI/play"] = [row("u1", A, 0.5, agreement=1.0), row("u2", B, 0.4, agreement=0.0)]
+    assert not any(n.startswith("clipped") for n in boards.board("HI", None, {}, n_boot=50)["notes"])
+
+
+def test_value_bounds(hi):
+    from hani2.evaluation import criteria as C, scores as S
+
+    ss = S.resolve("HI", None)
+    crit = C.by_id(C.catalogue("HI", None))
+    assert boards.value_bounds("utility", ss, crit) == (0.0, 1.0)
+    assert boards.value_bounds("agreement", ss, crit) == (0.0, 1.0)
+    assert boards.value_bounds("n_offers", ss, crit) is None  # unbounded: left as it is
+
+
 def test_a_lower_is_better_criterion_ranks_upwards(hi):
     set_board({"sort_options": ["utility", "n_offers"], "rules": {**RULES0, "adjust": "balanced"}})
     # n_offers has no direction in the catalogue: it cannot be a sort option
