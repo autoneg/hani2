@@ -20,6 +20,7 @@ import {
   switchLabel,
   valueColumns,
 } from "./board";
+import { grouped, markText, VALIDATED_TIP } from "../ui/metricGroups";
 
 export type SortGroup = { label: string; options: SortOption[] };
 
@@ -100,6 +101,16 @@ export function BoardView({ board: b, onQuery, sortGroups, titles, admin, busy }
   const sortOpts = b.options.sort;
   const extra = (sortGroups ?? []).map((g) => ({ ...g, options: g.options.filter((o) => !sortOpts.some((x) => x.key === o.key)) })).filter((g) => g.options.length);
   const known = sortOpts.some((o) => o.key === sort) || extra.some((g) => g.options.some((o) => o.key === sort));
+  // the board's own options in the catalogue's groups (scores, outcome, fairness, …) when it names them
+  const ownGroups = b.options.groups?.length ? grouped(sortOpts, (o) => o.group, b.options.groups) : [];
+  const tip = b.options.validated_tooltip ?? VALIDATED_TIP;
+  const opt = (o: SortOption) => (
+    <option key={o.key} value={o.key} title={o.validated ? tip : o.description} data-validated={o.validated ? "" : undefined}>
+      {o.title}
+      {prov(o.key) ? " (provisional)" : ""}
+      {markText(o.validated)}
+    </option>
+  );
   const scales = Object.fromEntries(vcols.map((k) => [k, scaleOf(b, k)]));
   const prov = (k: string) => !!b.scores?.[k]?.provisional;
   const title = (k: string) => columnTitle(b, k, titles);
@@ -112,15 +123,25 @@ export function BoardView({ board: b, onQuery, sortGroups, titles, admin, busy }
             <select aria-label="Ranked by" value={sort} onChange={(e) => set("sort", e.target.value)} className="w-full max-w-full rounded-lg border border-line bg-surface py-1.5 pl-2.5 pr-8 text-sm sm:w-auto sm:min-w-[12rem] sm:max-w-xs text-ink focus:border-you focus:outline-none focus:ring-2 focus:ring-you/20">
               {!known && <option value={sort}>{title(sort)}</option>}
               {extra.length ? (
-                <optgroup label="This board">
-                  {sortOpts.map((o) => <option key={o.key} value={o.key}>{o.title}{prov(o.key) ? " (provisional)" : ""}</option>)}
-                </optgroup>
+                <optgroup label="This board">{sortOpts.map(opt)}</optgroup>
+              ) : ownGroups.length > 1 ? (
+                ownGroups.map((g) => (
+                  <optgroup key={g.id} label={g.title}>
+                    {g.items.map(opt)}
+                  </optgroup>
+                ))
               ) : (
-                sortOpts.map((o) => <option key={o.key} value={o.key}>{o.title}{prov(o.key) ? " (provisional)" : ""}</option>)
+                sortOpts.map(opt)
               )}
               {extra.map((g) => (
                 <optgroup key={g.label} label={g.label}>
-                  {g.options.map((o) => <option key={o.key} value={o.key}>{o.title}{o.direction === "lower" ? " (lower is better)" : ""}</option>)}
+                  {g.options.map((o) => (
+                    <option key={o.key} value={o.key} title={o.validated ? tip : o.description} data-validated={o.validated ? "" : undefined}>
+                      {o.title}
+                      {o.direction === "lower" ? " (lower is better)" : ""}
+                      {markText(o.validated)}
+                    </option>
+                  ))}
                 </optgroup>
               ))}
             </select>

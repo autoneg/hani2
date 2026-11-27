@@ -454,6 +454,14 @@ def options(cfg: Settings, ss: Any, crit: dict[str, Any], *, admin: bool = False
         elif sw in cfg.user_options:
             out[sw] = list(cfg.user_options[sw])
     out["defaults"] = {"sort": default_sort(cfg, ss, crit) or cfg.default_sort, **cfg.defaults}
+    from hani2.evaluation.catalog import VALIDATED_TOOLTIP, groups_payload
+
+    # the titles of the groups the sort options name, in the order the board lists them, so the board can
+    # show grouped choices without reordering its own
+    titles = {g["id"]: g["title"] for g in groups_payload()}
+    named = list(dict.fromkeys(o["group"] for o in out["sort"] if o.get("group") in titles))
+    out["groups"] = [{"id": g, "title": titles[g]} for g in named]
+    out["validated_tooltip"] = VALIDATED_TOOLTIP
     return out
 
 

@@ -12,6 +12,7 @@ import { Stepper } from "./controls/Stepper";
 import { Checks } from "./controls/Checks";
 import { Toggle } from "./controls/Toggle";
 import { type Criteria, useCriteria, useScores } from "./boards";
+import { grouped, markText, VALIDATED_TIP } from "../ui/metricGroups";
 import { COUNT_COLUMNS, SWITCH_TITLE, type Switch, boardPage, switchLabel } from "../leaderboard/board";
 import { ROOT } from "../pages/Leaderboard";
 
@@ -25,7 +26,7 @@ function switchValues(sw: Switch, track: string, extra: string[] = []): string[]
   return [...new Set([...WINDOWS, ...extra.filter((x) => /^last_\d+_days$/.test(x))])];
 }
 
-type KeyGroup = { label: string; keys: { key: string; title: string }[] };
+type KeyGroup = { label: string; keys: { key: string; title: string; validated?: boolean }[] };
 
 /** An ordered list of score or criterion keys: chips with a remove button, and an "Add…" menu. */
 function KeyList({ label, value, groups, onChange, titles }: { label: string; value: string[]; groups: KeyGroup[]; onChange: (v: string[]) => void; titles: Record<string, string> }) {
@@ -43,7 +44,13 @@ function KeyList({ label, value, groups, onChange, titles }: { label: string; va
         <option value="">Add…</option>
         {groups.map((g) => (
           <optgroup key={g.label} label={g.label}>
-            {g.keys.filter((x) => !value.includes(x.key)).map((x) => <option key={x.key} value={x.key}>{x.title}{x.title !== x.key ? ` (${x.key})` : ""}</option>)}
+            {g.keys.filter((x) => !value.includes(x.key)).map((x) => (
+              <option key={x.key} value={x.key} title={x.validated ? VALIDATED_TIP : undefined} data-validated={x.validated ? "" : undefined}>
+                {x.title}
+                {x.title !== x.key ? ` (${x.key})` : ""}
+                {markText(x.validated)}
+              </option>
+            ))}
           </optgroup>
         ))}
       </select>
@@ -94,8 +101,9 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
   const titleOf: Record<string, string> = { ...(crit?.titles ?? {}), ...COUNT_TITLE };
   for (const s of scores?.scores ?? []) titleOf[s.key] = s.title;
   const scoreGroup: KeyGroup = { label: "Enabled scores", keys: enabled.map((k) => ({ key: k, title: titleOf[k] ?? k })) };
-  const sortGroups: KeyGroup[] = [scoreGroup, ...(crit?.sortGroups ?? []).map((g) => ({ label: g.label, keys: g.options.map((o) => ({ key: o.key, title: o.title })) }))];
-  const columnGroups: KeyGroup[] = [scoreGroup, { label: "Counts", keys: COUNT_COLUMNS.map((k) => ({ key: k, title: COUNT_TITLE[k] })) }, { label: "Criteria", keys: (crit?.all ?? []).map((c) => ({ key: c.key, title: c.title })) }];
+  const sortGroups: KeyGroup[] = [scoreGroup, ...(crit?.sortGroups ?? []).map((g) => ({ label: g.label, keys: g.options.map((o) => ({ key: o.key, title: o.title, validated: o.validated })) }))];
+  const criteriaGroups: KeyGroup[] = grouped(crit?.all ?? [], (c) => c.group, crit?.groups).map((g) => ({ label: g.title, keys: g.items.map((c) => ({ key: c.key, title: c.title, validated: c.validated })) }));
+  const columnGroups: KeyGroup[] = [scoreGroup, { label: "Counts", keys: COUNT_COLUMNS.map((k) => ({ key: k, title: COUNT_TITLE[k] })) }, ...criteriaGroups];
   const sortOptions: string[] = v.sort_options ?? inh.sort_options ?? [];
   const columns: string[] = v.columns ?? inh.columns ?? [];
   const defaultSort: string = v.default_sort ?? inh.default_sort ?? sortOptions[0] ?? "";

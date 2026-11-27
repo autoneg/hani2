@@ -74,7 +74,10 @@ def test_switching_the_sort_and_the_games(page):
     rows = _rows(p)
     expect(rows.first).to_have_attribute("data-entrant", "sub_aurora")
     sort = p.get_by_label("Ranked by")
-    assert sort.locator("option").all_inner_texts() == ["Utility", "HI team (provisional)", "Agreement"]
+    # the board's options in the catalogue's groups, validated ones marked ✓
+    assert sort.locator("option").all_inner_texts() == ["Utility ✓", "HI team (provisional) ✓", "Agreement ✓"]
+    assert [g.get_attribute("label") for g in sort.locator("optgroup").all()] == ["Combined scores", "Outcome and utility"]
+    expect(sort.locator("option[value=agreement]")).to_have_attribute("data-validated", "")
     # ties with the leader read "=2", intervals are shown, and the entrant below the minimums has its reason
     expect(rows.nth(1).locator("[data-rank]")).to_have_text("=2")
     expect(rows.first).to_contain_text("0.52 – 0.74")
