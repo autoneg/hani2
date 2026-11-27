@@ -18,6 +18,7 @@ export const MODEL_ENTRIES = [
   { id: "models-tools", label: "Tools model chain", keywords: "tool llm" },
   { id: "models-text", label: "Offer extraction and message writing chain", keywords: "text extraction generation" },
   { id: "models-judge", label: "Evaluation judge model chain", keywords: "judge evaluation" },
+  { id: "models-sequences", label: "Named model sequences", hint: "tiny, offline, small, medium, large and your own", keywords: "sequence named tiny offline small medium large disable override thinking effort" },
 ];
 
 interface Entry {
@@ -27,7 +28,16 @@ interface Entry {
   params?: Record<string, any>;
   label?: string;
 }
-type Chains = Record<string, Entry[]>;
+/** A purpose's own chain, or the name of a sequence it uses. */
+type Chains = Record<string, Entry[] | string>;
+interface Seq {
+  entries?: Entry[];
+  description?: string;
+  disabled?: boolean;
+}
+type Seqs = Record<string, Seq>;
+const SEQ_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+const isRef = (v: any) => typeof v === "string" && !v.includes(":") && !v.includes(",") && SEQ_NAME.test(v.trim());
 
 const ORDER = ["default", "assistant", "opponent", "tools", "text", "judge"];
 
@@ -80,7 +90,7 @@ function EntryRow({ e, i, n, conns, set, move, dup, del }: { e: Entry; i: number
         className="w-44 [&>select]:w-full"
       />
       <TextField label={`Entry ${i + 1} model`} value={e.model} onChange={(v) => set({ ...e, model: v })} className="w-52" mono placeholder="model id" />
-      <TextField label={`Entry ${i + 1} parameters`} value={paramsText(e.params)} onChange={(v) => set({ ...e, params: parseParams(v) })} commit="blur" className="w-56" mono placeholder="temperature=0.2, max_tokens=800" />
+      <TextField label={`Entry ${i + 1} parameters`} value={paramsText(e.params)} onChange={(v) => set({ ...e, params: parseParams(v) })} commit="blur" className="w-64" mono placeholder="temperature=0.2, thinking=false, effort=high" />
       <TextField label={`Entry ${i + 1} label`} value={e.label ?? ""} onChange={(v) => set({ ...e, label: v || undefined })} className="w-28" placeholder="label" />
       <span className="ml-auto flex items-center gap-0.5">
         {res && (
@@ -98,11 +108,48 @@ function EntryRow({ e, i, n, conns, set, move, dup, del }: { e: Entry; i: number
   );
 }
 
+function ChainEditor({ own, conns, first, change }: { own: Entry[]; conns: { value: string; label: string }[]; first?: string; change: (e: Entry[]) => void }) {
+  return (
+    <>
+      {own.length === 0 && <Row label="No entries yet" hint="Add the models to try, in order." />}
+      {own.map((e, i) => (
+        <EntryRow
+          key={i}
+          e={e}
+          i={i}
+          n={own.length}
+          conns={conns}
+          set={(x) => change(own.map((y, j) => (j === i ? x : y)))}
+          move={(d) => {
+            const a = [...own];
+            [a[i], a[i + d]] = [a[i + d], a[i]];
+            change(a);
+          }}
+          dup={() => change([...own.slice(0, i + 1), JSON.parse(JSON.stringify(e)), ...own.slice(i + 1)])}
+          del={() => change(own.filter((_, j) => j !== i))}
+        />
+      ))}
+      <div className="px-4 py-2">
+        <button className="btn-ghost text-xs" onClick={() => change([...own, { connection: first, model: "" }])}>
+          <Plus size={13} /> Add entry
+        </button>
+      </div>
+    </>
+  );
+}
+
+const entriesText = (entries: any[]) =>
+  (entries ?? []).map((e: any, i: number) => `${i + 1}. ${e.connection ?? e.provider}:${e.model}${e.params && Object.keys(e.params).length ? ` (${paramsText(e.params)})` : ""}`).join("   ");
+
+const clean = (entries: any[]) => (entries ?? []).map((e: any) => ({ ...e, base: undefined })) as Entry[];
+
 export function Models() {
   const { layer } = useLayer();
   const { list, providers } = useConnections();
   const [data, setData] = useState<any>(null);
   const [draft, setDraft] = useState<Chains>({});
+  const [seqs, setSeqs] = useState<Seqs>({});
+  const [newName, setNewName] = useState("");
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<any>(null);
@@ -114,8 +161,20 @@ export function Models() {
         setData(d);
         const own: Chains = {};
         const raw = Array.isArray(d.own) ? { default: d.own } : d.own ?? {};
-        Object.entries(raw).forEach(([k, v]: any) => (own[k] = (typeof v === "string" ? v.split(",") : v).map((x: any) => toEntry(x, names))));
+        const ownSeqs: Seqs = {};
+        Object.entries(raw).forEach(([k, v]: any) => {
+          if (k === "sequences") {
+            Object.entries(v ?? {}).forEach(([n, b]: any) => {
+              if (b === null || b === false || b?.disabled) ownSeqs[n] = { disabled: true, description: b?.description };
+              else if (Array.isArray(b) || typeof b === "string") ownSeqs[n] = { entries: (typeof b === "string" ? b.split(",") : b).map((x: any) => toEntry(x, names)) };
+              else ownSeqs[n] = { entries: (b.entries ?? []).map((x: any) => toEntry(x, names)), description: b.description };
+            });
+          } else if (k.startsWith("_")) {
+            // comments
+          } else own[k] = isRef(v) ? v.trim() : (typeof v === "string" ? v.split(",") : v).map((x: any) => toEntry(x, names));
+        });
         setDraft(own);
+        setSeqs(ownSeqs);
         setDirty(false);
         setResolved(null);
       })
@@ -128,7 +187,27 @@ export function Models() {
     ...(list ?? []).map((c) => ({ value: c.name, label: `${c.name}${c.implicit ? " (implicit)" : ""}${c.harness ? ` (harness${c.harness.assistant_tools ? "" : ", completion only"})` : ""}${c.disabled ? " — disabled" : c.credentials ? "" : " — not ready"}` })),
     ...providers.filter((p) => p.offered).map((p) => ({ value: `provider:${p.id}`, label: `first ${p.label} connection` })),
   ];
-  const change = (p: string, entries: Entry[] | null) => {
+  const changeSeq = (n: string, s: Seq | null) => {
+    setSeqs((d) => {
+      const x = { ...d };
+      if (s === null) delete x[n];
+      else x[n] = s;
+      return x;
+    });
+    setDirty(true);
+  };
+  const body = () => {
+    const out: Record<string, any> = { ...draft };
+    const sq: Record<string, any> = {};
+    Object.entries(seqs).forEach(([n, s]) => {
+      sq[n] = s.disabled ? { disabled: true } : s.description ? { entries: s.entries ?? [], description: s.description } : s.entries ?? [];
+    });
+    if (Object.keys(sq).length) out.sequences = sq;
+    return out;
+  };
+  const seqNames: string[] = Array.from(new Set([...(data?.sequences ?? []).map((x: any) => x.name), ...Object.keys(seqs)]));
+  const usable = seqNames.filter((n) => !(seqs[n]?.disabled || (!seqs[n] && (data?.sequences ?? []).find((x: any) => x.name === n)?.disabled)));
+  const change = (p: string, entries: Entry[] | string | null) => {
     setDraft((d) => {
       const n = { ...d };
       if (entries === null) delete n[p];
@@ -139,7 +218,7 @@ export function Models() {
   };
   const save = async () => {
     try {
-      await api(`/api/admin/models${lq(layer)}`, { method: "PUT", body: draft });
+      await api(`/api/admin/models${lq(layer)}`, { method: "PUT", body: body() });
       toast(`Saved to ${layer.label}. New sessions use it.`);
       load();
     } catch (e: any) {
@@ -148,7 +227,7 @@ export function Models() {
   };
   const testAll = async () => {
     try {
-      setResolved(await api(`/api/admin/models/resolve${lq(layer)}`, { body: dirty ? { chains: draft } : {} }));
+      setResolved(await api(`/api/admin/models/resolve${lq(layer)}`, { body: dirty ? { chains: body() } : {} }));
     } catch (e: any) {
       toast(e.message, "error");
     }
@@ -184,63 +263,117 @@ export function Models() {
               <span className="font-mono text-xs text-ink">{r.connection ? `${r.connection}:${r.model}` : "—"}</span>
             </Row>
           ))}
+        {resolved &&
+          Object.entries(resolved.sequences ?? {}).map(([n, r]: any) => (
+            <Row
+              key={`seq-${n}`}
+              icon={<span className={`mt-1.5 inline-block h-2.5 w-2.5 rounded-full ${r.status === "none" ? "bg-bad" : r.status === "ok" ? "bg-good" : "bg-warn"}`} />}
+              label={`Sequence ${n}`}
+              hint={r.status === "none" ? <span className="text-bad">{r.error}</span> : <>#{r.position} of {SOURCE_LABEL(r.source)}</>}
+            >
+              <span className="font-mono text-xs text-ink">{r.connection ? `${r.connection}:${r.model}` : "—"}</span>
+            </Row>
+          ))}
       </Group>
       {ORDER.map((p) => {
         const own = draft[p];
         const eff = data.effective[p];
         const inh = data.inherited[p];
+        const ref = typeof own === "string" ? own : null;
         return (
           <Group
             key={p}
             id={`setting-models-${p}`}
             title={data.purposes[p] ?? p}
             actions={
-              own ? (
-                <button className="btn-ghost text-xs text-bad" onClick={() => change(p, null)}>{layer.kind === "settings" ? "Remove this chain" : "Use the inherited chain"}</button>
+              own !== undefined ? (
+                <span className="flex items-center gap-1">
+                  <Select
+                    label={`${p}: chain or sequence`}
+                    value={ref ?? ""}
+                    onChange={(v) => change(p, v ? v : clean(eff?.entries ?? []))}
+                    options={[{ value: "", label: "its own chain" }, ...usable.filter((n) => n !== p).map((n) => ({ value: n, label: `sequence ${n}` }))]}
+                    className="w-40 [&>select]:w-full"
+                  />
+                  <button className="btn-ghost text-xs text-bad" onClick={() => change(p, null)}>{layer.kind === "settings" ? "Remove" : "Use the inherited chain"}</button>
+                </span>
               ) : (
-                <button className="btn-ghost text-xs" onClick={() => change(p, (p === "default" && inh?.source !== "legacy" ? inh?.entries ?? [] : []).map((e: any) => ({ ...e, base: undefined })) as Entry[])}>
+                <button className="btn-ghost text-xs" onClick={() => change(p, (p === "default" && inh?.source !== "legacy" ? clean(inh?.entries ?? []) : []))}>
                   <Plus size={13} /> Set a chain here
                 </button>
               )
             }
-            footer={p === "default" ? "Every purpose without its own chain uses this one." : undefined}
+            footer={p === "default" ? "Every purpose without its own chain uses this one." : p === "judge" ? "The judge has its own sequence: it uses this chain (or the named sequence chosen here), else the default chain." : undefined}
           >
-            {own ? (
-              <>
-                {own.length === 0 && <Row label="No entries yet" hint="Add the models to try, in order." />}
-                {own.map((e, i) => (
-                  <EntryRow
-                    key={i}
-                    e={e}
-                    i={i}
-                    n={own.length}
-                    conns={connOpts}
-                    set={(x) => change(p, own.map((y, j) => (j === i ? x : y)))}
-                    move={(d) => {
-                      const a = [...own];
-                      [a[i], a[i + d]] = [a[i + d], a[i]];
-                      change(p, a);
-                    }}
-                    dup={() => change(p, [...own.slice(0, i + 1), JSON.parse(JSON.stringify(e)), ...own.slice(i + 1)])}
-                    del={() => change(p, own.filter((_, j) => j !== i))}
-                  />
-                ))}
-                <div className="px-4 py-2">
-                  <button className="btn-ghost text-xs" onClick={() => change(p, [...own, { connection: list[0]?.name, model: "" }])}>
-                    <Plus size={13} /> Add entry
-                  </button>
-                </div>
-              </>
+            {ref !== null ? (
+              <Row icon={<Tile icon={ListOrdered} color="bg-muted" />} label={`Uses the named sequence ${ref}`} hint={entriesText((data.sequences ?? []).find((x: any) => x.name === ref)?.entries ?? seqs[ref]?.entries ?? []) || "Defined below."} />
+            ) : own ? (
+              <ChainEditor own={own as Entry[]} conns={connOpts} first={list[0]?.name} change={(e) => change(p, e)} />
             ) : (
               <Row
                 icon={<Tile icon={ListOrdered} color="bg-muted" />}
-                label={eff?.entries?.length ? `In effect: from ${SOURCE_LABEL(eff.source)}` : "No chain"}
-                hint={(eff?.entries ?? []).map((e: any, i: number) => `${i + 1}. ${e.connection ?? e.provider}:${e.model}${e.params && Object.keys(e.params).length ? ` (${paramsText(e.params)})` : ""}`).join("   ") || (p === "default" ? "Each purpose uses its own chain or the old settings." : "Uses the default chain.")}
+                label={eff?.entries?.length ? `In effect: from ${SOURCE_LABEL(eff.source)}${eff.sequence ? ` (sequence ${eff.sequence})` : ""}` : "No chain"}
+                hint={entriesText(eff?.entries ?? []) || (p === "default" ? "Each purpose uses its own chain or the old settings." : "Uses the default chain.")}
               />
             )}
           </Group>
         );
       })}
+      <Group
+        id="setting-models-sequences"
+        title="Named model sequences"
+        footer="Named sequences merge by name: the most specific layer that mentions a name wins, so a study can override or disable one sequence and keep the others. The Assistant (with the model choice ability), tools and purposes above can use any sequence by name. Parameters: temperature, max_tokens, effort (low, medium, high …), thinking (true, false or a token budget) and any other parameter the provider takes."
+      >
+        {seqNames
+          .filter((n) => n !== "default" && n !== "judge")
+          .map((n) => {
+            const own = seqs[n];
+            const eff = (data.sequences ?? []).find((x: any) => x.name === n);
+            const inh = (data.inherited_sequences ?? []).find((x: any) => x.name === n);
+            return (
+              <div key={n} className="border-b border-line last:border-0" data-setting={`sequence-${n}`}>
+                <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+                  <span className="font-mono text-sm font-semibold text-ink">{n}</span>
+                  <span className="text-xs text-muted">{own ? (own.disabled ? "disabled here" : "defined here") : eff ? `${eff.disabled ? "disabled in" : "from"} ${eff.source === "builtin" ? "the built-ins" : SOURCE_LABEL(eff.source)}` : ""}</span>
+                  <span className="ml-auto flex items-center gap-1">
+                    {own ? (
+                      <button className="btn-ghost text-xs" onClick={() => changeSeq(n, null)}>{inh ? "Use the inherited one" : "Remove"}</button>
+                    ) : (
+                      <>
+                        <button className="btn-ghost text-xs" onClick={() => changeSeq(n, { entries: clean(eff?.entries ?? []), description: eff?.description || undefined })}>Override here</button>
+                        {!eff?.disabled && <button className="btn-ghost text-xs text-bad" onClick={() => changeSeq(n, { disabled: true })}>Disable here</button>}
+                      </>
+                    )}
+                    {own && !own.disabled && inh && <button className="btn-ghost text-xs text-bad" onClick={() => changeSeq(n, { disabled: true })}>Disable here</button>}
+                  </span>
+                </div>
+                {own && !own.disabled ? (
+                  <>
+                    <div className="px-4 pt-2">
+                      <TextField label={`${n} description`} value={own.description ?? ""} onChange={(v) => changeSeq(n, { ...own, description: v || undefined })} className="w-full" placeholder="What this sequence is for" />
+                    </div>
+                    <ChainEditor own={own.entries ?? []} conns={connOpts} first={list[0]?.name} change={(e) => changeSeq(n, { ...own, entries: e })} />
+                  </>
+                ) : (
+                  <Row label={own?.disabled || eff?.disabled ? "Not offered at this layer" : eff?.description || "Tried in order"} hint={own?.disabled ? "" : entriesText(eff?.entries ?? [])} />
+                )}
+              </div>
+            );
+          })}
+        <div className="flex items-center gap-2 px-4 py-3">
+          <TextField label="New sequence name" value={newName} onChange={setNewName} className="w-48" mono placeholder="new sequence name" />
+          <button
+            className="btn-ghost text-xs"
+            disabled={!SEQ_NAME.test(newName) || seqNames.includes(newName) || ORDER.includes(newName)}
+            onClick={() => {
+              changeSeq(newName, { entries: [] });
+              setNewName("");
+            }}
+          >
+            <Plus size={13} /> Add a sequence
+          </button>
+        </div>
+      </Group>
       <SaveBar dirty={dirty} save={save} discard={load} where={layer.label} />
     </>
   );
