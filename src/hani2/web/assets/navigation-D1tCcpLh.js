@@ -1,0 +1,1 @@
+import{c as n}from"./index-BPeWN3m0.js";const o={name:"navigation",size:24,node:[["polygon",{points:"3 11 22 2 13 21 11 13 3 11",key:"1ltx0t"}]]};o.node;const a=n(o);export{o as __iconData,a as default};

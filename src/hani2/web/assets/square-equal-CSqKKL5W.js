@@ -1,0 +1,1 @@
+import{c as a}from"./index-BPeWN3m0.js";const e={name:"square-equal",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M7 10h10",key:"1101jm"}],["path",{d:"M7 14h10",key:"1mhdw3"}]],aliases:["equal-square"]};e.node;const o=a(e);export{e as __iconData,o as default};
