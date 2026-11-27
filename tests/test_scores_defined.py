@@ -440,7 +440,7 @@ def test_save_delete_enable_duplicate(proj):
     sf.write_text(yaml.safe_dump(sd))
     S.save_score("HI2027", "play", "local", {"components": [{"criterion": "agreement", "weight": 1}]})
     assert "local" in yaml.safe_load(sf.read_text())["overrides"]["scores"]
-    # duplicating a built-in: editable, rescaled to sum to 1, same values where its extra rules do not apply
+    # duplicating a built-in: editable, rescaled to sum to 1, the same values
     S.duplicate("HI2027", None, "hi_assistant", "my_assistant")
     ss = S.resolve("HI2027")
     mine = ss.scores["my_assistant"]
@@ -589,7 +589,8 @@ def test_duplicates_of_the_builtins_give_the_same_values(proj):
     lst = ss.needed(names)
     for s in S.SCORES:
         c = ss.scores[f"copy_{s.name}"]
-        assert (c.zero_if, c.needs_assistant) == (s.zero_if, s.needs_assistant), s.name
+        assert (c.zero_if, c.needs_assistant, c.same_assistant) == (s.zero_if, s.needs_assistant, s.same_assistant), s.name
+    assert ss.scores["copy_utility"].same_assistant == "skip"  # boards leave same-Assistant games out of utility
     rng = random.Random(11)
     rows = [_random_row(rng) for _ in range(400)]
     rows += [{"support_agent": "none", "opponent_advantage": 0.9, "opponent_failed": 1},  # the opponent failed

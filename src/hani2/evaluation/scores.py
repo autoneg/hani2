@@ -231,6 +231,7 @@ worked as an Assistant (`hi_assistant`) and how well their teams worked (`hi_tea
     Score("utility", "Utility", "any", "outcome",
           "The Human side's advantage alone, for any session",
           [_c("human_advantage", 1, "advantage", "the Human side's advantage")],
+          same_assistant="skip",  # boards leave same-Assistant games out of it (a copy keeps that)
           details=r"""
 The simplest score: the share of the largest possible gain over no deal that the Human side obtained,
 with or without an Assistant. No deal scores 0. Every project and study has it.

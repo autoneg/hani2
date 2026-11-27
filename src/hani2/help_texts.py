@@ -539,7 +539,7 @@ Assistant, so the game says little about it compared with the others.
 | `once` (default) | the game counts **once**, as the mean of its two rows |
 | `skip` | the game is left out of this score |
 
-The built-in `utility` always leaves these games out.""",
+The built-in `utility` has `skip` (and a copy of it keeps that).""",
         section="Scores", key="scores.<key>.same_assistant", docs="project-management.md#which-games-count"),
     # ------------------------------------------------------------------ leaderboard
     "leaderboard": Help(
