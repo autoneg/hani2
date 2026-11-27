@@ -40,6 +40,10 @@ BROKEN_TOOLS = textwrap.dedent('''
             self._maybe("init")
         def scenario_loaded(self, ss, scenario):
             self._maybe("scenario_loaded")
+            self.n_loaded = getattr(self, "n_loaded", 0) + 1
+            self.refresh()
+        def negotiation_started(self, ss, nmi):
+            self.n_started = getattr(self, "n_started", 0) + 1
             self.refresh()
         def action_executed(self, ss, nmi, action):
             self._maybe("action_executed")
@@ -94,8 +98,36 @@ BROKEN_TOOLS = textwrap.dedent('''
 
     class HangInit(_Base):
         def init(self, ss):
-            if _armed("HangInit"):
+            if _armed(type(self).__name__):
                 time.sleep(1.0)
+
+    class HangInit2(HangInit):
+        pass
+
+    class HangInit3(HangInit):
+        pass
+
+    class HangInit4(HangInit):
+        pass
+
+    class HangHelp(_Base):
+        @classmethod
+        def help_text(cls):
+            if _armed("HangHelp"):
+                time.sleep(3.0)
+            return "help"
+
+    class HangPrivate(_Base):
+        def private_now(self):
+            if _armed("HangPrivate"):
+                time.sleep(3.0)
+            return False
+
+    class ExitAvail(_Base):
+        def available(self):
+            if _armed("ExitAvail"):
+                sys.exit(7)
+            return True
 
     class HangHook(_Base):
         def action_executed(self, ss, nmi, action):
@@ -352,8 +384,10 @@ def test_a_broken_help_text_does_not_break_the_page(broken_tools, monkeypatch):
         raise ValueError("no help")
 
     monkeypatch.setattr(good, "help_text", broken)
+    s.tool_state(good).pop("help", None)  # the answer is kept from the last refresh
     snap = s.snapshot()
     assert next(x for x in snap["tools"] if x["name"] == "GoodTool")["help"] == ""
+    assert s.tool_failure(good)["where"] == "help_text"
 
 
 @pytest.mark.parametrize("isolate", [True, False])
@@ -597,6 +631,9 @@ def test_an_always_slow_tool_stops_being_retried(broken_tools, monkeypatch):
     tool = _tool(s, "AlwaysSlow")
     tid = s.tool_state(tool)["id"]
     hub = Hub()
+    refreshed = []
+    real_refresh = tool.refresh
+    tool.refresh = lambda: (refreshed.append(1), real_refresh())
 
     async def run():
         hub.attach_loop(asyncio.get_running_loop())
@@ -606,10 +643,21 @@ def test_an_always_slow_tool_stops_being_retried(broken_tools, monkeypatch):
             skipped = await hub.render_tool_view(s, tid)  # while it hangs: skipped, and proves nothing
             assert "took too long" in _text(skipped["view"])
             await asyncio.sleep(0.7)  # the slow render returns
+        assert s.tool_state(tool).get("gave_up") and refreshed  # the pane is refreshed to say so
         calls = type(tool).calls
         view = await hub.render_tool_view(s, tid)
         assert "not tried again" in _text(view["view"]) and type(tool).calls == calls  # not called any more
         assert s.tool_unusable(tool)
+        # the pane says so and has a button; the Assistant is not kept waiting for a tool that gave up
+        assert any(c["type"] == "button" and c["action"] == failure.RETRY_ACTION for c in view["view"])
+        t0 = time.monotonic()
+        assert s.guard_tool(tool, "render", lambda: 1 / 0, default="d", timed=True) == "d"
+        assert time.monotonic() - t0 < 0.1 and type(tool).calls == calls
+        assert s.tool_private_to_human(tool)  # an unusable tool counts as private
+        s.tool_action(tid, failure.RETRY_ACTION, {})  # the button: no tab switch needed
+        assert not s.tool_unusable(tool)
+        s.tool_state(tool)["render_timeouts"] = 2
+        s.tool_state(tool)["gave_up"] = True
         s.retry_tool(tool)  # explicit retry: the tab is opened again
         _arm(monkeypatch)
         view = await hub.render_tool_view(s, tid)
@@ -649,3 +697,204 @@ def test_sys_exit_in_a_constructor_or_at_import_does_not_end_the_server(broken_t
     assert "failed to start" in _text(_view(s, "ExitCtor")) and "SystemExit" in _text(_view(s, "ExitCtor"))
     assert any("exits_on_import" in k and "SystemExit" in v["error"] for k, v in registry.LOAD_ERRORS.items())
     assert _shows_tool(_view(s, "GoodTool"))
+
+
+# -- second review ----------------------------------------------------------- #
+def _lock_wait(s, during):
+    """How long another thread waits for the session lock while ``during()`` runs."""
+    import threading
+
+    th = threading.Thread(target=during)
+    th.start()
+    time.sleep(0.05)
+    t0 = time.monotonic()
+    with s.lock:
+        pass
+    waited = time.monotonic() - t0
+    th.join()
+    return waited
+
+
+def test_no_tool_code_runs_under_the_session_lock(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    _arm(monkeypatch, "HangHelp", "HangPrivate", "ExitAvail")
+    t0 = time.monotonic()
+    s = make_session()  # help_text, private_now and available are asked outside the lock, time-limited
+    assert time.monotonic() - t0 < 3
+    assert _lock_wait(s, s.snapshot) < 0.5  # help_text is kept, not asked while the lock is held
+    start = time.monotonic()
+    snap = s.snapshot()
+    assert time.monotonic() - start < 1
+    assert any(x["name"] == "GoodTool" for x in snap["tools"])
+    # private_now hangs: the tool counts as private (fail closed), listed without waiting
+    start = time.monotonic()
+    listed = s.run_on_doc(s.tool_controller.list_tools)
+    assert time.monotonic() - start < 1
+    assert next(x for x in listed if x["name"] == "HangPrivate").get("private") is True
+    # SystemExit from available() does not escape
+    assert s.tool_available(_tool(s, "ExitAvail")) in (True, False)
+    assert isinstance(s.shown_tool_names(), set)
+
+
+def test_guard_tool_refuses_to_run_a_tool_from_outside_while_the_lock_is_held(broken_tools):
+    import threading
+
+    s = make_session()
+    good, ran = _tool(s, "GoodTool"), []
+
+    def fn():
+        ran.append(threading.get_ident())
+        return "ran"
+
+    with s.lock:
+        assert s.guard_tool(good, "on_input", fn, default="skipped") == "skipped"
+        assert not ran  # not here, and not before the lock is free
+    assert s.wait(lambda: ran, 5)
+    assert ran[0] != threading.get_ident()  # later, in a thread of its own
+
+
+def test_calls_use_daemon_threads_and_an_abandoned_call_never_runs(broken_tools, monkeypatch):
+    import threading
+
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.1}})
+    s = make_session()
+    good = _tool(s, "GoodTool")
+    assert not hasattr(__import__("hani2.session", fromlist=["x"]), "_CALL_POOL")
+    seen = []
+
+    def slow():
+        time.sleep(0.5)
+        return 1
+
+    th = threading.Thread(target=lambda: s.guard_tool(good, "on_input", slow))
+    th.start()
+    time.sleep(0.03)
+    assert all(t.daemon for t in threading.enumerate() if t.name == "hani2-tool-call")
+    th.join()
+    assert s.wait(lambda: not s.tool_unusable(good), 5)
+
+    real = threading.Thread
+
+    class Late(real):  # the call's thread starts only after the caller has given up
+        def run(self):
+            if self.name == "hani2-tool-call":
+                time.sleep(0.4)
+            super().run()
+
+    monkeypatch.setattr(threading, "Thread", Late)
+    try:
+        assert s.guard_tool(good, "on_input", lambda: seen.append(1), default="d") == "d"
+    finally:
+        monkeypatch.setattr(threading, "Thread", real)
+    assert s.tool_unusable(good)
+    assert s.wait(lambda: not s.tool_unusable(good), 5)  # the skipped call counted as returned
+    assert seen == []
+
+
+def test_the_tool_stays_hung_until_every_abandoned_call_has_returned(broken_tools):
+    import threading
+
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.2}})
+    s = make_session()
+    good = _tool(s, "GoodTool")
+    gate = threading.Barrier(2)
+
+    def sleeper(sec):
+        def fn():
+            time.sleep(sec)
+        return fn
+
+    def call(sec):
+        gate.wait()
+        s.guard_tool(good, "on_input", sleeper(sec))
+
+    ths = [threading.Thread(target=call, args=(sec,)) for sec in (0.5, 1.6)]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join()
+    assert s.tool_unusable(good)
+    time.sleep(0.6)  # the first one has returned, the second has not
+    assert s.tool_unusable(good)
+    assert s.wait(lambda: not s.tool_unusable(good), 5)
+
+
+def test_a_slow_init_gets_the_missed_hooks_when_it_returns(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    _arm(monkeypatch, "HangInit")
+    s = make_session()
+    tool = _tool(s, "HangInit")
+    assert s.tool_unusable(tool)
+    s.start()  # negotiation_started comes while the tool is hung
+    assert s.wait_for_turn()
+    assert s.wait(lambda: not s.tool_unusable(tool), 5)
+    assert s.wait(lambda: getattr(tool, "n_loaded", 0) >= 1 and getattr(tool, "n_started", 0) >= 1, 5)
+    s.end()
+
+
+def test_several_hung_inits_cost_one_time_limit(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.4}})
+    t0 = time.monotonic()
+    make_session()
+    base = time.monotonic() - t0
+    _arm(monkeypatch, "HangInit", "HangInit2", "HangInit3", "HangInit4")
+    t0 = time.monotonic()
+    s = make_session()
+    assert time.monotonic() - t0 - base < 0.9  # four in a row would add 1.6 s
+    assert all(s.tool_failure(_tool(s, n))["where"] == "init" for n in ("HangInit", "HangInit2", "HangInit3", "HangInit4"))
+
+
+def test_a_tool_is_never_left_starting(broken_tools):
+    s = make_session()
+    good = _tool(s, "GoodTool")
+    st = s.tool_state(good)
+    st["starting"] = True
+    assert s.tool_unusable(good) and s.tool_private_to_human(good)
+    assert s.render_tool(st["id"]) is None  # not rendered while it starts
+
+    class Boom(BaseException):
+        pass
+
+    def boom(*a, **kw):
+        raise Boom()
+
+    real = s.guard_tool
+    s.guard_tool = boom
+    try:
+        with pytest.raises(Boom):
+            s._start_tool(good, scenario=True)
+    finally:
+        s.guard_tool = real
+    assert "starting" not in st
+
+
+def test_add_tool_marks_the_tool_starting_before_it_is_listed(broken_tools):
+    from hani2.tools import Tool, ui
+
+    s = make_session()
+    seen = []
+
+    class StartProbe(Tool):
+        pane = "side"
+
+        def init(self, ss):
+            sess = ss["_session"]
+            seen.append((self in sess.tools, sess.tool_unusable(self)))
+
+        def view(self):
+            return [ui.markdown("probe")]
+
+    assert s.add_tool(StartProbe)["ok"]
+    assert seen == [(True, True)]
+    assert "starting" not in s.tool_state(next(t for t in s.tools if isinstance(t, StartProbe)))
+
+
+def test_input_timeout_is_shorter_than_the_render_timeout(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 5, "input_timeout": 0.2}})
+    _arm(monkeypatch, "HangAction")
+    s = make_session()
+    hang = _tool(s, "HangAction")
+    t0 = time.monotonic()
+    s.submit_ui(s.tool_action, s.tool_state(hang)["id"], "go", {}).result()
+    assert time.monotonic() - t0 < 0.9
+    assert s.tool_failure(hang)["where"] == "on_action"

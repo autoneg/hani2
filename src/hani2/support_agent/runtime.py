@@ -446,12 +446,12 @@ class SupportAgent:
         if t is None or not available(t):
             return None, {"ok": False, "error": f"no tool named {name!r}",
                           "tools": [x.name for x in sess.tools if available(x)]}
+        if getattr(sess, "tool_unusable", lambda _t: False)(t):  # failed to start, or stuck rendering
+            return None, {"ok": False, "error": f"{t.name} is not working right now; use another tool"}
         if getattr(sess, "tool_private_to_human", lambda _t: False)(t):
             return None, {"ok": False, "error": f"{t.name} shows the participant's own information, which you cannot "
                                                 "see in this negotiation. Ask the participant about it instead "
                                                 "(get_private_information tells you what only you know)."}
-        if getattr(sess, "tool_unusable", lambda _t: False)(t):  # failed to start, or stuck rendering
-            return None, {"ok": False, "error": f"{t.name} is not working right now; use another tool"}
         st = self.session.tool_state(t)
         if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
             return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)",
@@ -471,9 +471,9 @@ class SupportAgent:
         return {"ok": True, "tool": t.name, "text": text}
 
     def _help_of(self, t) -> str:
-        guard = getattr(self.session, "guard_tool", None)
+        fn = getattr(self.session, "tool_help", None)
         try:
-            return guard(t, "help_text", t.help_text, default="", timed=False) if guard else t.help_text()
+            return fn(t) if fn is not None else t.help_text()
         except Exception:  # noqa: BLE001
             return ""
 

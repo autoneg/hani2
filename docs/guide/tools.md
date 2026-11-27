@@ -507,9 +507,18 @@ recorded as an `error` event once per kind of failure. Notifications about a fai
 the error only to administrators; everyone else gets a generic message. The Assistant reads and
 uses tools through the same guarded, time-limited path: a tool that failed to start, is stuck or
 fails while the Assistant uses it is reported as not working right now (with the error text only
-for administrators), and a tool that cannot be read shows as unavailable. One limit: a call made
-while the session is locked (a hook fired by something the Assistant did) runs without the time
-limit, because the call could not use the session while the caller waits for it.
+for administrators), and a tool that cannot be read shows as unavailable. Tool code from outside HANI2 is never run while the session is locked: a call that would be made
+under the lock (a hook fired by something the Assistant did) is made right afterwards by a thread
+of its own, and what a tool answers to `available`, `private_now` and `help_text` is asked
+before the lock is taken and kept (a tool that cannot answer counts as private for the Assistant).
+HANI2's own tools are asked directly.
+
+An input or a button gets `tools.input_timeout` seconds (8 by default; `0` uses
+`tools.render_timeout`), shorter than the render limit, so Send, Accept and End are not stuck
+behind a hung tool for long. A tool that is hung is skipped until every abandoned call has
+returned, then it is given the `scenario_loaded` and `negotiation_started` it missed. Tools
+started together (a new session) start at the same time, so several hung `init` calls cost one
+time limit. A tool that gave up rendering shows a **Try again** button in its pane.
 
 A tool file (or `tools.extra` entry, entry point or library entry) that cannot even be imported
 gives no tab at all. The admin console lists such files at the top of the **Tools** page of the

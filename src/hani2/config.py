@@ -331,10 +331,11 @@ DEFAULT_ENV: dict[str, Any] = {
     # weights_chart_window says so), normalized percentages or raw numbers, a line
     # instead of bars above values_line_above options;
     # tools.isolate_builtin: built-in tools' failures are shown in their pane too (external tools' always are);
-    # tools.render_timeout: seconds a guarded tool may take to render (see hani2.tools.failure)
+    # tools.render_timeout: seconds a guarded tool may take for one call; tools.input_timeout: the same for
+    # an input or a button, so the interface is not stuck behind a hung tool for long (see hani2.tools.failure)
     "tools": {"maximize": "window", "weights_chart": "bar", "weights_chart_window": "same",
               "preferences_scale": "normalized", "values_line_above": 12, "isolate_builtin": True,
-              "render_timeout": 20},
+              "render_timeout": 20, "input_timeout": 8},
     # negmas statistics of each scenario, computed in the background (see hani2.scenario_stats)
     "scenario_stats": {"enabled": True, "pareto_max_outcomes": 1_000_000, "timeout": 300},
     # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),

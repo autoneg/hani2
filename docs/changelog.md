@@ -89,7 +89,9 @@
   and what the Assistant reads or presses (each gets `tools.render_timeout` seconds; a hung call is
   abandoned and never blocks the page or the Assistant), `sys.exit()` in a tool, and a tool that is
   always too slow (not retried after three timeouts until its tab is opened again); participants
-  never see exception text, only administrators do.
+  never see exception text, only administrators do. Tool code from outside is never run with the
+session locked, inputs and buttons have the shorter `tools.input_timeout` (8 s), a tool that gave up
+rendering has a **Try again** button, and the hooks a hung tool misses are delivered when it returns.
 - **Metric catalogue and questionnaires pages.** Every measure is now in a group of similar measures
   (outcome, efficiency and welfare, fairness, task success and rules, process, behaviour, Assistant use,
   activity, questionnaires, language-model judgements, scores, LLM cost, simulation, context). The score

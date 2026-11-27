@@ -43,7 +43,7 @@ from hani2.tools import ui
 from hani2.tools.base import Tool
 
 __all__ = ["FailedTool", "ToolCallFailed", "ToolUnavailable", "is_builtin", "isolate_builtin", "render_timeout",
-           "make_failure", "failure_view", "failure_banner", "public_error", "START", "RENDER", "MAX_TIMEOUTS",
+           "make_failure", "failure_view", "failure_banner", "public_error", "START", "RENDER", "MAX_TIMEOUTS", "RETRY_ACTION", "input_timeout",
            "UNAVAILABLE"]
 
 #: failures of these calls mean the tool never started: it stays failed
@@ -51,6 +51,9 @@ START = ("create", "init")
 #: failures of a render (an exception or a timeout): cleared by the next good render
 RENDER = ("render", "timeout")
 DEFAULT_RENDER_TIMEOUT = 20.0
+DEFAULT_INPUT_TIMEOUT = 8.0
+#: the button of the failure view of a tool that gave up; the session handles it itself
+RETRY_ACTION = "__retry_tool"
 #: consecutive render timeouts after which a tool is not rendered again until it is retried explicitly
 MAX_TIMEOUTS = 3
 #: what the Assistant reads in place of a tool that cannot be read
@@ -102,6 +105,17 @@ def render_timeout() -> float | None:
     return v if v > 0 else None
 
 
+def input_timeout() -> float | None:
+    """env.json → ``tools.input_timeout``: seconds a guarded tool may take to handle an input or a
+    button (default 8; ``0`` or less: use ``tools.render_timeout``). Shorter than the render limit,
+    because Send, Accept and End queue behind the call."""
+    try:
+        v = float(get_env("tools.input_timeout", DEFAULT_INPUT_TIMEOUT))
+    except (TypeError, ValueError):
+        v = DEFAULT_INPUT_TIMEOUT
+    return v if v > 0 else None
+
+
 def make_failure(where: str, exc: BaseException | None = None, *, message: str | None = None,
                  error_type: str | None = None) -> dict[str, Any]:
     """The record kept in the tool's state: ``{where, error_type, message, traceback, at}``."""
@@ -138,14 +152,16 @@ def _details(f: dict[str, Any]) -> list[ui.Component]:
     return out
 
 
-def failure_view(name: str, f: dict[str, Any] | None, admin: bool) -> list[ui.Component]:
-    """What the pane of a tool that failed to start or to render shows."""
+def failure_view(name: str, f: dict[str, Any] | None, admin: bool, retry: bool = False) -> list[ui.Component]:
+    """What the pane of a tool that failed to start or to render shows (``retry``: with a button
+    that tries the tool again, for a tool that was given up for being too slow)."""
     f = f or make_failure("render", message="unknown error")
+    again = [ui.button("Try again", RETRY_ACTION, icon="refresh-cw")] if retry else []
     if not admin:
         return [ui.alert("This tool is not working right now. Everything else on the page works as usual.",
-                         "error", title=f"{name} is not available")]
+                         "error", title=f"{name} is not available"), *again]
     msg = f"**{f.get('error_type', 'Error')}**: {f.get('message') or '(no message)'}"
-    return [ui.alert(f"`{name}` {_what(f)}.\n\n{msg}", "error", title=f"{name} is not working"),
+    return [ui.alert(f"`{name}` {_what(f)}.\n\n{msg}", "error", title=f"{name} is not working"), *again,
             *_details(f),
             ui.text_block("Participants only see that this tool is not working right now; the session and the "
                           "other tools carry on.", muted=True)]

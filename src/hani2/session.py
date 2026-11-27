@@ -213,9 +213,42 @@ def _in_own_study(fn: Callable) -> Callable:
 
 #: what :meth:`NegotiationSession.guard_tool` returns when a render failed
 _FAILED = object()
-#: threads for time-limited tool calls: idle ones are reused (cheap), a hung call keeps its thread and the
-#: next call gets another, so one hung tool never holds up the rest
-_CALL_POOL = ThreadPoolExecutor(max_workers=256, thread_name_prefix="hani2-tool-call")
+#: the tool whose start (init, scenario_loaded, ...) the current thread is running
+_STARTING: contextvars.ContextVar[int | None] = contextvars.ContextVar("hani2_starting_tool", default=None)
+#: hooks a tool misses while it is hung or starting; they are delivered again when it recovers
+_REPLAYED = ("scenario_loaded", "negotiation_started")
+
+
+class _SessionLock:
+    """The session's re-entrant lock, remembering which thread holds it (``held_by_me``), so tool
+    code is never run while it is held (see :meth:`NegotiationSession.guard_tool`)."""
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._owner: int | None = None
+        self._depth = 0
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        ok = self._lock.acquire(blocking, timeout)
+        if ok:
+            self._owner = threading.get_ident()
+            self._depth += 1
+        return ok
+
+    def release(self) -> None:
+        self._depth -= 1
+        if self._depth == 0:
+            self._owner = None
+        self._lock.release()
+
+    def held_by_me(self) -> bool:
+        return self._owner == threading.get_ident()
+
+    def __enter__(self) -> bool:
+        return self.acquire()
+
+    def __exit__(self, *exc: Any) -> None:
+        self.release()
 #: set inside a time-limited tool call: nested guarded calls are covered by the outer limit
 _IN_TIMED_CALL: contextvars.ContextVar[bool] = contextvars.ContextVar("hani2_in_timed_tool_call", default=False)
 
@@ -324,7 +357,8 @@ class NegotiationSession:
         self.admin_mode = admin_mode or is_admin
         self.query = dict(query or {})
         self.hub = hub
-        self.lock = threading.RLock()
+        self.lock = _SessionLock()
+        self._hung_lock = threading.Lock()
         #: UI messages from the browser are applied in order on this executor.
         self.ui_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"hani2-ui-{sid[:12]}")
         self.step_lock = threading.Lock()
@@ -554,6 +588,7 @@ class NegotiationSession:
 
     def run_on_doc(self, fn: Callable, timeout: float = 30.0):
         """Run ``fn`` under the session lock and return its result."""
+        self.refresh_tool_predicates()  # tool code is asked first, with the lock free
         with self.lock:
             return fn()
 
@@ -813,11 +848,66 @@ class NegotiationSession:
 
     def tool_available(self, tool) -> bool:
         """Whether ``tool`` is offered this round (a tool can depend on the information split)."""
-        try:
-            return bool(tool.available())
-        except Exception:  # noqa: BLE001
-            traceback.print_exc()
+        if self._inline_tool(tool):
+            try:
+                return bool(tool.available())
+            except (Exception, SystemExit):  # noqa: BLE001
+                traceback.print_exc()
+                return True
+        return self._predicate(tool, "available")
+
+    def _inline_tool(self, tool) -> bool:
+        """Whether ``tool``'s small questions (``available``, ``private_now``, ``help_text``) are asked
+        directly: HANI2's own tools are, and so is any tool that is not guarded. A tool from outside is asked in a time-limited
+        thread of its own, never with the session lock held (the answer is then the last one given)."""
+        st = self._tool_states.get(id(tool))
+        builtin = st.get("builtin") if st is not None and "builtin" in st else tool_failure.is_builtin(type(tool))
+        return bool(builtin) or not self.isolates_tool(tool)
+
+    def _predicate(self, tool, key: str):
+        """``key`` (``available`` or ``private``) of a tool from outside, from its cache; refreshed first
+        when this thread does not hold the session lock. Fails closed: a tool that cannot answer is
+        offered, but private."""
+        st = self._tool_states.get(id(tool))
+        if st is None:
             return True
+        if not self.lock.held_by_me() and not _IN_TIMED_CALL.get():
+            self._refresh_predicates(tool)
+        if key == "private" and self.tool_unusable(tool):
+            return True
+        return bool(st.get("pred", {}).get(key, True))
+
+    def _refresh_predicates(self, tool) -> None:
+        """Ask a tool from outside ``available`` and ``private_now`` (and ``help_text`` once), guarded and
+        time-limited, and keep the answers. Called with the session lock free."""
+        st = self._tool_states.get(id(tool))
+        if st is None or self._inline_tool(tool):
+            return
+        pred = st.setdefault("pred", {})
+
+        def ask():
+            return bool(tool.available()), bool(tool.private_now())
+
+        got = self.guard_tool(tool, "available", ask, default=None)
+        if got is None:
+            pred["private"] = True  # fail closed
+        else:
+            pred["available"], pred["private"] = got
+        if "help" not in st:
+            st["help"] = self.guard_tool(tool, "help_text", tool.help_text, default="") or ""
+
+    def refresh_tool_predicates(self) -> None:
+        """Refresh what is asked of tools from outside; call it where the lock is about to be taken."""
+        if self.lock.held_by_me():
+            return
+        for t in list(self.tools):
+            self._refresh_predicates(t)
+
+    def tool_help(self, tool) -> str:
+        """The tool's help text: asked directly of HANI2's own tools, kept from the last refresh for the rest."""
+        if self._inline_tool(tool):
+            return self.guard_tool(tool, "help_text", tool.help_text, default="", timed=False) or ""
+        return (self._tool_states.get(id(tool)) or {}).get("help", "")
 
     def current_viewer(self) -> str:
         """Who a tool is being rendered for in this thread: ``assistant`` (inside
@@ -836,10 +926,15 @@ class NegotiationSession:
 
     def tool_private_to_human(self, tool) -> bool:
         """Whether ``tool`` shows the human's private information that the
-        Assistant must not read this round (it asks the human instead)."""
+        Assistant must not read this round (it asks the human instead). A tool that is
+        failed, hung or still starting counts as private: when in doubt, nothing leaks."""
+        if self.tool_unusable(tool):
+            return True
+        if not self._inline_tool(tool):
+            return self._predicate(tool, "private")
         fn = getattr(tool, "private_now", None)
-        if callable(fn) and not self.tool_unusable(tool):  # a failed or hung tool shows nothing: not called
-            try:  # tool code: guarded and time-limited, and a failure keeps the information private
+        if callable(fn):
+            try:
                 return bool(self.guard_tool(tool, "private_now", fn, default=True))
             except (Exception, SystemExit):  # noqa: BLE001 - fail closed
                 traceback.print_exc()
@@ -1510,7 +1605,6 @@ class NegotiationSession:
                 here = views.get(self.layout.get("view") or "full") or dict(pane=spec.pane, order=spec.order + shift,
                                                                              visible=True)
                 pane = here["pane"]
-                self.tools.append(tool)
                 self._tool_states[id(tool)] = dict(
                     id=uuid.uuid4().hex[:10],
                     pane=pane,
@@ -1520,8 +1614,9 @@ class NegotiationSession:
                     # only a tool placed differently per view moves when the view changes
                     views=views if len({tuple(sorted(p.items())) for p in views.values()}) > 1 else None,
                     builtin=bool(spec.builtin),
-                    starting=True,  # until its init has run (below): not rendered
+                    starting=True,  # until its init has run (below): not rendered, not called from elsewhere
                 )
+                self.tools.append(tool)
                 if isinstance(tool, tool_failure.FailedTool):  # its constructor raised (hani2.tools.registry)
                     self.tool_failed(tool, "create", failure=tool.failure)
                 started.append(tool)
@@ -1531,21 +1626,73 @@ class NegotiationSession:
                     self.active_tabs[pane] = tool.name
                     if spec.at_front:
                         front[pane] = here["order"]
-        # tool code runs outside the session lock: a time-limited call runs in a thread of its own,
-        # which must be free to use the session (see guard_tool)
-        for tool in started:
-            try:
-                self.guard_tool(tool, "init", tool.init, self.ss)
-            except Exception:
-                traceback.print_exc()
-            if timing in ("load", "start", "end") and self.scenario is not None:
-                try:
-                    self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
-                except Exception:
-                    traceback.print_exc()
-            self._tool_states[id(tool)].pop("starting", None)
-            tool.refresh()
+        # tool code runs outside the session lock (see guard_tool). Tools from outside start at the same
+        # time, so k hung inits cost one time limit, not k; HANI2's own tools start one after the other
+        scenario = timing in ("load", "start", "end") and self.scenario is not None
+        outside = [t for t in started if not self._inline_tool(t)]
+        for t in started:
+            if t not in outside:
+                self._start_tool(t, scenario=scenario)
+        self._run_parallel([lambda t=t: self._start_tool(t, scenario=scenario) for t in outside])
         self.push_state()
+
+    def _start_tool(self, tool, *, scenario: bool, negotiation: bool = False) -> None:
+        """``init`` of a new tool, then the hooks it has missed (the scenario, a running negotiation);
+        the tool is never left ``starting``."""
+        token = _STARTING.set(id(tool))
+        try:
+            for where, on, args in (("init", True, ()), ("scenario_loaded", scenario, (self.scenario,)),
+                                    ("negotiation_started", negotiation, (self._human_nmi(),))):
+                if on:
+                    try:
+                        self.guard_tool(tool, where, getattr(tool, where), self.ss, *args)
+                    except Exception:  # noqa: BLE001
+                        traceback.print_exc()
+        finally:
+            _STARTING.reset(token)
+            st = self._tool_states.get(id(tool))
+            if st is not None:
+                st.pop("starting", None)
+        try:
+            if not self._inline_tool(tool):
+                self._refresh_predicates(tool)
+            self._replay_missed(tool)
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+        tool.refresh()
+
+    def _human_nmi(self):
+        m = self.mechanism
+        if m is None:
+            return None
+        try:
+            return m.negotiators[self.human_index].nmi
+        except Exception:  # noqa: BLE001
+            return m.nmi
+
+    def _replay_missed(self, tool) -> None:
+        """Deliver again the ``scenario_loaded`` / ``negotiation_started`` a tool missed while it was
+        hung or starting (they are not repeated by anyone else)."""
+        st = self._tool_states.get(id(tool))
+        if st is None or st.get("hung") or st.get("starting") or self.tool_unusable(tool):
+            return
+        missed = st.pop("missed", None) or set()
+        if "scenario_loaded" in missed and self.scenario is not None:
+            self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
+        if "negotiation_started" in missed and self.phase == "running" and self.mechanism is not None:
+            self.guard_tool(tool, "negotiation_started", tool.negotiation_started, self.ss, self._human_nmi())
+
+    def _run_parallel(self, fns: list[Callable]) -> None:
+        """Run ``fns`` at the same time, each in a daemon thread of its own (with this thread's
+        context), and wait for all of them."""
+        threads = []
+        for fn in fns:
+            ctx = contextvars.copy_context()
+            th = threading.Thread(target=ctx.run, args=(fn,), name="hani2-tool-start", daemon=True)
+            th.start()
+            threads.append(th)
+        for th in threads:
+            th.join()
 
     def _tools_hook(self, hook: str, *args) -> None:
         self._sync_opponent_estimate()
@@ -1580,6 +1727,7 @@ class NegotiationSession:
         """Tools the browser can be showing: the active (or first) tab of each
         pane, the active tab of combined tab strips (``all``), an enlarged
         tool (``max``) and a tool open in a popup (``popup``). Other tools are rendered when their tab is opened."""
+        self.refresh_tool_predicates()
         with self.lock:
             names: set[str] = set()
             visible = [t for t in self.tools if self._tool_states[id(t)]["visible"] and self.tool_available(t)]
@@ -1613,10 +1761,10 @@ class NegotiationSession:
             return {"id": tid, "view": self.relabel(t.render())}
         if self.tool_unusable(t):  # failed to start, or an earlier render still has not returned
             t._dirty = False
-            return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+            return {"id": tid, "view": self._failure_view(t, st)}
         view = self.guard_tool(t, "render", self._render_strict, t, default=_FAILED)
         if view is _FAILED:
-            return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+            return {"id": tid, "view": self._failure_view(t, st)}
         f = st.get("failure")
         if f is not None:  # a hook, input or button failed: say so above the view
             view = tool_failure.failure_banner(t.name, f, self.is_admin) + list(view)
@@ -1663,26 +1811,50 @@ class NegotiationSession:
         ``SystemExit`` or ``KeyboardInterrupt`` of the tool is raised as
         :class:`~hani2.tools.failure.ToolCallFailed`).
         Built-in tools with ``tools.isolate_builtin`` off are called unguarded. A tool
-        that failed to start, or is hung in an earlier call, is not called.
+        that failed to start, is hung in an earlier call or is still starting is not called
+        (``scenario_loaded`` and ``negotiation_started`` it misses are delivered again later).
 
-        The call gets ``tools.render_timeout`` seconds (``timed``; by default every call but
-        ``render``, which :mod:`hani2.hub` times itself): past them it is abandoned, the tool is
-        marked hung and skipped until that call returns, and ``default`` is returned."""
+        The call gets ``tools.render_timeout`` seconds (``tools.input_timeout`` for an input or a
+        button; ``timed``: by default every call but ``render``, which :mod:`hani2.hub` times itself):
+        past them it is abandoned, the tool is marked hung and skipped until that call returns, and
+        ``default`` is returned.
+
+        Tool code is never run with the session lock held: a call from a thread that holds it (the
+        Assistant's actions run under it) is made by a thread of its own after the lock is free, and
+        ``default`` is returned. HANI2's own tools are the exception and run where they are called."""
         if not self.isolates_tool(tool):
             return fn(*args, **kw)
         st = self._tool_states.get(id(tool))
         f = st.get("failure") if st is not None else None
-        if (f is not None and f["where"] in tool_failure.START) or (st is not None and st.get("hung")):
+        name = getattr(tool, "name", "the tool")
+        skip = None
+        if st is not None and st.get("hung"):  # (a hung init is also a failed start: it recovers)
+            skip = "hung"
+        elif st is not None and st.get("starting") and _STARTING.get() != id(tool):
+            skip = "starting"
+        elif f is not None and f["where"] in tool_failure.START:
+            skip = "failed to start"
+        elif st is not None and st.get("gave_up") and where in ("render", "describe"):
+            skip = "gave up"
+        if skip is not None:
+            if skip in ("hung", "starting") and where in _REPLAYED:
+                st.setdefault("missed", set()).add(where)
             if reraise:
-                raise tool_failure.ToolUnavailable(f"{getattr(tool, 'name', 'the tool')} is not working right now")
+                raise tool_failure.ToolUnavailable(f"{name} is not working right now")
+            return default
+        trusted = self._inline_tool(tool)
+        if self.lock.held_by_me() and not trusted and not _IN_TIMED_CALL.get():
+            self._defer_call(tool, where, fn, args, kw)
             return default
         limit = None
         if (where != "render") if timed is None else timed:
-            # no time limit inside another limited call (it covers this one) or when the caller holds the
-            # session lock (the Assistant's actions run under it): the call's thread could not use the
-            # session while the caller waits, so it runs here, as it always did
-            limit = (None if _IN_TIMED_CALL.get() or self.lock._is_owned()  # type: ignore[attr-defined]
-                     else self._tool_setting("render_timeout", tool_failure.render_timeout))
+            # no time limit inside another limited call (it covers this one) or when HANI2's own tool is
+            # called with the session lock held (it cannot be handed to another thread)
+            if not _IN_TIMED_CALL.get() and not self.lock.held_by_me():
+                limit = self._tool_setting("render_timeout", tool_failure.render_timeout)
+                if where in ("on_input", "on_action"):
+                    short = self._tool_setting("input_timeout", tool_failure.input_timeout)
+                    limit = short if limit is None else (limit if short is None else min(limit, short))
         try:
             if limit is None:
                 result = fn(*args, **kw)
@@ -1690,7 +1862,7 @@ class NegotiationSession:
                 ok, result = self._call_limited(tool, where, limit, fn, args, kw)
                 if not ok:  # timed out (already recorded)
                     if reraise:
-                        raise tool_failure.ToolUnavailable(f"{getattr(tool, 'name', 'the tool')} took too long")
+                        raise tool_failure.ToolUnavailable(f"{name} took too long")
                     return default
                 if where == "render" and st is not None:
                     st.pop("render_timeouts", None)
@@ -1709,12 +1881,31 @@ class NegotiationSession:
                 tool.refresh()
         return result
 
+    def _defer_call(self, tool, where: str, fn: Callable, args: tuple, kw: dict) -> None:
+        """Make a call of a tool from outside later, in a thread of its own, because the caller holds the
+        session lock (calls of one tool stay in order)."""
+        st = self._tool_states.get(id(tool))
+        order = st.setdefault("defer_lock", threading.Lock()) if st is not None else threading.Lock()
+        ctx = contextvars.copy_context()
+        viewer, caps = getattr(_VIEWER, "who", None), getattr(_AGENT_CONTEXT, "caps", None)
+
+        def run() -> None:
+            _VIEWER.who, _AGENT_CONTEXT.caps = viewer, caps
+            with order:
+                try:
+                    with rec.bind(self.sid), projects.use_study(self.study_ref):
+                        self.guard_tool(tool, where, fn, *args, **kw)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
+
+        threading.Thread(target=ctx.run, args=(run,), name="hani2-tool-deferred", daemon=True).start()
+
     def _call_limited(self, tool, where: str, limit: float, fn: Callable, args: tuple, kw: dict) -> tuple[bool, Any]:
-        """``fn(*args, **kw)`` in a thread of its own, waited for at most ``limit`` seconds.
+        """``fn(*args, **kw)`` in a daemon thread of its own, waited for at most ``limit`` seconds.
         Returns ``(True, result)`` (an error is raised again here) or ``(False, None)``: the
         call timed out and was abandoned, the tool is marked hung (and failed) until it returns.
         Finishing and timing out are decided under one lock, so a call finishing at the limit
-        is never left hanging."""
+        is never left hanging, and a call that has not started when it times out never runs."""
         mu = threading.Lock()
         done = threading.Event()
         recorded = threading.Event()  # the timeout is on the tool: only then may a late return clear it
@@ -1729,10 +1920,15 @@ class NegotiationSession:
                 return fn(*args, **kw)
 
         def work() -> None:
-            try:
-                out: tuple[str, Any] = ("ok", ctx.run(run))
-            except BaseException as e:  # noqa: BLE001 - handed to the caller (or recorded when late)
-                out = ("err", e)
+            with mu:
+                abandoned = box["state"] == "timed_out"
+            if abandoned:  # the caller has given up before the call started: do not run it
+                out: tuple[str, Any] = ("skipped", None)
+            else:
+                try:
+                    out = ("ok", ctx.run(run))
+                except BaseException as e:  # noqa: BLE001 - handed to the caller (or recorded when late)
+                    out = ("err", e)
             with mu:
                 late = box["state"] == "timed_out"
                 if not late:
@@ -1745,7 +1941,7 @@ class NegotiationSession:
                 except Exception:  # noqa: BLE001
                     traceback.print_exc()
 
-        _CALL_POOL.submit(work)
+        threading.Thread(target=work, name="hani2-tool-call", daemon=True).start()
         done.wait(limit)
         with mu:
             if box["state"] == "running":
@@ -1761,12 +1957,26 @@ class NegotiationSession:
             raise value
         return True, value
 
+    def _hung_add(self, st: dict) -> None:
+        with self._hung_lock:
+            st["hung"] = st.get("hung", 0) + 1
+
+    def _hung_done(self, st: dict) -> bool:
+        """One abandoned call has returned; whether none is left (the tool may be called again)."""
+        with self._hung_lock:
+            n = st.get("hung", 0) - 1
+            if n <= 0:
+                st.pop("hung", None)
+                return True
+            st["hung"] = n
+            return False
+
     def _tool_timed_out(self, tool, where: str, seconds: float) -> None:
         """A call of ``tool`` took longer than ``seconds``: mark it hung and failed."""
         st = self._tool_states.get(id(tool))
         if st is None:
             return
-        st["hung"] = True
+        self._hung_add(st)
         if where == "render":
             st["render_timeouts"] = st.get("render_timeouts", 0) + 1
             tool._dirty = False
@@ -1777,21 +1987,24 @@ class NegotiationSession:
                 where, error_type="TimeoutError", message=f"it took longer than {seconds:g} s"))
 
     def _late_return(self, tool, where: str, out: tuple[str, Any]) -> None:
-        """A call that was abandoned for taking too long has returned: the tool may be called again."""
+        """A call that was abandoned for taking too long has returned: the tool may be called again once
+        every abandoned call has."""
         kind, value = out
         if where == "render":
             self.tool_render_returned_for(tool)
             return
         st = self._tool_states.get(id(tool))
+        recovered = True
         if st is not None:
-            st.pop("hung", None)
+            recovered = self._hung_done(st)
             f = st.get("failure")
-            if kind == "ok" and f is not None and f["where"] == where and f["error_type"] == "TimeoutError":
+            if recovered and kind == "ok" and f is not None and f["where"] == where and f["error_type"] == "TimeoutError":
                 st.pop("failure", None)
         if kind == "err" and isinstance(value, (Exception, SystemExit, KeyboardInterrupt)):
             self.tool_failed(tool, where, value)
-        else:
-            tool.refresh()
+        if recovered:
+            self._replay_missed(tool)
+        tool.refresh()
 
     def tool_failed(self, tool, where: str, exc: BaseException | None = None, *, failure: dict | None = None) -> None:
         """Record that ``tool`` failed in ``where`` (shown in its pane; logged and
@@ -1826,13 +2039,14 @@ class NegotiationSession:
         return None if st is None else st.get("failure")
 
     def tool_unusable(self, tool) -> bool:
-        """Whether ``tool`` must not be called now: it failed to start, or a render of it
-        that took too long has not returned yet (it still holds the tool)."""
+        """Whether ``tool`` must not be called now: it failed to start or is still starting, a call of it
+        that took too long has not returned yet (it still holds the tool), or it gave up rendering."""
         if not self.isolates_tool(tool):
             return False
         st = self._tool_states.get(id(tool)) or {}
         f = st.get("failure")
-        return bool(st.get("hung")) or bool(st.get("gave_up")) or (f is not None and f["where"] in tool_failure.START)
+        return (bool(st.get("hung")) or bool(st.get("gave_up")) or bool(st.get("starting"))
+                or (f is not None and f["where"] in tool_failure.START))
 
     def tool_render_timeout(self, tid: str) -> float | None:
         """Seconds the hub waits for ``tid`` to render (``tools.render_timeout``), ``None``: no limit."""
@@ -1850,7 +2064,7 @@ class NegotiationSession:
             return None
         st = self.tool_state(t)
         self._tool_timed_out(t, "render", seconds)
-        return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+        return {"id": tid, "view": self._failure_view(t, st)}
 
     def tool_view_unsendable(self, tid: str, exc: BaseException) -> dict[str, Any] | None:
         """``tid``'s view could not be turned into JSON: a render failure of the tool."""
@@ -1858,7 +2072,7 @@ class NegotiationSession:
         if t is None or not self.isolates_tool(t):
             return None
         self.tool_failed(t, "render", exc)
-        return {"id": tid, "view": tool_failure.failure_view(t.name, self.tool_state(t).get("failure"), self.is_admin)}
+        return {"id": tid, "view": self._failure_view(t, self.tool_state(t))}
 
     def tool_render_returned(self, tid: str) -> bool:
         """The render that took too long has returned. Returns whether the tool may be rendered
@@ -1871,15 +2085,19 @@ class NegotiationSession:
         st = self._tool_states.get(id(tool))
         if st is None:
             return False
-        st.pop("hung", None)
+        if not self._hung_done(st):  # another abandoned call is still stuck in the tool
+            return False
         if st.get("render_timeouts", 0) >= tool_failure.MAX_TIMEOUTS:
             st["gave_up"] = True
             # the late render may have succeeded and cleared the failure: it is still too slow
             n = st["render_timeouts"]
             st["failure"] = tool_failure.make_failure(
                 "timeout", error_type="TimeoutError",
-                message=f"it was too slow to render {n} times in a row, so it is not tried again until its tab is opened again")
+                message=f"it was too slow to render {n} times in a row, so it is not tried again until it is retried")
+            tool._dirty = True
+            tool.refresh()  # the pane shows that it gave up, with a button to try again
             return False
+        self._replay_missed(tool)
         tool.refresh()
         return True
 
@@ -1898,6 +2116,11 @@ class NegotiationSession:
             st.pop("render_timeouts", None)
             if (st.get("failure") or {}).get("where") == "timeout":
                 st.pop("failure", None)
+            tool.refresh()
+
+    def _failure_view(self, tool, st: dict) -> list:
+        """The pane of a tool that cannot be shown (with a button to retry one that gave up)."""
+        return tool_failure.failure_view(tool.name, st.get("failure"), self.is_admin, retry=bool(st.get("gave_up")))
 
     def tool_error_text(self, e: BaseException | str, generic: str = "something went wrong.") -> str:
         """Text about a tool's error for a participant or the Assistant: the error for admins
@@ -1919,6 +2142,9 @@ class NegotiationSession:
     def tool_action(self, tid: str, action: str, payload: dict[str, Any]) -> None:
         t = self.tool_by_id(tid)
         if t is None:
+            return
+        if action == tool_failure.RETRY_ACTION and self.isolates_tool(t):  # the failure view's own button
+            self.retry_tool(t)
             return
         try:
             self.guard_tool(t, "on_action", t.on_action, action, payload or {}, reraise=True)
@@ -4063,26 +4289,17 @@ class NegotiationSession:
             else:
                 in_pane = [self.tool_state(t)["order"] for t in self.tools if self.tool_state(t)["pane"] == pane]
                 order = (min(in_pane, default=0) - 1) if at_front else (max(in_pane, default=0) + 1)
-                self.tools.append(inst)
                 self._tool_states[id(inst)] = dict(id=uuid.uuid4().hex[:10], pane=pane, order=order, visible=True,
                                                    enabled=bool(inst.enabled), added_by=by,
-                                                   builtin=tool_failure.is_builtin(type(inst)))
+                                                   builtin=tool_failure.is_builtin(type(inst)),
+                                                   starting=True)  # marked before it is listed
+                self.tools.append(inst)
         if inst is None:
             self.push_state()
             existing.refresh()
             return {"ok": True, "tool": existing.name, "pane": self.tool_state(existing)["pane"], "already_present": True}
-        try:
-            self.guard_tool(inst, "init", inst.init, self.ss)
-            if self.scenario is not None:
-                self.guard_tool(inst, "scenario_loaded", inst.scenario_loaded, self.ss, self.scenario)
-            if self.phase == "running" and self.mechanism is not None:
-                try:
-                    nmi = self.mechanism.negotiators[self.human_index].nmi
-                except Exception:
-                    nmi = self.mechanism.nmi
-                self.guard_tool(inst, "negotiation_started", inst.negotiation_started, self.ss, nmi)
-        except Exception:
-            traceback.print_exc()
+        self._start_tool(inst, scenario=self.scenario is not None,
+                         negotiation=self.phase == "running" and self.mechanism is not None)
         if focus:
             with self.lock:
                 self.active_tabs[pane] = inst.name
@@ -4326,6 +4543,7 @@ class NegotiationSession:
 
     @_in_own_study
     def snapshot(self) -> dict[str, Any]:
+        self.refresh_tool_predicates()
         with self.lock:
             m = self.mechanism
             st = m.state if m is not None else None
@@ -4342,7 +4560,7 @@ class NegotiationSession:
                 s = self.tool_state(t)
                 tools.append(
                     dict(id=s["id"], name=t.name, icon=t.icon, description=t.description,
-                         help=self.guard_tool(t, "help_text", t.help_text, default="", timed=False), pane=s["pane"],
+                         help=self.tool_help(t), pane=s["pane"],
                          order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
                          added_by=s.get("added_by"), generator=_is_generator(t), failed="failure" in s)
                 )
