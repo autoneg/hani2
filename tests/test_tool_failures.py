@@ -1007,3 +1007,15 @@ def test_no_render_limit_means_no_input_limit_either(broken_tools, monkeypatch):
     s.tool_action(s.tool_state(hang)["id"], "go", {})
     assert time.monotonic() - t0 >= 0.9
     assert s.tool_failure(hang) is None
+
+
+def test_a_parallel_refresh_keeps_who_the_tools_are_shown_to(broken_tools, monkeypatch):
+    s = make_session()
+    seen = []
+    tools = [t for t in s.tools if not s._inline_tool(t)][:2]
+    assert len(tools) == 2
+    for t in tools:
+        monkeypatch.setattr(t, "available", lambda: seen.append(s.current_viewer()) or True)
+    with s.viewing_as("assistant"):
+        s.refresh_tool_predicates(fresh=True)
+    assert seen and set(seen) == {"assistant"}

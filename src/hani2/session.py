@@ -1703,9 +1703,17 @@ class NegotiationSession:
         """Run ``fns`` at the same time, each in a daemon thread of its own (with this thread's
         context), and wait for all of them."""
         threads = []
+        viewer, caps = getattr(_VIEWER, "who", None), getattr(_AGENT_CONTEXT, "caps", None)
+
+        def in_context(fn: Callable) -> Callable:
+            def run() -> None:
+                _VIEWER.who, _AGENT_CONTEXT.caps = viewer, caps  # thread-locals do not follow on their own
+                fn()
+            return run
+
         for fn in fns:
             ctx = contextvars.copy_context()
-            th = threading.Thread(target=ctx.run, args=(fn,), name="hani2-tool-start", daemon=True)
+            th = threading.Thread(target=ctx.run, args=(in_context(fn),), name="hani2-tool-start", daemon=True)
             th.start()
             threads.append(th)
         for th in threads:
@@ -4568,7 +4576,7 @@ class NegotiationSession:
 
     @_in_own_study
     def snapshot(self) -> dict[str, Any]:
-        self.refresh_tool_predicates()
+        self.refresh_tool_predicates(fresh=True)  # tabs follow availability at once
         with self.lock:
             m = self.mechanism
             st = m.state if m is not None else None
