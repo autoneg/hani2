@@ -1,3 +1,4 @@
+# pyright: reportOptionalSubscript=false
 """A failing tool never breaks HANI2: its failure shows in its own pane only (hani2.tools.failure)."""
 
 import asyncio
@@ -234,6 +235,28 @@ def test_a_slow_render_times_out_without_holding_up_the_others(broken_tools):
 
     asyncio.run(run())
     assert s.tool_failure(_tool(s, "SlowRender")) is None
+
+
+def test_slow_renders_do_not_hold_up_others_when_slots_run_out(broken_tools, monkeypatch):
+    from hani2 import hub as hub_mod
+
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 3}})
+    monkeypatch.setattr(hub_mod, "TOOL_RENDER_SLOTS", 1)
+    monkeypatch.setattr(hub_mod, "TOOL_RENDER_GRACE", 0.1)
+    s = make_session()
+    slow, good = s.tool_state(_tool(s, "SlowRender"))["id"], s.tool_state(_tool(s, "GoodTool"))["id"]
+    hub = hub_mod.Hub()
+
+    async def run():
+        slow_task = asyncio.create_task(hub.render_tool_view(s, slow))
+        await asyncio.sleep(0.01)
+        t0 = time.monotonic()
+        other = await hub.render_tool_view(s, good)
+        assert time.monotonic() - t0 < 0.6  # waited for the grace period, not the slow render
+        assert other["view"][0]["text"] == "GoodTool works"
+        assert (await slow_task)["view"][0]["text"] == "SlowRender works"  # within its 3 s
+
+    asyncio.run(run())
 
 
 def test_participants_see_no_detail_of_a_timeout(broken_tools):

@@ -36,8 +36,10 @@ def _dumps(msg: dict[str, Any]) -> str:
 
 
 TOOL_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hani2-tool")
-#: how many time-boxed tool renders run at once (a render that took too long no longer counts)
+#: how many time-boxed tool renders run at once; a render holds its slot for at most
+#: TOOL_RENDER_GRACE seconds, so slow tools never keep the others waiting longer than that
 TOOL_RENDER_SLOTS = 8
+TOOL_RENDER_GRACE = 1.0
 
 
 class Hub:
@@ -265,25 +267,33 @@ class Hub:
             elif not fut.done():
                 fut.set_exception(error) if error is not None else fut.set_result(result)
 
-        async with self._render_slots[1]:
-            fut = loop.create_future()
+        fut = loop.create_future()
 
-            def work() -> None:
-                try:
-                    result, error = s.render_tool(tid), None
-                except BaseException as e:  # noqa: BLE001 - handed to the event loop
-                    result, error = None, e
-                try:
-                    loop.call_soon_threadsafe(finish, fut, result, error)
-                except RuntimeError:  # the loop is gone
-                    pass
+        def work() -> None:
+            try:
+                result, error = s.render_tool(tid), None
+            except BaseException as e:  # noqa: BLE001 - handed to the event loop
+                result, error = None, e
+            try:
+                loop.call_soon_threadsafe(finish, fut, result, error)
+            except RuntimeError:  # the loop is gone
+                pass
 
+        grace = min(TOOL_RENDER_GRACE, timeout)
+        async with self._render_slots[1]:  # held for the grace period only
             threading.Thread(target=work, name="hani2-tool-render", daemon=True).start()
             try:
-                return await asyncio.wait_for(fut, timeout)
+                return await asyncio.wait_for(asyncio.shield(fut), grace)
             except asyncio.TimeoutError:
-                timed_out = True
-                return s.tool_render_timed_out(tid, timeout)
+                pass
+        try:
+            if timeout > grace:
+                return await asyncio.wait_for(asyncio.shield(fut), timeout - grace)
+        except asyncio.TimeoutError:
+            pass
+        timed_out = True
+        fut.cancel()
+        return s.tool_render_timed_out(tid, timeout)
 
     async def _flush_tool(self, sid: str, tid: str) -> None:
         await asyncio.sleep(0.05)

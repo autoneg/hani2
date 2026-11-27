@@ -397,8 +397,8 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
             tool = spec.cls(session.ss, enabled=spec.enabled)
             tool.name = spec.name
         except Exception as e:  # noqa: BLE001 - a broken tool must not break the session
-            traceback.print_exc()
             if spec.builtin and not isolate_builtin():
+                traceback.print_exc()  # as before; a guarded failure is logged by the session
                 continue
             tool = FailedTool(session.ss, name=spec.name, cls=spec.cls, failure=make_failure("create", e),
                               enabled=spec.enabled)

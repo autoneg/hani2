@@ -1548,6 +1548,7 @@ def tool_load_errors(layer: "str | Layer | None" = None) -> dict[str, Any]:
     first, so a fixed file disappears from the list): ``{"errors": [...]}``."""
     from hani2.tools import registry
 
+    registry.LOAD_ERRORS.clear()  # only what fails now, seen from this layer
     with layer_context(_layer(layer)):
         registry.discover_tool_classes()
     return {"errors": registry.load_errors()}
