@@ -55,6 +55,25 @@ enlarged or popped-out tool* on the **Tools** page).
 {"tools": {"weights_chart": "bar", "weights_chart_window": "donut"}}
 ```
 
+### Letting the human switch
+
+Set `tools.weights_chart_switch` to `true` (*Participants may switch the
+weights chart* on the **Tools** page; off by default) to give every weights
+chart a small **Bar / Donut** toggle above it. The toggle starts at the chart
+the settings give: `tools.weights_chart` in a pane and
+`tools.weights_chart_window` in the tool's window. Once the human picks a chart,
+it is used in the pane and in the window alike and kept for the rest of the
+session (it is the tool's own input, like the issue picked under *Value of each
+option*). Each switch is recorded in the session's events as a
+`tool_interaction` with the action `input:weights_chart` and the chosen chart
+as its value. Signed weights keep their signed bars and get no toggle. Like
+every tools setting, it can be set in the settings folder's `env.json`, a
+project's or a study's.
+
+```json
+{"tools": {"weights_chart": "bar", "weights_chart_switch": true}}
+```
+
 ## Side by side in a pinned pane
 
 In a tool pane pinned outside the full view (the simple view on a desktop), the

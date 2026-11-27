@@ -7,6 +7,13 @@
   the *In short* card, where it stays in sight also when the card is folded, instead of below the
   charts, where it was easily missed. A participant who knows only part of their preferences (no
   *In short* card) sees it at the very top of the tool. See [Showing preferences](guide/preferences.md).
+- **Participants may switch the weights chart.** With `tools.weights_chart_switch: true` (off by
+  default; global, per project or per study; *Participants may switch the weights chart* on the
+  console's **Tools** page) the issue weights in the Preferences tools get a small **Bar / Donut**
+  toggle. It starts at the configured chart (`tools.weights_chart`, and `tools.weights_chart_window`
+  in the tool's window); the human's choice then holds in the pane and the window for the rest of the
+  session and is recorded in the session's events. See
+  [Showing preferences](guide/preferences.md#weights-as-a-bar-or-a-donut).
 - **Preferences: weights as a bar, side by side, normalized or raw.** The issue weights are now
   drawn as one thin coloured bar by default (`tools.weights_chart: bar`; `donut` brings the ring
   back). In a tool pane pinned outside the full view (the simple view) the weights and the value of
