@@ -67,6 +67,8 @@ class Connection:
     upstream: str = ""
     #: why this stored connection cannot be used any more (e.g. a subscription sign-in that is not offered)
     disabled: str = ""
+    #: the key of an Assistant's own entry (``auth="inline"``; never stored, masked in every log)
+    inline_key: str = field(default="", repr=False, compare=False)
 
     @property
     def preset(self) -> prov.Provider:
@@ -350,7 +352,19 @@ def logout(name: str) -> None:
 # --------------------------------------------------------------------------- #
 # Credentials                                                                  #
 # --------------------------------------------------------------------------- #
+#: keys of Assistants' own entries seen by this process (masked by :func:`redact`)
+_INLINE_SECRETS: set[str] = set()
+
+
+def remember_secret(value: str) -> None:
+    """Mask ``value`` in every log and error from now on (an Assistant's own key)."""
+    if value and len(value) >= 6:
+        _INLINE_SECRETS.add(value)
+
+
 def api_key(c: Connection) -> str | None:
+    if c.auth == "inline":
+        return c.inline_key or None
     if c.auth == "api_key":
         return (_secrets().get(c.name) or {}).get("api_key") or None
     if c.auth == "api_key_env":
@@ -370,6 +384,8 @@ def has_credentials(c: Connection) -> tuple[bool, str]:
         from hani2 import harness
 
         return harness.has_credentials(c)
+    if c.auth == "inline":
+        return (True, "") if c.inline_key else (False, "no API key given")
     if c.auth in ("api_key", "api_key_env"):
         if api_key(c):
             return True, ""
@@ -428,6 +444,7 @@ def secret_values() -> list[str]:
     for p in prov.PROVIDERS.values():
         if p.env and os.environ.get(p.env):
             out.append(os.environ[p.env])
+    out += list(_INLINE_SECRETS)
     return [s for s in out if len(s) >= 6]
 
 
@@ -632,7 +649,8 @@ def probe(c: Connection, model: str, *, fresh: bool = False) -> Probe:
     if not probing_enabled():
         ok, why = has_credentials(c)
         return Probe(ok, why, verified=False)
-    key = (c.name, c.provider, c.auth, c.base, model)
+    # an Assistant's own key is part of the cache key (two sessions may give different keys)
+    key = (c.name, c.provider, c.auth, c.base, model, hash(c.inline_key) if c.inline_key else 0)
     hit = _PROBES.get(key)
     if hit is not None and not fresh and time.time() - hit.at < (OK_TTL if hit.ok else FAIL_TTL):
         return hit

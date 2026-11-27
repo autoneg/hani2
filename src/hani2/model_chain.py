@@ -31,10 +31,33 @@ start), and keeps the result for the session (:class:`SessionModels`). A call th
 (connection, sign-in or "model not found" errors, rate limits) moves the session to the next
 available entry; that is recorded like the first choice. Opponents (which call the model
 themselves) keep the entry they were created with for their negotiation.
+
+**Named sequences.** Besides the purposes, a models.json may define any number of *named
+sequences* (chains with a name) under ``sequences``; a purpose may name one instead of giving a
+chain::
+
+    {"default": [...],
+     "judge": "judge-strict",
+     "sequences": {"judge-strict": [{"connection": "openai", "model": "gpt-5", "params": {"effort": "high"}}],
+                   "small": {"entries": ["anthropic:claude-haiku-5-5"], "description": "cheap and fast"},
+                   "large": {"disabled": true}}}
+
+Named sequences merge *per name* across the layers: the most specific layer that mentions a name
+wins, so a study that defines ``small`` still sees the global ``large``; ``{"disabled": true}``
+hides an inherited one. ``default`` and the purposes are sequences too (``default``, ``judge``, …)
+and keep the purpose rule above. Built-in sequences (:data:`BUILTIN_SEQUENCES`: ``tiny``,
+``offline``, ``small``, ``medium``, ``large``) sit below every layer. The Assistant, tools and the
+judge may ask for a sequence by name for any call (:func:`completion`'s ``sequence``); with the
+``own_models`` capability an Assistant may also define its own sequences for its session
+(:meth:`SessionModels.define`), with its own keys and addresses.
+
+Entry parameters are passed to the provider; ``effort`` (``reasoning_effort``) and ``thinking``
+(``true``/``false`` or a token budget) are translated for each provider (:func:`litellm_kwargs`).
 """
 
 from __future__ import annotations
 
+import contextvars
 import json
 import os
 import re
@@ -58,6 +81,30 @@ PURPOSE_LABELS = {"default": "Default (every purpose)", "assistant": "The Assist
 SECRET_PARAMS = re.compile(r"(?i)^(.*[_-])?(api_?key|key|token|access_token|secret|password|authorization|"
                            r"credentials?|headers|extra_headers|api_base|base_url|chatgpt_auth_file)$")
 LEGACY_PARAMS = ("temperature", "max_tokens")
+#: a sequence name (also what tells a purpose's sequence reference from a ``provider:model`` text)
+SEQUENCE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+#: the sequences every installation has (below every layer; a layer may override or disable them).
+#: ``offline`` and ``tiny`` use only the local Ollama server (connection ``ollama-local``).
+BUILTIN_SEQUENCES: dict[str, dict[str, Any]] = {
+    "tiny": {"description": "A tiny local Ollama model (fast, weak; good for tests and simple text tasks)",
+             "entries": [{"connection": "ollama-local", "model": "qwen3:0.6b", "params": {"thinking": False}},
+                         {"connection": "ollama-local", "model": "gemma3:270m"}]},
+    "offline": {"description": "Only models on the local Ollama server (nothing leaves the machine)",
+                "entries": [{"connection": "ollama-local", "model": "qwen3:4b-instruct"},
+                            {"connection": "ollama-local", "model": "qwen3:8b", "params": {"thinking": False}},
+                            {"connection": "ollama-local", "model": "qwen3:0.6b", "params": {"thinking": False}}]},
+    "small": {"description": "Small, fast and cheap models",
+              "entries": [{"provider": "anthropic", "model": "claude-haiku-5-5"},
+                          {"provider": "openai", "model": "gpt-5-mini", "params": {"effort": "low"}},
+                          {"connection": "ollama-local", "model": "qwen3:4b-instruct"}]},
+    "medium": {"description": "Medium-sized models",
+               "entries": [{"provider": "anthropic", "model": "claude-sonnet-5-5"},
+                           {"provider": "openai", "model": "gpt-5", "params": {"effort": "medium"}},
+                           {"connection": "ollama-local", "model": "qwen3:30b-a3b", "params": {"thinking": False}}]},
+    "large": {"description": "The largest models (slow, expensive)",
+              "entries": [{"provider": "anthropic", "model": "claude-opus-5-5", "params": {"effort": "high"}},
+                          {"provider": "openai", "model": "gpt-5.5", "params": {"effort": "high"}}]},
+}
 
 
 class ChainError(ValueError):
@@ -166,22 +213,108 @@ def parse_chain(x: Any, strict: bool = True) -> list[Entry]:
     return [parse_entry(e, strict) for e in x]
 
 
-def parse_chains(data: Any, strict: bool = True) -> dict[str, list[Entry]]:
-    """``{purpose: chain}`` from a models.json body (a bare list is the default chain)."""
+@dataclass
+class Sequence:
+    """A named chain of a layer (``entries`` empty and ``disabled``: hides an inherited one)."""
+    name: str
+    entries: list[Entry] = field(default_factory=list)
+    description: str = ""
+    disabled: bool = False
+
+    def public(self) -> dict[str, Any]:
+        return {"name": self.name, "description": self.description, "disabled": self.disabled,
+                "entries": [_entry_public(e) for e in self.entries]}
+
+
+@dataclass
+class Parsed:
+    """A models.json body: purpose chains, purposes that name a sequence, named sequences."""
+    chains: dict[str, list[Entry]] = field(default_factory=dict)
+    refs: dict[str, str] = field(default_factory=dict)
+    sequences: dict[str, Sequence] = field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return bool(self.chains or self.refs or self.sequences)
+
+
+def is_sequence_ref(x: Any) -> bool:
+    """Whether a purpose's value names a sequence (``"small"``) rather than giving a chain."""
+    return isinstance(x, str) and ":" not in x and "," not in x and bool(SEQUENCE_NAME.match(x.strip()))
+
+
+def check_sequence_name(name: Any) -> str:
+    if not isinstance(name, str) or not SEQUENCE_NAME.match(name):
+        raise ChainError(f"invalid sequence name {name!r}: letters, digits, '.', '_' and '-' (up to 64)")
+    return name
+
+
+def parse_sequence(name: str, x: Any, strict: bool = True) -> Sequence:
+    """A named sequence from a chain, ``{"entries", "description"}`` or ``{"disabled": true}``."""
+    check_sequence_name(name)
+    if x is None or x is False:
+        return Sequence(name, disabled=True)
+    if isinstance(x, dict):
+        unknown = set(x) - {"entries", "description", "disabled"}
+        if unknown:
+            raise ChainError(f"sequence {name!r}: unknown keys {', '.join(sorted(unknown))} "
+                             "(use entries, description, disabled)")
+        if x.get("disabled"):
+            return Sequence(name, description=str(x.get("description") or ""), disabled=True)
+        entries = parse_chain(x.get("entries"), strict)
+        if not entries:
+            raise ChainError(f"sequence {name!r} has no entries (to hide an inherited one: {{\"disabled\": true}})")
+        return Sequence(name, entries, str(x.get("description") or ""))
+    entries = parse_chain(x, strict)
+    if not entries:
+        raise ChainError(f"sequence {name!r} has no entries")
+    return Sequence(name, entries)
+
+
+def parse_models(data: Any, strict: bool = True) -> Parsed:
+    """A models.json body (a bare list is the default chain)."""
+    out = Parsed()
     if data is None:
-        return {}
+        return out
     if isinstance(data, (list, str)):
         data = {"default": data}
     if not isinstance(data, dict):
         raise ChainError("models.json must hold a mapping of purposes to chains")
-    out: dict[str, list[Entry]] = {}
     for k, v in data.items():
         if k.startswith("_"):
             continue
+        if k == "sequences":
+            if v is None:
+                continue
+            if not isinstance(v, dict):
+                raise ChainError("sequences must be a mapping of names to chains")
+            for name, body in v.items():
+                if name in ("default", *PURPOSES):
+                    if body is None or (isinstance(body, dict) and body.get("disabled")):
+                        raise ChainError(f"the {name!r} sequence cannot be disabled")
+                    if is_sequence_ref(body):
+                        out.refs[name] = body.strip()
+                    else:
+                        seq = parse_sequence(name, body, strict)
+                        out.chains[name] = seq.entries
+                    continue
+                out.sequences[name] = parse_sequence(name, body, strict)
+            continue
         if k not in ("default", *PURPOSES):
-            raise ChainError(f"unknown purpose {k!r}; use default, {', '.join(PURPOSES)}")
-        out[k] = parse_chain(v, strict)
+            raise ChainError(f"unknown purpose {k!r}; use default, {', '.join(PURPOSES)}, or define it under "
+                             "\"sequences\"")
+        if is_sequence_ref(v):
+            if v.strip() == k:
+                raise ChainError(f"{k!r} names itself")
+            out.refs[k] = v.strip()
+        else:
+            out.chains[k] = parse_chain(v, strict)
     return out
+
+
+def parse_chains(data: Any, strict: bool = True) -> dict[str, list[Entry]]:
+    """``{purpose: chain}`` from a models.json body (a bare list is the default chain; purposes that
+    name a sequence and named sequences are left out: see :func:`parse_models`)."""
+    return parse_models(data, strict).chains
 
 
 def read_layer_file(path: Path) -> dict[str, Any]:
@@ -197,7 +330,7 @@ def read_layer_file(path: Path) -> dict[str, Any]:
 def check_chains(data: Any) -> list[str]:
     """Problems of a models.json body (``[]``: none)."""
     try:
-        parse_chains(data)
+        parse_models(data)
     except ChainError as e:
         return [str(e)]
     return []
@@ -228,12 +361,45 @@ def connection_of(e: Entry) -> tuple[conns.Connection | None, str]:
 # --------------------------------------------------------------------------- #
 @dataclass
 class Source:
-    id: str  # study:P/S | project:P | start | settings | legacy
+    id: str  # study:P/S | project:P | start | settings | legacy | builtin
     chains: dict[str, list[Entry]]
     implicit: bool = False
+    #: purposes that name a sequence (``{"judge": "judge-strict"}``)
+    refs: dict[str, str] = field(default_factory=dict)
+    #: named sequences of this layer (a disabled one hides an inherited one)
+    sequences: dict[str, Sequence] = field(default_factory=dict)
 
     def chain(self, purpose: str) -> list[Entry] | None:
-        return self.chains.get(purpose) or self.chains.get("default") or None
+        """This layer's chain of ``purpose`` (its own, the sequence it names, or its default)."""
+        for p in (purpose, "default"):
+            if p in self.refs:
+                return _ref_chain(self.refs[p]) or None
+            if self.chains.get(p):
+                return self.chains[p]
+        return None
+
+    def mentions(self, purpose: str) -> bool:
+        return bool(self.chains.get(purpose) or purpose in self.refs)
+
+
+#: purposes being resolved through sequence references (a cycle guard)
+_FOLLOWING: contextvars.ContextVar[tuple[str, ...]] = contextvars.ContextVar("hani2_following", default=())
+
+
+def _ref_chain(name: str) -> list[Entry]:
+    """The entries of the sequence a purpose names (``[]`` when it is missing, disabled or a cycle)."""
+    seen = _FOLLOWING.get()
+    if name in seen:
+        print(f"[hani2] ERROR: the model sequences name each other in a cycle ({' -> '.join(seen + (name,))})")
+        return []
+    tok = _FOLLOWING.set(seen + (name,))
+    try:
+        ch, _src, why = sequence_chain(name)
+        if why:
+            print(f"[hani2] {why}")
+        return ch
+    finally:
+        _FOLLOWING.reset(tok)
 
 
 def _read(path: Path) -> Any:
@@ -351,7 +517,29 @@ def _layer_id(folder: Path) -> str:
     return layer_of_path(folder / FILE)
 
 
-def sources(include_legacy: bool = True) -> list[Source]:
+def _parse_layer(data: Any, where: str) -> Parsed:
+    try:
+        return parse_models(data, strict=False)
+    except ChainError as e:
+        print(f"[hani2] ERROR: {where}: {e}; ignoring it")
+        return Parsed()
+
+
+def _source(sid: str, p: Parsed) -> Source:
+    return Source(sid, p.chains, refs=p.refs, sequences=p.sequences)
+
+
+def builtin_source() -> Source:
+    seqs = {}
+    for name, body in BUILTIN_SEQUENCES.items():
+        try:
+            seqs[name] = parse_sequence(name, body, strict=False)
+        except ChainError as e:  # pragma: no cover - the built-ins are checked by the tests
+            print(f"[hani2] ERROR: built-in sequence {name}: {e}")
+    return Source("builtin", {}, implicit=False, sequences=seqs)
+
+
+def sources(include_legacy: bool = True, include_builtin: bool = True) -> list[Source]:
     """Every layer that gives chains, most specific first (bound to the current study / layer view)."""
     from hani2.config import _VIEW, settings_dir, settings_layers
 
@@ -359,15 +547,16 @@ def sources(include_legacy: bool = True) -> list[Source]:
     for folder in settings_layers():
         f = folder / FILE
         if f.exists():
-            data = _read(f)
-            try:
-                chains = parse_chains(data, strict=False)
-            except ChainError as e:
-                print(f"[hani2] ERROR: {f}: {e}; ignoring it")
-                chains = {}
-            if chains:
-                out.append(Source(_layer_id(folder), chains))
+            parsed = _parse_layer(_read(f), str(f))
+            if parsed.chains or parsed.refs:
+                out.append(_source(_layer_id(folder), parsed))
                 continue
+            legacy = _layer_legacy(folder)
+            if parsed.sequences or legacy:
+                src = _source(_layer_id(folder), parsed)
+                src.chains = legacy
+                out.append(src)
+            continue
         legacy = _layer_legacy(folder)
         if legacy:
             out.append(Source(_layer_id(folder), legacy))
@@ -382,26 +571,20 @@ def sources(include_legacy: bool = True) -> list[Source]:
 
     ov = override_for(FILE)
     if ov:
-        try:
-            chains = parse_chains(ov, strict=False)
-        except ChainError as e:
-            print(f"[hani2] ERROR: the settings overrides (models): {e}; ignoring them")
-            chains = {}
-        if chains:
-            out.append(Source("overrides", chains))
+        parsed = _parse_layer(ov, "the settings overrides (models)")
+        if parsed:
+            out.append(_source("overrides", parsed))
     view = _VIEW.get()
     if not (view and view[1]):
         f = settings_dir() / FILE
         if f.exists():
-            try:
-                chains = parse_chains(_read(f), strict=False)
-            except ChainError as e:
-                print(f"[hani2] ERROR: {f}: {e}; ignoring it")
-                chains = {}
-            if chains:
-                out.append(Source("settings", chains))
+            parsed = _parse_layer(_read(f), str(f))
+            if parsed:
+                out.append(_source("settings", parsed))
     if include_legacy:
         out.append(Source("legacy", _legacy_chains(), implicit=True))
+    if include_builtin:
+        out.append(builtin_source())
     return out
 
 
@@ -413,15 +596,83 @@ def chain_for(purpose: str) -> tuple[list[Entry], Source | None]:
     return [], None
 
 
+def sequence_chain(name: str, own: "dict[str, Sequence] | None" = None) -> tuple[list[Entry], Source | None, str]:
+    """The entries of sequence ``name``: ``(entries, source, why_not)``.
+
+    ``default`` and the purposes follow the purpose rule (:func:`chain_for`); any other name is
+    looked up per name, most specific layer first, then the built-ins; ``own``: an Assistant's own
+    sequences (checked first)."""
+    if name in ("default", *PURPOSES):
+        ch, src = chain_for(name)
+        return ch, src, "" if ch else f"no model chain for {name}"
+    if own and name in own:
+        return list(own[name].entries), Source("assistant", {}), ""
+    for src in sources():
+        seq = src.sequences.get(name)
+        if seq is None:
+            continue
+        if seq.disabled:
+            return [], src, f"the model sequence {name!r} is disabled ({src.id})"
+        return list(seq.entries), src, ""
+    return [], None, f"no model sequence named {name!r} (known: {', '.join(sequence_names()) or 'none'})"
+
+
+def sequence_names(include_disabled: bool = False) -> list[str]:
+    """Every sequence name available at the current layer (``default`` and ``judge`` first)."""
+    names: list[str] = ["default", "judge"]
+    disabled: set[str] = set()
+    seen: set[str] = set()
+    for src in sources():
+        for n, seq in src.sequences.items():
+            if n in seen:
+                continue
+            seen.add(n)
+            if seq.disabled:
+                disabled.add(n)
+            elif n not in names:
+                names.append(n)
+    if include_disabled:
+        names += sorted(disabled)
+    return names
+
+
+def effective_sequences() -> list[dict[str, Any]]:
+    """Every named sequence at the current layer: where it comes from, whether it is disabled and
+    its entries (for the console and the Assistant)."""
+    out: list[dict[str, Any]] = []
+    for name in ("default", "judge"):
+        ch, src, _ = sequence_chain(name)
+        out.append({"name": name, "source": src.id if src else "", "disabled": False, "builtin": False,
+                    "purpose": True, "description": PURPOSE_LABELS.get(name, ""),
+                    "entries": [_entry_public(e) for e in ch]})
+    seen: set[str] = set()
+    for src in sources():
+        for n, seq in src.sequences.items():
+            if n in seen:
+                continue
+            seen.add(n)
+            d = seq.public()
+            d.update(source=src.id, builtin=src.id == "builtin", purpose=False)
+            if not d["description"] and src.id != "builtin" and n in BUILTIN_SEQUENCES:
+                d["description"] = BUILTIN_SEQUENCES[n].get("description", "")
+            out.append(d)
+    return out
+
+
 def effective_chains() -> dict[str, Any]:
-    """What every purpose uses at the current layer: ``{purpose: {source, entries}}`` (for the console)."""
+    """What every purpose uses at the current layer: ``{purpose: {source, entries, sequence}}`` (for the
+    console)."""
     out: dict[str, Any] = {}
     for p in ("default", *PURPOSES):
         if p == "default":
-            ch, src = next(((s.chains["default"], s) for s in sources() if s.chains.get("default")), ([], None))
+            ch, src = next(((s.chain("default"), s) for s in sources() if s.mentions("default")), ([], None))
+            ch = ch or []
         else:
             ch, src = chain_for(p)
-        out[p] = {"source": src.id if src else "", "implicit": bool(src and src.implicit),
+        ref = ""
+        if src is not None:
+            ref = src.refs.get(p) or ("" if src.chains.get(p) else src.refs.get("default", ""))
+        out[p] = {"source": src.id if src else "", "implicit": bool(src and src.implicit), "sequence": ref,
                   "entries": [_entry_public(e) for e in ch]}
     return out
 
@@ -458,6 +709,13 @@ class Resolution:
     chain: list[Entry] = field(default_factory=list, repr=False)
     implicit: bool = False
     at: float = field(default_factory=time.time)
+    #: the named sequence this came from (``""``: the purpose's own chain)
+    sequence: str = ""
+
+    @property
+    def key(self) -> str:
+        """What a session pins it under: the purpose, or ``purpose@sequence``."""
+        return f"{self.purpose}@{self.sequence}" if self.sequence else self.purpose
 
     @property
     def ok(self) -> bool:
@@ -495,7 +753,7 @@ class Resolution:
         """What results, events and recordings keep (no secrets)."""
         e, c = self.entry, self.connection
         return {
-            "purpose": self.purpose, "status": self.status, "source": self.source,
+            "purpose": self.purpose, "sequence": self.sequence, "status": self.status, "source": self.source,
             "position": self.index + 1 if self.index >= 0 else None, "chain_length": len(self.chain),
             "label": e.label if e else "", "connection": c.name if c else "", "provider": c.provider if c else "",
             "auth": c.auth if c else "", "model": e.model if e else "", "litellm_model": self.litellm_model,
@@ -521,12 +779,21 @@ def forced_tools_ok(model: str) -> bool:
 
 
 def resolve(purpose: str, *, start: int = 0, chain: list[Entry] | None = None, source: Source | None = None,
-            fresh: bool = False, skipped: list[dict] | None = None) -> Resolution:
-    """The first available entry of ``purpose``'s chain (from position ``start``)."""
+            fresh: bool = False, skipped: list[dict] | None = None, sequence: str = "",
+            own: "dict[str, Sequence] | None" = None) -> Resolution:
+    """The first available entry of ``purpose``'s chain, or of the named ``sequence`` (from position
+    ``start``)."""
+    why = ""
     if chain is None:
-        chain, source = chain_for(purpose)
+        if sequence:
+            chain, source, why = sequence_chain(sequence, own)
+        else:
+            chain, source = chain_for(purpose)
     res = Resolution(purpose, source=source.id if source else "", chain=list(chain),
-                     implicit=bool(source and source.implicit), skipped=list(skipped or []))
+                     implicit=bool(source and source.implicit), skipped=list(skipped or []), sequence=sequence)
+    if why:
+        res.error = why
+        return res
     first_usable: tuple[int, Entry, conns.Connection] | None = None
     for i in range(start, len(chain)):
         e = chain[i]
@@ -558,11 +825,12 @@ def resolve(purpose: str, *, start: int = 0, chain: list[Entry] | None = None, s
         i, e, c = first_usable
         res.entry, res.index, res.connection, res.status = e, i, c, "unverified"
         return res
+    what = f"model sequence {sequence!r}" if sequence else f"{purpose} chain"
     if not chain:
-        res.error = f"no model chain for {purpose}"
+        res.error = f"no {what}"
     else:
         reasons = "; ".join(f"#{s['position']} {s['entry']}: {s['reason']}" for s in res.skipped)
-        res.error = f"no model of the {purpose} chain ({res.source}) is available: {reasons}"
+        res.error = f"no model of the {what} ({res.source}) is available: {reasons}"
     return res
 
 
@@ -595,8 +863,8 @@ def litellm_kwargs(res: Resolution, **overrides: Any) -> dict[str, Any]:
     kw.update(conns.call_kwargs(res.connection))
     max_tokens = params.pop("max_tokens", None)
     effort = params.pop("reasoning_effort", None) or params.pop("reasoning", None) or params.pop("effort", None)
-    if effort:
-        kw["reasoning_effort"] = effort
+    thinking = params.pop("thinking", None)
+    kw.update(thinking_kwargs(res.litellm_provider, res.model, thinking, effort))
     kw.update(params)
     apply_max_tokens(kw, res.litellm_provider or "openai", res.model, max_tokens)
     if res.connection.preset.harness:
@@ -604,6 +872,48 @@ def litellm_kwargs(res: Resolution, **overrides: Any) -> dict[str, Any]:
         kw["allowed_openai_params"] = [k for k in ("reasoning_effort", "temperature", "top_p", "max_tokens",
                                                    "max_completion_tokens") if k in kw]
     return kw
+
+
+def thinking_kwargs(litellm_provider: str, model: str, thinking: Any, effort: Any) -> dict[str, Any]:
+    """The provider's arguments for an entry's ``thinking`` (``true``/``false``, a token budget or a
+    provider's own ``thinking`` mapping) and ``effort`` (``none``/``minimal``/``low``/``medium``/
+    ``high``/``xhigh``/``max``; ``reasoning_effort`` in litellm).
+
+    * Ollama: ``think`` (``false`` switches a thinking model's reasoning off; gpt-oss takes the effort);
+    * Anthropic: a token budget becomes ``thinking={"type": "enabled", "budget_tokens": n}``;
+      ``true`` without an effort is ``reasoning_effort="medium"``;
+    * everyone else: ``reasoning_effort`` (``false`` without an effort leaves it out)."""
+    out: dict[str, Any] = {}
+    if isinstance(thinking, dict):
+        out["thinking"] = thinking
+        if effort:
+            out["reasoning_effort"] = effort
+        return out
+    if isinstance(thinking, str) and thinking.strip().lower() in ("true", "false", "on", "off", "yes", "no"):
+        thinking = thinking.strip().lower() in ("true", "on", "yes")
+    elif isinstance(thinking, str) and thinking.strip():
+        effort, thinking = effort or thinking.strip(), True  # "thinking": "high" reads as an effort
+    budget = thinking if isinstance(thinking, int) and not isinstance(thinking, bool) else None
+    if litellm_provider == "ollama":
+        if (model or "").startswith("gpt-oss"):
+            if effort or thinking:
+                out["reasoning_effort"] = effort or "medium"
+        elif thinking is not None:
+            out["think"] = bool(thinking)
+        elif effort:
+            out["reasoning_effort"] = effort
+        return out
+    if budget is not None and litellm_provider == "anthropic":
+        if budget > 0:
+            out["thinking"] = {"type": "enabled", "budget_tokens": budget}
+        return out
+    if thinking is False:
+        if effort:
+            out["reasoning_effort"] = effort
+        return out
+    if effort or thinking:
+        out["reasoning_effort"] = effort or "medium"
+    return out
 
 
 _HARD = ("HarnessError", "HarnessUnavailable", "HarnessTimeout", "AuthenticationError", "NotFoundError", "APIConnectionError", "ServiceUnavailableError",
@@ -629,11 +939,14 @@ def hard_failure(e: BaseException) -> bool:
 
 def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[dict]], *,
                models: "SessionModels | None" = None, resolution: Resolution | None = None,
-               params: dict[str, Any] | None = None, **kwargs: Any) -> Any:
-    """``litellm.completion`` with the resolved entry; a hard failure moves to the next entry."""
+               params: dict[str, Any] | None = None, sequence: str = "", **kwargs: Any) -> Any:
+    """``litellm.completion`` with the resolved entry; a hard failure moves to the next entry.
+
+    ``sequence``: use that named sequence instead of the purpose's chain (still recorded under
+    ``purpose``)."""
     import litellm
 
-    res = resolution or (models.get(purpose) if models is not None else resolve(purpose))
+    res = resolution or (models.get(purpose, sequence) if models is not None else resolve(purpose, sequence=sequence))
     tried = 0
     while True:
         if not res.ok:
@@ -656,7 +969,8 @@ def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[
                 skipped = res.skipped + [{"position": res.index + 1, "entry": res.entry.title if res.entry else "",
                                           "reason": reason}]
                 nxt = resolve(purpose, start=res.index + 1, chain=res.chain,
-                              source=Source(res.source, {}, implicit=False), skipped=skipped)
+                              source=Source(res.source, {}, implicit=False), skipped=skipped,
+                              sequence=res.sequence)
             if not nxt.ok:
                 raise
             print(f"[hani2] {purpose} model {res.short()} failed ({reason}); using {nxt.short()}")
@@ -664,15 +978,54 @@ def completion(purpose: str, messages: list[dict] | Callable[[Resolution], list[
 
 
 # --------------------------------------------------------------------------- #
+# An Assistant's own sequences                                                 #
+# --------------------------------------------------------------------------- #
+#: sign-in keys an Assistant's own entry may carry (an admin's entries may not: see SECRET_PARAMS)
+OWN_SIGN_IN = ("api_key", "api_key_env", "api_base", "base_url")
+
+
+def parse_own_entry(x: Any, sequence: str = "own", index: int = 0) -> Entry:
+    """An entry of an Assistant's own sequence. Besides an admin's entry forms it may sign in
+    itself: ``{"provider": "openai", "model": "gpt-5", "api_key": "sk-…"}`` (or ``api_key_env``, the
+    name of an environment variable of this server, and ``api_base``, its own server's address).
+    The key is used only for the calls and masked in every log and error; it is never stored."""
+    if isinstance(x, str) or not isinstance(x, dict) or not any(k in x for k in OWN_SIGN_IN):
+        return parse_entry(x)
+    d = dict(x)
+    sign = {k: d.pop(k) for k in OWN_SIGN_IN if k in d}
+    if d.get("connection"):
+        raise ChainError("an entry with its own api_key / api_base names a provider, not a connection")
+    e = parse_entry(d)
+    p = prov.get(e.provider)
+    if p is None or p.harness or not p.offered:
+        raise ChainError(f"provider {e.provider!r} cannot be used in an Assistant's own sequence")
+    key = str(sign.get("api_key") or "")
+    env = str(sign.get("api_key_env") or "")
+    base = str(sign.get("api_base") or sign.get("base_url") or "")
+    if key:
+        conns.remember_secret(key)
+    c = conns.Connection(name=f"assistant-{sequence}-{index + 1}", provider=p.id,
+                         auth="inline" if key else ("api_key_env" if env or p.env else "none"),
+                         api_key_env=env, base_url=base, implicit=True,
+                         litellm_provider=e.provider if p.id == "litellm" else "")
+    c.inline_key = key
+    e.inline = c
+    return e
+
+
+# --------------------------------------------------------------------------- #
 # A session's models                                                           #
 # --------------------------------------------------------------------------- #
 class SessionModels:
-    """The entries a session uses, one per purpose, resolved once and kept (pinned)."""
+    """The entries a session uses, one per purpose (and per named sequence a call asked for),
+    resolved once and kept (pinned)."""
 
     def __init__(self, session: Any = None):
         self.session = session
         self.pinned: dict[str, Resolution] = {}
         self.changes: list[dict[str, Any]] = []
+        #: sequences the Assistant defined for this session (``own_models`` capability; never stored)
+        self.own: dict[str, Sequence] = {}
         self._lock = threading.RLock()
 
     def _bound(self):
@@ -685,18 +1038,48 @@ class SessionModels:
             return contextlib.nullcontext()
         return projects.use_study(getattr(s, "study_ref", None))
 
-    def get(self, purpose: str) -> Resolution:
+    def get(self, purpose: str, sequence: str = "") -> Resolution:
+        """The pinned entry of ``purpose`` (or of the named ``sequence``, used for ``purpose``)."""
+        key = f"{purpose}@{sequence}" if sequence else purpose
         with self._lock:
-            res = self.pinned.get(purpose)
+            res = self.pinned.get(key)
             if res is None:
                 with self._bound():
-                    res = resolve(purpose)
-                self.pinned[purpose] = res
+                    res = resolve(purpose, sequence=sequence, own=self.own)
+                self.pinned[key] = res
                 self._announce(res, "model_resolved")
             return res
 
-    def peek(self, purpose: str) -> Resolution | None:
-        return self.pinned.get(purpose)
+    def peek(self, purpose: str, sequence: str = "") -> Resolution | None:
+        return self.pinned.get(f"{purpose}@{sequence}" if sequence else purpose)
+
+    def sequences(self) -> list[dict[str, Any]]:
+        """The named sequences this session can use (the admin's and the Assistant's own)."""
+        with self._bound():
+            out = [d for d in effective_sequences() if not d["disabled"]]
+        out += [{**seq.public(), "source": "assistant", "builtin": False, "purpose": False}
+                for seq in self.own.values()]
+        return out
+
+    def define(self, name: str, entries: Any, description: str = "") -> Sequence:
+        """Add (or replace) one of the Assistant's own sequences for this session. Entries may carry
+        their own sign-in (``api_key``, ``api_key_env``, ``api_base``): see :func:`parse_own_entry`.
+        A name the admin's sequences (or a purpose) already use is refused."""
+        check_sequence_name(name)
+        with self._bound():
+            taken = name in ("default", *PURPOSES) or name in sequence_names(include_disabled=True)
+        if taken:
+            raise ChainError(f"{name!r} is already a model sequence of the study; choose another name")
+        if isinstance(entries, (str, dict)):
+            entries = [entries]
+        if not isinstance(entries, (list, tuple)) or not entries:
+            raise ChainError("a sequence needs at least one entry")
+        seq = Sequence(name, [parse_own_entry(e, name, i) for i, e in enumerate(entries)], str(description or ""))
+        with self._lock:
+            self.own[name] = seq
+            for k in [k for k in self.pinned if k.endswith(f"@{name}")]:
+                self.pinned.pop(k, None)
+        return seq
 
     def advance(self, purpose: str, reason: str, failed: Resolution | None = None) -> Resolution:
         """The next available entry after ``failed`` (default: the pinned entry) had a hard failure.
@@ -705,15 +1088,17 @@ class SessionModels:
         entry another call has already moved past still tries every later entry in order. The pinned
         entry only moves forward."""
         with self._lock:
-            cur = self.pinned.get(purpose) or self.get(purpose)
+            key = failed.key if failed is not None else purpose
+            seq = failed.sequence if failed is not None else ""
+            cur = self.pinned.get(key) or self.get(purpose, seq)
             base = failed if failed is not None else cur
             skipped = base.skipped + [{"position": base.index + 1, "entry": base.entry.title if base.entry else "",
                                        "reason": reason}]
             with self._bound():
                 nxt = resolve(purpose, start=base.index + 1, chain=base.chain,
-                              source=Source(base.source, {}, implicit=False), skipped=skipped)
+                              source=Source(base.source, {}, implicit=False), skipped=skipped, sequence=seq)
             if nxt.ok and nxt.index > cur.index:
-                self.pinned[purpose] = nxt
+                self.pinned[key] = nxt
                 self._announce(nxt, "model_fallback", previous=cur)
             elif not nxt.ok and base is cur:
                 self._announce(nxt, "model_fallback", previous=cur)

@@ -263,7 +263,8 @@ class Tool:
         """Send ``prompt`` to the configured language model and return its reply.
 
         Uses the session's ``tools`` model (the first available entry of the ``tools`` model
-        chain, kept for the session; see :mod:`hani2.model_chain`); keyword arguments
+        chain, kept for the session; see :mod:`hani2.model_chain`); ``sequence="small"`` (or any
+        named model sequence of the study) uses that sequence instead; keyword arguments
         (``temperature``, ``max_tokens`` ...) tune the call, and ``provider`` / ``model`` call that
         model instead. Raises on failure. The call blocks, so make it from a
         background job (``self.session.submit``) or subclass :class:`LLMTool`.

@@ -743,13 +743,14 @@ def short_name(spec: Any) -> str:
 
 
 def make_agent(spec: Any, params: dict[str, Any] | None = None, practice: bool = False,
-               verbose: bool = False, models: Any = None, purpose: str = "opponent"):
+               verbose: bool = False, models: Any = None, purpose: str = "opponent", sequence: str = ""):
     """Instantiate an opponent from a spec, applying the safety wrappers
     and LLM model injection.
 
     An LLM opponent (a negmas-llm negotiator) gets the ``opponent`` model chain's entry (see
     :mod:`hani2.model_chain`; ``models`` is the session's :class:`~hani2.model_chain.SessionModels`,
-    ``purpose`` another chain, e.g. ``assistant`` for an autopilot driver):
+    ``purpose`` another chain, e.g. ``assistant`` for an autopilot driver; ``sequence`` a named model
+    sequence instead of the purpose's chain):
     its provider, model, sign-in and parameters. It keeps that entry for the negotiation."""
     params = dict(params or {})
     agent_class = get_agent_type(spec)
@@ -758,7 +759,7 @@ def make_agent(spec: Any, params: dict[str, Any] | None = None, practice: bool =
     if is_llm_string or _is_llm_negotiator_class(agent_class) or _is_llm_meta_negotiator_class(agent_class):
         from hani2 import model_chain
 
-        llm_res = models.get(purpose) if models is not None else model_chain.resolve(purpose)
+        llm_res = models.get(purpose, sequence) if models is not None else model_chain.resolve(purpose, sequence=sequence)
         model = llm_res.model if llm_res.ok else load_llm_settings().get("model", "qwen3:4b-instruct")
         provider = llm_res.litellm_provider if llm_res.ok else load_llm_settings().get("provider", "ollama")
         if is_llm_string or _is_llm_negotiator_class(agent_class):
