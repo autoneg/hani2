@@ -699,6 +699,11 @@ Every board says what it left out and why under `excluded` (`practice`, `admin o
   (Paired games). This is right for a game, where entrants play different and uneven cells. Planned
   studies, where every entrant plays every cell, can use `adjust: balanced` (the mean of the cell
   means).
+- Every value stays within its bounds: a score in [0, 1], and a bounded criterion (a rate such as
+  `agreement`, a questionnaire answer) within its own range. The cell adjustment and the bootstrap
+  can step past a bound (an agreement rate of 1 in a hard cell would become more than 1), so means
+  and interval ends are clipped to the bounds afterwards. The board's `notes` say which values were
+  clipped. Criteria without fixed bounds, such as counts and seconds, are not clipped.
 - The interval is a percentile bootstrap at the level `ci` (default 0.95) that resamples
   participants. When an entrant has a single participant, it resamples games instead, and the entry
   says `ci_unit: session`.
