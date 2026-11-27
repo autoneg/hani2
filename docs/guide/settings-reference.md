@@ -763,7 +763,7 @@ More: [Project management](project-management.md#configuring-a-board).
 
 - `game` (default): every counted game of the board's studies, ranked with the rules below.
 - `tournament`: the table of simulated participants (the goal rate of each Assistant, per persona),
-  which the sort and the switches do not apply to.
+  ranked by goal rate only; it has no switches, and a request for another sort or a switch gets a 400.
 
 More: [Project management](project-management.md#configuring-a-board).
 

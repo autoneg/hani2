@@ -481,6 +481,30 @@ def test_the_list_of_boards(api, hi):
     assert "secret" in {x["study"] for x in hi_admin["studies"]}
 
 
+def test_a_tournament_board_offers_only_what_it_honours(api, hi):
+    """A simulated (tournament) board ranks by goal rate only: its options name only that, and a request
+    for another sort key or any switch gets a 400 that says why (it was silently ignored before)."""
+    set_board({"source": "tournament", "sort_options": ["utility"],
+               "user_options": {"games": ["all", "people"], "window": ["all", "last_7_days"]},
+               "visibility": "public", "rules": RULES0})
+    for admin in (False, True):
+        out = boards.board("HI", None, {}, admin=admin)
+        assert out["source"] == "tournament"
+        assert out["options"] == boards.tournament_options()
+        assert [o["key"] for o in out["options"]["sort"]] == ["goal_rate"]
+        assert not set(out["options"]) & set(boards.SWITCHES)
+        assert out["query"] == {"sort": "goal_rate"}
+    r = api.get(URL)
+    assert r.status_code == 200 and r.json()["options"] == boards.tournament_options()
+    assert api.get(URL, params={"sort": "goal_rate"}).status_code == 200
+    for bad, why in (({"sort": "utility"}, "goal_rate only"), ({"games": "people"}, "games cannot be used"),
+                     ({"stratum": "all"}, "stratum cannot be used"), ({"window": "last_7_days"}, "window cannot be used"),
+                     ({"x": "1"}, "unknown parameter")):
+        r = api.get(URL, params=bad)
+        assert r.status_code == 400 and why in r.json()["detail"] and "tournament" in r.json()["detail"], (bad, r.text)
+        with pytest.raises(boards.BoardError):
+            boards.board("HI", None, bad, admin=True)
+
 
 # --------------------------------------------------------------------------- #
 # The evaluation cache, with real games                                        #
