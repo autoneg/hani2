@@ -2661,6 +2661,8 @@ class NegotiationSession:
         if fb == "wait" or not self.admin_prefs.get("human_opponent_fallback", True) or self.people_only():
             matches.LOBBY.requeue(match)
             return
+        if not matches.LOBBY.claim(match):
+            return  # someone joined just now
         if fb == "end":
             self._paired_end(match)
             return

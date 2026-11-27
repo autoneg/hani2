@@ -275,12 +275,15 @@ class Match:
             self._timer = None
 
     def _no_partner(self) -> None:
+        """The wait is over. The host stays in the lobby until its session decides what follows (it
+        may keep waiting: ``pairing.fallback: wait``, a people-only group), so a person arriving now
+        still finds it; :meth:`Lobby.claim` takes it out when it leaves for an AI opponent."""
         with self.lock:
             if self.paired or self.began:
                 return
             host = self.host
-        LOBBY.withdraw(self)
         if host.closed:
+            LOBBY.withdraw(self)
             return
         host.submit(host._no_human_opponent, self)
 
@@ -579,6 +582,21 @@ class Lobby:
         m.arm(wait_seconds(m.host))
         m.watch()
         self.notify(m.key)
+
+    def claim(self, m: Match) -> bool:
+        """Take waiting ``m`` out of the lobby for its host to leave it (an AI opponent, the end):
+        ``False`` when someone joined it first (then the host stays). Atomic with :meth:`pair`."""
+        with self._lock:
+            with m.lock:
+                if m.paired or m.began:
+                    return False
+            q = self.waiting.get(m.key) or []
+            if m in q:
+                q.remove(m)
+            if not q:
+                self.waiting.pop(m.key, None)
+        self.notify(m.key)
+        return True
 
     def withdraw(self, m: Match) -> None:
         with self._lock:
