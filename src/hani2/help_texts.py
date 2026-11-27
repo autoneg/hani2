@@ -639,29 +639,6 @@ No board ever shows a user name or a participant index.""",
         section="Leaderboard", docs="project-management.md#confidence-intervals-and-ties"),
 }
 
-#: the ``leaderboard`` choices of the editor: they need rows in the editor (and then belong in
-#: :data:`REQUIRED`), which come with the editor's Leaderboard settings
-REQUIRED_LEADERBOARD = (
-    "scores.same_assistant",
-    "leaderboard",
-    "leaderboard.track",
-    "leaderboard.source",
-    "leaderboard.studies",
-    "leaderboard.include",
-    "leaderboard.sort_options",
-    "leaderboard.default_sort",
-    "leaderboard.columns",
-    "leaderboard.user_options",
-    "leaderboard.defaults",
-    "leaderboard.visibility",
-    "leaderboard.rules.min_games",
-    "leaderboard.rules.min_participants",
-    "leaderboard.rules.max_games_per_pair",
-    "leaderboard.rules.max_games_per_participant",
-    "leaderboard.rules.exclude_own",
-    "leaderboard.rules.adjust",
-    "leaderboard.rules.ci",
-)
 
 #: every editor choice that is not self-explanatory: each must have an entry in :data:`HELP` and
 #: occur in the editor's sources (``frontend/src/admin``). Keep this a plain tuple of strings.
@@ -707,6 +684,25 @@ REQUIRED = (
     "scores.missing",
     "scores.min_coverage",
     "scores_enabled",
+    "scores.same_assistant",
+    "leaderboard",
+    "leaderboard.track",
+    "leaderboard.source",
+    "leaderboard.studies",
+    "leaderboard.include",
+    "leaderboard.sort_options",
+    "leaderboard.default_sort",
+    "leaderboard.columns",
+    "leaderboard.user_options",
+    "leaderboard.defaults",
+    "leaderboard.visibility",
+    "leaderboard.rules.min_games",
+    "leaderboard.rules.min_participants",
+    "leaderboard.rules.max_games_per_pair",
+    "leaderboard.rules.max_games_per_participant",
+    "leaderboard.rules.exclude_own",
+    "leaderboard.rules.adjust",
+    "leaderboard.rules.ci",
 )
 
 SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignment", "Pairing", "Scores", "Leaderboard")
@@ -714,7 +710,7 @@ SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignm
 
 def problems() -> list[str]:
     """What is wrong with the registry: required ids without an entry, summaries longer than a line."""
-    out = [f"{k}: required but has no help text" for k in (*REQUIRED, *REQUIRED_LEADERBOARD) if k not in HELP]
+    out = [f"{k}: required but has no help text" for k in REQUIRED if k not in HELP]
     for k, h in HELP.items():
         if not h.title or not h.summary:
             out.append(f"{k}: needs a title and a summary")

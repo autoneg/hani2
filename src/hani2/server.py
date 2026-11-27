@@ -951,7 +951,22 @@ def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
                      "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {},
                      "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {}}
     return {"kind": pr.kind, "project_year": pr.year, "han": {"package_years": years, "current_year": current},
-            "inherited": inherited}
+            "inherited": inherited, "leaderboard": _board_editor_info(project, ref)}
+
+
+def _board_editor_info(project: str, ref: "projects.StudyRef | None") -> dict | None:
+    """The ``leaderboard`` block a layer inherits (a project: the defaults; a study: its project's board)
+    and the one in effect as saved, for the editor's "inherit (…)" labels."""
+    from hani2.evaluation import boards
+
+    try:
+        if ref is None:
+            return {"inherited": boards.settings(project, project_block=None).to_dict(),
+                    "effective": boards.settings(project).to_dict()}
+        return {"inherited": boards.settings(project).to_dict(),
+                "effective": boards.settings(project, ref.study).to_dict()}
+    except Exception:  # noqa: BLE001 — a broken file is reported by the page's errors
+        return None
 
 
 def _study_info(ref: "projects.StudyRef") -> dict:
