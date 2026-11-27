@@ -33,7 +33,7 @@ from collections import Counter
 from itertools import combinations, permutations
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 DIMENSIONS = ("opponents", "assistants", "scenarios")
 #: what a study uses when neither it nor its project chooses a method
@@ -489,6 +489,44 @@ def pick_assistant_slot(method: str, pool: Sequence[str], index: int, slot: int,
     if method == "balanced_subset":
         raise ValueError("balanced_subset depends on the humans planned before; use balanced_subset()")
     return pick_assistant_each(pool, slot, seed)
+
+
+def next_unused(seq: Sequence[str], slot: int, taken: Iterable[str], pool: Sequence[str],
+                wrap: bool = False) -> str | None:
+    """The Assistant of counted negotiation ``slot`` when the human has already used ``taken``:
+    the planned one (``seq[slot]``) while it is still in ``pool`` and not used, else the next
+    unused member of the plan after it (then before it), then of the pool. With nothing unused
+    left: ``seq[slot mod len(seq)]`` (the plan wraps around) when ``wrap``, else ``None`` (the
+    human has no Assistant left)."""
+    used = set(taken)
+    members = set(pool)
+    seq = list(seq)
+    if 0 <= slot < len(seq) and seq[slot] in members and seq[slot] not in used:
+        return seq[slot]
+    for a in [*seq[slot + 1:], *seq[:max(0, slot)], *pool]:
+        if a in members and a not in used:
+            return a
+    if not wrap or not pool:
+        return None
+    if seq and seq[slot % len(seq)] in members:
+        return seq[slot % len(seq)]
+    return list(pool)[slot % len(pool)]
+
+
+def fill_open_slots(seq: Sequence[str], taken: Iterable[str], pool: Sequence[str], k: int, start: int,
+                    wrap: bool = False) -> list[str]:
+    """The Assistants of the open slots ``start..k-1`` (see :func:`next_unused`), none of them in
+    ``taken`` or twice; shorter than ``k - start`` when the pool has too few unused Assistants
+    left and ``wrap`` is off."""
+    used = set(taken)
+    out: list[str] = []
+    for j in range(max(0, start), k):
+        a = next_unused(seq, j, used, pool, wrap)
+        if a is None:
+            break
+        out.append(a)
+        used.add(a)
+    return out
 
 
 def random_subset(pool: Sequence[str], k: int, seed: str = "") -> list[str]:
@@ -1401,6 +1439,14 @@ only 5 Assistants"); a study already running with such a file only gets a
 warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
 Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
 on purpose.
+
+The promise also holds when an Assistant leaves the pool during the study: the
+human's plan is made again, the negotiations they already played stay as they
+were, and each open slot gets its planned Assistant while it is still in the pool
+and unused, else the next Assistant they have not used yet. If fewer unused
+Assistants are left than open slots, `assistant_repeats: true` wraps around;
+otherwise the human finishes early, with the completion link, a log line and a
+`finished_early` event.
 
 `random_each` can repeat an Assistant by nature: it is allowed unless
 `assistant_repeats: false` is set explicitly, which refuses it. For `external`,
