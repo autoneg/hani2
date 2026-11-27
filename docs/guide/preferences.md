@@ -6,10 +6,14 @@ preferences in many ways, so HANI2 picks a *view* that fits the type of the
 utility function and falls back to a general view for anything it does not
 know.
 
-Every view shows the **value on disagreement** as one sentence under the
-charts ("If you do not reach agreement you get 10% (your best option gives you
-100%)."), and a short, plain-language explanation of how the total is worked
-out (collapsed at the bottom). The charts carry a one-line caption saying what
+Every view shows the **value on disagreement** as one sentence ("If you do
+not reach agreement you get 10% (your best option gives you 100%)."): in the
+participant's Preferences tool right under the *In short* card (so it stays in
+sight when the card is folded), or at the very top of the tool when the
+participant knows only part of their preferences (there is no *In short* card
+then); in the admin-only Opponent Preferences tool, under the charts. Every view also has
+a short, plain-language explanation of how the total is worked out (collapsed at
+the bottom). The charts carry a one-line caption saying what
 they mean.
 
 The Preferences tool also shows, for every scenario:
@@ -17,7 +21,7 @@ The Preferences tool also shows, for every scenario:
 - **In short** (at the top; clicking its title folds it away, and it stays
   folded while the tool updates): the preferences in two or three sentences,
   such as the issues that matter most and least and their weights, followed by
-  the hints below.
+  the hints below. The value on disagreement follows directly under the card.
 - **Hints** (inside *In short*): the hints of the participant's role and, for
   every issue, what the participant wants in plain words. After each sentence
   an icon, as tall as the text, shows the direction at a glance: a green arrow
@@ -49,6 +53,25 @@ enlarged or popped-out tool* on the **Tools** page).
 
 ```json
 {"tools": {"weights_chart": "bar", "weights_chart_window": "donut"}}
+```
+
+### Letting the human switch
+
+Set `tools.weights_chart_switch` to `true` (*Participants may switch the
+weights chart* on the **Tools** page; off by default) to give every weights
+chart a small **Bar / Donut** toggle above it. The toggle starts at the chart
+the settings give: `tools.weights_chart` in a pane and
+`tools.weights_chart_window` in the tool's window. Once the human picks a chart,
+it is used in the pane and in the window alike and kept for the rest of the
+session (it is the tool's own input, like the issue picked under *Value of each
+option*). Each switch is recorded in the session's events as a
+`tool_interaction` with the action `input:weights_chart` and the chosen chart
+as its value. Signed weights keep their signed bars and get no toggle. Like
+every tools setting, it can be set in the settings folder's `env.json`, a
+project's or a study's.
+
+```json
+{"tools": {"weights_chart": "bar", "weights_chart_switch": true}}
 ```
 
 ## Side by side in a pinned pane

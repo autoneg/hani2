@@ -659,6 +659,59 @@ def test_simple_view_preferences_weights_bar_beside_the_option_values(new_page):
     expect(tools.locator(".js-plotly-plot .pielayer .slice")).to_have_count(0)  # a bar, not a donut
 
 
+def test_weights_chart_has_no_switch_by_default(new_page):
+    """Without ``tools.weights_chart_switch`` the weights have no Bar / Donut toggle."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    p.get_by_role("tab", name="Preferences").first.click()
+    tools = p.locator("[data-region=tools]")
+    expect(tools.get_by_text("Issue weights", exact=True).first).to_be_visible()
+    expect(tools.get_by_role("button", name="Donut", exact=True)).to_have_count(0)
+    expect(tools.get_by_role("button", name="Bar", exact=True)).to_have_count(0)
+
+
+def test_weights_chart_switch_bar_and_donut(e2e_browser, weights_switch_server):
+    """With ``tools.weights_chart_switch`` the human switches the weights bar <-> donut; the
+    choice survives a re-render of the tool (another issue picked)."""
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, weights_switch_server, viewport={"width": 1400, "height": 900})
+    p = Page(ctx.new_page(), weights_switch_server)
+    try:
+        p.goto("/play")
+        p.get_by_role("tab", name="Preferences").first.click()
+        tools = p.locator("[data-region=tools]")
+        bar, donut = (tools.get_by_role("button", name=n, exact=True).first for n in ("Bar", "Donut"))
+        slices = tools.locator(".js-plotly-plot .pielayer .slice")
+        expect(bar).to_have_attribute("aria-pressed", "true")  # starts at the configured chart
+        expect(slices).to_have_count(0)
+        donut.click()
+        expect(donut).to_have_attribute("aria-pressed", "true")
+        expect(slices.first).to_be_visible()
+        issue = tools.locator("select").first  # re-render the tool: the donut stays
+        opts = issue.locator("option").all_inner_texts()
+        if len(opts) > 1:
+            issue.select_option(label=opts[1])
+        expect(slices.first).to_be_visible()
+        bar.click()
+        expect(bar).to_have_attribute("aria-pressed", "true")
+        expect(slices).to_have_count(0)
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()
+
+
+def test_weights_chart_switch_setting_has_its_help(new_page):
+    """The Tools page offers the switch with its ``?`` text."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.goto("/admin#tools")
+    row = p.locator("[data-setting=weights-chart-switch]")
+    expect(row.get_by_text("Participants may switch the weights chart", exact=True)).to_be_visible()
+    row.get_by_role("button", name="About Participants may switch the weights chart").click()
+    expect(p.get_by_text("Bar / Donut").first).to_be_visible()
+
+
 def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     """Sessions open in the simple view (tools on the right). The Preferences tool's In short card,
     on top, holds the hints with an arrow per issue, folds away and stays folded when the tool
@@ -674,9 +727,19 @@ def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     # options ("From best to worst: ...") get none
     dds = p.locator("[data-region=tools] dd").filter(has_text=re.compile(r"^(The (higher|lower|more|fewer)|Best at)"))
     assert p.locator("[data-region=tools] [data-mark]").count() == dds.count()
+    # the value on disagreement comes right under the card, before the charts
+    rv = p.locator("[data-region=tools]").get_by_text(re.compile(r"^If you do not reach agreement you get"))
+    expect(rv).to_have_count(1)
+    expect(rv).to_be_visible()
+    weights = p.locator("[data-region=tools]").get_by_text("What you want on each issue")
+    assert rv.bounding_box()["y"] > weights.bounding_box()["y"]
     summary.click()
     expect(summary).to_have_attribute("aria-expanded", "false")
     expect(p.get_by_text("What you want on each issue")).to_have_count(0)
+    expect(rv).to_be_visible()  # still in sight with the card folded
+    plot = p.locator("[data-region=tools] .js-plotly-plot").first
+    expect(plot).to_be_visible()
+    assert rv.bounding_box()["y"] < plot.bounding_box()["y"]
     issue = p.locator("[data-region=tools] select").first
     options = issue.locator("option").all_inner_texts()
     issue.select_option(options[-1])

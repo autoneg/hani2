@@ -145,6 +145,9 @@ class UfunViewContext:
     #: show the ufun's own numbers (weights, values, value on disagreement) instead of
     #: normalized percentages (env.json → ``tools.preferences_scale: raw``)
     raw: bool = False
+    #: when set, the value on disagreement goes into this list instead of under the charts
+    #: (the Preferences tool shows it right under its *In short* card)
+    reserved_sink: list | None = None
 
     # -- widgets ---------------------------------------------------------- #
     def key(self, name: str) -> str:
@@ -153,6 +156,11 @@ class UfunViewContext:
     def value(self, name: str, default: Any = None) -> Any:
         values = getattr(self.tool, "values", None) or {}
         return values.get(self.key(name), default)
+
+    def value_of(self, name: str, default: Any = None) -> Any:
+        """The tool's input ``name`` itself, shared by every nested view (not :meth:`key`-ed)."""
+        values = getattr(self.tool, "values", None) or {}
+        return values.get(name, default)
 
     def choose(self, name: str, options: list[str], label: str) -> tuple[Any, ui.Component | None]:
         """A select over ``options`` and the currently selected option."""
@@ -188,11 +196,16 @@ class UfunViewContext:
         """The view shows someone else's preferences (the Opponent Preferences tool)."""
         return bool(self.title_prefix)
 
-    def reserved_stat(self) -> ui.Component:
-        """The value on disagreement, as one sentence."""
+    def reserved_stat(self) -> ui.Component | None:
+        """The value on disagreement, as one sentence (``None`` when it goes to ``reserved_sink``)."""
         self.rv_shown = True
-        return ui.alert(reserved_sentence(self.ufun, hidden=self.rv_hidden, hidden_hint=self.rv_hidden_hint,
-                                          opponent=self.opponent, raw=self.raw), "neutral")
+        alert = ui.alert(reserved_sentence(self.ufun, hidden=self.rv_hidden, hidden_hint=self.rv_hidden_hint,
+                                           opponent=self.opponent, raw=self.raw), "neutral")
+        alert["id"] = "preferences-reserved"
+        if self.reserved_sink is not None:
+            self.reserved_sink[:] = [alert]
+            return None
+        return alert
 
     def layout(self, *left: ui.Component | None, right: ui.Component | None = None) -> ui.Component:
         """The standard two-column layout: summary on the left, details on the right.
@@ -274,20 +287,23 @@ def find_ufun_view(ufun: Any) -> ViewFn:
 
 
 def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card: bool = True,
-                     ctx: UfunViewContext | None = None, reserved_hint: str | None = None) -> list[ui.Component]:
+                     ctx: UfunViewContext | None = None, reserved_hint: str | None = None,
+                     reserved_out: list | None = None) -> list[ui.Component]:
     """Render ``ufun`` with the best view; never raises. ``reserved_hint``: the
-    value on disagreement is hidden and this hint is shown instead."""
+    value on disagreement is hidden and this hint is shown instead. ``reserved_out``:
+    a list that receives the value-on-disagreement sentence instead of the view
+    (the caller places it)."""
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     if ctx is None:
         raw = preferences_raw()
         ctx = UfunViewContext(tool=tool, ufun=_raw_of(ufun) if raw else display_ufun(ufun), title_prefix=title_prefix,
                               help_card=help_card, rv_hidden=reserved_hint is not None,
-                              rv_hidden_hint=reserved_hint or "", raw=raw)
+                              rv_hidden_hint=reserved_hint or "", raw=raw, reserved_sink=reserved_out)
         ufun = ctx.ufun
     view = generic_view if ctx.depth >= MAX_DEPTH else find_ufun_view(ufun)
     try:
-        comps = list(view(ctx))
+        comps = [c for c in view(ctx) if c]  # a plugin view may append reserved_stat()'s None
     except Exception:  # noqa: BLE001
         traceback.print_exc()
         ctx.rv_shown = False
@@ -297,7 +313,9 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
             traceback.print_exc()
             comps = [ui.alert("These preferences cannot be shown.", "neutral")]
     if not ctx.nested and not ctx.rv_shown:
-        comps.append(ctx.reserved_stat())
+        stat = ctx.reserved_stat()
+        if stat is not None:
+            comps.append(stat)
     return comps
 
 
@@ -581,6 +599,21 @@ def weights_chart(place: str = "pane") -> str:
     return v
 
 
+def weights_chart_switch() -> bool:
+    """Whether the human may switch the issue weights between the bar and the donut
+    (env.json → ``tools.weights_chart_switch``; off by default)."""
+    from hani2.config import get_env
+
+    v = get_env("tools.weights_chart_switch", False)
+    return v if isinstance(v, bool) else str(v).lower() in ("1", "true", "yes", "on")
+
+
+#: the tool input that holds the human's choice of chart (one for the whole tool, so every weights
+#: chart of the tool follows it, in the pane and in the window)
+WEIGHTS_CHART_INPUT = "weights_chart"
+WEIGHTS_CHART_LABELS = {"Bar": "bar", "Donut": "donut"}
+
+
 def _fmt_weight(w: float) -> str:
     return f"{w:.3g}"
 
@@ -711,9 +744,21 @@ def _weights_card(ctx: UfunViewContext, names: list[str], weights: list[float],
     elif caption is PARTS_CAPTION and ctx.raw:
         caption = RAW_PARTS_CAPTION
     pane, window = weights_chart(), weights_chart("window")
-    plot = _weights_plot(names, weights, pane, raw=ctx.raw)
+    switch = weights_chart_switch() and not signed
+    if switch:  # the human's choice (once made) wins in the pane and in the window
+        chosen = ctx.value_of(WEIGHTS_CHART_INPUT)
+        if chosen in WEIGHTS_CHARTS:
+            pane = window = chosen
+
+    def chart(style: str) -> ui.Component:
+        plot = _weights_plot(names, weights, style, raw=ctx.raw)
+        if not switch:
+            return plot
+        return ui.column(ui.radio(WEIGHTS_CHART_INPUT, WEIGHTS_CHART_LABELS, style), plot, gap=2)
+
+    plot = chart(pane)
     if window != pane and not signed:  # the tool's window draws the weights its own way
-        plot = ui.placed(plot, _weights_plot(names, weights, window, raw=ctx.raw))
+        plot = ui.placed(plot, chart(window))
     return ui.card(_caption(ctx, caption), plot, title=f"{ctx.title_prefix}{title}")
 
 
@@ -794,8 +839,8 @@ The **value on disagreement** is what you get if the negotiation ends with
 
 def generic_view(ctx: UfunViewContext) -> list[ui.Component]:
     out: list[ui.Component] = list(ranking_components(ctx))
-    if not ctx.nested:
-        out.append(ctx.reserved_stat())
+    if not ctx.nested and (stat := ctx.reserved_stat()) is not None:
+        out.append(stat)
     out += ctx.explain(GENERIC_HELP_MD)
     return out
 
@@ -1143,8 +1188,8 @@ def rank_only_view(ctx: UfunViewContext) -> list[ui.Component]:
     comps: list[ui.Component] = [ui.card(ui.table(rows, sortable=False, page_size=15, max_height=360),
                                          title=f"{ctx.title_prefix}Deals from best to worst"
                                                + ("" if complete else f" (a sample of {len(rows)})"))]
-    if not ctx.nested:
-        comps.append(ctx.reserved_stat())
+    if not ctx.nested and (stat := ctx.reserved_stat()) is not None:
+        comps.append(stat)
     return comps + ctx.explain(
         "Only the **order** of deals is known: the table lists them from the one you like most to the "
         "one you like least. How much better one deal is than another is not recorded.")
@@ -1172,8 +1217,8 @@ def prob_view(ctx: UfunViewContext) -> list[ui.Component]:
     out = [ui.text_block("The value of a deal is uncertain; deals are ranked by their expected value.",
                          muted=True)]
     out += ranking_components(ctx)
-    if not ctx.nested:
-        out.append(ctx.reserved_stat())
+    if not ctx.nested and (stat := ctx.reserved_stat()) is not None:
+        out.append(stat)
     return out + ctx.explain(PROB_HELP_MD)
 
 
@@ -1222,12 +1267,14 @@ other one, so work it out together.
 def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: str | None = None,
                             other_holder: str = "your Assistant") -> list[ui.Component]:
     """The part ``part`` (``weights`` / ``values`` / ``none``) of an additive
-    utility function, with a note on who knows the rest. Never raises."""
+    utility function, with a note on who knows the rest. The value on disagreement
+    comes first, on top of the tool (there is no *In short* card here). Never raises."""
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     raw = preferences_raw()
+    reserved: list[ui.Component] = []
     ctx = UfunViewContext(tool=tool, ufun=_raw_of(ufun) if raw else display_ufun(ufun), rv_hidden=reserved_hint is not None,
-                          rv_hidden_hint=reserved_hint or "", raw=raw)
+                          rv_hidden_hint=reserved_hint or "", raw=raw, reserved_sink=reserved)
     ufun = ctx.ufun
     try:
         names = ctx.issue_names
@@ -1240,7 +1287,7 @@ def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: s
         else:
             note = f"Your preferences are known to {other_holder}. Ask it what each deal is worth to you."
             body = ctx.layout()
-        return [ui.alert(note, "info", title="You know part of your preferences"), body,
+        return [*reserved, ui.alert(note, "info", title="You know part of your preferences"), body,
                 *ctx.explain(PARTIAL_HELP_MD)]
     except Exception:  # noqa: BLE001
         traceback.print_exc()

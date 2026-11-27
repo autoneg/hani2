@@ -325,6 +325,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
 | `tools.weights_chart` | How the Preferences tools draw issue weights: `bar` (default, one thin horizontal bar, saves space) or `donut`. See [Weights as a bar or a donut](preferences.md#weights-as-a-bar-or-a-donut). |
 | `tools.weights_chart_window` | The issue weights when the tool is enlarged or popped out: `same` (default, as `tools.weights_chart`), `donut` or `bar`. |
+| `tools.weights_chart_switch` | `true`: the human may switch the issue weights between the bar and the donut with a small toggle, which starts at the configured chart (default `false`). See [Letting the human switch](preferences.md#letting-the-human-switch). |
 | `tools.preferences_scale` | `normalized` (default: percentages, normalized as negmas does it: every deal 0–100%, weights adding up to 100%) or `raw` (the utility function's own numbers). See [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers). |
 | `tools.values_line_above` | An issue with more options than this (default 12), or a continuous one, shows its values as a line instead of bars. |
 | `tools.isolate_builtin` | Catch the failures of built-in tools too and show them in the tool's own tab (default `true`). `false`: built-in tool errors surface as they used to, for debugging. External tools are always guarded. See [When a tool fails](tools.md#when-a-tool-fails). |

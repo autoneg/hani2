@@ -1,0 +1,1 @@
+import{c as o}from"./index-BO4lvf4Q.js";const e={name:"line-dot-left-horizontal",size:24,node:[["path",{d:"M9 12h12",key:"nafxnq"}],["circle",{cx:"6",cy:"12",r:"3",key:"w7nqdw"}]]};e.node;const t=o(e);export{e as __iconData,t as default};

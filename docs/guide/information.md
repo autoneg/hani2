@@ -170,7 +170,8 @@ Set `show_totals_to_partial: true` to show deal values to a side that knows only
 preferences.
 
 `reserved_value` says who knows the value on disagreement. The human's *Preferences* tool shows
-"Unknown" when they do not know it, and the Assistant's state leaves it out when it does not.
+it at the top (right under *In short*, or first of all when they know only part of their
+preferences) and says so when they do not know it, and the Assistant's state leaves it out when it does not.
 
 Weights and values exist only for preferences that are a weighted sum of issue values, which
 is true of every built-in scenario type. For other preferences HANI2 cannot split them: both

@@ -140,6 +140,25 @@ def over_tools_server(tmp_path_factory):
     _stop(proc, log)
 
 
+def _weights_switch_settings(home: Path) -> None:
+    import json
+
+    p = home / "settings" / "env.json"
+    s = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    s.setdefault("tools", {})["weights_chart_switch"] = True
+    p.write_text(json.dumps(s), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def weights_switch_server(tmp_path_factory):
+    """A server whose participants may switch the issue weights between the bar and the donut."""
+    home = tmp_path_factory.mktemp("e2e_weights_switch_home")
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--no-assistant"],
+                            setup_home=_weights_switch_settings)
+    yield url
+    _stop(proc, log)
+
+
 @pytest.fixture(scope="session")
 def css_server(tmp_path_factory):
     """A server whose Assistant (tests/e2e/css_agent.py, no model needed) sets style sheets."""

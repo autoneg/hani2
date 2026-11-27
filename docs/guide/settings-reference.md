@@ -4,7 +4,9 @@ Every choice of the project and study editor in the admin console (**Projects & 
 not self-explanatory has a **?** button next to its name. This page lists the same texts, grouped
 as in the editor, with the key each choice writes in `project.yaml` (under `defaults:`) or
 `study.yaml` (under `overrides:`). How the settings work together is explained in
-[Project management](project-management.md) and [Study management](study-management.md).
+[Project management](project-management.md) and [Study management](study-management.md). The
+**Tools** section lists choices of the console's **Tools** page, kept under `tools` in `env.json`
+(the settings folder, a project or a study).
 
 Admins can read the same texts as JSON from `GET /api/admin/help`.
 
@@ -1043,5 +1045,27 @@ More: [Project management](project-management.md#confidence-intervals-and-ties).
 A percentile bootstrap that resamples participants. Two entrants whose intervals overlap the leader's are shown as tied with it ("=2").
 
 More: [Project management](project-management.md#confidence-intervals-and-ties).
+
+## Tools
+
+| Setting | Key | Summary |
+|---|---|---|
+| [Participants may switch the weights chart](#setting-tools-weights-chart-switch) | `tools.weights_chart_switch` | On: a small Bar / Donut toggle on the issue weights lets the human pick the chart (off by default) |
+
+### Participants may switch the weights chart {#setting-tools-weights-chart-switch}
+
+`tools.weights_chart_switch`: *On: a small Bar / Donut toggle on the issue weights lets the human pick the chart (off by default)*
+
+When on, every issue weights chart of the Preferences tools has a small **Bar / Donut** toggle
+above it. It starts at the chart the settings give (*Issue weights shown as*, and *Issue weights in an
+enlarged or popped-out tool* in the tool's window). Once the human picks a chart, it is used in the pane
+and in the tool's window alike, and kept for the rest of the session. Each switch is recorded in the
+session's events (`tool_interaction`, action `input:weights_chart`, the chosen chart as its value).
+Signed weights (negative weights) are always drawn as signed bars, without the toggle.
+
+Off (the default): the weights are drawn as the settings say, with no toggle. Like the other tools
+settings, it can be set globally (`env.json`), per project or per study.
+
+More: [Preferences](preferences.md#weights-as-a-bar-or-a-donut).
 
 <!-- settings-reference:end -->

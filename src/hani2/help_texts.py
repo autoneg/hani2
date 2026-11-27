@@ -735,6 +735,19 @@ No board ever shows a user name or a participant index.""",
         "A percentile bootstrap that resamples participants. Two entrants whose intervals overlap the "
         "leader's are shown as tied with it (\"=2\").",
         section="Leaderboard", docs="project-management.md#confidence-intervals-and-ties"),
+    "tools.weights_chart_switch": Help(
+        "Participants may switch the weights chart",
+        "On: a small Bar / Donut toggle on the issue weights lets the human pick the chart (off by default)",
+        """When on, every issue weights chart of the Preferences tools has a small **Bar / Donut** toggle
+above it. It starts at the chart the settings give (*Issue weights shown as*, and *Issue weights in an
+enlarged or popped-out tool* in the tool's window). Once the human picks a chart, it is used in the pane
+and in the tool's window alike, and kept for the rest of the session. Each switch is recorded in the
+session's events (`tool_interaction`, action `input:weights_chart`, the chosen chart as its value).
+Signed weights (negative weights) are always drawn as signed bars, without the toggle.
+
+Off (the default): the weights are drawn as the settings say, with no toggle. Like the other tools
+settings, it can be set globally (`env.json`), per project or per study.""",
+        section="Tools", key="tools.weights_chart_switch", docs="preferences.md#weights-as-a-bar-or-a-donut"),
 }
 
 
@@ -809,9 +822,10 @@ REQUIRED = (
     "leaderboard.rules.exclude_own",
     "leaderboard.rules.adjust",
     "leaderboard.rules.ci",
+    "tools.weights_chart_switch",
 )
 
-SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignment", "Pairing", "Scores", "Leaderboard")
+SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignment", "Pairing", "Scores", "Leaderboard", "Tools")
 
 
 def problems() -> list[str]:

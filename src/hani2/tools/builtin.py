@@ -92,13 +92,13 @@ class PreferencesTool(Tool):
       sentences, the hints of your role and, for every issue, what you want in plain words
       ("the lower, the better", "best at 5 days") with an arrow: green up (the more, the better),
       red down (the less, the better) or blue arrows meeting (best at one value).
+    - **Value on disagreement**: one sentence right under *In short* (visible also when it is
+      folded), e.g. "If you do not reach agreement you get 10% (your best option gives you 100%)".
     - **Issue weights** (one thin bar, or a donut when the administrator chooses it): how
       important each issue is; the weights add up to 100%. Pinned in the simple view, the
       weights and the option values sit side by side when there is room.
     - **Value of each option** (bars, or a line for an issue with many options): pick an issue
       to see what each of its options is worth to you.
-    - **Value on disagreement**: one sentence under the charts, e.g. "If you do not reach agreement
-      you get 10% (your best option gives you 100%)".
 
     **How it works.** A deal's value is the weighted sum of its options' values:
     weight₁ × value₁ + weight₂ × value₂ + … A deal worth less than your value on
@@ -134,12 +134,13 @@ class PreferencesTool(Tool):
 
     def _full_view(self, rv_hint: str | None) -> list[ui.Component]:
         ufun = self.human_ufun
-        comps = render_ufun_view(self, ufun, reserved_hint=rv_hint)
+        reserved: list[ui.Component] = []  # the value on disagreement: right under In short, not below the charts
+        comps = render_ufun_view(self, ufun, reserved_hint=rv_hint, reserved_out=reserved)
         if ufun is None:
             return comps
         body, help_ = _help_split(comps)
         top = summary_card(self, ufun)
-        return ([top] if top else []) + body + help_
+        return ([top] if top else []) + reserved + body + help_
 
 
 def summary_card(tool: Tool, ufun) -> ui.Component | None:
