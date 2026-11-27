@@ -173,7 +173,7 @@ def test_participants_cannot_open_the_admin_api(user_page):
     assert user_page.request.get("/api/admin/users").status == 403
 
 
-ADMIN_PAGES = ("overview results analytics replay projects texts forms scenarios opponents assistants tool-library "
+ADMIN_PAGES = ("overview results analytics replay projects texts forms questionnaires scenarios opponents assistants tool-library "
                "general negotiation interface tools connections models llm assistant autopilot users").split()
 
 
