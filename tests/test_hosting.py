@@ -569,3 +569,27 @@ def test_a_hosted_assistant_answers_the_llm_offer_tool():
         # without llm_tool it does not answer (the tool uses its own prompt), as a local Assistant
         s.support_agent.capabilities.admin_capabilities["llm_tool"] = False
         assert s.support_agent.suggest_offer("again", "both") is None
+
+
+def test_named_sequences_do_not_apply_to_a_hosted_assistant(tutorial_path, monkeypatch):
+    """A hosted Assistant brings its own model: even with a class-level model_sequence on the base
+    class, the session resolves no local chain or sequence for it and the results name the host's model."""
+    from hani2.support_agent.runtime import SupportAgent
+
+    monkeypatch.setattr(SupportAgent, "model_sequence", "tiny")
+    app = make_app("assistant", "level2_rules:RulesAgent", token=TOKEN, version="0.3",
+                   model={"provider": "none", "model": "rules"})
+    with run_host(app) as url:
+        registry.add("default", "coach", "assistant", url, token=TOKEN)
+        s = make_session(agent_class="remote:coach")
+        assert s.models.assistant_sequence() == ""
+        assert s.models.peek("assistant") is None and s.models.peek("assistant", "tiny") is None
+        s.start()
+        s.wait_for_turn()
+        s.user_chat("what do you think?")
+        s.wait_agent_idle()
+        assert s.models.peek("assistant", "tiny") is None
+        s.end()
+        s.wait_until_done()
+    row = results_rows(s)[-1]
+    assert row["assistant_llm"] == "remote:none/rules"

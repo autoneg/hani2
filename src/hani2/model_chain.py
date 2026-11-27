@@ -1182,6 +1182,8 @@ class SessionModels:
     def assistant_sequence(self) -> str:
         """The named sequence the session's Assistant uses for its replies (``""``: its chain)."""
         sa = getattr(self.session, "support_agent", None)
+        if getattr(sa, "brings_own_model", False):
+            return ""  # a remote Assistant uses its host's model: no sequence applies to it
         try:
             return str(sa._sequence() or "") if sa is not None and hasattr(sa, "_sequence") else ""
         except Exception:  # noqa: BLE001
