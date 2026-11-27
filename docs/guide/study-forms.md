@@ -78,6 +78,19 @@ The question types are `likert5`, `likert7`, `yes_no`, `select` (with `options`)
 
 The admin console checks a file before saving it: valid YAML, an `id` and a `text` for every question, unique ids, known types, and `options` for every `select`. `hani2 questionnaire check <files>` does the same on the command line.
 
+### Editing the items of a form
+
+On the Study forms page, each layer's form can be edited as **Items** (the default) or as **YAML**. Both edit the same file, and the checks, the preview and **Save** are the same.
+
+- **Title** and **Intro** of the form.
+- **Reorder** an item with its up and down arrows. **Remove** it with the bin.
+- Click an item to **edit** its id, text, type, required flag, the labels of the two ends of a 1–5 or 1–7 scale, and the options of a choice question. *Stop scoring it* removes its `scale` and `reverse`.
+- **New item** adds a blank 1–7 question. **Add an item from a set** adds one question of any predefined set; **Add predefined questionnaires** adds whole sets.
+
+The items of a form are yours, whatever set they came from, including published instruments. If you edit or remove a scored item of a published instrument, or keep only some of its scored items, a notice says that its scale score may no longer match the published instrument. The notice does not block saving.
+
+Editing items rewrites the file in a standard layout (one line per question) and drops YAML comments. Switch to **YAML** to keep them. A file that does not parse can only be edited as YAML.
+
 ## Consent for study participants
 
 Logged-in participants consent on the consent page (`auth.enforce_consent`, see [Consent per study](study-management.md#consent-per-study)). Prolific and online / lab participants do not log in; to ask them in the session itself, switch on **Ask study participants for consent** on the Study forms page, or set it in the `env.json` of the layer:
@@ -99,7 +112,7 @@ When the last counted negotiation (and its questionnaire) is done, a participant
 
 ## Predefined questionnaires
 
-HANI2 comes with complete question sets for questionnaires commonly used in human-agent negotiation studies. On the Study forms page, **Add predefined questionnaires** lists the sets meant for the form you are editing (tick *Show sets meant for other forms* for all of them); tick one or more and **Add** them. Their questions are copied into the form, where you can change, reorder or delete any of them; questions whose `id` is already in the form are skipped. The sets that score a construct carry `scale` and `reverse`, so the [subjective metrics](evaluation.md#subjective-metrics) score them. [Questionnaires](questionnaires.md) lists every question of every set with its source, and marks with ✓ the sets validated against their source instrument (the same mark is shown on the Study forms page).
+HANI2 comes with complete question sets for questionnaires commonly used in human-agent negotiation studies. On the Study forms page, **Add predefined questionnaires** lists the sets meant for the form you are editing (tick *Show sets meant for other forms* for all of them); tick one or more and **Add** them. Their questions are copied into the form, where you can change, reorder or delete any of them (see [Editing the items of a form](#editing-the-items-of-a-form)); questions whose `id` is already in the form are skipped. The sets that score a construct carry `scale` and `reverse`, so the [subjective metrics](evaluation.md#subjective-metrics) score them. [Questionnaires](questionnaires.md) lists every question of every set with its source, and marks with ✓ the sets validated against their source instrument (the same mark is shown on the Study forms page).
 
 !!! warning "TAM items not checked against the source"
     The three TAM sets (`tam_usefulness`, `tam_usefulness_short`, `tam_ease`) have not been checked against the published item sheet (Davis, 1989). The Study forms page shows this warning on each of them in the picker, above the preview of a form that uses their questions, and under *In effect here* when the form in effect uses them. It comes from the same registry as the warnings in [Questionnaires](questionnaires.md) and the [metric catalogue](metric-catalog.md). It is for admins only: participants never see it, neither in the form they fill in nor anywhere else in the session.
@@ -129,7 +142,26 @@ Check the wording of a published instrument against its source before a study, a
 
 ### Your own sets
 
-Put your own sets in `questionnaire_library/` in the settings folder, one YAML file per set. A set with the id of a bundled set replaces it:
+The admin console's **Questionnaires** page is the explorer of every set. Search titles, ids, questions and scales, or show only the sets meant for one form. The sets come in three groups:
+
+- **Published instruments**: sets that reproduce a published questionnaire (UEQ, UEQ-S, the three TAM sets, trust in automation, the Subjective Value Inventory, NASA-TLX, SUS). They are **read-only in the app**: **Copy as new** is their only action.
+- **Your own sets**: the files in `questionnaire_library/` in the settings folder, including overrides of bundled sets.
+- **Built-in sets**: HANI2's own bundled sets that cite no published instrument (demographics, attention check, opponent perception, ...).
+
+Open a set to see its questions, its scales, the ✓ of a validated set, its source and source link, and the file that defines it, with a copy button. A set whose items have not been checked against their source (the TAM sets) also shows its warning. Only administrators see these warnings; participants never do.
+
+**What counts as published.** A set is read-only in the app when the [metric catalogue](questionnaires.md) cites a published instrument for its id, or when its file has a `url` that links to one. `reference` alone does not count, because HANI2's own sets name themselves there too ("HANI2 items."). An own file that overrides a published set by id stays read-only as well. To change a published set anyway, edit its file by hand. The API refuses edits to these sets, not only the page.
+
+**Edit.** **Edit** opens the set's YAML in an editor that checks it as you type. **Save set** is refused while there are problems. The checks are the form checks (valid YAML, an `id` and a `text` for every question, unique ids, known types, `options` for every `select`) plus the set checks: an id made of letters, digits, `_` and `-`, a title, `forms` from `pre_questionnaire`, `per_negotiation` and `post_session`, at least one question, and no `url` (that would make the set read-only). The id of an existing set cannot change; use **Copy as new** for another id.
+
+- Saving a **bundled** set writes an override, `<settings>/questionnaire_library/<id>.yaml`. The bundled file inside the HANI2 package is never changed, and deleting the override brings the bundled version back.
+- Saving **your own** set rewrites the file that defines it, whatever that file is called.
+
+**Add.** **New set** starts from a small blank set. **Copy as new** starts from any set, published ones included. The copy gets a new id (`<id>_copy`, which you can change), drops `reference` and `url`, and records its origin in `based_on` (the source it is based on) and `copied_from` (the id of the first set it was copied from, so a copy of a TAM set keeps the TAM warning). A new set is saved as `<settings>/questionnaire_library/<id>.yaml`. Its id must be new, so adding a set never overrides another one. The new set is listed under **Add predefined questionnaires** on the Study forms page at once.
+
+**Delete.** The app has no delete button. Open the set to find the file that defines it and the exact command, e.g. `rm ~/negmas/hani2/settings/questionnaire_library/team_trust.yaml`, with a copy button. After you remove the file and reload the page, your own set is gone and an override falls back to the bundled set. Bundled sets cannot be deleted. Files in the folder that are not sets (bad YAML, no questions) are listed at the top of the page with their delete command.
+
+You can also write the files yourself, one YAML file per set; a set with the id of a bundled set replaces it:
 
 ```yaml title="~/negmas/hani2/settings/questionnaire_library/team_trust.yaml"
 id: team_trust
@@ -140,6 +172,8 @@ forms: [per_negotiation, post_session]
 questions:
   - {id: team_trust_1, text: "My teammate and I worked well together.", type: likert7, required: true, scale: team_trust, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
 ```
+
+`hani2 questionnaire check --set <files>` checks set files with the same rules (files inside a `questionnaire_library/` folder are always checked as sets; a hand-written file may have a `url`).
 
 ### On the command line
 

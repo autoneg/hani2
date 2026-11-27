@@ -9,6 +9,20 @@
   `{"capabilities": {"model_choice": true}}` in `assistant_settings.json`. A `model_sequence` set on
   the Assistant's class by its author is used without it. See
   [The Assistant's model sequences](guide/models.md#the-assistants-model-sequences).
+- **Questionnaire explorer and form item editor.** The admin console's new **Questionnaires** page lists every
+  predefined question set by form, with search: its questions, scales, ✓, source and source link, source warnings (the
+  TAM sets'; administrators only), and the path of the file that defines it, with a copy button. Sets without a
+  published source can be edited in the app. Saving a bundled set writes an override to
+  `settings/questionnaire_library/<id>.yaml` and never touches the package; saving your own set rewrites its file.
+  Published instruments (UEQ, UEQ-S, TAM, trust in automation, SVI, NASA-TLX, SUS, or any set whose file has a `url`)
+  are read-only, and the API refuses edits to them as well. **Copy as new** turns any set into an editable one with a
+  new id (`based_on` and `copied_from` record where it came from), and **New set** starts a blank one. There is no
+  delete button: each own set shows its `rm <path>` command. On the **Study forms** page, a form can now be edited
+  as **Items**: reorder, remove and edit questions (text, type, labels, options, required), add one from any set or a
+  blank one, and edit the title and intro. A notice appears when a scored item of a published instrument changes.
+  Raw YAML stays available. `hani2 questionnaire check --set` checks set files with the app's rules. See
+  [Your own sets](guide/study-forms.md#your-own-sets) and
+  [Editing the items of a form](guide/study-forms.md#editing-the-items-of-a-form).
 - **Value on disagreement under *In short*.** The participant's Preferences tool now shows the
   sentence "If you do not reach agreement you get 10% (your best option gives you 100%)." right under
   the *In short* card, where it stays in sight also when the card is folded, instead of below the

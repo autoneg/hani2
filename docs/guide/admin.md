@@ -27,7 +27,8 @@ See [Authentication](authentication.md). The `?admin=1` query parameter does not
 | | Replay | Opens [Replay](recordings.md). |
 | Studies | Projects & Studies | Projects, their studies, `project.yaml` and `study.yaml`, the links to give participants, results counts, the Assistant balance (and the Paired balance), the scores and the leaderboard settings. |
 | | Texts | The welcome text, the consent form, the scenario sets and the custom order, per layer, with a live preview. |
-| | Study forms | Consent for study participants, and the pre, per-negotiation and post-session questionnaires, per layer, with predefined questionnaires and a live preview. |
+| | Study forms | Consent for study participants, and the pre, per-negotiation and post-session questionnaires, per layer, with predefined questionnaires, an item editor and a live preview. |
+| | Questionnaires | Every predefined question set, by form: questions, scales, sources, validation and warnings, and the file that defines it. Edit sets without a published source, copy any set as a new one, add your own. |
 | Library | Scenarios | Every scenario type, its details, new ones by upload or link, and the scenario sets. |
 | | Opponents | Opponent groups and their members, your own opponent classes, and the pool participants face. |
 | | Assistants | Assistant groups, your own Assistant classes, the pool participants get, and the balance per study. |
@@ -163,9 +164,20 @@ Pick the layer, then:
 - **Form.** One of **Pre-questionnaire**, **After each negotiation** and **Post-session**.
 - **In effect here** says whether the form is on (and how many questions it has), switched off or not set up, and where it comes from: this layer, a layer above, or an environment variable or `env.json` name that wins over every file (shown as a warning). **Copy the inherited form** starts this layer's own file from the inherited one, **Switch off here** writes `enabled: false`, and **Remove this layer's file** goes back to the inherited form.
 - **Add predefined questionnaires** lists the predefined question sets for the form (UEQ, UEQ-S, TAM, trust in automation, the Subjective Value Inventory, NASA-TLX, SUS, demographics, …) with their description, source and items; tick sets and **Add** them to the editor.
-- The editor holds the layer's YAML file. **Preview** shows the form as participants see it, and lists any problems; **Save** refuses a file with problems.
+- The editor holds the layer's file, as **Items** or as **YAML**. As items, you can reorder, remove, edit and add questions, and edit the title and intro. A notice appears when a scored item of a published instrument is edited or removed. **Preview** shows the form as participants see it, and lists any problems; **Save** refuses a file with problems.
 
-See [Study forms](study-forms.md).
+See [Study forms](study-forms.md#editing-the-items-of-a-form).
+
+## Questionnaires
+
+The explorer of the predefined question sets: search, filter by form, and three groups (published instruments, your own sets, built-in sets). Open a set to see its questions, scales, ✓, source warning (administrators only), source link and the path of its file, with a copy button.
+
+- **Edit** (sets without a published source) opens the set's YAML with live checks. Saving a bundled set writes an override to `questionnaire_library/<id>.yaml` in the settings folder. Saving your own set rewrites its file.
+- **Copy as new** (every set) and **New set** add a set with a new id. A copy records `based_on` and `copied_from`.
+- Published instruments are read-only: the page offers only **Copy as new**, and the API refuses edits.
+- There is no delete button. Each own set shows the `rm <path>` command that deletes it. Removing an override brings the bundled set back.
+
+See [Your own sets](study-forms.md#your-own-sets).
 
 ## The library pages: Scenarios, Opponents, Assistants and Tools
 
