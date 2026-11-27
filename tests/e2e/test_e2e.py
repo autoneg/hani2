@@ -701,6 +701,17 @@ def test_weights_chart_switch_bar_and_donut(e2e_browser, weights_switch_server):
         ctx.close()
 
 
+def test_weights_chart_switch_setting_has_its_help(new_page):
+    """The Tools page offers the switch with its ``?`` text."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.goto("/admin#tools")
+    row = p.locator("[data-setting=weights-chart-switch]")
+    expect(row.get_by_text("Participants may switch the weights chart", exact=True)).to_be_visible()
+    row.get_by_role("button", name="About Participants may switch the weights chart").click()
+    expect(p.get_by_text("Bar / Donut").first).to_be_visible()
+
+
 def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     """Sessions open in the simple view (tools on the right). The Preferences tool's In short card,
     on top, holds the hints with an arrow per issue, folds away and stays folded when the tool
