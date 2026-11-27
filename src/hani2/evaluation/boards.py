@@ -663,7 +663,8 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
     ss = S.resolve(project, study)
     cfg = settings(project, study, score_set=ss)
     crit = _criteria_index(project, study)
-    q = parse_query(cfg, ss, crit, query, admin=admin)
+    tournament = cfg.source == "tournament"
+    q = parse_tournament_query(query) if tournament else parse_query(cfg, ss, crit, query, admin=admin)
     now = now or datetime.now(timezone.utc)
     warnings: list[str] = [f"leaderboard settings: {p}" for p in cfg.problems]
     if ss.problems:
@@ -677,6 +678,8 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
                 refs.append(r)
             else:
                 warnings.append(f"study {s!r} of leaderboard.studies does not exist (yet)")
+    if tournament:
+        return _tournament(cfg, q, refs, now, warnings)
     rows: list[dict] = []
     stale = 0
     for r in refs:
@@ -705,8 +708,6 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
         warnings.append(f"column(s) {', '.join(dropped_cols)} are not enabled here and are not shown")
     if _key_problem(cfg.default_sort, ss, crit, sort=True) is not None:
         warnings.append(f"default_sort {cfg.default_sort!r} cannot be used here; the board uses {q['sort']!r}")
-    if cfg.source == "tournament":
-        return _tournament(cfg, q, refs, ss, crit, admin, now, warnings)
     out = _game_board(cfg, q, rows, ss, crit, value_keys, project, study, now, n_boot, seed, warnings)
     out["options"] = options(cfg, ss, crit, admin=admin)
     out.pop("_reference")
@@ -974,10 +975,40 @@ def _in_stratum(r: dict, track: str, stratum: str) -> bool:
     return st == stratum
 
 
-def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: bool, now: datetime,
-                warnings: list[str]) -> dict[str, Any]:
+#: the one sort key of the simulated table (``source: tournament``); it has no switches
+TOURNAMENT_SORT = "goal_rate"
+
+
+def tournament_options() -> dict[str, Any]:
+    """The options of a simulated table: only what it honours, its one sort key and no switch."""
+    return {"sort": [{"key": TOURNAMENT_SORT, "title": "Goal rate", "kind": "criterion", "direction": "higher",
+                      "description": "Share of valid simulated trials that ended in a deal worth at least the "
+                                     "persona's reservation value"}],
+            "defaults": {"sort": TOURNAMENT_SORT}}
+
+
+def parse_tournament_query(query: dict | None) -> dict[str, str]:
+    """The view asked of a simulated table: only ``sort=goal_rate``; any other sort key or any switch
+    (``games``, ``stratum``, ``window``) raises :class:`BoardError` that says why."""
+    q = {k: v for k, v in (query or {}).items() if v not in (None, "")}
+    unknown = sorted(set(q) - {"sort", *SWITCHES})
+    if unknown:
+        raise BoardError(f"unknown parameter(s) {', '.join(unknown)}; a simulated (tournament) board takes only "
+                         f"sort={TOURNAMENT_SORT}")
+    switches = [sw for sw in SWITCHES if sw in q]
+    if switches:
+        raise BoardError(f"{', '.join(switches)} cannot be used on a simulated (tournament) board: it ranks every "
+                         f"simulated trial and has no {'/'.join(SWITCHES)} switches")
+    sort = str(q.get("sort", TOURNAMENT_SORT))
+    if sort != TOURNAMENT_SORT:
+        raise BoardError(f"sort {sort!r} is not allowed on a simulated (tournament) board; it is ranked by "
+                         f"{TOURNAMENT_SORT} only")
+    return {"sort": TOURNAMENT_SORT}
+
+
+def _tournament(cfg: Settings, q: dict, refs: list, now: datetime, warnings: list[str]) -> dict[str, Any]:
     """The simulated table (``source: tournament``): per Assistant, the goal rate of its valid simulated
-    trials, averaged over personas."""
+    trials, averaged over personas. Its ``options`` hold only what it honours (:func:`tournament_options`)."""
     import pandas as pd
 
     from hani2.evaluation import eval_cache
@@ -1009,9 +1040,9 @@ def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: 
         e["rank"] = i + 1
     out = {"schema": SCHEMA, "project": cfg.project, "study": cfg.study, "track": cfg.track, "source": "tournament",
            "generated_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-           "query": dict(q), "options": options(cfg, ss, crit, admin=admin), "columns": ["goal_rate", "mean_utility", "games"],
+           "query": dict(q), "options": tournament_options(), "columns": ["goal_rate", "mean_utility", "games"],
            "scores": {}, "rules": dict(cfg.rules), "entries": entries, "unranked": [], "excluded": {},
-           "warnings": warnings + ["the simulated table: the sort and switches do not apply to it"],
+           "warnings": warnings,
            "notes": ["simulated participants against each Assistant; goal rate = deals worth at least the persona's "
                      "reservation value"], "visibility": cfg.visibility}
     out["data_version"] = data_version(out)

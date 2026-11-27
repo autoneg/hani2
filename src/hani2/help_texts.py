@@ -562,7 +562,7 @@ Unset: `han` for a project of kind `opponent`, else `hi`.""",
         "Source", "game: the games people played (default); tournament: the simulated table",
         """- `game` (default): every counted game of the board's studies, ranked with the rules below.
 - `tournament`: the table of simulated participants (the goal rate of each Assistant, per persona),
-  which the sort and the switches do not apply to.""",
+  ranked by goal rate only; it has no switches, and a request for another sort or a switch gets a 400.""",
         section="Leaderboard", docs="project-management.md#configuring-a-board"),
     "leaderboard.studies": Help(
         "Studies", "Which studies of this project feed the project board (default: all)",
