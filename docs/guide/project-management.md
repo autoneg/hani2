@@ -596,7 +596,7 @@ leaderboard:
 | Key | Default | Meaning |
 |---|---|---|
 | `track` | `han` for a project of kind `opponent`, else `hi` | Who is ranked. |
-| `source` | `game` | `game`: the games people played. `tournament`: the table of simulated participants (each Assistant's goal rate over the personas), which the sort and the switches do not apply to. |
+| `source` | `game` | `game`: the games people played. `tournament`: the table of simulated participants (each Assistant's goal rate over the personas), ranked by goal rate only, without switches ([below](#the-game-board-and-the-simulated-table)). |
 | `studies` | every study of the project | The studies that feed the project board. Add new ones as they start; a study that does not exist yet is named in the board's warnings. |
 | `include` | none | Studies of other projects whose games of one stratum join the board ([below](#rows-from-other-projects)). |
 | `sort_options` | the enabled scores of the track | What end users may rank by: enabled scores, and criteria that have a direction. |
@@ -719,8 +719,8 @@ Every board says what it left out and why under `excluded` (`practice`, `admin o
 | `visibility` | Who may read the board |
 |---|---|
 | `public` | Anyone, without signing in or a token. |
-| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens). An invited guest sees only the board of the study they were invited to. |
-| `admins` | Admins, and a website with an API token. Signed-in users get *403*. |
+| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens) (`leaderboard:read`). An invited guest sees only the board of the study they were invited to. |
+| `admins` | Admins, and a website with an API token whose scope holds `leaderboard:admin`. Signed-in users, and tokens with only `leaderboard:read`, get *403*; such tokens do not see these boards in `GET /api/v1/leaderboards` either. |
 
 No board ever contains a user name, the other person's name, who invited a guest or a participant
 index: only entrants and counts.
@@ -809,6 +809,11 @@ For an HI project the board ranks the games people played (`source: game`), whic
 (deals worth at least the persona's reservation value) over its valid simulated trials. It stays
 available for qualifying rounds.
 
+The simulated table is ranked by `goal_rate` and has no switches, so its `options` contain only
+`sort: [goal_rate]` and `defaults: {sort: goal_rate}`, whatever `sort_options` and `user_options`
+say. A request with another `sort`, or with `games`, `stratum` or `window`, gets a **400** that says
+the simulated table does not take it.
+
 ## Connecting a website
 
 There are two ways to run HANI2.
@@ -831,7 +836,7 @@ A website reads boards with plain `GET` requests:
 |---|---|
 | `GET /api/v1/projects/{project}/leaderboard?sort=&games=&stratum=&window=` | The project board. |
 | `GET /api/v1/projects/{project}/studies/{study}/leaderboard?…` | One study's board. |
-| `GET /api/v1/leaderboards` | Every project that has a `leaderboard` block, with its track, source, year and visibility, and the visibility of each study's board. Without a sign-in or a token only public boards are listed. |
+| `GET /api/v1/leaderboards` | Every project that has a `leaderboard` block, with its track, source, year and visibility, and the visibility of each study's board. Without a sign-in or a token only public boards are listed; `admins` boards are listed only to admins and to tokens with `leaderboard:admin`. |
 
 The parameters are optional: each missing one takes the board's default. A value outside the
 board's `sort_options` or `user_options` is refused with **400**, so a website can only show the
@@ -904,15 +909,16 @@ the secret it already shares with HANI2 for [sign-in from a trusted website](aut
 |---|---|
 | `iss` | The provider's `issuer` (default: its name), as in sign-in tokens. |
 | `aud` | `hani2-api` plus this server's root path, for example `hani2-api/hiplay2`. |
-| `scope` | Contains `leaderboard:read` (a space-separated string or a list). |
+| `scope` | Contains `leaderboard:read` (a space-separated string or a list), or `leaderboard:admin` to also read boards with `visibility: admins`. |
 | `iat`, `exp` | Issue and expiry times (Unix seconds), at most 120 seconds apart. |
 
 An API token is not single use: mint one per request or per minute. Because the audiences differ,
 a sign-in token cannot read the API and an API token cannot sign anyone in; a token that names both
-audiences is refused by both. A token without the scope gets 403. To try the API by hand:
+audiences is refused by both. A token without the scope gets 403, and so does a token with only
+`leaderboard:read` asking for a board with `visibility: admins`. To try the API by hand:
 
 ```bash
-TOKEN=$(hani2 leaderboard token mysite)       # the provider's name in auth.sso
+TOKEN=$(hani2 leaderboard token mysite)       # the provider's name in auth.sso; --admin: leaderboard:admin
 curl -H "Authorization: Bearer $TOKEN" https://hani2.example.org/api/v1/projects/HI2027/leaderboard
 ```
 
