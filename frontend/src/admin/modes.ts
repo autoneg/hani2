@@ -137,3 +137,94 @@ export const CROSSED_OPPONENTS = ["latin_square", "cyclic"];
 /** Whether ``cross: shift`` changes anything for these methods. */
 export const crossingActive = (assistants: string | null | undefined, opponents: string | null | undefined, cross: string | null | undefined) =>
   cross === "shift" && PER_NEGOTIATION.includes(assistants ?? "") && CROSSED_OPPONENTS.includes(opponents ?? "");
+
+/* ---------- what each mode offers ---------- */
+/** The human entries a declared mode allows in the opponent pool (``null``: no mode declared, so
+ *  every entry is offered: the mode is then derived from the pool). Paired lists people only. */
+export function allowedHumans(mode: string | null | undefined, kind: string): string[] | null {
+  if (mode === "solo") return [];
+  if (mode === "paired") return kind === "assistant" ? ["human+assistant"] : kind === "opponent" ? ["human"] : ["human", "human+assistant"];
+  return null;
+}
+
+/** Why ``entry`` may not be in the opponent pool of a study declared ``mode`` ("" when it may). */
+export function poolEntryProblem(entry: string, mode: string | null | undefined, kind: string): string {
+  const allowed = allowedHumans(mode, kind);
+  if (allowed === null) return "";
+  if (isHuman(entry)) {
+    if (allowed.includes(canonicalHuman(entry))) return "";
+    return mode === "solo" ? "Solo plays AI opponents only" : `a Paired ${kind === "assistant" ? "HI" : "HAN"} study plays ${allowed.join(" or ")}`;
+  }
+  return mode === "paired" ? "a Paired study plays people only (the AI fallback has its own pool)" : "";
+}
+
+/** Whether the opponent pool picker offers ``entry`` (an AI agent, a group or a human entry). */
+export const poolOffers = (entry: string, mode: string | null | undefined, kind: string) => !poolEntryProblem(entry, mode, kind);
+
+/** The pairing defaults a mode gives (``declared``: ``study_mode`` is set), as hani2.study_modes. */
+export function pairingDefaults(mode: string | null | undefined, declared: boolean): Record<string, unknown> {
+  const base: Record<string, unknown> = { scope: "project", assign: "random", slack: 1, cell_scenario: "type", allow_same_assistant: false, fallback: "ai", fallback_opponents: null };
+  return declared && mode === "paired" ? { ...base, scope: "study", assign: "cells" } : base;
+}
+
+/** How a match is formed (``pairing.assign``), in the order a mode prefers (its default first). */
+export function assignOptions(mode: string | null | undefined): { value: string; label: string }[] {
+  const all: Record<string, string> = {
+    cells: "cells: balance who meets whom (match cells)",
+    order: "order: each person's planned order, strictly",
+    random: "random: anyone who fits",
+  };
+  const keys = mode === "paired" ? ["cells", "order", "random"] : ["random", "cells", "order"];
+  return keys.map((k, i) => ({ value: k, label: `${all[k]}${i === 0 ? " (the default here)" : ""}` }));
+}
+
+export interface SchedulingUse {
+  /** why the dimension's method is not used in this mode ("" when it is) */
+  opponents: string;
+  assistants: string;
+  cross: string;
+  /** what the method means in this mode ("" when as in Solo) */
+  assistantsHint: string;
+  scenariosHint: string;
+}
+
+/** Which scheduling dimensions a mode uses: in Paired the opponent is the other person (no opponent
+ *  method, no crossing), and a Paired HAN study plays without Assistants. */
+export function schedulingUse(mode: string | null | undefined, kind: string): SchedulingUse {
+  if (mode !== "paired")
+    return { opponents: "", assistants: "", cross: "", assistantsHint: mode === "mixed" ? "Solo games use the method as a slot; a match with a person uses it as a set (see ?)" : "", scenariosHint: "" };
+  return {
+    opponents: "Not used in Paired: the opponent is the other person; the AI fallback draws from Fallback opponents",
+    assistants: kind === "opponent" ? "Not used: a Paired HAN study plays without Assistants (assistants: [none])" : "",
+    cross: "Not used in Paired: there is no AI opponent sequence to cross with the Assistants",
+    assistantsHint: kind === "opponent" ? "" : "In Paired, the method gives each person a set of Assistants; pairing picks from it, so the order is a preference",
+    scenariosHint: "In Paired, the joiner takes the host's scenario; by_participant pairs only people of the same scenario type",
+  };
+}
+
+/** The opponent pool the env.json layers give under the files (the server's ``editor.pools``). */
+export const envOpponents = (ed: any): string[] => items(ed?.pools?.opponents?.env);
+
+export interface LiveMode {
+  declared: string | null;
+  derived: Mode;
+  mode: string;
+  opponents: unknown;
+  assistants: unknown;
+  /** the pool comes from an env.json layer (no file names one) */
+  fromEnv: boolean;
+  kind: string;
+}
+
+/** The mode of a layer being edited: its own unsaved values, else the project's (``ed.inherited``),
+ *  else, for the pool, the env.json layers' (``ed.pools``). ``kind``: the project's (unsaved) kind. */
+export function liveMode(own: any, ed: any, kind?: string): LiveMode {
+  const inh = ed?.inherited ?? {};
+  const env = envOpponents(ed);
+  const filePool = own?.opponents ?? inh.opponents;
+  const fromEnv = filePool == null && env.length > 0;
+  const opponents = fromEnv ? env : filePool;
+  const declared: string | null = own?.study_mode ?? inh.study_mode ?? null;
+  const derived = derive(opponents);
+  return { declared, derived, mode: declared ?? derived, opponents, assistants: own?.assistants ?? inh.assistants, fromEnv, kind: kind ?? ed?.kind ?? "none" };
+}

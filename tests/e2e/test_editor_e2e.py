@@ -118,3 +118,27 @@ def test_k_of_n_and_repeats(new_page):
     with p.expect_response(lambda r: r.url.endswith(f"/api/admin/projects/{name}") and r.request.method == "PUT") as resp:
         save.click()
     assert resp.value.status == 200, resp.value.text()
+
+
+def test_a_paired_studys_pool_editor_offers_only_the_human_entry(new_page):
+    """Opponents → the pool picker of a study declared Paired in an HI project offers human+assistant
+    only (no human, no AI agent or group); a Solo study offers no human entry."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    for study, mode in (("pair", "paired"), ("alone", "solo")):
+        r = p.request.put(f"/api/admin/projects/{name}/studies/{study}", data={"data": {"type": "online", "overrides": {"study_mode": mode}}})
+        assert r.ok, r.text()
+    p.goto("/admin#opponents")
+    p.get_by_role("combobox", name="Layer to edit").first.select_option(f"study:{name}/pair")
+    picker = p.locator("#setting-opponent-pool")
+    expect(picker.locator("[data-pool-mode=paired]")).to_be_visible()
+    choices = picker.get_by_role("listbox", name="Pool choices").locator("label")
+    expect(choices).to_have_count(1)
+    expect(choices.first).to_contain_text("human+assistant")
+    p.get_by_role("combobox", name="Layer to edit").first.select_option(f"study:{name}/alone")
+    picker = p.locator("#setting-opponent-pool")
+    expect(picker.locator("[data-pool-mode=solo]")).to_be_visible()
+    box = picker.get_by_role("listbox", name="Pool choices")
+    expect(box.locator("label").first).to_be_visible()
+    expect(box.locator("label").filter(has_text="human")).to_have_count(0)
