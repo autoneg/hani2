@@ -26,6 +26,16 @@ def results_rows(s):
         return list(csv.DictReader(fh))
 
 
+def until(cond, timeout=10.0):
+    """Poll ``cond`` until it holds (sessions are closed by a background request: no fixed sleep)."""
+    end = time.time() + timeout
+    while not cond():
+        if time.time() > end:
+            return False
+        time.sleep(0.02)
+    return True
+
+
 def play_out(s, n=12):
     s.start()
     for _ in range(n):
@@ -224,8 +234,7 @@ def test_two_concurrent_negotiations_against_one_host_share_no_state():
             t.join(90)
         stop.set()
         w.join(5)
-        time.sleep(0.5)
-        assert len(app.state.store) == 0  # both host sessions were closed at the end
+        assert until(lambda: len(app.state.store) == 0)  # both host sessions were closed at the end
     assert max(peak) == 2  # both negotiations ran on the host at the same time
     assert len(Recorder.seen) == 2  # one instance per negotiation
     for steps in Recorder.seen.values():
@@ -527,8 +536,7 @@ def test_two_concurrent_negotiations_against_one_assistant_host_share_no_state()
         for s in sessions:
             s.end()
             s.wait_until_done()
-        time.sleep(0.5)
-        assert len(app.state.store) == 0  # closed at the end of each negotiation
+        assert until(lambda: len(app.state.store) == 0)  # closed at the end of each negotiation
 
 
 def test_a_hosted_assistant_drives_the_autopilot(scripted):
