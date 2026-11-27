@@ -9,4 +9,4 @@ questions:
   - {id: tlx_temporal, text: "**Temporal demand**: how hurried or rushed was the pace of the task?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}
   - {id: tlx_performance, text: "**Performance**: how successful were you in accomplishing what you were asked to do?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Perfect", 7: "Failure"}}
   - {id: tlx_effort, text: "**Effort**: how hard did you have to work to accomplish your level of performance?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}
-  - {id: tlx_frustration, text: "**Frustration**: how insecure, discouraged, irritated, stressed or annoyed were you?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}
+  - {id: tlx_frustration, text: "**Frustration**: how insecure, discouraged, irritated, stressed, and annoyed were you?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}

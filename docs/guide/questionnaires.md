@@ -49,7 +49,7 @@ Scales: `workload` (6 items) — each the mean of its items, reversed items scor
 | 3 | `tlx_temporal` | **Temporal demand**: how hurried or rushed was the pace of the task? | 1–7 (1 = Very low, 7 = Very high) | `workload` (lower is better) |
 | 4 | `tlx_performance` | **Performance**: how successful were you in accomplishing what you were asked to do? | 1–7 (1 = Perfect, 7 = Failure) | `workload` (lower is better) |
 | 5 | `tlx_effort` | **Effort**: how hard did you have to work to accomplish your level of performance? | 1–7 (1 = Very low, 7 = Very high) | `workload` (lower is better) |
-| 6 | `tlx_frustration` | **Frustration**: how insecure, discouraged, irritated, stressed or annoyed were you? | 1–7 (1 = Very low, 7 = Very high) | `workload` (lower is better) |
+| 6 | `tlx_frustration` | **Frustration**: how insecure, discouraged, irritated, stressed, and annoyed were you? | 1–7 (1 = Very low, 7 = Very high) | `workload` (lower is better) |
 
 ### Subjective Value Inventory (SVI), 16 items <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_svi_matches_source">✓</abbr> {#subjective-value}
 
