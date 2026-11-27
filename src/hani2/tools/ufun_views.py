@@ -672,11 +672,7 @@ RAW_WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal (its
                        "important issue.",
                        "How much each issue counts in the opponent's total for a deal (its weight): a bigger weight "
                        "is a more important issue.")
-RAW_SIGNED_ADDITIVE_CAPTION = ("How much each issue counts in your total for a deal (its weight). Red: a negative "
-                           "weight, so the issue's options count the other way round.",
-                           "How much each issue counts in the opponent's total for a deal (its weight). Red: a "
-                           "negative weight, so the issue's options count the other way round.")
-PARTS_CAPTION = ("How much each set of preferences counts in your total (its weight).",
+RAW_PARTS_CAPTION = ("How much each set of preferences counts in your total (its weight).",
                      "How much each set of preferences counts in the opponent's total (its weight).")
 RAW_VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: the higher, the better.",
                       "Pick an issue to see what each of its options is worth to the opponent: the higher, the "

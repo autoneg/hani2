@@ -605,7 +605,10 @@ def market_research(scenario: Any, roles: Iterable[str], settings: dict, *, seed
             continue
         out["samples"] = len(samples)
         rec: dict[str, Any] = {}
-        rvs = [float(getattr(s, "reserved_value", 0.0) or 0.0) for s in samples]
+        from hani2.ufun_scale import normalize
+
+        # on the played scale: the negotiation runs on a normalized scenario (the samples may not be)
+        rvs = [float(getattr(normalize(s), "reserved_value", 0.0) or 0.0) for s in samples]
         rec["value_on_disagreement"] = {"typical": round(float(np.median(rvs)), 3),
                                         "range": [round(float(np.percentile(rvs, 10)), 3),
                                                   round(float(np.percentile(rvs, 90)), 3)]}

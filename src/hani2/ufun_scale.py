@@ -156,6 +156,7 @@ def normalize_for_play(scenario: Any) -> Any:
     for n, r in zip(play.ufuns, raws):
         try:
             setattr(n, RAW_ATTR, r)
+            setattr(r, RAW_ATTR + "_rv", (float(n.reserved_value), r.reserved_value))
         except Exception:  # noqa: BLE001
             pass
     return play
@@ -165,12 +166,23 @@ def raw_of(ufun: Any) -> Any:
     """The original of a utility function normalized for a negotiation
     (:func:`normalize_for_play`), with its value on disagreement at the place the normalized
     one has (so a forced value on disagreement shows in the original's numbers too); any
-    other utility function as it is."""
+    other utility function as it is. The place is found through the normalized and the
+    original ranges (negmas does not always bring the worst deal to 0, e.g. with an issue of
+    one option); the original value is kept when the normalized one did not move or a range
+    is a single point."""
     raw = getattr(ufun, RAW_ATTR, None)
     if raw is None:
         return ufun
     try:
-        raw.reserved_value = on_range(raw, float(ufun.reserved_value))
+        rv = float(ufun.reserved_value)
+        base_rv, base_raw = getattr(raw, RAW_ATTR + "_rv", (None, None))
+        if base_rv is not None and abs(rv - base_rv) < 1e-12:
+            raw.reserved_value = base_raw
+            return raw
+        nlo, nhi = (float(x) for x in ufun.minmax())
+        rlo, rhi = (float(x) for x in raw.minmax())
+        if all(math.isfinite(x) for x in (nlo, nhi, rlo, rhi, rv)) and nhi - nlo > 1e-12:
+            raw.reserved_value = rlo + (rv - nlo) / (nhi - nlo) * (rhi - rlo)
     except Exception:  # noqa: BLE001
         pass
     return raw

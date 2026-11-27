@@ -72,3 +72,39 @@ def test_assume_normalized_skips_it(hani2_home, monkeypatch, tmp_path):
         sc, _, _ = store.load_scenario("Grocery", 0, load_existing=False, simple_mode=False, normalized=False)
         assert store.normalize_for_play(sc) is sc and not all(is_normalized(u) for u in sc.ufuns)
     assert store.assume_normalized() is False
+
+
+def test_raw_of_follows_negmas_range_with_a_one_option_issue():
+    from negmas import LinearAdditiveUtilityFunction as LAU
+    from negmas import make_issue
+    from negmas.inout import Scenario
+    from negmas.outcomes import make_os
+    from negmas.preferences.value_fun import TableFun
+
+    from hani2.ufun_scale import normalize_for_play
+
+    os_ = make_os([make_issue(["a", "b", "c"], "x"), make_issue(["only"], "y")])
+    u = LAU(values=[TableFun({"a": 1, "b": 5, "c": 3}), TableFun({"only": 2})], weights=[1, 1], outcome_space=os_,
+            reserved_value=4.0, name="u")
+    play = normalize_for_play(Scenario(outcome_space=os_, ufuns=(u, u.normalize())))
+    n = play.ufuns[0]
+    assert raw_of(n).reserved_value == 4.0  # untouched: the original
+    lo, hi = n.minmax()
+    n.reserved_value = lo + 0.5 * (hi - lo)  # forced half way
+    assert abs(raw_of(n).reserved_value - 5.0) < 1e-9  # half way from 3 to 7
+
+
+def test_weighted_preferences_in_raw_numbers(hani2_home):
+    from negmas import LinearAdditiveUtilityFunction as LAU
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+    from negmas.preferences import WeightedUtilityFunction
+    from negmas.preferences.value_fun import TableFun
+
+    _env(hani2_home, {}, {"preferences_scale": "raw"})
+    os_ = make_os([make_issue(["a", "b"], "x")])
+    parts = [LAU(values=[TableFun({"a": 1, "b": 0})], outcome_space=os_), LAU(values=[TableFun({"a": 0, "b": 2})],
+                                                                                 outcome_space=os_)]
+    w = WeightedUtilityFunction(ufuns=parts, weights=[2, 3], outcome_space=os_)
+    texts = json.dumps(uv.render_ufun_view(type("T", (), {"values": {}})(), w))
+    assert "Weights of the parts" in texts and "(its weight)" in texts
