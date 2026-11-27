@@ -623,3 +623,27 @@ def test_the_next_event_is_accepted_as_soon_as_the_previous_reply_is_sent():
     finally:
         released.set()
 
+
+def test_a_late_negotiation_started_keeps_the_host_session_of_this_negotiation():
+    """The session queues ``negotiation_started`` for the Assistant; the human may use the offer tool before
+    it runs. The late event must not close the host session that call opened (its next step would get a 404),
+    while a session left from an earlier negotiation is still replaced."""
+    app = make_app("assistant", Suggester, token=TOKEN)
+    with run_host(app) as url:
+        registry.add("default", "sug2", "assistant", url, token=TOKEN)
+        s = make_session(agent_class="remote:sug2", support_settings={
+            "capabilities": {"llm_tool": True, "fill_offer": True, "fill_text": True, "chat": True}})
+        s.start()
+        s.wait_for_turn()
+        s.wait_agent_idle()
+        sa = s.support_agent
+        sa._close_session()  # as if the queued event had not run yet: no host session
+        assert sa.suggest_offer("first", "both")["error"] is None
+        sid = sa._sid
+        sa.on_event("negotiation_started")  # the queued event arrives late
+        assert sa._sid == sid
+        r = sa.suggest_offer("second", "both")
+        assert r["error"] is None and r["text"] == "re: second" and sa.failures_total == 0
+        sa._sid_round = s.round_number - 1  # a session left from the previous negotiation is replaced
+        sa.on_event("negotiation_started")
+        assert sa._sid not in (None, sid)

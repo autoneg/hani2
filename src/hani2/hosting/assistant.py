@@ -65,6 +65,7 @@ class RemoteAssistant(SupportAgent):
         self.turn_deadline = max(float(self.endpoint.timeout), min(float(self.turn_deadline), 600.0))
         self._client: HostedClient | None = None
         self._sid: str | None = None
+        self._sid_round: Any = None  # the negotiation (the session's round number) the host session was opened in
         self._seq = 0
         self._wants: set[str] = set()
         self.failures_total = 0
@@ -135,12 +136,21 @@ class RemoteAssistant(SupportAgent):
                 if reply.get("ok") is False:
                     raise HostedError(f"the hosted agent {self.endpoint.name} refused the session: "
                                       f"{str(reply.get('error') or '')[:200]}")
-                self._sid, self._seq = sid, 0
+                self._sid, self._seq, self._sid_round = sid, 0, self._round()
                 self._note(reply)
             return self._sid
 
-    def _close_session(self) -> None:
+    def _round(self) -> Any:
+        try:
+            return getattr(self.session, "round_number", None)
+        except Exception:  # noqa: BLE001  (no session attached)
+            return None
+
+    def _close_session(self, keep_round: Any = None) -> None:
+        """Close the host session; with ``keep_round``, not when it was opened in that negotiation."""
         with self._lifecycle:
+            if keep_round is not None and self._sid is not None and self._sid_round == keep_round:
+                return
             sid, self._sid = self._sid, None
         if sid is None:
             return
@@ -286,7 +296,9 @@ class RemoteAssistant(SupportAgent):
         if event_name == "action_requested":
             self._below_reserved_warned = False
         if event_name == "negotiation_started":
-            self._close_session()  # a new negotiation: a new host session
+            # a new negotiation: a new host session. The event is queued, so a turn of this negotiation (the
+            # human used the offer tool at once, say) may already have opened one: keep that, it is not stale
+            self._close_session(keep_round=self._round())
         try:
             if not self.user_enabled:
                 return
