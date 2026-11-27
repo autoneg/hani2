@@ -651,24 +651,12 @@ def _safe_vis(p: str, s: str) -> str:
         return DEFAULT_VISIBILITY
 
 
-def board(project: str, study: str | None = None, query: dict | None = None, *, admin: bool = False,
-          n_boot: int = 1000, seed: int = 0, now: datetime | None = None) -> dict[str, Any]:
-    """The board of a project (``study=None``) or of one study, for ``query`` (``sort``, ``games``,
-    ``stratum``, ``window``), as the schema ``hani2.leaderboard/2``. Values the viewer may not use raise
-    :class:`BoardError`; ``admin`` allows every enabled score and criterion and every switch value."""
+def board_refs(cfg: Settings, warnings: list[str]) -> list:
+    """The studies a board reads: the study, or the project's chosen studies (a missing one is added to
+    ``warnings``)."""
     from hani2 import projects
-    from hani2.evaluation import scores as S
 
-    _resolve(project, study)
-    ss = S.resolve(project, study)
-    cfg = settings(project, study, score_set=ss)
-    crit = _criteria_index(project, study)
-    q = parse_query(cfg, ss, crit, query, admin=admin)
-    now = now or datetime.now(timezone.utc)
-    warnings: list[str] = [f"leaderboard settings: {p}" for p in cfg.problems]
-    if ss.problems:
-        warnings.append(f"{len(ss.problems)} score definition problem(s): see `hani2 scores check`")
-    # the rows: the study, or the project's chosen studies and the rows taken in from other projects
+    project, study = cfg.project, cfg.study
     refs = [projects.StudyRef(project, study)] if study else []
     if not study:
         for s in cfg.studies:
@@ -677,13 +665,21 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
                 refs.append(r)
             else:
                 warnings.append(f"study {s!r} of leaderboard.studies does not exist (yet)")
+    return refs
+
+
+def board_rows(cfg: Settings, refs: list, warnings: list[str]) -> list[dict]:
+    """The game rows of ``refs`` and, for a project board, the rows taken in from other projects (each
+    marked with its stratum). What is missing is added to ``warnings``."""
+    from hani2 import projects
+
     rows: list[dict] = []
     stale = 0
     for r in refs:
         rs, info = study_rows(r)
         rows += rs
         stale += info.get("failed", 0)
-    if not study:
+    if not cfg.study:
         for inc in cfg.include:
             try:
                 r = projects.parse_ref(inc["study"])
@@ -698,6 +694,30 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
             rows += rs
     if stale:
         warnings.append(f"{stale} recording(s) could not be evaluated and are left out")
+    return rows
+
+
+def board(project: str, study: str | None = None, query: dict | None = None, *, admin: bool = False,
+          n_boot: int = 1000, seed: int = 0, now: datetime | None = None) -> dict[str, Any]:
+    """The board of a project (``study=None``) or of one study, for ``query`` (``sort``, ``games``,
+    ``stratum``, ``window``), as the schema ``hani2.leaderboard/2``. Values the viewer may not use raise
+    :class:`BoardError`; ``admin`` allows every enabled score and criterion and every switch value."""
+    from hani2.evaluation import scores as S
+
+    _resolve(project, study)
+    ss = S.resolve(project, study)
+    cfg = settings(project, study, score_set=ss)
+    crit = _criteria_index(project, study)
+    tournament = cfg.source == "tournament"
+    q = parse_tournament_query(query) if tournament else parse_query(cfg, ss, crit, query, admin=admin)
+    now = now or datetime.now(timezone.utc)
+    warnings: list[str] = [f"leaderboard settings: {p}" for p in cfg.problems]
+    if ss.problems:
+        warnings.append(f"{len(ss.problems)} score definition problem(s): see `hani2 scores check`")
+    refs = board_refs(cfg, warnings)
+    if tournament:
+        return _tournament(cfg, q, refs, now, warnings)
+    rows = board_rows(cfg, refs, warnings)
     value_keys = [k for k in dict.fromkeys([q["sort"], *cfg.columns]) if k not in COUNT_COLUMNS
                   and _key_problem(k, ss, crit, sort=False) is None]
     dropped_cols = [k for k in cfg.columns if k not in COUNT_COLUMNS and k not in value_keys]
@@ -705,13 +725,113 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
         warnings.append(f"column(s) {', '.join(dropped_cols)} are not enabled here and are not shown")
     if _key_problem(cfg.default_sort, ss, crit, sort=True) is not None:
         warnings.append(f"default_sort {cfg.default_sort!r} cannot be used here; the board uses {q['sort']!r}")
-    if cfg.source == "tournament":
-        return _tournament(cfg, q, refs, ss, crit, admin, now, warnings)
     out = _game_board(cfg, q, rows, ss, crit, value_keys, project, study, now, n_boot, seed, warnings)
     out["options"] = options(cfg, ss, crit, admin=admin)
     out.pop("_reference")
+    out.pop("_counted")
     out["data_version"] = data_version(out)
     return _order(out)
+
+
+#: the key a draft is previewed under when the builder's key is not a valid one yet
+PREVIEW_KEY = "draft_score"
+
+
+def _histogram(values: list[float], bins: int) -> list[dict[str, Any]]:
+    out = [{"lo": i / bins, "hi": (i + 1) / bins, "count": 0} for i in range(bins)]
+    for v in values:
+        out[min(bins - 1, max(0, int(v * bins)))]["count"] += 1
+    return out
+
+
+def preview(project: str, study: str | None, definition: Any, key: str | None = None, *, top: int = 5,
+            bins: int = 10, n_boot: int = 200, seed: int = 0, now: datetime | None = None) -> dict[str, Any]:
+    """A score that is not saved, on the current data of the board of ``project`` (or of ``study``): the
+    weights in effect after the coverage rule, the parts dropped for everyone, the distribution of the score
+    over the counted games (``bins`` bins over [0, 1]) and the ``top`` entrants, ranked as the board would
+    rank them by it. ``key`` is the score's key (an edit replaces the saved definition); while it is not a
+    valid key, :data:`PREVIEW_KEY` stands in. Weights that do not sum to 1 are rescaled (with a note);
+    nothing is written. What makes the definition unusable comes back in ``problems`` (no board then)."""
+    from hani2.evaluation import scores as S
+
+    _resolve(project, study)
+    notes: list[str] = []
+    k = str(key or "").strip()
+    if not k or S.check_key(k):
+        k = PREVIEW_KEY
+    d = dict(definition) if isinstance(definition, dict) else definition
+    if isinstance(d, dict) and isinstance(d.get("components"), list):
+        comps = [dict(c) if isinstance(c, dict) else c for c in d["components"]]
+        ws = [c.get("weight") for c in comps if isinstance(c, dict)]
+        if ws and all(S._is_weight(w) and float(w) >= 0 for w in ws):
+            total = sum(float(w) for w in ws)
+            if total > 0 and abs(total - 1) > S.WEIGHT_TOLERANCE:
+                notes.append(f"the weights sum to {100 * total:.4g} %: the preview uses them rescaled to 100 %")
+                for c in comps:
+                    if isinstance(c, dict):
+                        c["weight"] = float(c["weight"]) / total
+        d["components"] = comps
+    from hani2 import projects
+
+    if study:
+        st = projects.load_study(projects.StudyRef(project, study))
+        ss = S.resolve(project, study, study_scores={**S._file_scores(st.overrides), k: d})
+    else:
+        pr = projects.load_project(project)
+        ss = S.resolve(project, None, project_scores={**S._file_scores(pr.defaults), k: d})
+    mine = [p for p in ss.problems if f"score {k!r}" in p or ("cycle" in p and repr(k) in p)]
+    if k not in ss.scores or mine:
+        return {"key": k, "problems": mine or [f"score {k!r} cannot be computed"], "notes": notes}
+    if k not in ss.enabled:
+        ss.enabled.append(k)
+    score = ss.scores[k]
+    cfg = settings(project, study, score_set=ss)
+    if score.track in TRACKS and score.track != cfg.track:
+        notes.append(f"the score ranks {'Assistants' if score.track == 'hi' else 'opponents'} (track {score.track}), "
+                     f"so it is previewed on the {score.track} games; this board's track is {cfg.track}")
+        cfg.track = score.track
+        cfg.defaults = {**cfg.defaults, "stratum": STRATA[score.track][0]}
+    if cfg.source == "tournament":
+        notes.append("this board shows the simulated table: the preview ranks the games instead")
+    crit = _criteria_index(project, study)
+    warnings: list[str] = []
+    rows = board_rows(cfg, board_refs(cfg, warnings), warnings)
+    q = {"sort": k, **cfg.defaults}
+    out = _game_board(cfg, q, rows, ss, crit, [k], project, study, now or datetime.now(timezone.utc),
+                      n_boot, seed, warnings)
+    shown = [r for r in out["_counted"] if not r.get("_hidden")]
+    values = [float(v) for v in (num_or_none(r.get(k)) for r in shown) if v is not None]
+    covs = [float(v) for v in (num_or_none(r.get(f"{k}_coverage")) for r in shown) if v is not None]
+    info = out["scores"].get(k, {})
+    srt = sorted(values)
+    mid = len(srt) // 2
+    entries = [{"rank": e["rank"], "entrant": e["entrant"], "label": e["label"], "mean": e["values"][k]["mean"],
+                "ci": e["values"][k]["ci"], "games": e["games"].get("all", 0), "participants": e["participants"],
+                "tied_with_leader": e["tied_with_leader"]} for e in out["entries"]]
+    return {
+        "key": k, "title": score.title, "track": cfg.track, "problems": [],
+        "weights_in_effect": info.get("weights_in_effect", {}), "dropped": info.get("dropped", []),
+        "provisional": bool(info.get("provisional")),
+        "games": len(shown), "without_value": len(shown) - len(values),
+        "histogram": _histogram(values, bins),
+        "stats": {"mean": sum(values) / len(values) if values else None,
+                  "median": (srt[mid] if len(srt) % 2 else (srt[mid - 1] + srt[mid]) / 2) if srt else None,
+                  "min": srt[0] if srt else None, "max": srt[-1] if srt else None,
+                  "coverage": sum(covs) / len(covs) if covs else None},
+        "entries": entries[:top], "n_entrants": len(entries), "unranked": out["unranked"],
+        "warnings": [w for w in out["warnings"] if not w.startswith("leaderboard settings")],
+        "notes": notes + [n for n in out["notes"] if n.startswith(("normalisation", score.title))],
+        "reference": out["reference"],
+    }
+
+
+def num_or_none(v: Any) -> float | None:
+    """A finite number, else ``None``."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if math.isfinite(x) and not isinstance(v, bool) else None
 
 
 def data_version(out: dict) -> str:
@@ -935,7 +1055,7 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
         "warnings": list(dict.fromkeys(warnings)), "notes": notes, "visibility": cfg.visibility,
         "stratum_title": lb.get("stratum_title"), "cells": lb.get("cells"),
         "totals": {k: lb["totals"].get(k) for k in ("sessions", "matches", "agreement_rate", "welfare")},
-        "reference": rsum, "_reference": ref,
+        "reference": rsum, "_reference": ref, "_counted": counted,
     }
 
 
@@ -974,10 +1094,40 @@ def _in_stratum(r: dict, track: str, stratum: str) -> bool:
     return st == stratum
 
 
-def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: bool, now: datetime,
-                warnings: list[str]) -> dict[str, Any]:
+#: the one sort key of the simulated table (``source: tournament``); it has no switches
+TOURNAMENT_SORT = "goal_rate"
+
+
+def tournament_options() -> dict[str, Any]:
+    """The options of a simulated table: only what it honours, its one sort key and no switch."""
+    return {"sort": [{"key": TOURNAMENT_SORT, "title": "Goal rate", "kind": "criterion", "direction": "higher",
+                      "description": "Share of valid simulated trials that ended in a deal worth at least the "
+                                     "persona's reservation value"}],
+            "defaults": {"sort": TOURNAMENT_SORT}}
+
+
+def parse_tournament_query(query: dict | None) -> dict[str, str]:
+    """The view asked of a simulated table: only ``sort=goal_rate``; any other sort key or any switch
+    (``games``, ``stratum``, ``window``) raises :class:`BoardError` that says why."""
+    q = {k: v for k, v in (query or {}).items() if v not in (None, "")}
+    unknown = sorted(set(q) - {"sort", *SWITCHES})
+    if unknown:
+        raise BoardError(f"unknown parameter(s) {', '.join(unknown)}; a simulated (tournament) board takes only "
+                         f"sort={TOURNAMENT_SORT}")
+    switches = [sw for sw in SWITCHES if sw in q]
+    if switches:
+        raise BoardError(f"{', '.join(switches)} cannot be used on a simulated (tournament) board: it ranks every "
+                         f"simulated trial and has no {'/'.join(SWITCHES)} switches")
+    sort = str(q.get("sort", TOURNAMENT_SORT))
+    if sort != TOURNAMENT_SORT:
+        raise BoardError(f"sort {sort!r} is not allowed on a simulated (tournament) board; it is ranked by "
+                         f"{TOURNAMENT_SORT} only")
+    return {"sort": TOURNAMENT_SORT}
+
+
+def _tournament(cfg: Settings, q: dict, refs: list, now: datetime, warnings: list[str]) -> dict[str, Any]:
     """The simulated table (``source: tournament``): per Assistant, the goal rate of its valid simulated
-    trials, averaged over personas."""
+    trials, averaged over personas. Its ``options`` hold only what it honours (:func:`tournament_options`)."""
     import pandas as pd
 
     from hani2.evaluation import eval_cache
@@ -1009,9 +1159,9 @@ def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: 
         e["rank"] = i + 1
     out = {"schema": SCHEMA, "project": cfg.project, "study": cfg.study, "track": cfg.track, "source": "tournament",
            "generated_at": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-           "query": dict(q), "options": options(cfg, ss, crit, admin=admin), "columns": ["goal_rate", "mean_utility", "games"],
+           "query": dict(q), "options": tournament_options(), "columns": ["goal_rate", "mean_utility", "games"],
            "scores": {}, "rules": dict(cfg.rules), "entries": entries, "unranked": [], "excluded": {},
-           "warnings": warnings + ["the simulated table: the sort and switches do not apply to it"],
+           "warnings": warnings,
            "notes": ["simulated participants against each Assistant; goal rate = deals worth at least the persona's "
                      "reservation value"], "visibility": cfg.visibility}
     out["data_version"] = data_version(out)

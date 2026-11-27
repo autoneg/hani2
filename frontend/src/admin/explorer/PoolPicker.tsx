@@ -5,7 +5,22 @@ import { Group } from "../Group";
 import { Row } from "../Row";
 import { lq, shortPath, type Layer } from "../layer";
 import { toast } from "../toast";
+import { MODE_LABEL, allowedHumans, poolEntryProblem } from "../modes";
 import type { Choice } from "./types";
+
+/** The declared mode (``study_mode`` of the study or its project; ``null``: derived from the pool) and
+ *  the project's kind at a project or study layer; the settings layer has neither. */
+function useLayerMode(layer: Layer, version: unknown) {
+  const [m, setM] = useState<{ mode: string | null; kind: string } | null>(null);
+  useEffect(() => {
+    if (layer.kind === "settings" || !layer.project) return setM(null);
+    const url = `/api/admin/projects/${encodeURIComponent(layer.project)}${layer.kind === "study" ? `/studies/${encodeURIComponent(layer.study ?? "")}` : ""}`;
+    api(url)
+      .then((r: any) => setM({ mode: r?.study_mode_effective?.declared ?? null, kind: r?.editor?.kind ?? "none" }))
+      .catch(() => setM(null));
+  }, [layer.id, version]);
+  return m;
+}
 
 /** Which opponents / Assistants participants face at a layer: a multi-select over groups and single classes. */
 export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponent" | "assistant"; layer: Layer; choices: Choice[]; title: string; id: string }) {
@@ -13,6 +28,10 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
   const [sel, setSel] = useState<string[]>([]);
   const [q, setQ] = useState("");
   const [dirty, setDirty] = useState(false);
+  const lm = useLayerMode(layer, d);
+  // the declared mode limits what an opponent pool offers (Solo: no person; Paired: the right person only)
+  const mode = kind === "opponent" ? lm?.mode ?? null : null;
+  const pkind = lm?.kind ?? "none";
   const load = () =>
     api(`/api/admin/pools/${kind}${lq(layer)}`)
       .then((r) => (setD(r), setSel(r.items ?? []), setDirty(false)))
@@ -28,12 +47,19 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
           { value: "human+assistant", label: "human+assistant", hint: "Another participant with an Assistant" },
         ]
       : [];
-    const all = [...humans, ...choices.filter((c) => c.group), ...choices.filter((c) => !c.group)];
+    const offered = (c: Choice) => kind !== "opponent" || !poolEntryProblem(c.value, mode, pkind);
+    const all = [...humans, ...choices.filter((c) => c.group), ...choices.filter((c) => !c.group)].filter(offered);
+    // what is chosen stays listed (to be removed), even when the mode does not offer it
     const extra: Choice[] = sel.filter((s) => !all.some((c) => c.value === s)).map((s) => ({ value: s, label: s }));
     return [...extra, ...all].filter((c) => !q || `${c.value} ${c.label} ${c.hint ?? ""}`.toLowerCase().includes(q.toLowerCase()));
-  }, [choices, q, sel, kind]);
+  }, [choices, q, sel, kind, mode, pkind]);
   if (d === undefined) return null;
   if (d === null) return null;
+  const bad = kind === "opponent" ? sel.map((s) => [s, poolEntryProblem(s, mode, pkind)] as const).filter(([, why]) => why) : [];
+  const humansHere = allowedHumans(mode, pkind);
+  const modeHint = kind !== "opponent" || mode === null ? null
+    : mode === "paired" ? `${MODE_LABEL.paired} study: only ${humansHere!.join(" or ")} is offered`
+    : `${MODE_LABEL[mode as "solo" | "mixed"] ?? mode} study: ${mode === "solo" ? "no human entry is offered" : "every entry is offered"}`;
   const toggle = (v: string) => (setSel(sel.includes(v) ? sel.filter((x) => x !== v) : [...sel, v]), setDirty(true));
   const save = async () => {
     try {
@@ -48,11 +74,11 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
   };
   return (
     <Group title={title} id={`setting-${id}`} footer={<>{d.note ? `${d.note}. ` : ""}{d.file && <>Stored in <code>{shortPath(d.file)}</code>{d.key ? <> as <code>{d.key}</code></> : null}. </>}A URL's <code>?{kind === "opponent" ? "opponents" : "assistants"}=</code> or <code>?group=</code>, an environment variable or an outside system's schedule still win.</>}>
-      <Row label="Chosen here" hint={sel.length ? `${d.effective?.length ?? "?"} ${kind === "opponent" ? "opponent" : "Assistant"}${d.effective?.length === 1 ? "" : "s"} after expanding the groups` : `Nothing chosen in this layer: inherited ${d.inherited?.length ? d.inherited.join(", ") : "default"}`} wide>
+      <Row label="Chosen here" help={kind === "opponent" ? "opponents.pool" : undefined} hint={sel.length ? `${d.effective?.length ?? "?"} ${kind === "opponent" ? "opponent" : "Assistant"}${d.effective?.length === 1 ? "" : "s"} after expanding the groups` : `Nothing chosen in this layer: inherited ${d.inherited?.length ? d.inherited.join(", ") : "default"}`} wide>
         <div className="flex flex-wrap gap-1.5">
           {sel.length === 0 && <span className="text-sm text-muted">—</span>}
           {sel.map((s) => (
-            <span key={s} className="chip py-1 text-[0.8rem]">
+            <span key={s} className={`chip py-1 text-[0.8rem] ${bad.some(([b]) => b === s) ? "border-bad text-bad" : ""}`} title={bad.find(([b]) => b === s)?.[1]} data-pool-entry={s}>
               {(s.startsWith(":") || s.startsWith("@")) && <Layers size={12} className="text-you" />}
               {s}
               {d.editable && (
@@ -64,6 +90,12 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
           ))}
         </div>
       </Row>
+      {modeHint && <div className="px-4 pb-1 text-xs text-muted" data-pool-mode={mode}>{modeHint} (the Mode of {layer.kind === "study" ? "this study or its project" : "this project"}).</div>}
+      {bad.length > 0 && (
+        <div className="px-4 py-1 text-sm text-bad" role="alert" data-pool-problem>
+          {bad.map(([s, why]) => <div key={s}>{s}: {why}. Remove it to save.</div>)}
+        </div>
+      )}
       {d.editable && (
         <>
           <Row label="Add groups or single classes" wide>
@@ -83,7 +115,7 @@ export function PoolPicker({ kind, layer, choices, title, id }: { kind: "opponen
           </Row>
           <Row label="">
             {dirty && <span className="text-xs text-muted">Unsaved</span>}
-            <button className="btn-primary" disabled={!dirty} onClick={save}>
+            <button className="btn-primary" disabled={!dirty || bad.length > 0} onClick={save}>
               <Save size={15} /> Save pool
             </button>
           </Row>

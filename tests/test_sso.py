@@ -420,6 +420,19 @@ def test_an_api_token_is_accepted_and_may_be_used_again(client):
         sso.verify_api_token(tok, root_path="/hiplay2")
 
 
+def test_the_admin_scope_is_separate_and_includes_read(client):
+    """leaderboard:read does not read admins boards; leaderboard:admin reads them and the others too."""
+    read = _independent_hs256(api_claims(), SECRET)
+    with pytest.raises(sso.APITokenError) as e:
+        sso.verify_api_token(read, sso.SCOPE_LEADERBOARD_ADMIN)
+    assert e.value.status == 403 and e.value.code == "scope"
+    admin = _independent_hs256(api_claims(scope="leaderboard:admin"), SECRET)
+    assert sso.verify_api_token(admin, sso.SCOPE_LEADERBOARD_ADMIN)
+    assert sso.verify_api_token(admin)  # it includes leaderboard:read
+    minted = sso.mint_api_token("scmlweb", scope=sso.SCOPE_LEADERBOARD_ADMIN)
+    assert sso.token_has_scope(sso.verify_api_token(minted, sso.SCOPE_LEADERBOARD_ADMIN), sso.SCOPE_LEADERBOARD)
+
+
 def test_a_signin_token_cannot_read_the_api_and_an_api_token_cannot_sign_in(client):
     signin = _independent_hs256(claims(), SECRET)
     with pytest.raises(sso.APITokenError) as e:
@@ -459,17 +472,20 @@ def test_the_python_minting_example_of_the_handoff_note(client):
     import hmac
     import json
 
-    def mint(secret: str, issuer: str = "scmlweb", root_path: str = "") -> str:
+    def mint(secret: str, issuer: str = "scmlweb", root_path: str = "", scope: str = "leaderboard:read") -> str:
         def b64(b: bytes) -> str:
             return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
         now = int(time.time())
         aud = "hani2-api" + (f"/{root_path.strip('/')}" if root_path.strip("/") else "")
         head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
-        body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": "leaderboard:read",
+        body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": scope,
                                "iat": now, "exp": now + 60}).encode())
         sig = b64(hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest())
         return f"{head}.{body}.{sig}"
 
     assert sso.verify_api_token(mint(SECRET))["iss"] == "scmlweb"
     assert sso.verify_api_token(mint(SECRET, root_path="/hiplay2"), root_path="/hiplay2")
+    with pytest.raises(sso.APITokenError):  # admins boards need the separate scope
+        sso.verify_api_token(mint(SECRET), sso.SCOPE_LEADERBOARD_ADMIN)
+    assert sso.verify_api_token(mint(SECRET, scope="leaderboard:admin"), sso.SCOPE_LEADERBOARD_ADMIN)

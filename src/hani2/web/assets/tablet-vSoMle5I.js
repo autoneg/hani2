@@ -1,1 +1,0 @@
-import{c as t}from"./index-BU9-3N9j.js";const e={name:"tablet",size:24,node:[["rect",{width:"16",height:"20",x:"4",y:"2",rx:"2",ry:"2",key:"76otgf"}],["line",{x1:"12",x2:"12.01",y1:"18",y2:"18",key:"1dp563"}]]};e.node;const a=t(e);export{e as __iconData,a as default};

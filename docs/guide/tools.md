@@ -485,3 +485,32 @@ With **Use tools** (`tool_use`) the agent can also read any tool's help text and
 ## How tools are rendered
 
 Only the tools the participant can see are computed: the front tab of each pane and an enlarged tool. A hidden tool is brought up to date when its tab is opened. Tools are computed in their own worker threads, never on the server's main loop, so a slow tool does not delay the rest of the page; in the browser, charts are drawn when the browser is idle and only when on screen.
+
+## When a tool fails
+
+A tool is code, and code submitted by a team or a study designer may raise an error or never
+finish. A failing tool never breaks the session, the negotiation, the other tools or the page: its
+failure is shown **in that tool's own tab only**, and everything else carries on.
+
+| What fails | What the tool's tab shows |
+| --- | --- |
+| Creating the tool, or its `init` | The failure, for the rest of the session. The tool keeps its tab but is not called again. |
+| Its `view` raises | The failure, until a later render works. |
+| Its `view` takes longer than `tools.render_timeout` seconds (20 by default) | That it took too long. The tool is not rendered again until that render returns, so a hanging tool never holds up the other tools or sessions. |
+| A hook (`scenario_loaded`, `negotiation_started`, `action_executed`, …), an input or a button | The tool's normal view under an error banner, until the same call works again. A failing button also shows a notification, as before. |
+
+Participants only read that the tool is not working right now. Administrators also see the error
+type, the message and, folded away, the traceback. Every failure is written to the server log and
+recorded as an `error` event once per kind of failure. When the Assistant tries to use a tool that
+failed to start or is stuck rendering, it is told the tool is not working right now.
+
+A tool file (or `tools.extra` entry, entry point or library entry) that cannot even be imported
+gives no tab at all. The admin console lists such files at the top of the **Tools** page of the
+library, with the error, until the file is fixed (`GET /api/admin/library/tools/load-errors`).
+
+**Built-in tools.** HANI2's own tools (classes defined in the `hani2` package) get the same
+treatment by default. For debugging HANI2 itself, set `tools.isolate_builtin` to `false` (*Catch
+built-in tool failures* on the **Tools** settings page): then their errors surface as they used
+to (printed in the server log, a render error shown with its message to everyone) and they have
+no time limit. Running sessions pick up a change of either setting within a few seconds. Tools from the tools folder, `--tools`, `tools.extra`, entry points and the library
+are always guarded, even when they subclass a built-in tool.

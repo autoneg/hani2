@@ -44,6 +44,22 @@ A project can be created and edited in three ways, which all write the same `pro
 
 `create` on an existing project updates the given fields. `hani2 study create` also creates the project when it is missing.
 
+Saving `project.yaml` (all three ways) checks the project's own defaults **and every study of the
+project**, each with its overrides merged with the new project file: the study's mode against the
+opponent pool it would play, and K ≤ N for the Assistants (see [Mode](study-management.md#checks-and-how-to-fix-the-errors)
+and [K sessions per person over N Assistants](study-management.md#k-sessions-per-person-over-n-assistants)).
+A change that would break a study is refused, naming the study and the problem:
+
+```text
+study HI2027/pairs: study_mode is 'paired' but opponents is [:pan]; a Paired HI study (kind: assistant)
+needs opponents: [human+assistant]
+```
+
+Only problems the change adds block it: a study whose own file is already wrong is reported by that
+study's checks and does not stop an unrelated project edit. The pool editor of the admin console
+(`PUT /api/admin/pools/{kind}` on a project or study layer) runs the same checks on the file it
+changes.
+
 In the admin console, every choice that is not self-explanatory has a **?** after its name, which
 opens an explanation of the choice and its values. The [Settings reference](settings-reference.md)
 collects the same texts, with the key each choice writes.
@@ -248,6 +264,22 @@ the settings folder and finally the built-in groups (see [Group files](opponents
 and [Assistant groups](assistant.md#assistant-groups)). `hani2 groups list --project <P>` lists a
 project's groups, and the admin API edits them (see [Admin API](#admin-api)).
 
+**The mode limits the opponent pool.** In the admin console (Opponents → **Opponents participants
+face**), the pool of a project or study that declares a **Mode** offers only the entries that mode
+allows:
+
+| Mode | HI project | HAN project | Research (`kind: none`) |
+|---|---|---|---|
+| Solo | AI agents and groups, no human entry | the same | the same |
+| Paired | `human+assistant` only | `human` only | `human` and `human+assistant` |
+| Mixed, or no mode declared | everything | everything | everything |
+
+An entry already in the pool that the mode does not allow is shown in red with the reason, and the
+pool cannot be saved until it is removed. Without a declared mode the mode is derived from the pool,
+so everything is offered. When no file names an opponent pool, the editor checks the mode against
+the pool an `env.json` layer (the study's, the project's or the settings folder's) gives, and says
+so under the **Mode** row.
+
 ### Assignment
 
 A project chooses, for all its studies, how each dimension is assigned to the humans: the
@@ -282,6 +314,24 @@ counted negotiations ($K$, `n_required`) with the number of Assistants in the po
 groups are expanded), and turns orange when $K > N$ under a method that promises each Assistant at
 most once while **Repeats** is off: saving is then refused. **Repeats** sets `assistant_repeats` and
 **Crossing** sets `cross`.
+
+The rows follow the **Mode** as it is being edited:
+
+- **Solo** and **Mixed** use every row. In Mixed, a game against an AI uses the Assistant method
+  as a slot, and a match with a person uses it as a set (below).
+- **Paired** has no AI opponent sequence, so the **Opponents** method and **Crossing** show *not
+  used* (the AI fallback draws from **Fallback opponents**). The **Assistants** method gives each
+  person a **set** of Assistants, and pairing picks from it: one-per-person methods give their one
+  Assistant for every match, the at-most-once methods the first K of the person's sequence minus
+  those used, `random_each` the whole pool, and `external` the Assistants of the person's
+  `schedule.json`. With `scenarios: by_participant` people meet only people of the same scenario
+  type; otherwise the joiner takes the host's scenario.
+- A Paired **HAN** study plays without Assistants, so its **Assistants** row shows *not used*.
+
+A method that a file sets for a dimension the mode does not use stays shown, with a note that it is
+ignored, so that it can be reset. In the **Pairing** group, **How a match is formed** lists
+`cells` first in a Paired study (its default) and `random` first in a Mixed one (the game's), and
+each empty field shows the value the mode gives.
 
 What these defaults do within a study is described in
 [Assigning Assistants, opponents and scenarios](study-management.md#assigning-assistants-opponents-and-scenarios),
@@ -417,6 +467,7 @@ scores:
          normaliser: {kind: reciprocal, scale: reference_median}}
     missing: renormalise         # renormalise | zero | skip_game
     min_coverage: 0.5
+    needs_assistant: true        # empty for sessions without an Assistant
 ```
 
 Each component names a criterion and its weight. It may also give:
@@ -430,7 +481,9 @@ Each component names a criterion and its weight. It may also give:
 `title`, `description`, `track` (default `any`), `missing` (default `renormalise`),
 `min_coverage` (default 0.5) and `same_assistant` (default `once`: how a board counts a game where
 both people used the same Assistant, see [Which games count](#which-games-count); `skip` leaves such
-games out of the score) are optional.
+games out of the score), `zero_if` (default: none) and `needs_assistant` (default `false`, see
+[Rules for failures and sessions without an Assistant](#rules-for-failures-and-sessions-without-an-assistant))
+are optional.
 
 **Weights are ≥ 0 and sum to 1** (100 %, to within $10^{-6}$). The admin API and `hani2 scores set`
 refuse any other sum, and suggest rescaling (**Normalise**). A weight of 0 keeps a component in the
@@ -475,6 +528,34 @@ direction is `higher` and its normaliser `bounded [0, 1]`. Cycles are refused. `
 also prints the weights **flattened** down to criteria: `hi_team` with weight 0.15 shares its 0.15
 among its own parts.
 
+#### Rules for failures and sessions without an Assistant
+
+Two optional keys decide, before the components are looked at, whether a game gets the usual value:
+
+| Key | Default | The game's score |
+| --- | --- | --- |
+| `zero_if: [<criterion>, ...]` | none | **0** (with coverage 1) when one of these criteria is 1 in the game |
+| `needs_assistant: true` | `false` | **empty** (no value, no coverage) when the human played without an Assistant |
+
+```yaml
+scores:
+  my_han_outcome:
+    track: han
+    components:
+      - {criterion: opponent_advantage, weight: 1}
+    zero_if: [opponent_failed]        # an opponent agent that failed gets 0
+  my_team:
+    track: hi
+    components:
+      - {criterion: irrational_accept,  weight: 0.5}
+      - {criterion: jh_engagement,      weight: 0.5}
+    needs_assistant: true             # a game without an Assistant says nothing about one
+```
+
+Every entry of `zero_if` must be a known criterion (usually a 0/1 column such as `opponent_failed`).
+`han_outcome` has `zero_if: [opponent_failed]`; `hi_assistant`, `hi_team` and `hi_interaction` have
+`needs_assistant: true`.
+
 ### Built-in scores
 
 Every project has the built-in scores. They are read-only, written in the same format, and their
@@ -498,9 +579,8 @@ the project, where it can be edited:
 hani2 scores duplicate HI2027 hi_assistant my_assistant
 ```
 
-The copy starts with the same parts, weights and normalisers. Two rules of the built-ins are not part
-of the format and are not copied: `han_outcome` is 0 when the opponent failed, and the HI interaction
-scores are empty for sessions without an Assistant.
+The copy starts with the same parts, weights, normalisers and rules (`zero_if`, `needs_assistant`),
+so until you change it, it gives the same values as the original.
 
 ### Which scores a study uses
 
@@ -534,7 +614,29 @@ score builder:
   a criterion without a direction must be given one.
 
 The builder saves the score at once, through the admin API, with the same checks as
-`hani2 scores set`. **Scores enabled** below it is saved with the page.
+`hani2 scores set`. **Scores enabled** below it is saved with the page. Editing a score keeps its
+**Zero if** (`zero_if`) and **Needs an Assistant** (`needs_assistant`) rules, which the builder also
+sets (see [Rules for failures and sessions without an Assistant](#rules-for-failures-and-sessions-without-an-assistant)).
+
+### Previewing a score
+
+While you build a score, the **Preview** under its components computes it on the games the board of
+the project (or of the study) reads, as the board would rank them, and updates a moment after each
+change. Nothing is saved:
+
+- **Weights in effect**: each component's share after the coverage rule, summing to 100 %. Weights
+  that do not sum to 100 % yet are previewed rescaled.
+- **Dropped**: components present in fewer than **Minimum coverage** of some entrant's games, which
+  are left out for everyone.
+- **Distribution over the games**: a histogram of the score's values over the counted games, in ten
+  bins of [0, 1], with the mean, the median and the coverage.
+- **Top entrants**: the first five by the score's mean, with the 95 % interval and the games counted.
+
+A score with the track `hi` or `han` is previewed on that track's games. A definition that cannot be
+computed (an unknown criterion, a missing direction) shows why instead. The same preview is
+`POST /api/admin/scores/preview?project=P` (or `?study=P/S`) with
+`{"key": "hi_score", "score": {...}}`: it answers `weights_in_effect`, `dropped`, `histogram`,
+`stats`, `games`, `entries` (the top five) and `n_entrants`, or `problems`.
 
 From the command line:
 
@@ -596,7 +698,7 @@ leaderboard:
 | Key | Default | Meaning |
 |---|---|---|
 | `track` | `han` for a project of kind `opponent`, else `hi` | Who is ranked. |
-| `source` | `game` | `game`: the games people played. `tournament`: the table of simulated participants (each Assistant's goal rate over the personas), which the sort and the switches do not apply to. |
+| `source` | `game` | `game`: the games people played. `tournament`: the table of simulated participants (each Assistant's goal rate over the personas), ranked by goal rate only, without switches ([below](#the-game-board-and-the-simulated-table)). |
 | `studies` | every study of the project | The studies that feed the project board. Add new ones as they start; a study that does not exist yet is named in the board's warnings. |
 | `include` | none | Studies of other projects whose games of one stratum join the board ([below](#rows-from-other-projects)). |
 | `sort_options` | the enabled scores of the track | What end users may rank by: enabled scores, and criteria that have a direction. |
@@ -719,8 +821,8 @@ Every board says what it left out and why under `excluded` (`practice`, `admin o
 | `visibility` | Who may read the board |
 |---|---|
 | `public` | Anyone, without signing in or a token. |
-| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens). An invited guest sees only the board of the study they were invited to. |
-| `admins` | Admins, and a website with an API token. Signed-in users get *403*. |
+| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens) (`leaderboard:read`). An invited guest sees only the board of the study they were invited to. |
+| `admins` | Admins, and a website with an API token whose scope holds `leaderboard:admin`. Signed-in users, and tokens with only `leaderboard:read`, get *403*; such tokens do not see these boards in `GET /api/v1/leaderboards` either. |
 
 No board ever contains a user name, the other person's name, who invited a guest or a participant
 index: only entrants and counts.
@@ -809,6 +911,11 @@ For an HI project the board ranks the games people played (`source: game`), whic
 (deals worth at least the persona's reservation value) over its valid simulated trials. It stays
 available for qualifying rounds.
 
+The simulated table is ranked by `goal_rate` and has no switches, so its `options` contain only
+`sort: [goal_rate]` and `defaults: {sort: goal_rate}`, whatever `sort_options` and `user_options`
+say. A request with another `sort`, or with `games`, `stratum` or `window`, gets a **400** that says
+the simulated table does not take it.
+
 ## Connecting a website
 
 There are two ways to run HANI2.
@@ -831,7 +938,7 @@ A website reads boards with plain `GET` requests:
 |---|---|
 | `GET /api/v1/projects/{project}/leaderboard?sort=&games=&stratum=&window=` | The project board. |
 | `GET /api/v1/projects/{project}/studies/{study}/leaderboard?…` | One study's board. |
-| `GET /api/v1/leaderboards` | Every project that has a `leaderboard` block, with its track, source, year and visibility, and the visibility of each study's board. Without a sign-in or a token only public boards are listed. |
+| `GET /api/v1/leaderboards` | Every project that has a `leaderboard` block, with its track, source, year and visibility, and the visibility of each study's board. Without a sign-in or a token only public boards are listed; `admins` boards are listed only to admins and to tokens with `leaderboard:admin`. |
 
 The parameters are optional: each missing one takes the board's default. A value outside the
 board's `sort_options` or `user_options` is refused with **400**, so a website can only show the
@@ -904,15 +1011,16 @@ the secret it already shares with HANI2 for [sign-in from a trusted website](aut
 |---|---|
 | `iss` | The provider's `issuer` (default: its name), as in sign-in tokens. |
 | `aud` | `hani2-api` plus this server's root path, for example `hani2-api/hiplay2`. |
-| `scope` | Contains `leaderboard:read` (a space-separated string or a list). |
+| `scope` | Contains `leaderboard:read` (a space-separated string or a list), or `leaderboard:admin` to also read boards with `visibility: admins`. |
 | `iat`, `exp` | Issue and expiry times (Unix seconds), at most 120 seconds apart. |
 
 An API token is not single use: mint one per request or per minute. Because the audiences differ,
 a sign-in token cannot read the API and an API token cannot sign anyone in; a token that names both
-audiences is refused by both. A token without the scope gets 403. To try the API by hand:
+audiences is refused by both. A token without the scope gets 403, and so does a token with only
+`leaderboard:read` asking for a board with `visibility: admins`. To try the API by hand:
 
 ```bash
-TOKEN=$(hani2 leaderboard token mysite)       # the provider's name in auth.sso
+TOKEN=$(hani2 leaderboard token mysite)       # the provider's name in auth.sso; --admin: leaderboard:admin
 curl -H "Authorization: Bearer $TOKEN" https://hani2.example.org/api/v1/projects/HI2027/leaderboard
 ```
 
@@ -1068,20 +1176,21 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | Endpoint | Does |
 |---|---|
 | `GET /api/admin/projects` | The projects with their settings and study names, and the server's default study. |
-| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`) and `errors`. |
-| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block or a HAN year no source covers is a 400 naming the problem. Its `scores` get the same checks as the score endpoints below. |
+| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`), `editor` and `errors`. `editor.effective` holds what a session would play, resolved from the files without starting one: `assistants` (`entries` as written, `pool` after groups are expanded, `n`, `source`: `study.yaml`, `project.yaml`, `study_mode`, `study`/`project`/`settings assistant_settings.json` or `built-in`), `opponents` (`entries`, `source`: the same, or `study`/`project`/`settings env.json`), `n_required` (`value`, `source`), `assistant_method`, `assistant_repeats` (whether the method may repeat an Assistant), `mode`, `declared`, `derived`, `mode_error`, `repeat_problems` (the K > N message, if any), `process_overrides` (the server's `hani2 --assistants`, `--opponents` and `PROLIFIC_N_REQUIRED`, which replace the files for every session) and `errors`. `editor.pools` is the short form the editor's live checks read: `opponents` (`effective`, `source`: `study`, `project`, `study_mode`, `env` or `default`, and `env`: the `env.json` pool under the files), `assistants` (`effective`, `source`, also `settings`) and `derived_mode`; `editor.inherited` holds the project's `opponents` and `assistants`. A study's GET has the same blocks. |
+| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block, a HAN year no source covers, K > N, or a change that would break one of the project's studies (`study P/S: …`) is a 400 naming the problem. Its `scores` get the same checks as the score endpoints below. |
 | `GET /api/admin/layers` | The layers (`settings`, `project:P`, `study:P/S`) with their folders, and the study the request is bound to (`bound`). |
 | `GET /api/admin/settings/{kind}?layer=L` | `kind`: `env`, `llm`, `assistant`, `autopilot` or a text (`consent`, `announcements`, `scenario_sets`, `scenario_order`). JSON kinds: `{"own", "effective", "inherited"}` (the layer's own file, the values in effect at that layer, and those without its file). Texts: `{"text", "exists", "effective", "source", "source_path"}` (`source`: the layer the text in effect comes from). The old `?study=P/S` / `?project=P` return the layer's raw file, and no parameter the effective settings, as before. |
 | `PATCH /api/admin/settings/{kind}?layer=L` | JSON kinds: merge the body into the layer's own file. |
 | `PUT /api/admin/settings/{kind}?layer=L` | Replace the layer's own file (texts: `{"text": "..."}`). Without a layer: the settings folder, as before. |
 | `DELETE /api/admin/settings/{kind}?layer=L[&key=a.b]` | Remove one dotted key from the layer's own JSON file, or (without `key`) the layer's own file. |
-| `GET` / `PUT /api/admin/pools/{kind}?layer=L` | The opponent or Assistant pool set at a layer (`env.json` `opponents`; `defaults.<kind>s` in project.yaml; `overrides.<kind>s` in study.yaml), what it inherits and what it expands to. PUT `{"items": [...]}` rewrites only that key. |
+| `GET` / `PUT /api/admin/pools/{kind}?layer=L` | The opponent or Assistant pool set at a layer (`env.json` `opponents`; `defaults.<kind>s` in project.yaml, or the top-level key when the file has it there; `overrides.<kind>s` in study.yaml), what it inherits and what it expands to. PUT `{"items": [...]}` rewrites only that key; in project.yaml and study.yaml a change that the save checks refuse (a mode the pool contradicts, K > N, a project change that breaks one of its studies) is a 400. |
 | `/api/admin/library/...` | Scenario types, opponents, Assistants and tools: items, upload, link, remove, groups, the default scenario set, the tools offered and their placement per view. See the [Library API](../reference/library-api.md). |
 | `GET /api/admin/scenarios/{name}?layer=L[&scenario=S][&generate=N]` | A type's details: texts, roles, issues and options, sample utilities, its pool, and a `plot_token` for the plot below. |
 | `GET /api/admin/scenarios/plot/{token}` | The outcome-space plots of the example those details showed: `plots` (one Plotly figure per pair of roles) and `plot_note`. Fetched apart so the details never wait for it; 404 once the example is no longer kept. |
 | `GET /api/admin/scenarios/stats/{token}` | The negmas statistics of the example those details showed ([Scenario statistics](scenarios.md#scenario-statistics)): `status` `ok` with the statistics, `pending` while they are computed in the background (ask again), or `failed` / `timeout` / `too_large` / `disabled` with a `message`. `?force=true` computes them again. |
 | `GET /api/admin/criteria[?project=P \| ?study=P/S][&coverage=true]` | The evaluation criteria (metric columns, the answers of the forms in use, scores) with source, level, direction, default normaliser, cost and optional coverage, the normaliser kinds and the project's reference. See [Scores](#scores). |
 | `GET /api/admin/scores?project=P` (or `?study=P/S`) | The scores: the built-ins (`builtin`, read-only) and the project's and study's definitions, each with `origin`, `enabled`, its components with their weights in effect (summing to 1), directions and normalisers, and `flattened` (the weights down to criteria); `enabled`, `enabled_set_by`, `problems` and `warnings`. |
+| `POST /api/admin/scores/preview?project=P` (or `?study=P/S`) | `{"key": "…", "score": {definition}}`: the score, unsaved, on the board's current games: `weights_in_effect` (after coverage), `dropped`, a ten-bin `histogram` over [0, 1], `stats` (mean, median, coverage), the top five `entries` and `n_entrants`; or `problems`. Nothing is written. See [Previewing a score](#previewing-a-score). |
 | `PUT /api/admin/projects/{project}/scores/{key}` | Add or replace a score in `project.yaml`: the definition as JSON. 400 unless the weights are ≥ 0 and sum to 1 and every check passes. |
 | `DELETE /api/admin/projects/{project}/scores/{key}` | Remove it; 409 while another score contains it or `scores_enabled` names it. |
 | `POST /api/admin/projects/{project}/scores/{key}/duplicate` | `{"from": "hi_team"}`: copy a score (for example a built-in) as `key`. |

@@ -17,7 +17,7 @@ import { Checks } from "../controls/Checks";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
 import { useScheduling as useSchedulingMethods } from "../help";
-import { HAN_SETS, MODE_LABEL, crossingActive, derive, hanEntry, hanToken, hanYearLabel, hanYears, items, kOfN, modeProblems } from "../modes";
+import { type LiveMode, HAN_SETS, MODE_LABEL, assignOptions, crossingActive, hanEntry, hanToken, hanYearLabel, hanYears, items, kOfN, liveMode, modeProblems, pairingDefaults, schedulingUse } from "../modes";
 import { ScoresGroup } from "../ScoreBuilder";
 import { LeaderboardSettings } from "../LeaderboardSettings";
 
@@ -133,7 +133,7 @@ function usePoolSize(layer: string | undefined, version: unknown) {
 }
 
 /** How each dimension is scheduled: this file's choice, else ``inherit`` (``effective``: what the study uses). */
-function SchedulingGroup({ value, onChange, inherit, effective, k, layer, version, inherited }: { value: any; onChange: (v: any) => void; inherit: string; effective?: Record<string, string>; k?: number | null; layer?: string; version?: unknown; inherited?: Record<string, any> }) {
+function SchedulingGroup({ value, onChange, inherit, effective, k, layer, version, inherited, live }: { value: any; onChange: (v: any) => void; inherit: string; effective?: Record<string, string>; k?: number | null; layer?: string; version?: unknown; inherited?: Record<string, any>; live?: LiveMode }) {
   const m = useScheduling();
   const n = usePoolSize(layer, version);
   if (!m) return m === null ? null : <Spinner />;
@@ -153,6 +153,10 @@ function SchedulingGroup({ value, onChange, inherit, effective, k, layer, versio
   const crossOn = crossingActive(method("assistants"), method("opponents"), cross);
   const inhRepeats = inherited?.assistant_repeats;
   const inhCross = inherited?.cross ?? m.options?.cross?.default;
+  // what the mode as edited now uses (§4.2: in Paired the opponent is the other person)
+  const use = schedulingUse(live?.mode, live?.kind ?? "none");
+  const unused: Record<string, string> = { opponents: use.opponents, assistants: use.assistants };
+  const modeHint: Record<string, string> = { assistants: use.assistantsHint, scenarios: use.scenariosHint };
   return (
     <Group title="Scheduling" footer={`How HANI2 assigns each human. “${inherit}” keeps the value from the ${inherit === "Default" ? "server default" : "project"}.`} id="setting-scheduling">
       {dims.map(([k, l, help]) => {
@@ -160,8 +164,12 @@ function SchedulingGroup({ value, onChange, inherit, effective, k, layer, versio
         const cur = opts.find((o: any) => o.key === v[k]);
         // what an unset dimension uses (the study's effective value is its own once it sets one)
         const inh = v[k] ? undefined : opts.find((o: any) => o.key === (effective?.[k] ?? m.defaults?.[k]));
+        // a dimension the mode does not use: a note, and the selector only while this file sets a value
+        if (unused[k] && !v[k])
+          return <InfoRow key={k} id={`scheduling-${k}`} help={help} label={l} value="not used" hint={unused[k]} />;
+        const hint = unused[k] ? `${unused[k]}; this file's value is ignored (reset it)` : [modeHint[k], cur ? cur.summary : inh?.summary].filter(Boolean).join(". ");
         return (
-          <Row key={k} id={`scheduling-${k}`} help={help} label={l} hint={cur ? cur.summary : inh?.summary} overridden={!!v[k]} onReset={() => { const n = { ...v }; delete n[k]; onChange(n); }}>
+          <Row key={k} id={`scheduling-${k}`} help={help} label={l} hint={hint} overridden={!!v[k]} onReset={() => { const n = { ...v }; delete n[k]; onChange(n); }}>
             <Select
               label={`${l} scheduling`}
               value={v[k] ?? ""}
@@ -187,9 +195,9 @@ function SchedulingGroup({ value, onChange, inherit, effective, k, layer, versio
           options={[{ value: "", label: `${inherit} (${inhRepeats === undefined ? "unset" : inhRepeats ? "yes" : "no"})` }, { value: "yes", label: "Yes: wrap around" }, { value: "no", label: "No: at most once" }]}
         />
       </Row>
-      <Row id="scheduling-cross" help="scheduling.cross" label="Crossing" hint={crossOn ? "Active: the opponents are shifted against the Assistants" : cross === "shift" ? "Applies only when the Assistants change every negotiation and the opponents use latin_square or cyclic" : "Off: the Assistant and the opponent may be confounded"} overridden={v.cross !== undefined} onReset={() => setOpt("cross", null)}>
+      {use.cross && v.cross === undefined ? <InfoRow id="scheduling-cross" help="scheduling.cross" label="Crossing" value="not used" hint={use.cross} /> : <Row id="scheduling-cross" help="scheduling.cross" label="Crossing" hint={crossOn ? "Active: the opponents are shifted against the Assistants" : cross === "shift" ? "Applies only when the Assistants change every negotiation and the opponents use latin_square or cyclic" : "Off: the Assistant and the opponent may be confounded"} overridden={v.cross !== undefined} onReset={() => setOpt("cross", null)}>
         <Select label="Crossing" value={v.cross ?? ""} onChange={(x) => setOpt("cross", x || null)} options={[{ value: "", label: `${inherit} (${inhCross})` }, { value: "shift", label: "shift" }, { value: "none", label: "none" }]} />
-      </Row>
+      </Row>}
       <Disclosure id="scheduling-about" icon={<Info size={16} className="text-you" />} label="About these methods" hint="What each method does, with examples, advantages and disadvantages" title="Scheduling methods" render={() => <SchedulingAbout m={m} />} />
     </Group>
   );
@@ -216,15 +224,12 @@ function SchedulingAbout({ m }: { m: any }) {
 }
 
 /** The defaults a project gives its studies (``defaults``) or a study's overrides (``overrides``). Empty = inherit. */
-function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effective }: { title: string; value: any; onChange: (v: any) => void; meta: any; inherit: string; footer?: string; ed?: any; effective?: any }) {
+function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effective, kind }: { title: string; value: any; onChange: (v: any) => void; meta: any; inherit: string; footer?: string; ed?: any; effective?: any; kind?: string }) {
   const v = value ?? {};
   const inh = ed?.inherited ?? {};
-  const kind: string = ed?.kind ?? "none";
-  const opponents = v.opponents ?? inh.opponents;
-  const declared: string | null = v.study_mode ?? inh.study_mode ?? null;
-  const derived = derive(opponents);
-  const mode = declared ?? derived;
-  const problems = modeProblems(declared, opponents, v.assistants, kind);
+  const live = liveMode(v, ed, kind);
+  const { declared, derived, mode, opponents } = live;
+  const problems = modeProblems(declared, opponents, live.assistants, live.kind);
   const put = (k: string, x: any) => {
     const n = { ...v };
     if (x === null || x === undefined || x === "" || (Array.isArray(x) && !x.length)) delete n[k];
@@ -260,7 +265,8 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effe
       {!problems.length && effective?.mode_error && !v.study_mode && !v.opponents && (
         <div className="px-4 py-2 text-sm text-bad" role="alert">{(effective.errors ?? []).join(" · ")}</div>
       )}
-      {kind === "opponent" && mode === "paired" && <div className="px-4 py-2 text-sm text-warn" data-han-paired>Paired in a HAN project tests no HAN agent; its results are not ranked.</div>}
+      {live.fromEnv && <div className="px-4 py-2 text-xs text-muted" data-env-pool>No file names the opponents: the pool {`[${items(opponents).join(", ")}]`} comes from env.json, and the mode is checked against it.</div>}
+      {live.kind === "opponent" && mode === "paired" && <div className="px-4 py-2 text-sm text-warn" data-han-paired>Paired in a HAN project tests no HAN agent; its results are not ranked.</div>}
       {mode !== "paired" && <HanAgents own={v.opponents} inherited={inh.opponents} onChange={(x) => put("opponents", x)} ed={ed} />}
       <Row label="Scenario set" help="scenario_set" hint="The scenario types and their order">
         <Select label="Scenario set" value={v.scenario_set ?? ""} onChange={(x) => put("scenario_set", x)} options={[{ value: "", label: inherit }, ...sets]} />
@@ -286,7 +292,7 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effe
       <InfoRow label="Opponents and Assistants" value={[v.opponents && `opponents: ${[].concat(v.opponents).join(", ")}`, v.assistants && `assistants: ${[].concat(v.assistants).join(", ")}`].filter(Boolean).join(" · ") || inherit} hint="Choose the pools in Opponents and Assistants (pick this layer there)" />
       <InformationRows value={v.information} onChange={(x) => put("information", x)} inherit={inherit} />
     </Group>
-    {(mode === "paired" || mode === "mixed") && <PairingGroup value={v.pairing} onChange={(x) => put("pairing", x)} inherit={inherit} effective={effective?.pairing_effective} />}
+    {(mode === "paired" || mode === "mixed") && <PairingGroup value={v.pairing} onChange={(x) => put("pairing", x)} inherit={inherit} inherited={inh.pairing} mode={mode} declared={!!declared} />}
     </>
   );
 }
@@ -341,8 +347,10 @@ function HanAgents({ own, inherited, onChange, ed }: { own: any; inherited: any;
 }
 
 /** The ``pairing`` block (Paired and Mixed studies): merged key by key with the layer above. */
-function PairingGroup({ value, onChange, inherit, effective }: { value: any; onChange: (v: any) => void; inherit: string; effective?: Record<string, any> }) {
+function PairingGroup({ value, onChange, inherit, inherited, mode, declared }: { value: any; onChange: (v: any) => void; inherit: string; inherited?: Record<string, any>; mode: string; declared: boolean }) {
   const v = value ?? {};
+  // what an empty field uses: the project's block, else the defaults of the mode as edited now
+  const effective: Record<string, any> = { ...pairingDefaults(mode, declared), ...(inherited ?? {}) };
   const put = (k: string, x: any) => {
     const n = { ...v };
     if (x === null || x === undefined || x === "" || (Array.isArray(x) && !x.length)) delete n[k];
@@ -357,9 +365,11 @@ function PairingGroup({ value, onChange, inherit, effective }: { value: any; onC
     <Select label={label} value={v[k] ?? ""} onChange={(x) => put(k, x)} options={[{ value: "", label: shown(k) }, ...opts]} />
   );
   return (
-    <Group title="Pairing" id="setting-pairing" footer="Read only in Paired and Mixed studies. Empty fields keep the value above; a study's block is merged key by key with its project's. This version uses Where people meet; the other keys are checked and kept for the balanced pairing of matches.">
+    <Group title="Pairing" id="setting-pairing" footer="Read only in Paired and Mixed studies. Empty fields keep the value above (the project's block, else the mode's default); a study's block is merged key by key with its project's.">
       <Row id="pairing-scope" help="pairing.scope" label="Where people meet" overridden={v.scope !== undefined} onReset={() => put("scope", null)}>{sel("scope", "Where people meet", ["study", "project", "code"])}</Row>
-      <Row id="pairing-assign" help="pairing.assign" label="How a match is formed" overridden={v.assign !== undefined} onReset={() => put("assign", null)}>{sel("assign", "How a match is formed", ["cells", "order", "random"])}</Row>
+      <Row id="pairing-assign" help="pairing.assign" label="How a match is formed" hint={mode === "paired" ? "Paired: cells balances who meets whom (the default of a declared Paired study)" : "Mixed: random, as in the game, unless you choose cells or order"} overridden={v.assign !== undefined} onReset={() => put("assign", null)}>
+        <Select label="How a match is formed" value={v.assign ?? ""} onChange={(x) => put("assign", x)} options={[{ value: "", label: shown("assign") }, ...assignOptions(mode)]} />
+      </Row>
       <Row id="pairing-slack" help="pairing.slack" label="Slack" overridden={v.slack !== undefined} onReset={() => put("slack", null)}>
         <Stepper label="Slack" value={v.slack ?? null} nullable placeholder={String(effective?.slack ?? "")} min={0} step={1} onChange={(x) => put("slack", x)} />
       </Row>
@@ -529,8 +539,8 @@ export function ProjectView({ name }: { name: string }) {
         <Row label="Organizer" hint="{{organizer}}"><TextField label="Organizer" value={data.organizer} onChange={(v) => set("organizer", v)} /></Row>
         <Row label="Contact" hint="{{contact}}"><TextField label="Contact" value={data.contact} onChange={(v) => set("contact", v)} placeholder="lab@example.org" /></Row>
       </Group>
-      <DefaultsGroup title="Defaults for its studies" value={data.defaults} onChange={(v) => set("defaults", v)} meta={meta} inherit="Default" ed={d.editor} effective={d.study_mode_effective} />
-      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Default" k={data.defaults?.n_required ?? d.editor?.inherited?.n_required} layer={`project:${name}`} version={d} />
+      <DefaultsGroup title="Defaults for its studies" value={data.defaults} onChange={(v) => set("defaults", v)} meta={meta} inherit="Default" ed={d.editor} effective={d.study_mode_effective} kind={data.kind ?? "none"} />
+      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Default" k={data.defaults?.n_required ?? d.editor?.inherited?.n_required} layer={`project:${name}`} version={d} live={liveMode(data.defaults, d.editor, data.kind ?? "none")} />
       {!isDefault && (
         <>
           <ScoresGroup project={name} onChange={refreshScores} />
@@ -675,7 +685,7 @@ export function StudyView({ project, study }: { project: string; study: string }
         </Row>
       </Group>
       <DefaultsGroup title="Overrides of the project's defaults" value={data.overrides} onChange={(v) => set("overrides", v)} meta={meta} inherit="Project" ed={d.editor} effective={d.study_mode_effective} />
-      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Project" effective={d.scheduling_effective} k={data.overrides?.n_required ?? d.editor?.inherited?.n_required} layer={`study:${project}/${study}`} version={d} inherited={d.editor?.inherited?.scheduling} />
+      <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Project" effective={d.scheduling_effective} k={data.overrides?.n_required ?? d.editor?.inherited?.n_required} layer={`study:${project}/${study}`} version={d} inherited={d.editor?.inherited?.scheduling} live={liveMode(data.overrides, d.editor)} />
       <ScoresGroup project={project} study={study} onChange={refreshScores} />
       <ScoresEnabledGroup value={data.overrides?.scores_enabled} onChange={(x) => set("overrides", putKey(data.overrides, "scores_enabled", x))} project={project} study={study} inherit="Project" version={scoresVersion} />
       <LeaderboardSettings value={data.overrides?.leaderboard} onChange={(x) => set("overrides", putKey(data.overrides, "leaderboard", x))} project={project} study={study} kind={d.editor?.kind ?? "none"} info={d.editor?.leaderboard} version={scoresVersion} />

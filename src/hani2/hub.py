@@ -10,6 +10,11 @@ tool never delays state pushes or other sessions. Only tools the participant
 can currently see are rendered; a hidden tool is rendered when its tab is
 opened. A tool that changes while it is being rendered is rendered once more
 afterwards (never twice at the same time).
+
+A guarded tool (see :mod:`hani2.tools.failure`) gets ``tools.render_timeout``
+seconds to render, in a thread of its own: a tool that takes longer shows that it
+failed and is not rendered again until that render returns, so a hanging tool
+never holds up the other tools or sessions.
 """
 
 from __future__ import annotations
@@ -31,6 +36,10 @@ def _dumps(msg: dict[str, Any]) -> str:
 
 
 TOOL_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hani2-tool")
+#: how many time-boxed tool renders run at once; a render holds its slot for at most
+#: TOOL_RENDER_GRACE seconds, so slow tools never keep the others waiting longer than that
+TOOL_RENDER_SLOTS = 8
+TOOL_RENDER_GRACE = 1.0
 
 
 class Hub:
@@ -45,6 +54,7 @@ class Hub:
         self._tools_rendering: set[tuple[str, str]] = set()
         self._tools_again: set[tuple[str, str]] = set()
         self._tools_sent: set[tuple[str, str]] = set()
+        self._render_slots: tuple[asyncio.AbstractEventLoop, asyncio.Semaphore] | None = None
 
     def attach_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Deliver on ``loop`` from now on. Pushes queued on a previous loop
@@ -234,6 +244,57 @@ class Hub:
             pending.add(tid)
         self._call(self._flush_tool, sid, tid)
 
+    async def render_tool_view(self, s, tid: str) -> dict[str, Any] | None:
+        """``s.render_tool(tid)`` off the event loop. A guarded tool (one with a
+        ``tools.render_timeout``) renders in a thread of its own and gets that many
+        seconds; past them the session marks it hung and its failure view is returned."""
+        loop = asyncio.get_running_loop()
+        limit = getattr(s, "tool_render_timeout", None)
+        timeout = limit(tid) if limit is not None else None
+        if timeout is None:
+            return await loop.run_in_executor(TOOL_EXECUTOR, s.render_tool, tid)
+        if self._render_slots is None or self._render_slots[0] is not loop:
+            self._render_slots = (loop, asyncio.Semaphore(TOOL_RENDER_SLOTS))
+        timed_out = False
+
+        def finish(fut: asyncio.Future, result: Any, error: BaseException | None) -> None:
+            if timed_out:  # the render that took too long is back: it may be rendered again
+                try:
+                    s.tool_render_returned(tid)
+                    self.tool_changed(s.sid, tid)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
+            elif not fut.done():
+                fut.set_exception(error) if error is not None else fut.set_result(result)
+
+        fut = loop.create_future()
+
+        def work() -> None:
+            try:
+                result, error = s.render_tool(tid), None
+            except BaseException as e:  # noqa: BLE001 - handed to the event loop
+                result, error = None, e
+            try:
+                loop.call_soon_threadsafe(finish, fut, result, error)
+            except RuntimeError:  # the loop is gone
+                pass
+
+        grace = min(TOOL_RENDER_GRACE, timeout)
+        async with self._render_slots[1]:  # held for the grace period only
+            threading.Thread(target=work, name="hani2-tool-render", daemon=True).start()
+            try:
+                return await asyncio.wait_for(asyncio.shield(fut), grace)
+            except asyncio.TimeoutError:
+                pass
+        try:
+            if timeout > grace:
+                return await asyncio.wait_for(asyncio.shield(fut), timeout - grace)
+        except asyncio.TimeoutError:
+            pass
+        timed_out = True
+        fut.cancel()
+        return s.tool_render_timed_out(tid, timeout)
+
     async def _flush_tool(self, sid: str, tid: str) -> None:
         await asyncio.sleep(0.05)
         key = (sid, tid)
@@ -247,11 +308,19 @@ class Hub:
         try:
             if s is None or not self._sockets.get(sid):
                 return
-            view = await asyncio.get_running_loop().run_in_executor(TOOL_EXECUTOR, s.render_tool, tid)
+            view = await self.render_tool_view(s, tid)
             if view is not None:
+                try:
+                    msg = _dumps(self._stamp(sid, {"type": "tool", **view}))
+                except Exception as e:  # noqa: BLE001 - a view that cannot be sent is the tool's failure
+                    failed = getattr(s, "tool_view_unsendable", None)
+                    view = failed(tid, e) if failed is not None else None
+                    if view is None:
+                        raise
+                    msg = _dumps(self._stamp(sid, {"type": "tool", **view}))
                 with self._lock:
                     self._tools_sent.add(key)
-                await self._send(sid, _dumps(self._stamp(sid, {"type": "tool", **view})))
+                await self._send(sid, msg)
         except Exception:
             traceback.print_exc()
         finally:

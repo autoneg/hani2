@@ -445,6 +445,8 @@ class SupportAgent:
             return None, {"ok": False, "error": f"{t.name} shows the participant's own information, which you cannot "
                                                 "see in this negotiation. Ask the participant about it instead "
                                                 "(get_private_information tells you what only you know)."}
+        if getattr(sess, "tool_unusable", lambda _t: False)(t):  # failed to start, or stuck rendering
+            return None, {"ok": False, "error": f"{t.name} is not working right now; use another tool"}
         st = self.session.tool_state(t)
         if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
             return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)",
@@ -543,12 +545,26 @@ class SupportAgent:
             return err
         from hani2.tools.describe import controls_of
 
-        with t.view_lock, self._as_assistant():
-            controls = controls_of(list(t.view() or []))
+        sess = self.session
+        guard = getattr(sess, "guard_tool", None)
+
+        def call(where: str, fn, *a):  # a failing tool shows the failure in its pane (hani2.tools.failure)
+            return guard(t, where, fn, *a, reraise=True) if guard is not None else fn(*a)
+
+        def view():
+            with t.view_lock, self._as_assistant():
+                return list(t.view() or [])
+
+        guarded = getattr(sess, "isolates_tool", lambda _t: False)(t)
+        try:
+            controls = controls_of(call("render", view))
+        except Exception as e:  # noqa: BLE001
+            if not guarded:
+                raise
+            return {"ok": False, "error": f"{t.name} is not working right now: {e}"}
         for key in inputs or {}:
             if key not in controls["inputs"]:
                 return {"ok": False, "error": f"{t.name} has no input {key!r}", "inputs": sorted(controls["inputs"])}
-        sess = self.session
         results: list[Any] = []
         from hani2.naming import unlabel_value
 
@@ -557,13 +573,17 @@ class SupportAgent:
         with sess.acting_for_agent(self._executable_capabilities()):
             for key, value in inputs.items():
                 try:
-                    t.on_input(key, value)
+                    call("on_input", t.on_input, key, value)
                 except Exception as e:  # noqa: BLE001
                     return {"ok": False, "error": f"setting {key!r} failed: {e}"}
             if action is not None:
                 if inputs:  # the new inputs may change the buttons and tables on offer
-                    with t.view_lock, self._as_assistant():
-                        controls = controls_of(list(t.view() or []))
+                    try:
+                        controls = controls_of(call("render", view))
+                    except Exception as e:  # noqa: BLE001
+                        if not guarded:
+                            raise
+                        return {"ok": False, "error": f"{t.name} is not working right now: {e}"}
                 if action not in controls["actions"] and action not in controls["tables"]:
                     return {"ok": False, "error": f"{t.name} has no button or table action {action!r} now",
                             "actions": sorted(controls["actions"]) + sorted(controls["tables"]),
@@ -580,7 +600,7 @@ class SupportAgent:
                         return {"ok": False, "error": f"row must be between 0 and {len(rows) - 1}"}
                     data.update(row=rows[idx], index=idx)
                 try:
-                    results.append(t.on_action(action, data))
+                    results.append(call("on_action", t.on_action, action, data))
                 except Exception as e:  # noqa: BLE001
                     return {"ok": False, "error": f"{action!r} failed: {e}"}
         self._wait_while_busy(t)

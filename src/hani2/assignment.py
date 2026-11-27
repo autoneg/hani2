@@ -52,6 +52,18 @@
   leaves the pool they are assigned again (the old one is kept under
   ``previous_assistants`` and no longer counted).
 
+  The per-negotiation methods that promise each Assistant at most once per human
+  (``latin_square``, ``cyclic``, ``balanced_subset``, ``random_subset``) keep that
+  promise when the pool changes during the study: the slots the human already
+  played stay, and each open slot gets its planned Assistant while it is still in
+  the pool and unused, else the next unused one (:func:`played_assistants`: the
+  ``used_assistants`` and the ``assistant`` of their counted results rows). When
+  no unused Assistant is left, ``scheduling.assistant_repeats: true`` wraps around;
+  otherwise the human finishes early (a ``finished_early`` event and a log line).
+  Only a pool that lost a member of the one the human started with
+  (``assistant_pool``, recorded on first sight) ends their study early; otherwise
+  (a study whose pool was always smaller than K) it warns and wraps, as before.
+
 * **Participant index.** Every counted human of a study gets the next index (0, 1,
   …) on first sight; it picks their row of the opponent Latin square and their
   scenario type. Their crossing rule (``cross``: ``shift`` or ``none``, see
@@ -315,35 +327,137 @@ def _planned_opponents(session: Any, k: int) -> list[Any] | None:
         return None
 
 
-def _plan_ok(plan: Any, pool: list[str], k: int, method: str, h: dict) -> bool:
-    return (isinstance(plan, list) and len(plan) == min(k, len(pool)) and all(a in pool for a in plan)
-            and len(set(plan)) == len(plan) and h.get("assistant_plan_method") == method)
+def _plan_ok(plan: Any, pool: list[str], k: int, method: str, h: dict,
+             taken: set[str] = frozenset(), skipped: set[str] = frozenset()) -> bool:
+    """Whether a stored plan still holds: its Assistants are in the pool or were already used by
+    the human (an Assistant that left the pool after they used it changes nothing), none twice,
+    and it covers K or every Assistant left to them."""
+    if not (isinstance(plan, list) and len(set(plan)) == len(plan) and h.get("assistant_plan_method") == method):
+        return False
+    if not all(a in pool or a in taken for a in plan):
+        return False
+    return len(plan) == min(k, len((set(pool) - set(skipped)) | set(plan)))
+
+
+def counted_rows(session: Any) -> list[dict]:
+    """The human's results rows that count as negotiation slots, in order: a study's counted rows
+    (no practice, no empty negotiation) when it counts them, else every row."""
+    st = getattr(session, "study", None)
+    fn = getattr(st, "counted_rows", None)
+    if callable(fn):
+        try:
+            return list(fn())
+        except Exception:  # noqa: BLE001
+            return []
+    path = (getattr(session, "ss", None) or {}).get("user_path")
+    try:
+        import csv
+
+        with open(Path(path) / "results.csv", newline="", encoding="utf-8") as fh:
+            return list(csv.DictReader(fh))
+    except (OSError, TypeError):
+        return []
+
+
+def played_assistants(session: Any) -> list[str]:
+    """The Assistants the human has already used in this study, in order: the ones recorded at
+    the start of a Paired negotiation (``used_assistants``), then the ``assistant`` of their
+    counted results rows. An Assistant here is never planned for them again unless the study
+    allows repeats."""
+    out = list(used_assistants(session))
+    for r in counted_rows(session):
+        a = str(r.get("assistant") or "")
+        if a and a not in out:
+            out.append(a)
+    return out
+
+
+def pool_at_start(session: Any, pool: list[str]) -> list[str]:
+    """The Assistant pool the human was first planned against (``assistant_pool`` in
+    ``assignments.json``, kept from their first negotiation). It tells a pool that shrank during
+    the study (the human finishes early when nothing unused is left) from a study whose pool was
+    always smaller than K (it warns and wraps around)."""
+    if not counts_as_human(session):
+        return list(pool)
+    path = store_path(session.study_ref)
+    with _locked(path):
+        data = _read(path)
+        h = data["humans"].get(session.user)
+        if isinstance(h, dict) and isinstance(h.get("assistant_pool"), list):
+            return list(h["assistant_pool"])
+        h = _human(data, session.user, _explicit_cross(session.study_ref))
+        h["assistant_pool"] = list(pool)
+        _write(path, data)
+        return list(pool)
+
+
+def assistants_wrap(session: Any, method: str, pool: list[str], paired: bool = False) -> bool:
+    """Whether a human who has used every Assistant left in ``pool`` gets one again (the plan
+    wraps around) instead of finishing early: ``scheduling.assistant_repeats: true``; or, without
+    it, when no Assistant of the pool the human started with has left it (a running study whose
+    file breaks the rule, a study without a count of negotiations, an admin: warned and wrapped as
+    before). Only a pool that lost a member makes the human finish early. In Paired, only a
+    one-Assistant pool wraps without ``assistant_repeats``."""
+    from hani2 import scheduling
+
+    ref = getattr(session, "study_ref", None)
+    options = scheduling.options_for(ref) if ref is not None else {}
+    if scheduling.repeats_allowed(method, options):
+        return True
+    first = set(pool_at_start(session, pool))
+    if paired:
+        return len(first) <= 1
+    return not (first - set(pool))
+
+
+def _planned_sequence(session: Any, pool: list[str], method: str, k: int) -> list[str]:
+    """The human's planned Assistants for slots ``0..k-1`` (a subset plan has at most N)."""
+    from hani2 import scheduling
+
+    if method in scheduling.SUBSET_ASSISTANTS:
+        return subset_plan(session, pool, method)
+    if len(pool) == 1:
+        return [pool[0]] * k
+    idx = participant_index(session) or 0
+    return [scheduling.pick_assistant_slot(method, pool, idx, j, _seed(session)) for j in range(k)]
 
 
 def subset_plan(session: Any, pool: list[str], method: str) -> list[str]:
     """The human's planned Assistants for ``balanced_subset`` / ``random_subset`` (K of the pool, in
     order), kept in ``assignments.json`` as ``assistant_plan`` (with ``opponent_plan``, the opponent
     sequence it was planned against). Planned on first need; planned again (the old plan kept
-    under ``previous_assistant_plans``) when a member left the pool or K changed. Admins and guests
-    get a plan that is not recorded."""
+    under ``previous_assistant_plans``) when a member the human has not used yet left the pool, or
+    K changed. A new plan keeps the Assistants the human already used (:func:`played_assistants`)
+    and fills only the open slots, from Assistants they have not used; it is shorter than K when
+    too few are left. Admins and guests get a plan that is not recorded."""
     from hani2 import scheduling
 
     k = _plan_size(session)
     seed = _seed(session)
     opponents = _planned_opponents(session, min(k, len(pool))) if method == "balanced_subset" else None
+    played = played_assistants(session)
+    skipped = set(skipped_assistants(session))
+    taken = set(played) | skipped
 
     def plan_from(data: dict, user: str | None) -> list[str]:
         if method == "random_subset":
-            return scheduling.random_subset(pool, k, seed)
-        others = [(h["assistant_plan"], h.get("opponent_plan")) for u, h in data.get("humans", {}).items()
-                  if u != user and isinstance(h.get("assistant_plan"), list)]
-        return scheduling.balanced_subset(pool, k, [o[0] for o in others], seed, opponents=opponents,
-                                          opponent_plans=[o[1] for o in others])
+            fresh = scheduling.random_subset(pool, k, seed)
+        else:
+            others = [(h["assistant_plan"], h.get("opponent_plan")) for u, h in data.get("humans", {}).items()
+                      if u != user and isinstance(h.get("assistant_plan"), list)]
+            fresh = scheduling.balanced_subset(pool, k, [o[0] for o in others], seed, opponents=opponents,
+                                               opponent_plans=[o[1] for o in others])
+        if not taken:
+            return fresh
+        # a re-plan: the slots already played stay, the open ones get Assistants not used yet
+        kept = played[:k]
+        return kept + scheduling.fill_open_slots(fresh, taken, pool, k, start=len(kept))
 
     path = store_path(session.study_ref)
     if not counts_as_human(session):
         prev = (getattr(session, "__dict__", None) or {}).get("_uncounted_plan")
-        if prev and prev[0] == method and _plan_ok(prev[1], pool, k, method, {"assistant_plan_method": method}):
+        if prev and prev[0] == method and _plan_ok(prev[1], pool, k, method, {"assistant_plan_method": method},
+                                                   taken, skipped):
             return list(prev[1])
         with _locked(path):
             plan = plan_from(_read(path), None)
@@ -357,7 +471,7 @@ def subset_plan(session: Any, pool: list[str], method: str) -> list[str]:
         data = _read(path)
         h = _human(data, session.user, cross)
         plan = h.get("assistant_plan")
-        if _plan_ok(plan, pool, k, method, h):
+        if _plan_ok(plan, pool, k, method, h, taken, skipped):
             return list(plan)
         if plan:
             h.setdefault("previous_assistant_plans", []).append(plan)
@@ -425,6 +539,9 @@ class AssistantChoice:
     error: str | None = None
     #: the scheduling method that picked ``spec`` ("external" for schedule.json, "" for an explicit choice)
     scheduling: str = ""
+    #: the human has used every Assistant left in the pool and the study does not repeat them
+    #: (``scheduling.assistant_repeats``): they finish early (see :func:`assistants_used_up`)
+    exhausted: bool = False
 
     @property
     def strict(self) -> bool:
@@ -645,19 +762,62 @@ def choose_assistant(session: "NegotiationSession", settings: dict, plan: dict |
     method = _assistant_method(session)
     c.scheduling = method
     if method in scheduling.PER_NEGOTIATION_ASSISTANTS:
-        slot = _assistant_slot(session) if method != "random_each" else _negotiations_done(session)
-        _warn_repeats(session, method, c.pool)
-        if len(c.pool) == 1:
-            c.spec = c.pool[0]
-        elif method in scheduling.SUBSET_ASSISTANTS:
-            plan = subset_plan(session, c.pool, method)
-            c.spec = plan[slot % len(plan)]
-        else:
-            idx = (participant_index(session) or 0) if method != "random_each" else 0
-            c.spec = scheduling.pick_assistant_slot(method, c.pool, idx, slot, _seed(session))
+        if method == "random_each":
+            c.spec = c.pool[0] if len(c.pool) == 1 else \
+                scheduling.pick_assistant_slot(method, c.pool, 0, _negotiations_done(session), _seed(session))
+            return c
+        slot = _assistant_slot(session)
+        wrap = assistants_wrap(session, method, c.pool)
+        if wrap:
+            _warn_repeats(session, method, c.pool)
+        seq = _planned_sequence(session, c.pool, method, _plan_size(session))
+        c.spec = scheduling.next_unused(seq, slot, played_assistants(session), c.pool, wrap=wrap)
+        if c.spec is None:  # the pool shrank: every Assistant left in it was used by this human
+            c.exhausted = True
+            c.error = out_of_assistants_text(session, c.pool)
         return c
     c.spec = assign_assistant(session, c.pool, c.group, method)
     return c
+
+
+def out_of_assistants_text(session: Any, pool: list[str]) -> str:
+    """Why a human finishes early: every Assistant left in the pool was already used by them."""
+    used = played_assistants(session)
+    return (f"{getattr(session, 'user', '')} has used every Assistant left in the study's pool "
+            f"({', '.join(pool) or 'none'}) after {len(used)} of {_plan_size(session)} negotiations; each "
+            "Assistant is used at most once per person (scheduling.assistant_repeats is not true), so "
+            "they finish early")
+
+
+def assistants_used_up(session: "NegotiationSession", settings: dict | None, plan: dict | None = None) -> str | None:
+    """Why the human's study ends before K negotiations because no unused Assistant is left for
+    them (``None``: one is left, or the study does not plan Assistants per negotiation). This
+    happens only when the pool shrank during the study and ``assistant_repeats`` is not ``true``."""
+    if settings is None or getattr(session, "study_ref", None) is None:
+        return None
+    try:
+        c = choose_assistant(session, settings, plan)
+    except Exception:  # noqa: BLE001
+        return None
+    return c.error if c.exhausted else None
+
+
+def log_finished_early(session: Any, reason: str, value: dict | None = None) -> None:
+    """A human finishes the study before K negotiations because no Assistant is left for them: a
+    log line and a ``WARNING`` event (``action = finished_early``), once per human and study."""
+    ref = getattr(session, "study_ref", None)
+    key = f"early|{store_path(ref) if ref is not None else ''}|{getattr(session, 'user', '')}"
+    if key in _REPEAT_WARNED:
+        return
+    _REPEAT_WARNED.add(key)
+    print(f"[hani2] WARNING: study {ref}: {reason}")
+    try:
+        from hani2 import events as ev
+
+        ev.log_event(session.sid, ev.EventType.WARNING, user=session.user, component="scheduling",
+                     action="finished_early", value={**(value or {}), "reason": reason})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 _REPEAT_WARNED: set[str] = set()
@@ -993,7 +1153,7 @@ def remaining_assistants(session: "NegotiationSession", settings: dict, plan: di
     if c.source in ("query", "fixed") or (c.source == "group" and len(c.pool) == 1):
         return [c.pool[0]], ""
     method = _assistant_method(session)
-    used = set(used_assistants(session)) | set(skipped_assistants(session))
+    used = set(played_assistants(session)) | set(skipped_assistants(session))
     ref = getattr(session, "study_ref", None)
     options = scheduling.options_for(ref) if ref is not None else {}
     if c.source == "schedule" or method == "external":
@@ -1008,16 +1168,15 @@ def remaining_assistants(session: "NegotiationSession", settings: dict, plan: di
         scheduling.rng(_seed(session), "paired", len(used)).shuffle(order)
         return order, method
     k = _plan_size(session)
-    if len(c.pool) == 1:
-        seq = [c.pool[0]] * k
-    elif method in scheduling.SUBSET_ASSISTANTS:
-        seq = subset_plan(session, c.pool, method)
-    else:
-        idx = participant_index(session) or 0
-        seq = [scheduling.pick_assistant_slot(method, c.pool, idx, j, _seed(session)) for j in range(k)]
-    if scheduling.repeats_allowed(method, options) or len(c.pool) == 1:
+    seq = _planned_sequence(session, c.pool, method, k)
+    skipped = set(skipped_assistants(session))
+    if assistants_wrap(session, method, c.pool, paired=True):
         n = len(used_assistants(session))
         rot = seq[n % len(seq):] + seq[:n % len(seq)] if seq else []
-        skipped = set(skipped_assistants(session))
-        return [a for a in _dedupe(rot) if a not in skipped], method
-    return [a for a in _dedupe(seq) if a not in used], method
+        return [a for a in _dedupe(rot) if a not in skipped and a in c.pool], method
+    # each Assistant at most once: the open slots, filled from Assistants not used (or skipped) yet,
+    # also after a member left the pool (then the plan is made again around the used ones)
+    taken = set(played_assistants(session)) | skipped
+    rest = scheduling.fill_open_slots(seq, taken, c.pool, k, start=len(taken))
+    pos = {a: i for i, a in enumerate(_dedupe(seq))}
+    return sorted(rest, key=lambda a: pos.get(a, len(pos))), method

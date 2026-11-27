@@ -233,3 +233,33 @@ def test_the_editor_sets_up_a_board(page):
     expect(u.get_by_role("group", name="Period")).to_be_visible()
     expect(u.get_by_role("group", name="Games")).to_have_count(0)
     expect(u.locator("[data-empty]")).to_be_visible()
+
+
+def test_the_score_preview_follows_a_weight(page):
+    """The score builder previews an unsaved score on the seeded games: weighting human_advantage puts
+    Aurora on top, weighting agreement puts Birch there (the seed is fixed); nothing is saved."""
+    p = page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    p.goto("/admin#projects")
+    p.get_by_text("LB — Demo league 2027", exact=True).first.click()
+    p.get_by_role("button", name="New score").click()
+    b = p.locator("[data-score-builder]")
+    b.get_by_label("Score key").fill("e2e_preview")
+    for crit, w in (("human_advantage", "90"), ("agreement", "10")):
+        b.get_by_label("Search criteria").fill(crit)
+        b.get_by_role("option").filter(has_text=crit).first.click()
+        f = b.get_by_label(f"Weight of {crit} (%)")
+        f.fill(w)
+        f.blur()
+    pv = b.locator("[data-score-preview]")
+    expect(pv.locator("[data-preview-histogram]")).to_be_visible(timeout=20000)
+    expect(pv.locator("[data-preview-entrant]").first).to_have_attribute("data-preview-entrant", "Aurora", timeout=20000)
+    expect(pv.locator("[data-weight-in-effect=human_advantage]")).to_contain_text("90 %")
+    for crit, w in (("human_advantage", "10"), ("agreement", "90")):
+        f = b.get_by_label(f"Weight of {crit} (%)")
+        f.fill(w)
+        f.blur()
+    expect(pv.locator("[data-weight-in-effect=agreement]")).to_contain_text("90 %", timeout=20000)
+    expect(pv.locator("[data-preview-entrant]").first).to_have_attribute("data-preview-entrant", "Birch", timeout=20000)
+    scores = p.request.get("/api/admin/scores?project=LB").json()
+    assert "e2e_preview" not in [s["key"] for s in scores["scores"]]

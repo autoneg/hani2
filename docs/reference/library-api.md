@@ -208,6 +208,14 @@ The default scenario set (`scenario_sets.yaml` → `default`).
 
 ## Tools
 
+### `GET /api/admin/library/tools/load-errors?layer=`
+
+The tools that could not be loaded: a tools-folder file, `tools.extra` / `--tools` entry,
+entry point or library entry whose import failed. Discovery runs again first, so a fixed file
+drops off the list.
+
+- `GET` → `{"errors": [{"source": "/srv/tools/my_tool.py", "error": "SyntaxError: …", "at": 1764201600.0}]}`
+
 ### `GET /api/admin/library/tools/offer?layer=` / `PUT`
 
 The tools sessions get: `tools.yaml` → `offer`, from the most specific layer that sets it

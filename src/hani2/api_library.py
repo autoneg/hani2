@@ -131,6 +131,13 @@ def put_placement(body: dict = Body(...), layer: str = "settings", replace: bool
     return _call(library.put_placement, pl, layer, replace)
 
 
+@router.get("/tools/load-errors")
+def get_tool_load_errors(layer: str = "settings") -> dict[str, Any]:
+    """Tools that could not be loaded (a broken file, ``tools.extra`` entry, entry
+    point or library entry): ``{"errors": [{source, error, at}]}``."""
+    return _call(library.tool_load_errors, layer)
+
+
 @router.get("/tools/offer")
 def get_offer(layer: str = "settings") -> dict[str, Any]:
     return _call(library.get_offer, layer)
