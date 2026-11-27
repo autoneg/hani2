@@ -21,6 +21,15 @@ block, set in ``project.yaml`` and overridden key by key in ``study.yaml`` for t
       visibility: participants          # public | participants | admins
       rules: {min_games: 10, min_participants: 3, max_games_per_pair: 3,
               max_games_per_participant: 20, exclude_own: false, adjust: relative, ci: 0.95}
+      update: pooled                    # pooled (default) | latest | continuous, or a mapping
+                                        # {mode: continuous, method: kalman, drift_sd: 0.1, z: 1}
+
+``update`` (see :mod:`hani2.ratings`): ``pooled`` weighs every counted game the same; ``latest`` keeps
+only the newest study (each study of the board is a tournament that replaces the board); ``continuous``
+uses every counted game with recent games weighing more and a probable change of an entrant flagged
+(for self-hosted agents, whose code may change unseen). In ``continuous`` mode the values are the
+filtered means of the cell-adjusted games, their interval ``mean ± z·sd``, each entry has a ``rating``
+and the ranks follow ``rating.score`` (the lower bound by default).
 
 :func:`board` applies the rules of which games count (no practice, simulated participants, admin
 or playground sessions, failures or abandoned matches; own-team games unless ``exclude_own``; caps
@@ -56,7 +65,7 @@ _WINDOW = re.compile(r"^last_(\d{1,4})_days$")
 #: columns that are counts, not scores or criteria
 COUNT_COLUMNS = ("games", "participants", "guests", "abandon_rate", "cost_usd")
 BLOCK_KEYS = ("track", "source", "studies", "include", "sort_options", "default_sort", "columns", "user_options",
-              "defaults", "visibility", "rules")
+              "defaults", "visibility", "rules", "update")
 RULE_DEFAULTS: dict[str, Any] = {"min_games": 10, "min_participants": 3, "max_games_per_pair": None,
                                  "max_games_per_participant": None, "exclude_own": False, "adjust": "relative",
                                  "ci": 0.95}
@@ -181,6 +190,10 @@ def check_block(value: Any, where: str = "leaderboard", track: str | None = None
                     out.append(f"'{where}.defaults': unknown switch {k!r}; use {', '.join(SWITCHES)}")
                 elif not _switch_ok(k, v, track):
                     out.append(f"'{where}.defaults.{k}': unknown value {v!r}; use {_switch_values(k, track)}")
+    if value.get("update") is not None:
+        from hani2 import ratings
+
+        out += [f"'{where}': {p}" for p in ratings.check_config(value["update"])]
     rules = value.get("rules")
     if rules is not None:
         if not isinstance(rules, dict):
@@ -247,6 +260,8 @@ class Settings:
     rules: dict[str, Any]
     #: whether a block was written (the project's, or the study's)
     configured: bool
+    #: the update rule with its defaults (:func:`hani2.ratings.normalise_config`)
+    update: dict[str, Any] = field(default_factory=lambda: {"mode": "pooled"})
     #: what was given (merged), before the defaults
     given: dict[str, Any] = field(default_factory=dict)
     problems: list[str] = field(default_factory=list)
@@ -254,7 +269,7 @@ class Settings:
     def to_dict(self) -> dict[str, Any]:
         return {k: getattr(self, k) for k in ("track", "source", "studies", "include", "sort_options",
                                               "default_sort", "columns", "user_options", "defaults",
-                                              "visibility", "rules")}
+                                              "visibility", "rules", "update")}
 
 
 def _default_track(kind: str) -> str:
@@ -311,11 +326,14 @@ def settings(project: str, study: str | None = None, *, project_block: Any = ...
                if isinstance(e, dict) and isinstance(e.get("study"), str)]
     if not isinstance(given.get("studies"), (list, type(None))):
         studies = projects.list_studies(project)
+    from hani2 import ratings
+
+    update = ratings.normalise_config(given.get("update") if not ratings.check_config(given.get("update")) else None)
     return Settings(project=project, study=study, track=track, source=str(given.get("source") or "game"),
                     studies=studies, include=include, sort_options=sort_options, default_sort=default_sort,
                     columns=columns, user_options=uo, defaults=defaults,
                     visibility=str(given.get("visibility") or DEFAULT_VISIBILITY), rules=rules,
-                    configured=bool(pb or sb), given=given, problems=problems)
+                    configured=bool(pb or sb), given=given, problems=problems, update=update)
 
 
 def _criteria_index(project: str, study: str | None) -> dict[str, Any]:
@@ -877,6 +895,20 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
             r["_exclude"] = "admin or test session"
         elif rules.get("exclude_own") and _truthy(r.get("own_assistant")):
             r["_exclude"] = "own team"
+    mode = (cfg.update or {}).get("mode", "pooled")
+    latest_study = None
+    if mode == "latest":  # each study is a tournament; the newest one (by its latest game) replaces the board
+        last: dict[str, datetime] = {}
+        for r in in_track:
+            d = _started(r)
+            if d is not None and not r.get("_exclude"):
+                k = str(r.get("_study") or "")
+                last[k] = max(last.get(k, d), d)
+        if last:
+            latest_study = max(last, key=lambda k: (last[k], k))
+            for r in in_track:
+                if not r.get("_exclude") and str(r.get("_study") or "") != latest_study:
+                    r["_exclude"] = "earlier tournament"
     # partners among every row (a left-out partner still names the opponent)
     partners = T._partners(in_track)
     same = {id(r) for r in in_track if track == "hi" and T._match_of(r) and T._same_assistant(r, partners.get(id(r)))}
@@ -931,9 +963,11 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
         if hide:
             r["_hidden"] = True
     directions = {k: (crit[k].direction if k in crit and k not in ss.scores else "higher") for k in value_keys}
+    estimator = _continuous_estimator(cfg.update, track, directions, now) if mode == "continuous" else None
     lb = T.leaderboard(in_track, track, T.GAME_BOARD, rank_by=q["sort"], values=value_keys, directions=directions,
                        relative=rules.get("adjust", "relative") == "relative", stratum=q["stratum"],
-                       n_boot=n_boot, seed=seed, ci=float(rules.get("ci") or 0.95), min_coverage=0.0)
+                       n_boot=n_boot, seed=seed, ci=float(rules.get("ci") or 0.95), min_coverage=0.0,
+                       estimator=estimator)
     # games per entrant in the view, whatever the games switch
     view_games: dict[str, dict[str, int]] = {}
     guests: dict[str, set] = {}
@@ -997,14 +1031,22 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
                         "ci_unit": e["scores"][main]["ci_unit"],
                         "abandon_rate": (ar[0] / ar[1]) if ar and ar[1] else 0.0,
                         "cost_usd": _clean_number(e["cost_usd"])})
+        if estimator is not None and e["scores"][main].get("rating"):
+            entries[-1]["rating"] = e["scores"][main]["rating"]
         if track == "han":
             entries[-1]["opponent"] = entries[-1].pop("assistant")
     # ranks among the ranked entrants (equal means share a rank; ties with the leader by the CI)
-    entries.sort(key=lambda x: (-sign * x["values"][main]["mean"], x["entrant"]))
+    def _rank_value(x: dict) -> float:
+        rt = x.get("rating")
+        if estimator is not None and rt and rt.get("score") is not None:
+            return float(rt["score"])
+        return float(x["values"][main]["mean"])
+
+    entries.sort(key=lambda x: (-sign * _rank_value(x), x["entrant"]))
     rank, prev = 0, None
     lead = entries[0]["values"][main] if entries else None
     for i, x in enumerate(entries):
-        m = x["values"][main]["mean"]
+        m = _rank_value(x)
         if prev is None or not math.isclose(m, prev, abs_tol=1e-12):
             rank = i + 1
         x["rank"], prev = rank, m
@@ -1055,6 +1097,19 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
                      + ", ".join(f"{_name(k)} ({n} entrant{'s' if n != 1 else ''}, to "
                                  f"[{bounds[k][0]:g}, {bounds[k][1]:g}])" for k, n in clipped.items())
                      + "; an interval that reaches a bound is cut there")
+    if mode == "latest":
+        notes.append(f"update: latest — only the newest tournament counts ({latest_study or 'none yet'}); "
+                     "earlier studies are left out")
+    elif mode == "continuous":
+        u = cfg.update
+        how = (f"a Kalman filter over time (drift {u.get('drift_sd')} per 30 days) with a change flag"
+               if u.get("method", "kalman") == "kalman" else f"a time-decayed mean (half-life {u.get('half_life_days')} days)")
+        notes.append(f"update: continuous — every counted game, recent games weigh more ({how}); ranked by "
+                     + ("the lower bound mean − " + f"{u.get('z')}·sd" if u.get("rank_by", "lower") == "lower" else "the mean")
+                     + "; a declared version is a hint only")
+        flagged = [x["label"] for x in entries if (x.get("rating") or {}).get("changes")]
+        if flagged:
+            notes.append("probable change of agent (performance shift or a new declared version): " + ", ".join(flagged))
     if rules.get("adjust", "relative") == "relative":
         notes.append("means are cell-adjusted (each game against the mean of its cell), shown on the values' scale")
     else:
@@ -1071,6 +1126,40 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
         "totals": {k: lb["totals"].get(k) for k in ("sessions", "matches", "agreement_rate", "welfare")},
         "reference": rsum, "_reference": ref, "_counted": counted,
     }
+
+
+def _continuous_estimator(update: dict[str, Any], track: str, directions: dict[str, str], now: datetime):
+    """The estimator :func:`hani2.evaluation.tracks.leaderboard` calls in ``update: continuous`` mode: per
+    value, the method of :mod:`hani2.ratings` over each entrant's cell-adjusted games in time order (a
+    game without a start time is left out). The declared version (``assistant_version`` /
+    ``opponent_version``) is passed as a hint."""
+    from hani2 import ratings
+
+    method = ratings.method_from_config(update)
+    by = str(update.get("rank_by") or "lower")
+    vcol = "assistant_version" if track == "hi" else "opponent_version"
+
+    def estimate(name: str, per_entrant: dict[str, list[tuple[dict, float]]]) -> dict[str, dict]:
+        obs = []
+        for g, items in per_entrant.items():
+            for r, v in items:
+                d = _started(r)
+                if d is None:
+                    continue
+                ver = r.get(vcol)
+                obs.append(ratings.Observation(g, d, v, version=None if _blank(ver) else str(ver)))
+        est = ratings.rank(method.estimate(obs, now), by=by, direction=directions.get(name, "higher"))
+        out = {}
+        for e in est:
+            out[e.entrant] = {"mean": e.mean, "lo": e.lo, "hi": e.hi, "ci_unit": "rating",
+                              "rating": {"mean": e.mean, "sd": e.sd, "lower": e.lo, "upper": e.hi, "score": e.score,
+                                         "n_eff": round(e.n_eff, 3), "first_game": e.first_time,
+                                         "last_game": e.last_time, "versions": e.versions,
+                                         "changes": [{"time": c.time, "kind": c.kind, "detail": c.detail}
+                                                     for c in e.changes]}}
+        return out
+
+    return estimate
 
 
 def value_bounds(key: str, ss: Any, crit: dict[str, Any]) -> tuple[float, float] | None:
