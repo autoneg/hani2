@@ -1,1 +1,0 @@
-import{c as a}from"./index-giIIwGLq.js";const e={name:"x-line-top",size:24,node:[["path",{d:"M18 4H6",key:"1hsngl"}],["path",{d:"M18 8 6 20",key:"xspwia"}],["path",{d:"m6 8 12 12",key:"qb1veh"}]]};e.node;const t=a(e);export{e as __iconData,t as default};

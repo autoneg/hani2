@@ -514,11 +514,12 @@ before the lock is taken and kept (a tool that cannot answer counts as private f
 HANI2's own tools are asked directly.
 
 An input or a button gets `tools.input_timeout` seconds (8 by default; `0` uses
-`tools.render_timeout`), shorter than the render limit, so Send, Accept and End are not stuck
+`tools.render_timeout`; with no render limit, `tools.render_timeout` of `0`, there is none for inputs either), shorter than the render limit, so Send, Accept and End are not stuck
 behind a hung tool for long. A tool that is hung is skipped until every abandoned call has
 returned, then it is given the `scenario_loaded` and `negotiation_started` it missed. Tools
-started together (a new session) start at the same time, so several hung `init` calls cost one
-time limit. A tool that gave up rendering shows a **Try again** button in its pane.
+from outside that start together (a new session) now run their `init` (and `scenario_loaded`) at the
+same time, in no fixed order, so several hung `init` calls cost one time limit; HANI2's own tools
+still start one after the other. A tool must not depend on another tool having been initialised first. A tool that gave up rendering shows a **Try again** button in its pane.
 
 A tool file (or `tools.extra` entry, entry point or library entry) that cannot even be imported
 gives no tab at all. The admin console lists such files at the top of the **Tools** page of the

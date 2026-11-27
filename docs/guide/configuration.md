@@ -330,7 +330,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.values_line_above` | An issue with more options than this (default 12), or a continuous one, shows its values as a line instead of bars. |
 | `tools.isolate_builtin` | Catch the failures of built-in tools too and show them in the tool's own tab (default `true`). `false`: built-in tool errors surface as they used to, for debugging. External tools are always guarded. See [When a tool fails](tools.md#when-a-tool-fails). |
 | `tools.render_timeout` | Seconds a guarded tool may take for one call (render, input, button, hook, `init`, or the Assistant reading it) before the call is abandoned and its tab shows that it took too long (default `20`; `0`: no limit). |
-| `tools.input_timeout` | Seconds a guarded tool may take to handle an input or a button (default `8`; `0`: use `tools.render_timeout`). Set it in `env.json`. |
+| `tools.input_timeout` | Seconds a guarded tool may take to handle an input or a button (default `8`; `0`: use `tools.render_timeout`). It never makes a call longer than `tools.render_timeout`, and when that is `0` (no limit) inputs and buttons have no limit either. |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |

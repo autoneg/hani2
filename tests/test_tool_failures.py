@@ -123,6 +123,24 @@ BROKEN_TOOLS = textwrap.dedent('''
                 time.sleep(3.0)
             return False
 
+    class RaiseAvail(_Base):
+        def available(self):
+            if _armed("RaiseAvail"):
+                raise RuntimeError("boom in available")
+            return True
+
+    class HangAvail(_Base):
+        def available(self):
+            if _armed(type(self).__name__):
+                time.sleep(1.0)
+            return True
+
+    class HangAvail2(HangAvail):
+        pass
+
+    class HangAvail3(HangAvail):
+        pass
+
     class ExitAvail(_Base):
         def available(self):
             if _armed("ExitAvail"):
@@ -898,3 +916,94 @@ def test_input_timeout_is_shorter_than_the_render_timeout(broken_tools, monkeypa
     s.submit_ui(s.tool_action, s.tool_state(hang)["id"], "go", {}).result()
     assert time.monotonic() - t0 < 0.9
     assert s.tool_failure(hang)["where"] == "on_action"
+
+
+# -- third review ------------------------------------------------------------ #
+class _LoopHub:
+    """Behaves like Hub.tool_changed: asks whether the tool is shown (on the caller's thread)."""
+
+    def __init__(self, s):
+        self.s, self.calls = s, 0
+
+    def tool_changed(self, sid, tid):
+        self.calls += 1
+        assert self.calls < 60, "tool_changed recursed"
+        self.s.tool_is_shown(tid)
+
+    def push(self, *a, **kw):
+        pass
+
+    def push_state(self, *a, **kw):
+        pass
+
+
+def test_the_event_loop_path_never_asks_tool_code_and_failures_do_not_recurse(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    _arm(monkeypatch, "RaiseAvail", "HangAvail")
+    s = make_session()
+    s.hub = hub = _LoopHub(s)
+    good = _tool(s, "GoodTool")
+    time.sleep(0.4)  # past the cache time
+    t0 = time.monotonic()
+    for name in ("RaiseAvail", "HangAvail", "GoodTool"):
+        s.tool_changed(_tool(s, name))
+        assert s.shown_tool_names() is not None
+        assert s.tool_is_shown(s.tool_state(good)["id"]) in (True, False)
+    assert time.monotonic() - t0 < 0.2  # nothing waited for a tool
+    before = hub.calls
+    s.snapshot()  # the off-loop path asks (and a failed ask must not refresh in a loop)
+    assert hub.calls - before <= 6
+    assert s.tool_failure(_tool(s, "RaiseAvail"))["where"] == "available"
+
+
+def test_help_text_is_kept_only_when_it_was_answered(broken_tools):
+    s = make_session()
+    tool = _tool(s, "HangHelp")
+    st = s.tool_state(tool)
+    st.pop("help", None)
+    st["hung"] = 1  # the ask is skipped
+    s._refresh_predicates(tool)
+    assert "help" not in st
+    st.pop("hung")
+    s._refresh_predicates(tool)
+    assert st["help"] == "help"
+
+
+def test_predicates_are_asked_in_parallel_and_available_is_reused_briefly(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.4}})
+    s = make_session()
+    time.sleep(0.35)
+    _arm(monkeypatch, "HangAvail", "HangAvail2", "HangAvail3")
+    t0 = time.monotonic()
+    s.refresh_tool_predicates()
+    assert time.monotonic() - t0 < 0.9  # three in a row would take 1.2 s
+    t0 = time.monotonic()
+    s.refresh_tool_predicates()  # answers are fresh (and the tools are hung): nothing to wait for
+    assert time.monotonic() - t0 < 0.2
+    assert s.wait(lambda: not any(s.tool_unusable(_tool(s, n)) for n in ("HangAvail", "HangAvail2", "HangAvail3")), 5)
+
+
+def test_retrying_a_tool_delivers_the_hooks_it_missed(broken_tools):
+    s = make_session()
+    tool = _tool(s, "GoodTool")
+    st = s.tool_state(tool)
+    before = getattr(tool, "n_loaded", 0)
+    st["gave_up"] = True
+    st["missed"] = {"scenario_loaded"}
+    s.retry_tool(tool)
+    assert tool.n_loaded == before + 1
+    st["gave_up"] = True  # a tool that gave up rendering still gets hooks
+    st["missed"] = {"scenario_loaded"}
+    s._replay_missed(tool)
+    assert tool.n_loaded == before + 2
+
+
+def test_no_render_limit_means_no_input_limit_either(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0, "input_timeout": 0.2}})
+    _arm(monkeypatch, "HangAction")
+    s = make_session()
+    hang = _tool(s, "HangAction")
+    t0 = time.monotonic()
+    s.tool_action(s.tool_state(hang)["id"], "go", {})
+    assert time.monotonic() - t0 >= 0.9
+    assert s.tool_failure(hang) is None

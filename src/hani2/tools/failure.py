@@ -107,7 +107,7 @@ def render_timeout() -> float | None:
 
 def input_timeout() -> float | None:
     """env.json → ``tools.input_timeout``: seconds a guarded tool may take to handle an input or a
-    button (default 8; ``0`` or less: use ``tools.render_timeout``). Shorter than the render limit,
+    button (default 8; ``0`` or less: use ``tools.render_timeout``; when that is ``0`` too there is no limit at all). Shorter than the render limit,
     because Send, Accept and End queue behind the call."""
     try:
         v = float(get_env("tools.input_timeout", DEFAULT_INPUT_TIMEOUT))

@@ -588,7 +588,7 @@ class NegotiationSession:
 
     def run_on_doc(self, fn: Callable, timeout: float = 30.0):
         """Run ``fn`` under the session lock and return its result."""
-        self.refresh_tool_predicates()  # tool code is asked first, with the lock free
+        self.refresh_tool_predicates(fresh=True)  # tool code is asked first, with the lock free
         with self.lock:
             return fn()
 
@@ -846,15 +846,17 @@ class NegotiationSession:
         hide = ("utility_parts",) if self.sees_totals("human") else ("utility", "below_reserved", "utility_parts")
         return [{k: v for k, v in h.items() if k not in hide} for h in self.history]
 
-    def tool_available(self, tool) -> bool:
-        """Whether ``tool`` is offered this round (a tool can depend on the information split)."""
+    def tool_available(self, tool, *, cached: bool = False) -> bool:
+        """Whether ``tool`` is offered this round (a tool can depend on the information split).
+        ``cached``: a tool from outside is not asked, its last answer is used (for callers on the
+        event loop, which must never wait for tool code)."""
         if self._inline_tool(tool):
             try:
                 return bool(tool.available())
             except (Exception, SystemExit):  # noqa: BLE001
                 traceback.print_exc()
                 return True
-        return self._predicate(tool, "available")
+        return self._predicate(tool, "available", cached=cached)
 
     def _inline_tool(self, tool) -> bool:
         """Whether ``tool``'s small questions (``available``, ``private_now``, ``help_text``) are asked
@@ -864,22 +866,26 @@ class NegotiationSession:
         builtin = st.get("builtin") if st is not None and "builtin" in st else tool_failure.is_builtin(type(tool))
         return bool(builtin) or not self.isolates_tool(tool)
 
-    def _predicate(self, tool, key: str):
-        """``key`` (``available`` or ``private``) of a tool from outside, from its cache; refreshed first
-        when this thread does not hold the session lock. Fails closed: a tool that cannot answer is
-        offered, but private."""
+    #: how long an ``available`` answer of a tool from outside is reused (``private`` is asked afresh)
+    PREDICATE_TTL = 0.3
+
+    def _predicate(self, tool, key: str, *, cached: bool = False):
+        """``key`` (``available`` or ``private``) of a tool from outside, from its cache; asked again first
+        when this thread may wait for tool code (not under the session lock, not ``cached``). Fails
+        closed: a tool that cannot answer is offered, but private."""
         st = self._tool_states.get(id(tool))
         if st is None:
             return True
-        if not self.lock.held_by_me() and not _IN_TIMED_CALL.get():
-            self._refresh_predicates(tool)
+        if not cached and not self.lock.held_by_me() and not _IN_TIMED_CALL.get():
+            if key == "private" or time.monotonic() - st.get("pred_at", -1e9) > self.PREDICATE_TTL:
+                self._refresh_predicates(tool)
         if key == "private" and self.tool_unusable(tool):
             return True
         return bool(st.get("pred", {}).get(key, True))
 
     def _refresh_predicates(self, tool) -> None:
         """Ask a tool from outside ``available`` and ``private_now`` (and ``help_text`` once), guarded and
-        time-limited, and keep the answers. Called with the session lock free."""
+        time-limited, and keep the answers. Called with the session lock free, never on the event loop."""
         st = self._tool_states.get(id(tool))
         if st is None or self._inline_tool(tool):
             return
@@ -889,19 +895,30 @@ class NegotiationSession:
             return bool(tool.available()), bool(tool.private_now())
 
         got = self.guard_tool(tool, "available", ask, default=None)
+        st["pred_at"] = time.monotonic()
         if got is None:
             pred["private"] = True  # fail closed
         else:
             pred["available"], pred["private"] = got
         if "help" not in st:
-            st["help"] = self.guard_tool(tool, "help_text", tool.help_text, default="") or ""
+            h = self.guard_tool(tool, "help_text", tool.help_text, default=_FAILED)
+            if h is not _FAILED:  # only an answer is kept: a skipped or failed ask is made again
+                st["help"] = h or ""
 
-    def refresh_tool_predicates(self) -> None:
-        """Refresh what is asked of tools from outside; call it where the lock is about to be taken."""
+    def refresh_tool_predicates(self, *, fresh: bool = False) -> None:
+        """Refresh what is asked of tools from outside, all at the same time (one time limit for
+        all); call it where the lock is about to be taken, off the event loop. Answers younger than
+        ``PREDICATE_TTL`` are reused unless ``fresh`` (the Assistant path)."""
         if self.lock.held_by_me():
             return
-        for t in list(self.tools):
-            self._refresh_predicates(t)
+        now = time.monotonic()
+        todo = [t for t in list(self.tools) if not self._inline_tool(t)
+                and (fresh or "help" not in (self._tool_states.get(id(t)) or {})
+                     or now - (self._tool_states.get(id(t)) or {}).get("pred_at", -1e9) > self.PREDICATE_TTL)]
+        if len(todo) == 1:
+            self._refresh_predicates(todo[0])
+        else:
+            self._run_parallel([lambda t=t: self._refresh_predicates(t) for t in todo])
 
     def tool_help(self, tool) -> str:
         """The tool's help text: asked directly of HANI2's own tools, kept from the last refresh for the rest."""
@@ -1674,8 +1691,8 @@ class NegotiationSession:
         """Deliver again the ``scenario_loaded`` / ``negotiation_started`` a tool missed while it was
         hung or starting (they are not repeated by anyone else)."""
         st = self._tool_states.get(id(tool))
-        if st is None or st.get("hung") or st.get("starting") or self.tool_unusable(tool):
-            return
+        if st is None or st.get("hung") or st.get("starting") or (st.get("failure") or {}).get("where") in tool_failure.START:
+            return  # (a tool that gave up rendering still gets its hooks)
         missed = st.pop("missed", None) or set()
         if "scenario_loaded" in missed and self.scenario is not None:
             self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
@@ -1727,10 +1744,11 @@ class NegotiationSession:
         """Tools the browser can be showing: the active (or first) tab of each
         pane, the active tab of combined tab strips (``all``), an enlarged
         tool (``max``) and a tool open in a popup (``popup``). Other tools are rendered when their tab is opened."""
-        self.refresh_tool_predicates()
+        # runs on the event loop: tool code is never asked here, only its last answers are read
         with self.lock:
             names: set[str] = set()
-            visible = [t for t in self.tools if self._tool_states[id(t)]["visible"] and self.tool_available(t)]
+            visible = [t for t in self.tools
+                       if self._tool_states[id(t)]["visible"] and self.tool_available(t, cached=True)]
             for pane in PANES:
                 in_pane = sorted((t for t in visible if self._tool_states[id(t)]["pane"] == pane),
                                  key=lambda t: self._tool_states[id(t)]["order"])
@@ -1854,7 +1872,8 @@ class NegotiationSession:
                 limit = self._tool_setting("render_timeout", tool_failure.render_timeout)
                 if where in ("on_input", "on_action"):
                     short = self._tool_setting("input_timeout", tool_failure.input_timeout)
-                    limit = short if limit is None else (limit if short is None else min(limit, short))
+                    if limit is not None and short is not None:  # no render limit means no limit at all
+                        limit = min(limit, short)
         try:
             if limit is None:
                 result = fn(*args, **kw)
@@ -2030,8 +2049,9 @@ class NegotiationSession:
         old = st.get("failure")
         if old is None or old["where"] not in tool_failure.START:  # a failed start stays the reason
             st["failure"] = f
-        if f["where"] not in tool_failure.RENDER:
-            tool.refresh()  # show it (a failed render already shows it, and must not loop)
+        if f["where"] not in tool_failure.RENDER and f["where"] not in ("available", "private_now", "help_text"):
+            tool.refresh()  # show it (a failed render already shows it, and must not loop; a failed question
+            # about the tool is asked again by whoever needs the answer, and refreshing would ask it again)
 
     def tool_failure(self, tool) -> dict | None:
         """``tool``'s current failure (``{where, error_type, message, traceback, at}``) or ``None``."""
@@ -2116,6 +2136,7 @@ class NegotiationSession:
             st.pop("render_timeouts", None)
             if (st.get("failure") or {}).get("where") == "timeout":
                 st.pop("failure", None)
+            self._replay_missed(tool)
             tool.refresh()
 
     def _failure_view(self, tool, st: dict) -> list:
