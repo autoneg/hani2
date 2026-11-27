@@ -400,7 +400,7 @@ def admin_questionnaire_library():
     from hani2.evaluation import catalog
 
     return {"sets": [{**s, **catalog.questionnaire_payload(s["id"])} if s.get("source") == "bundled" else
-                     {**s, "validated": False} for s in questionnaires.library().values()],
+                     {**s, "validated": False, "warning": ""} for s in questionnaires.library().values()],
             "validated_tooltip": catalog.VALIDATED_SOURCE_TOOLTIP,
             "forms": [{"key": f.key, "title": f.title, "file": f"questionnaires/{f.file}"} for f in questionnaires.FORMS.values()],
             "types": list(questionnaires.QUESTION_TYPES)}
@@ -426,16 +426,22 @@ def admin_questionnaire_compose(body: dict = Body(...)):
 
 @router.post("/api/admin/questionnaires/check")
 def admin_questionnaire_check(body: dict = Body(...)):
-    """Check a form's text: ``{"text"}`` → ``{"problems", "form"}`` (``form``: the parsed questions, for a preview)."""
+    """Check a form's text: ``{"text"}`` → ``{"problems", "form", "warnings"}`` (``form``: the parsed questions,
+    for a preview; ``warnings``: the source warnings of the bundled sets whose questions it uses, for the admin
+    only, kept apart from ``form``)."""
     from hani2 import questionnaires
+    from hani2.evaluation import catalog
 
     text = str(body.get("text") or "")
     problems = questionnaires.validate(text)
     form = None
+    warnings: list[dict[str, str]] = []
     if not problems and text.strip():
         data = yaml.safe_load(text) or {}
         if data.get("enabled") is not False:
             from hani2.templates import render_data
 
             form = render_data({k: data.get(k) for k in ("title", "intro", "questions")})
-    return {"problems": problems, "form": form}
+            ids = [q.get("id") for q in data.get("questions") or [] if isinstance(q, dict)]
+            warnings = catalog.form_warnings(ids, questionnaires.library())
+    return {"problems": problems, "form": form, "warnings": warnings}

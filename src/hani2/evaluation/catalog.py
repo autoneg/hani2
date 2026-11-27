@@ -236,7 +236,8 @@ SCORE_RULES_VALIDATED_BY = _SC + "test_defined_score_three_components_catalogue_
 
 
 #: warnings about the source of a measure or questionnaire whose scoring may be validated but whose items
-#: are not checked against the published instrument (shown as warnings in the docs)
+#: are not checked against the published instrument (shown as warnings in the docs and, for questionnaires,
+#: on the admin Study forms page; never to participants)
 TAM_WARNING = ("The TAM items have not been checked against the published instrument (Davis, 1989): no readable "
                "copy of the item sheet was found. The scoring of the scale is validated; the wording of its items "
                "is not, so results may not be comparable with published TAM scores.")
@@ -413,12 +414,32 @@ def questionnaire_info(qid: str) -> QuestionnaireInfo | None:
 
 def questionnaire_payload(qid: str) -> dict[str, Any]:
     """What the questionnaire library API adds to a set: ``measures``, ``citation``, ``url``,
-    ``validated``, ``validated_by`` and ``validation_note`` (empty for sets HANI2 does not know)."""
+    ``validated``, ``validated_by``, ``validation_note`` and ``warning`` (a source warning from
+    :data:`QUESTIONNAIRE_WARNINGS`, or ``""``; empty for sets HANI2 does not know). Admin-only: the
+    participant's form never carries any of these."""
     info = QUESTIONNAIRES.get(qid)
     if info is None:
-        return {"validated": False}
+        return {"validated": False, "warning": ""}
     return {"measures": info.measures, "citation": info.citation, "url": info.url,
-            "validated": bool(info.validated_by), "validated_by": info.validated_by, "validation_note": info.note}
+            "validated": bool(info.validated_by), "validated_by": info.validated_by, "validation_note": info.note,
+            "warning": questionnaire_warning(qid)}
+
+
+def questionnaire_warning(qid: str) -> str:
+    """The source warning of a bundled questionnaire (plain text, for the app), or ``""``."""
+    return QUESTIONNAIRE_WARNINGS.get(qid, "").replace("`", "")
+
+
+def form_warnings(question_ids: Iterable[str], sets: dict[str, dict]) -> list[dict[str, str]]:
+    """The source warnings of the bundled library sets (``sets``: :func:`hani2.questionnaires.library`) whose
+    questions appear in a form with these question ids: ``[{"set", "title", "warning"}]``."""
+    ids = set(question_ids)
+    out = []
+    for sid, s in sets.items():
+        w = questionnaire_warning(sid) if s.get("source") == "bundled" else ""
+        if w and ids & {q.get("id") for q in s.get("questions") or []}:
+            out.append({"set": sid, "title": str(s.get("title") or sid), "warning": w})
+    return out
 
 
 def validation_entries() -> Iterable[tuple[str, str]]:
