@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/superscript-BLIK0shn.js
-import{c}from"./index-C-yFU6-Y.js";const e={name:"superscript",size:24,node:[["path",{d:"m4 19 8-8",key:"hr47gm"}],["path",{d:"m12 19-8-8",key:"1dhhmo"}],["path",{d:"M20 12h-4c0-1.5.442-2 1.5-2.5S20 8.334 20 7.002c0-.472-.17-.93-.484-1.29a2.105 2.105 0 0 0-2.617-.436c-.42.239-.738.614-.899 1.06",key:"1dfcux"}]]};e.node;const a=c(e);export{e as __iconData,a as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/superscript-BBl4bxUS.js
-import{c}from"./index-BeDEz9Xj.js";const e={name:"superscript",size:24,node:[["path",{d:"m4 19 8-8",key:"hr47gm"}],["path",{d:"m12 19-8-8",key:"1dhhmo"}],["path",{d:"M20 12h-4c0-1.5.442-2 1.5-2.5S20 8.334 20 7.002c0-.472-.17-.93-.484-1.29a2.105 2.105 0 0 0-2.617-.436c-.42.239-.738.614-.899 1.06",key:"1dfcux"}]]};e.node;const a=c(e);export{e as __iconData,a as default};
-========
-import{c}from"./index-Cjbv4bp8.js";const e={name:"superscript",size:24,node:[["path",{d:"m4 19 8-8",key:"hr47gm"}],["path",{d:"m12 19-8-8",key:"1dhhmo"}],["path",{d:"M20 12h-4c0-1.5.442-2 1.5-2.5S20 8.334 20 7.002c0-.472-.17-.93-.484-1.29a2.105 2.105 0 0 0-2.617-.436c-.42.239-.738.614-.899 1.06",key:"1dfcux"}]]};e.node;const a=c(e);export{e as __iconData,a as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/superscript-DI4LHXzL.js

@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/rectangle-ellipsis-Bq7gk30T.js
-import{c as t}from"./index-C-yFU6-Y.js";const e={name:"rectangle-ellipsis",size:24,node:[["rect",{width:"20",height:"12",x:"2",y:"6",rx:"2",key:"9lu3g6"}],["path",{d:"M12 12h.01",key:"1mp3jc"}],["path",{d:"M17 12h.01",key:"1m0b6t"}],["path",{d:"M7 12h.01",key:"eqddd0"}]],aliases:["form-input"]};e.node;const i=t(e);export{e as __iconData,i as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/rectangle-ellipsis-QqWbLliv.js
-import{c as t}from"./index-BeDEz9Xj.js";const e={name:"rectangle-ellipsis",size:24,node:[["rect",{width:"20",height:"12",x:"2",y:"6",rx:"2",key:"9lu3g6"}],["path",{d:"M12 12h.01",key:"1mp3jc"}],["path",{d:"M17 12h.01",key:"1m0b6t"}],["path",{d:"M7 12h.01",key:"eqddd0"}]],aliases:["form-input"]};e.node;const i=t(e);export{e as __iconData,i as default};
-========
-import{c as t}from"./index-Cjbv4bp8.js";const e={name:"rectangle-ellipsis",size:24,node:[["rect",{width:"20",height:"12",x:"2",y:"6",rx:"2",key:"9lu3g6"}],["path",{d:"M12 12h.01",key:"1mp3jc"}],["path",{d:"M17 12h.01",key:"1m0b6t"}],["path",{d:"M7 12h.01",key:"eqddd0"}]],aliases:["form-input"]};e.node;const i=t(e);export{e as __iconData,i as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/rectangle-ellipsis-CPOIl2Bw.js

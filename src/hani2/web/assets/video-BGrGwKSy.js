@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/video-CWgnPdVz.js
-import{c as t}from"./index-C-yFU6-Y.js";const e={name:"video",size:24,node:[["path",{d:"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5",key:"ftymec"}],["rect",{x:"2",y:"6",width:"14",height:"12",rx:"2",key:"158x01"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/video-Cxj7e1kM.js
-import{c as t}from"./index-BeDEz9Xj.js";const e={name:"video",size:24,node:[["path",{d:"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5",key:"ftymec"}],["rect",{x:"2",y:"6",width:"14",height:"12",rx:"2",key:"158x01"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
-========
-import{c as t}from"./index-Cjbv4bp8.js";const e={name:"video",size:24,node:[["path",{d:"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5",key:"ftymec"}],["rect",{x:"2",y:"6",width:"14",height:"12",rx:"2",key:"158x01"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/video-BGrGwKSy.js

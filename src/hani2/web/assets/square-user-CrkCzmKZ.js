@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/square-user-CtPsprEH.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"square-user",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2",key:"1m6ac2"}]],aliases:["user-square"]};e.node;const c=a(e);export{e as __iconData,c as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-user-DY8_ofts.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"square-user",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2",key:"1m6ac2"}]],aliases:["user-square"]};e.node;const c=a(e);export{e as __iconData,c as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"square-user",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M7 21v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2",key:"1m6ac2"}]],aliases:["user-square"]};e.node;const c=a(e);export{e as __iconData,c as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-user-CrkCzmKZ.js

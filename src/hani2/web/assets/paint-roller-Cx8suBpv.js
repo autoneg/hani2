@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/paint-roller-6kVphxGt.js
-import{c as t}from"./index-C-yFU6-Y.js";const e={name:"paint-roller",size:24,node:[["rect",{width:"16",height:"6",x:"2",y:"2",rx:"2",key:"jcyz7m"}],["path",{d:"M10 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",key:"1b9h7c"}],["rect",{width:"4",height:"6",x:"8",y:"16",rx:"1",key:"d6e7yl"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/paint-roller-BTFVEuMS.js
-import{c as t}from"./index-BeDEz9Xj.js";const e={name:"paint-roller",size:24,node:[["rect",{width:"16",height:"6",x:"2",y:"2",rx:"2",key:"jcyz7m"}],["path",{d:"M10 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",key:"1b9h7c"}],["rect",{width:"4",height:"6",x:"8",y:"16",rx:"1",key:"d6e7yl"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
-========
-import{c as t}from"./index-Cjbv4bp8.js";const e={name:"paint-roller",size:24,node:[["rect",{width:"16",height:"6",x:"2",y:"2",rx:"2",key:"jcyz7m"}],["path",{d:"M10 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",key:"1b9h7c"}],["rect",{width:"4",height:"6",x:"8",y:"16",rx:"1",key:"d6e7yl"}]]};e.node;const c=t(e);export{e as __iconData,c as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/paint-roller-Cx8suBpv.js

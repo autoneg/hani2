@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/margin-ewctZJkJ.js
-import{c as t}from"./index-C-yFU6-Y.js";const e={name:"margin",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M21 6v12",key:"1ds1q4"}],["path",{d:"M3 6v12",key:"1g9i2g"}],["path",{d:"M6 21h12",key:"4dkmi1"}],["path",{d:"M6 3h12",key:"ggurg9"}]]};e.node;const d=t(e);export{e as __iconData,d as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/margin-Cj8HfKz6.js
-import{c as t}from"./index-BeDEz9Xj.js";const e={name:"margin",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M21 6v12",key:"1ds1q4"}],["path",{d:"M3 6v12",key:"1g9i2g"}],["path",{d:"M6 21h12",key:"4dkmi1"}],["path",{d:"M6 3h12",key:"ggurg9"}]]};e.node;const d=t(e);export{e as __iconData,d as default};
-========
-import{c as t}from"./index-Cjbv4bp8.js";const e={name:"margin",size:24,node:[["rect",{x:"9",y:"9",width:"6",height:"6",rx:"1",key:"1ssd4o"}],["path",{d:"M21 6v12",key:"1ds1q4"}],["path",{d:"M3 6v12",key:"1g9i2g"}],["path",{d:"M6 21h12",key:"4dkmi1"}],["path",{d:"M6 3h12",key:"ggurg9"}]]};e.node;const d=t(e);export{e as __iconData,d as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/margin-CRr0avCQ.js

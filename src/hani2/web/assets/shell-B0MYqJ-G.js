@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/shell-DMTIb_uI.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"shell",size:24,node:[["path",{d:"M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44",key:"1cn552"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/shell-DLqK207v.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"shell",size:24,node:[["path",{d:"M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44",key:"1cn552"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"shell",size:24,node:[["path",{d:"M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44",key:"1cn552"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/shell-B0MYqJ-G.js

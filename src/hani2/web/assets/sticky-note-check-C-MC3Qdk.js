@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/sticky-note-check-2Bvn143w.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"sticky-note-check",size:24,node:[["path",{d:"m15 19 2 2 4-4",key:"1wqv71"}],["path",{d:"M15 3v5a1 1 0 0 0 1 1h5",key:"6s6qgf"}],["path",{d:"M21 13V9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6.5",key:"1onoss"}]]};e.node;const o=a(e);export{e as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/sticky-note-check-C3OO5wP1.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"sticky-note-check",size:24,node:[["path",{d:"m15 19 2 2 4-4",key:"1wqv71"}],["path",{d:"M15 3v5a1 1 0 0 0 1 1h5",key:"6s6qgf"}],["path",{d:"M21 13V9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6.5",key:"1onoss"}]]};e.node;const o=a(e);export{e as __iconData,o as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"sticky-note-check",size:24,node:[["path",{d:"m15 19 2 2 4-4",key:"1wqv71"}],["path",{d:"M15 3v5a1 1 0 0 0 1 1h5",key:"6s6qgf"}],["path",{d:"M21 13V9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6.5",key:"1onoss"}]]};e.node;const o=a(e);export{e as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/sticky-note-check-C-MC3Qdk.js

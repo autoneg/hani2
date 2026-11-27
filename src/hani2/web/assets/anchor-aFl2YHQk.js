@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/anchor-UmJrozL0.js
-import{c}from"./index-C-yFU6-Y.js";const e={name:"anchor",size:24,node:[["path",{d:"M12 6v16",key:"nqf5sj"}],["path",{d:"m19 13 2-1a9 9 0 0 1-18 0l2 1",key:"y7qv08"}],["path",{d:"M9 11h6",key:"1fldmi"}],["circle",{cx:"12",cy:"4",r:"2",key:"muu5ef"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/anchor-Da_n-RZr.js
-import{c}from"./index-BeDEz9Xj.js";const e={name:"anchor",size:24,node:[["path",{d:"M12 6v16",key:"nqf5sj"}],["path",{d:"m19 13 2-1a9 9 0 0 1-18 0l2 1",key:"y7qv08"}],["path",{d:"M9 11h6",key:"1fldmi"}],["circle",{cx:"12",cy:"4",r:"2",key:"muu5ef"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
-========
-import{c}from"./index-Cjbv4bp8.js";const e={name:"anchor",size:24,node:[["path",{d:"M12 6v16",key:"nqf5sj"}],["path",{d:"m19 13 2-1a9 9 0 0 1-18 0l2 1",key:"y7qv08"}],["path",{d:"M9 11h6",key:"1fldmi"}],["circle",{cx:"12",cy:"4",r:"2",key:"muu5ef"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/anchor-aFl2YHQk.js

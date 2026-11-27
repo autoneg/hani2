@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/badge-check-DdYloKGl.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"badge-check",size:24,node:[["path",{d:"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z",key:"3c2336"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]],aliases:["verified"]};e.node;const o=a(e);export{e as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/badge-check-B4TJQ5Zp.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"badge-check",size:24,node:[["path",{d:"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z",key:"3c2336"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]],aliases:["verified"]};e.node;const o=a(e);export{e as __iconData,o as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"badge-check",size:24,node:[["path",{d:"M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z",key:"3c2336"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]],aliases:["verified"]};e.node;const o=a(e);export{e as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/badge-check-Bd2AxKtf.js

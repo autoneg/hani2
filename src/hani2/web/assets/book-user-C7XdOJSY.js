@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/book-user-f6AdYkQ0.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"book-user",size:24,node:[["path",{d:"M15 13a3 3 0 1 0-6 0",key:"10j68g"}],["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["circle",{cx:"12",cy:"8",r:"2",key:"1822b1"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-user-CvkPY46m.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"book-user",size:24,node:[["path",{d:"M15 13a3 3 0 1 0-6 0",key:"10j68g"}],["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["circle",{cx:"12",cy:"8",r:"2",key:"1822b1"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"book-user",size:24,node:[["path",{d:"M15 13a3 3 0 1 0-6 0",key:"10j68g"}],["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["circle",{cx:"12",cy:"8",r:"2",key:"1822b1"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-user-C7XdOJSY.js

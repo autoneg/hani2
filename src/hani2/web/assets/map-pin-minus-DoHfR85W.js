@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/map-pin-minus-DZLx1s_t.js
-import{c as e}from"./index-C-yFU6-Y.js";const a={name:"map-pin-minus",size:24,node:[["path",{d:"M18.977 14C19.6 12.701 20 11.343 20 10a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32 32 0 0 0 .824-.738",key:"11uxia"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M16 18h6",key:"987eiv"}]]};a.node;const i=e(a);export{a as __iconData,i as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/map-pin-minus-DrnM6d_T.js
-import{c as e}from"./index-BeDEz9Xj.js";const a={name:"map-pin-minus",size:24,node:[["path",{d:"M18.977 14C19.6 12.701 20 11.343 20 10a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32 32 0 0 0 .824-.738",key:"11uxia"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M16 18h6",key:"987eiv"}]]};a.node;const i=e(a);export{a as __iconData,i as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const a={name:"map-pin-minus",size:24,node:[["path",{d:"M18.977 14C19.6 12.701 20 11.343 20 10a8 8 0 0 0-16 0c0 4.993 5.539 10.193 7.399 11.799a1 1 0 0 0 1.202 0 32 32 0 0 0 .824-.738",key:"11uxia"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}],["path",{d:"M16 18h6",key:"987eiv"}]]};a.node;const i=e(a);export{a as __iconData,i as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/map-pin-minus-DoHfR85W.js

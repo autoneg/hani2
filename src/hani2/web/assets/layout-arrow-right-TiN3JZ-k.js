@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/layout-arrow-right-npVm3Dgf.js
-import{c as e}from"./index-C-yFU6-Y.js";const t={name:"layout-arrow-right",size:24,node:[["rect",{width:"7",height:"7",x:"3",y:"3",rx:"1",key:"1g98yp"}],["rect",{width:"7",height:"7",x:"14",y:"3",rx:"1",key:"6d4xhi"}],["path",{d:"M3 18h18",key:"1h113x"}],["path",{d:"m18 21 3-3-3-3",key:"y411s"}]]};t.node;const o=e(t);export{t as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/layout-arrow-right-CdK8c-JE.js
-import{c as e}from"./index-BeDEz9Xj.js";const t={name:"layout-arrow-right",size:24,node:[["rect",{width:"7",height:"7",x:"3",y:"3",rx:"1",key:"1g98yp"}],["rect",{width:"7",height:"7",x:"14",y:"3",rx:"1",key:"6d4xhi"}],["path",{d:"M3 18h18",key:"1h113x"}],["path",{d:"m18 21 3-3-3-3",key:"y411s"}]]};t.node;const o=e(t);export{t as __iconData,o as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const t={name:"layout-arrow-right",size:24,node:[["rect",{width:"7",height:"7",x:"3",y:"3",rx:"1",key:"1g98yp"}],["rect",{width:"7",height:"7",x:"14",y:"3",rx:"1",key:"6d4xhi"}],["path",{d:"M3 18h18",key:"1h113x"}],["path",{d:"m18 21 3-3-3-3",key:"y411s"}]]};t.node;const o=e(t);export{t as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/layout-arrow-right-TiN3JZ-k.js

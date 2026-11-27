@@ -1,0 +1,1 @@
+import{c as a}from"./index-zswJHfWV.js";const e={name:"route-arrow-right",size:24,node:[["path",{d:"m18 22 3-3-3-3",key:"14hia9"}],["path",{d:"M9 5h8.5a1 1 0 010 7h-11a1 1 0 000 7H21",key:"q947b3"}],["circle",{cx:"6",cy:"5",r:"3",key:"151irh"}]]};e.node;const r=a(e);export{e as __iconData,r as default};
