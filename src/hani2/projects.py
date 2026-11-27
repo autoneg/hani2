@@ -360,7 +360,7 @@ def project_change_problems(name: str, data: dict) -> list[str]:
     project file, each problem named ``study <project>/<study>: …``. Only new problems count: what
     a study's file already breaks with the project as it is on disk does not block an unrelated
     project edit (it is reported by the study's own checks)."""
-    from hani2 import scheduling, study_modes
+    from hani2 import study_modes
 
     out: list[str] = []
     for s in list_studies(name):
@@ -369,8 +369,8 @@ def project_change_problems(name: str, data: dict) -> list[str]:
         sdata = read_yaml(f) if f.exists() else {}
 
         def problems(project_data: dict | None) -> list[str]:
-            return [*study_modes.save_problems(sdata, "overrides", ref=ref, project_data=project_data),
-                    *scheduling.save_problems(sdata, "overrides", ref=ref, project_data=project_data)]
+            pools = study_modes.file_pools(sdata, "overrides", ref=ref, project_data=project_data)
+            return [*pools.mode.errors, *pools.repeat_problems()]
 
         try:
             before = set(problems(None))
