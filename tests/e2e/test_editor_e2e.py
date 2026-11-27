@@ -1,7 +1,8 @@
 """The project editor in the admin console: a `?` opens its help, the score builder saves a score only
 at 100 % (Normalise gets it there), a page Save afterwards keeps that score, a mode that
 contradicts the pool is refused with a 400, the criteria picker shows the catalogue's groups with
-validated criteria marked, and so do the predefined questionnaires of the Study forms page."""
+validated criteria marked, and so do the predefined questionnaires of the Study forms page (TAM sets
+with their source warning, for admins only)."""
 
 from __future__ import annotations
 
@@ -202,6 +203,30 @@ def test_predefined_questionnaires_mark_the_validated_ones(new_page):
     tam = p.locator("#setting-form-library label").filter(has_text="TAM perceived ease of use")
     expect(tam).to_have_count(1)
     expect(tam.locator("[data-validated]")).to_have_count(0)
+
+
+def test_study_forms_warn_admins_about_the_tam_items(new_page):
+    """Each TAM set in the picker carries the registry's source warning (not the validated ones); a form
+    using TAM items gets the warning above its preview, outside the form the participant would see."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    p.goto("/admin#forms")
+    p.get_by_role("button", name="Add predefined questionnaires").click()
+    lib = p.locator("#setting-form-library")
+    for title in ("TAM perceived ease of use", "TAM perceived usefulness, 2 items"):
+        warn = lib.locator("label").filter(has_text=title).get_by_test_id("set-source-warning")
+        expect(warn).to_contain_text("not been checked against the published instrument (Davis, 1989)")
+    svi = lib.locator("label").filter(has_text="Subjective Value Inventory")
+    expect(svi.get_by_test_id("set-source-warning")).to_have_count(0)
+    lib.locator("label").filter(has_text="TAM perceived ease of use").locator("input[type=checkbox]").check()
+    lib.get_by_role("button", name="Add 1 set to the form").click()
+    preview = p.locator("#setting-form-preview")
+    expect(preview.get_by_test_id("form-source-warning")).to_contain_text("TAM perceived ease of use")
+    expect(preview.get_by_test_id("form-source-warning")).to_contain_text("participants never see it")
+    form = preview.locator("form")
+    expect(form).to_be_visible()
+    expect(form).not_to_contain_text("Davis")
+    expect(form).not_to_contain_text("not been checked")
 
 
 def test_zero_if_offers_grouped_criteria(new_page):
