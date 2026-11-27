@@ -295,6 +295,7 @@ More: [Information](information.md).
 |---|---|---|
 | [HAN agents](#setting-opponents-han) | `opponents` | Add the entrant agents of a HAN league by year and set; the year is always written out |
 | [Opponent pool](#setting-opponents-pool) | `opponents` | Who participants face at this layer; the study's mode decides which human entries are offered |
+| [Self-hosted agents](#setting-hosted) | `hosted` | The Assistants and/or opponents are the teams' own hosts, registered for the project |
 
 ### HAN agents {#setting-opponents-han}
 
@@ -347,6 +348,18 @@ in red, so that it can be removed; the server refuses to save the contradiction.
 mode, the mode is derived from the pool, so every entry is offered.
 
 More: [Project management](project-management.md#pools-of-opponents-and-assistants).
+
+### Self-hosted agents {#setting-hosted}
+
+`hosted`: *The Assistants and/or opponents are the teams' own hosts, registered for the project*
+
+`{assistants: true, opponents: false, timeout: 30, max_failures: 3}`: when a side is `true`, its pool is
+every hosted agent of that kind registered for the project and switched on (Library → Hosted agents,
+`hani2 hosted add`), unless `assistants` / `opponents` lists its own. `timeout` is the seconds HANI2 waits
+for a host per call; `max_failures` the failed calls in a row before a hosted opponent walks away (the game
+still counts).
+
+More: [Self hosting](self-hosting.md).
 
 ## Assignment
 
@@ -819,6 +832,7 @@ More: [Project management](project-management.md#which-games-count).
 | [Leaderboard](#setting-leaderboard) | `leaderboard` | The board of this project (all its chosen studies) or of this study |
 | [Track](#setting-leaderboard-track) | `leaderboard.track` | Who is ranked: Assistants (hi) or opponent agents (han) |
 | [Source](#setting-leaderboard-source) | `leaderboard.source` | game: the games people played (default); tournament: the simulated table |
+| [Update](#setting-leaderboard-update) | `leaderboard.update` | pooled (default), latest tournament, or continuous (all games, recent ones weigh more) |
 | [Studies](#setting-leaderboard-studies) | `leaderboard.studies` | Which studies of this project feed the project board (default: all) |
 | [Rows from other projects](#setting-leaderboard-include) | `leaderboard.include` | Studies of other projects whose games of one stratum join this board |
 | [Sort options](#setting-leaderboard-sort-options) | `leaderboard.sort_options` | What end users may rank by: enabled scores or criteria with a direction |
@@ -868,6 +882,19 @@ More: [Project management](project-management.md#configuring-a-board).
   ranked by goal rate only; it has no switches, and a request for another sort or a switch gets a 400.
 
 More: [Project management](project-management.md#configuring-a-board).
+
+### Update {#setting-leaderboard-update}
+
+`leaderboard.update`: *pooled (default), latest tournament, or continuous (all games, recent ones weigh more)*
+
+- `pooled` (default): every counted game weighs the same.
+- `latest`: each study is a tournament; the newest one (by its latest game) replaces the board.
+- `continuous`: every counted game, recent games weigh more, and a probable change of an entrant is
+  flagged (for self-hosted agents, whose code may change unseen). The default method is a Kalman filter
+  over time ranked by its lower bound; `{mode: continuous, method: decayed, half_life_days: 30}` is a
+  time-decayed mean. A version an entrant declares is a hint only.
+
+More: [Project management](project-management.md#leaderboard-update-modes).
 
 ### Studies {#setting-leaderboard-studies}
 

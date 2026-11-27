@@ -1,4 +1,4 @@
-import { Activity, Award, Bot, ClipboardList, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
+import { Activity, Award, Bot, ClipboardList, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare, Globe } from "lucide-react";
 import type { PageDef } from "../types";
 import { entriesOf } from "../schema";
 import { Analytics, Overview, Results } from "./Activity";
@@ -10,6 +10,7 @@ import { PROJECT_ENTRIES, Projects } from "./Projects";
 import { LEADERBOARD_ENTRIES, Leaderboards } from "./Leaderboards";
 import { CONNECTION_ENTRIES, Connections } from "./Connections";
 import { MODEL_ENTRIES, Models } from "./Models";
+import { HOSTED_ENTRIES, Hosted } from "./Hosted";
 import { Explorer } from "../explorer/Explorer";
 import { scenariosAdapter } from "../explorer/scenarios";
 import { agentsAdapter } from "../explorer/agents";
@@ -38,6 +39,7 @@ export const PAGES: PageDef[] = [
   { id: "opponents", title: "Opponents", icon: Swords, color: "bg-opponent", group: "Library", subtitle: "The negotiators participants face: groups, members, and your own classes.", entries: [...explorerEntries("opponents", "opponent", "Opponent group"), { id: "opponent-pool", label: "Opponents participants face", hint: "The opponent pool", keywords: "pool opponents agents" }] },
   { id: "assistants", title: "Assistants", icon: Bot, color: "bg-you", group: "Library", subtitle: "The AI helpers on the human's side: groups, your own classes, the pool and its balance.", entries: [...explorerEntries("assistants", "Assistant", "Assistant group"), { id: "assistant-pool", label: "Assistants participants get", hint: "The Assistant pool", keywords: "pool" }, { id: "study-balance", label: "Assistant balance", hint: "Per study" }] },
 
+  { id: "hosted", title: "Hosted agents", icon: Globe, color: "bg-[#0f766e]", group: "Library", subtitle: "Assistants and opponents that teams run on their own machines, with their own language models: register their addresses, give them tokens, check them, and make a project self-hosted.", entries: HOSTED_ENTRIES, aliases: ["remote", "self-hosted"] },
   { id: "tool-library", title: "Tools", icon: Wrench, color: "bg-warn", group: "Library", subtitle: "The tools of the negotiation screen: groups, the tools sessions are offered, where each goes in each view, and your own tools.", entries: [...explorerEntries("tools", "tool", "Tool group"), { id: "tool-offer", label: "Tools offered to sessions", hint: "Which tools and tool groups a layer offers (tools.yaml offer)", keywords: "offer tools.yaml" }, { id: "tool-placement", label: "Tool placement in each view", hint: "Pane, order, shown or hidden per view (full, simple, focus)", keywords: "placement pane order visible hidden view full simple focus layout" }], aliases: ["library-tools", "placement"] },
 
   { id: "general", title: "General", icon: Settings, color: "bg-muted", group: "Server", aliases: ["server"], entries: entriesOf(GENERAL), Component: General },
@@ -64,4 +66,5 @@ set("forms", StudyForms);
 set("scenarios", () => <Explorer adapter={scenariosAdapter} />);
 set("opponents", () => <Explorer adapter={opponents} />);
 set("assistants", () => <Explorer adapter={assistants} />);
+set("hosted", Hosted);
 set("tool-library", () => <Explorer adapter={toolsAdapter} />);

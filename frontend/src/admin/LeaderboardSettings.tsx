@@ -137,6 +137,14 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
           <Row id="board-source" help="leaderboard.source" label="Source" overridden={v.source !== undefined} onReset={() => put("source", null)}>
             <Select label="Source" value={v.source ?? ""} onChange={(x) => put("source", x)} options={[{ value: "", label: shown("source") }, { value: "game", label: "game: the games people played" }, { value: "tournament", label: "tournament: the simulated table" }]} />
           </Row>
+          <Row id="board-update" help="leaderboard.update" label="Update" overridden={v.update !== undefined} onReset={() => put("update", null)}>
+            <Select
+              label="Update"
+              value={updateValue(v.update)}
+              onChange={(x) => put("update", x === "" ? null : x === "decayed" ? { mode: "continuous", method: "decayed" } : x)}
+              options={[{ value: "", label: `${inherit} (${updateValue(inh.update) || "pooled"})` }, { value: "pooled", label: "pooled: every game weighs the same" }, { value: "latest", label: "latest: the newest study replaces the board" }, { value: "continuous", label: "continuous: all games, recent ones weigh more (Kalman)" }, { value: "decayed", label: "continuous: time-decayed mean" }]}
+            />
+          </Row>
           {!isStudy && (
             <>
               <Row id="board-studies" help="leaderboard.studies" label="Studies" hint={Array.isArray(v.studies) ? `${v.studies.length} chosen` : `Every study of the project (${(studies ?? []).length})`} overridden={Array.isArray(v.studies)} onReset={() => put("studies", null)} wide={Array.isArray(v.studies)}>
@@ -211,4 +219,12 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
       )}
     </Group>
   );
+}
+
+/** The update rule as the select shows it: a mode name, or ``decayed`` for a continuous decayed mean. */
+function updateValue(u: any): string {
+  if (!u) return "";
+  if (typeof u === "string") return u;
+  if (u.mode === "continuous" && u.method === "decayed") return "decayed";
+  return String(u.mode ?? "pooled");
 }

@@ -625,6 +625,23 @@ Unset: `han` for a project of kind `opponent`, else `hi`.""",
 - `tournament`: the table of simulated participants (the goal rate of each Assistant, per persona),
   ranked by goal rate only; it has no switches, and a request for another sort or a switch gets a 400.""",
         section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "hosted": Help(
+        "Self-hosted agents", "The Assistants and/or opponents are the teams' own hosts, registered for the project",
+        """`{assistants: true, opponents: false, timeout: 30, max_failures: 3}`: when a side is `true`, its pool is
+every hosted agent of that kind registered for the project and switched on (Library → Hosted agents,
+`hani2 hosted add`), unless `assistants` / `opponents` lists its own. `timeout` is the seconds HANI2 waits
+for a host per call; `max_failures` the failed calls in a row before a hosted opponent walks away (the game
+still counts).""",
+        section="Opponents", docs="self-hosting.md"),
+    "leaderboard.update": Help(
+        "Update", "pooled (default), latest tournament, or continuous (all games, recent ones weigh more)",
+        """- `pooled` (default): every counted game weighs the same.
+- `latest`: each study is a tournament; the newest one (by its latest game) replaces the board.
+- `continuous`: every counted game, recent games weigh more, and a probable change of an entrant is
+  flagged (for self-hosted agents, whose code may change unseen). The default method is a Kalman filter
+  over time ranked by its lower bound; `{mode: continuous, method: decayed, half_life_days: 30}` is a
+  time-decayed mean. A version an entrant declares is a hint only.""",
+        section="Leaderboard", docs="project-management.md#leaderboard-update-modes"),
     "leaderboard.studies": Help(
         "Studies", "Which studies of this project feed the project board (default: all)",
         """A list of study names, for example `[play, prolific-03]`. Add new studies as they start. A study board
@@ -772,9 +789,11 @@ REQUIRED = (
     "scores.same_assistant",
     "scores.preview",
     "opponents.pool",
+    "hosted",
     "leaderboard",
     "leaderboard.track",
     "leaderboard.source",
+    "leaderboard.update",
     "leaderboard.studies",
     "leaderboard.include",
     "leaderboard.sort_options",
