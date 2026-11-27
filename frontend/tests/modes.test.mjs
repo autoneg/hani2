@@ -49,5 +49,9 @@ test("the live mode falls back to the env.json pool when no file names one", () 
   assert.equal(liveMode({ opponents: [":pan"] }, ed).derived, "solo", "the file wins");
   assert.equal(liveMode({}, { ...ed, inherited: { opponents: ["human", ":pan"] } }).derived, "mixed", "then the project");
   assert.equal(liveMode({ study_mode: "solo" }, ed).mode, "solo");
+  // a declared mode is checked against the files only, as the server does (Paired fills in its pool)
+  const declared = liveMode({ study_mode: "paired" }, { ...ed, pools: { opponents: { env: [":pan"] } } });
+  assert.equal(declared.fromEnv, false);
+  assert.equal(declared.opponents, undefined);
   assert.deepEqual(liveMode({}, { inherited: { assistants: ["x.A"] } }).assistants, ["x.A"]);
 });

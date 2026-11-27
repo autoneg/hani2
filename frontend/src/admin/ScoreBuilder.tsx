@@ -318,7 +318,12 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
     };
   };
   const previewable = comps.length > 0 && weights.some((w) => Number(w) > 0);
-  const { preview, busy } = usePreview(project, study, previewable ? { key: scoreKey ?? key, score: bodyOf() } : null);
+  // the title and description do not change the numbers: left out, so typing them recomputes nothing
+  const previewBody = () => {
+    const { title: _t, description: _d, ...rest } = bodyOf();
+    return rest;
+  };
+  const { preview, busy } = usePreview(project, study, previewable ? { key: scoreKey ?? key, score: previewBody() } : null);
   if (cat === undefined) return <Spinner />;
   if (cat === null) return <Note tone="warn">The criteria could not be loaded.</Note>;
   const kinds: string[] = (cat.normalisers ?? []).map((n: any) => n.kind);
