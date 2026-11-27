@@ -451,7 +451,9 @@ class NegotiationSession:
         self.model_error: str | None = None
         self.support_agent = create_support_agent_for(self)
         if self.support_agent is not None and not getattr(self.support_agent, "brings_own_model", False):
-            self.models.get("assistant")  # chosen at session start; a missing model shows a banner
+            # chosen at session start (the sequence the Assistant uses, if it chose one); a missing model shows a
+            # banner. A remote Assistant brings its own model: no local chain or sequence applies to it.
+            self.models.get("assistant", self.models.assistant_sequence())
         ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution(),
                                                                          **self._study_mode_event()})
 
