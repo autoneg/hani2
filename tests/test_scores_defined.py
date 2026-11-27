@@ -573,3 +573,94 @@ def test_admin_score_endpoints(client, proj):
     r = client.put("/api/admin/projects/HI2027/studies/newone", json={"yaml": "type: online\nscores:\n  s1:\n    components:\n"
                                                                             "      - {criterion: agreement, weight: 0.5}\n"})
     assert r.status_code == 400 and "not 1" in r.json()["detail"]
+
+
+# --------------------------------------------------------------------------- #
+# zero_if and needs_assistant: part of the format, kept when duplicating        #
+# --------------------------------------------------------------------------- #
+def test_duplicates_of_the_builtins_give_the_same_values(proj):
+    """A copy of every built-in keeps its rules (0 when the opponent failed, empty without an
+    Assistant), so it gives the same value and coverage as the original on every row."""
+    for s in S.SCORES:
+        S.duplicate("HI2027", None, s.name, f"copy_{s.name}")
+    ss = S.resolve("HI2027")
+    assert not ss.problems, ss.problems
+    names = [f"copy_{s.name}" for s in S.SCORES]
+    lst = ss.needed(names)
+    for s in S.SCORES:
+        c = ss.scores[f"copy_{s.name}"]
+        assert (c.zero_if, c.needs_assistant) == (s.zero_if, s.needs_assistant), s.name
+    rng = random.Random(11)
+    rows = [_random_row(rng) for _ in range(400)]
+    rows += [{"support_agent": "none", "opponent_advantage": 0.9, "opponent_failed": 1},  # the opponent failed
+             {"support_agent": "A", "opponent_advantage": 0.7, "opponent_failed": 1, "ja_overall": 6},
+             {"support_agent": "none", "ja_overall": 6, "human_advantage": 0.4, "irrational_accept": 0},  # no Assistant
+             {"ja_overall": 5, "jh_engagement": 4, "human_advantage": 0.2},  # no support_agent at all
+             {"support_agent": "A", "ja_overall": 6, "irrational_accept": 1, "opponent_failed": 0}]
+    for row in rows:
+        orig, copy = S.score_row(row), S.score_row(row, scores=lst)
+        for s in S.SCORES:
+            for suffix in ("", "_coverage"):
+                a, b = orig[s.name + suffix], copy[f"copy_{s.name}" + suffix]
+                if a is None:
+                    assert b is None, (s.name + suffix, row)
+                else:
+                    assert b == pytest.approx(a, rel=1e-9, abs=1e-12), (s.name + suffix, row)
+    # the copies' file entries say so; han_interaction has no rules, so its copy has none
+    defs = yaml.safe_load((projects.project_dir("HI2027") / projects.PROJECT_FILE).read_text())["scores"]
+    assert defs["copy_han_outcome"]["zero_if"] == ["opponent_failed"]
+    assert defs["copy_hi_team"]["needs_assistant"] is True
+    assert "zero_if" not in defs["copy_han_interaction"] and "needs_assistant" not in defs["copy_han_interaction"]
+
+
+def test_zero_if_and_needs_assistant_in_definitions():
+    ss = _resolve({"s": _defn(zero_if=["opponent_failed"], needs_assistant=True)})
+    s = ss.scores["s"]
+    assert not ss.problems and s.zero_if == ["opponent_failed"] and s.needs_assistant
+    row = {"support_agent": "A", "human_advantage": 0.8, "ja_overall": 7, "n_offers": 0}
+    assert S.compute(s, row)[0] > 0
+    assert S.compute(s, {**row, "opponent_failed": 1}) == (0.0, 1.0)
+    assert S.compute(s, {**row, "support_agent": "none"}) == (None, None)
+    d = S.definition(s)
+    assert d["zero_if"] == ["opponent_failed"] and d["needs_assistant"] is True
+    # the defaults: no rules, and definition() says so
+    d = S.definition(_resolve({"s": _defn()}).scores["s"])
+    assert d["zero_if"] == [] and d["needs_assistant"] is False
+    # checked: a list of known criteria, and a true/false
+    for bad, msg in (({"zero_if": "opponent_failed"}, "zero_if must be a list"),
+                     ({"zero_if": [1]}, "zero_if must be a list"),
+                     ({"zero_if": ["nope"]}, "zero_if 'nope': unknown criterion"),
+                     ({"needs_assistant": "yes"}, "needs_assistant must be true or false")):
+        ss = _resolve({"s": _defn(**bad)})
+        assert "s" not in ss.scores and any(msg in p for p in ss.problems), (bad, ss.problems)
+
+
+def test_zero_if_and_needs_assistant_through_cli_and_api(client, proj):
+    from typer.testing import CliRunner
+
+    from hani2 import cli
+
+    run = CliRunner().invoke
+    r = run(cli.app, ["scores", "set", "HI2027", "safe", "--json",
+                      '{"components": [{"criterion": "human_advantage", "weight": 1}], '
+                      '"zero_if": ["opponent_failed"], "needs_assistant": true}'])
+    assert r.exit_code == 0, r.output
+    r = run(cli.app, ["scores", "show", "HI2027", "safe"])
+    assert "rules: 0 when opponent_failed is 1; empty without an Assistant" in r.output
+    assert "  zero_if:\n  - opponent_failed" in r.output and "needs_assistant: true" in r.output
+    r = run(cli.app, ["scores", "duplicate", "HI2027", "han_outcome", "my_han_outcome"])
+    assert r.exit_code == 0, r.output
+    assert "rules: 0 when opponent_failed is 1" in run(cli.app, ["scores", "show", "HI2027", "my_han_outcome"]).output
+    assert client.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
+    r = client.put("/api/admin/projects/HI2027/scores/team2",
+                   json={"components": [{"criterion": "human_advantage", "weight": 1}], "needs_assistant": True})
+    assert r.status_code == 200, r.text
+    by = {s["key"]: s for s in r.json()["scores"]}
+    assert by["team2"]["needs_assistant"] is True and by["team2"]["zero_if"] == []
+    assert by["safe"]["zero_if"] == ["opponent_failed"]
+    r = client.post("/api/admin/projects/HI2027/scores/my_hi/duplicate", json={"from": "hi_interaction"})
+    assert r.status_code == 200, r.text
+    assert {s["key"]: s for s in r.json()["scores"]}["my_hi"]["needs_assistant"] is True
+    r = client.put("/api/admin/projects/HI2027/scores/bad", json={"components": [{"criterion": "human_advantage", "weight": 1}],
+                                                                  "needs_assistant": "maybe"})
+    assert r.status_code == 400 and "needs_assistant" in r.json()["detail"]
