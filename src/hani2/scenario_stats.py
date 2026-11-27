@@ -20,8 +20,8 @@ scenario's files change (or an administrator asks again).
 :data:`DEFAULT_PARETO_MAX_OUTCOMES`, a million); larger scenarios cache every other statistic. What
 HANI2 needs on top (a fingerprint of the scenario files, when and how fast it was computed, why it
 failed) goes into ``_stats_meta.json`` beside it: negmas's stats file accepts no other keys. A cache
-whose fingerprint does not match the scenario files any more is stale and ignored (and dropped
-from ``Scenario.stats`` when the scenario is loaded, see :func:`drop_stale`).
+whose fingerprint does not match the scenario files any more is stale and ignored. HANI2 loads
+scenarios without it (``Scenario.stats`` stays empty): it is for pages, the tool and negmas tooling.
 
 Scenarios that are not a folder on disk (generated ones, or a saved one changed for a session, e.g.
 with a forced value on disagreement) are cached in memory by a fingerprint of their content.
@@ -219,21 +219,6 @@ def clear(folder: Path | str) -> None:
     _MEMORY_DROP(str(folder))
 
 
-def drop_stale(scenario: Any, folder: Path | str) -> None:
-    """``Scenario.load`` reads ``_stats.yaml`` into ``scenario.stats``; drop it when the scenario's
-    files changed since (negmas would otherwise use an outdated Pareto frontier, e.g. in plots)."""
-    if getattr(scenario, "stats", None) is None:
-        return
-    folder = Path(folder)
-    meta = _read_json(folder / META_FILE)
-    try:
-        stale = meta is None or meta.get("files") != files_fingerprint(folder)
-    except OSError:
-        stale = True
-    if stale:
-        scenario.stats = None
-
-
 # --------------------------------------------------------------------------- #
 # The memory cache (scenarios that are not a folder, and folders we may not write)   #
 # --------------------------------------------------------------------------- #
@@ -353,6 +338,13 @@ def request(scenario: Any = None, folder: Path | str | None = None, *, force: bo
         folder_p, content = _source(scenario, folder)
         if folder_p is None and scenario is None:
             return {"status": "failed", "message": "No scenario."}
+        key = _key(folder_p, content)
+        with _LOCK:
+            waiting = _INFLIGHT.get(key)
+            if waiting is not None:  # under way (perhaps forced): not the older cached result
+                if on_done is not None:
+                    waiting.append(on_done)
+                return {"status": "pending"}
         if not force:
             if not with_stats and scenario is None and folder_p is not None:
                 hit = read_cached(folder_p, with_stats=False)
@@ -360,7 +352,6 @@ def request(scenario: Any = None, folder: Path | str | None = None, *, force: bo
                 hit = lookup(scenario, folder_p)
             if hit is not None:
                 return hit
-        key = _key(folder_p, content)
         with _LOCK:
             waiting = _INFLIGHT.get(key)
             if waiting is not None:
@@ -448,7 +439,13 @@ def compute(folder: Path | str, *, cache: bool = True, cfg: dict | None = None) 
     files = files_fingerprint(folder)
     locked = cache and _lock(folder, cfg["timeout"])
     if cache and not locked:
-        return {"status": "pending", "message": "Another server process is computing these statistics."}
+        # another server process is computing them: wait for its result
+        end = time.time() + cfg["timeout"] + 10
+        while (folder / LOCK_FILE).exists() and time.time() < end:
+            time.sleep(0.5)
+        hit = read_cached(folder)
+        return hit if hit is not None else {"status": "pending",
+                                            "message": "Another server process is computing these statistics."}
     out_path = folder / f"_stats.{os.getpid()}.{threading.get_ident()}.tmp.yaml"
     try:
         cmd = [sys.executable, "-m", "hani2.scenario_stats", str(folder),

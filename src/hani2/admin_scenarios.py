@@ -101,7 +101,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
             else:
                 path = folders[0]
             try:
-                s = Scenario.load(path)
+                s = Scenario.load(path, load_stats=False)
             except Exception as e:  # noqa: BLE001
                 raise HTTPException(400, f"cannot load {path}: {e}") from None
             s.info = store._read_info(path) or (s.info or {})
@@ -110,7 +110,7 @@ def describe_scenario(name: str, layer: Layer, scenario: str | None, generate: i
             generated = True
         elif (DEFAULT_SCENARIOS / name).is_dir():
             path = DEFAULT_SCENARIOS / name
-            s = Scenario.load(path)
+            s = Scenario.load(path, load_stats=False)
             s.info = store._read_info(path) or (s.info or {})
         else:
             raise HTTPException(404, "Unknown scenario type")

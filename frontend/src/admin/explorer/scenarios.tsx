@@ -162,7 +162,7 @@ function ScenarioBody({ d }: { d: any }) {
         )}
       </Fold>
       <Fold id="outcome-space" title="Outcome space" hint="2D utility plot">{() => <UtilityPlots d={d} />}</Fold>
-      <Fold id="statistics" title="Statistics" hint="negmas: opposition, Pareto frontier, bargaining solutions" defaultOpen={false}>{() => <ScenarioStats token={d.plot_token} />}</Fold>
+      <Fold id="statistics" title="Statistics" hint="negmas: opposition, Pareto frontier, bargaining solutions" defaultOpen={false}>{() => <ScenarioStats key={d.plot_token} token={d.plot_token} />}</Fold>
       <Fold id="preferences" title="Preferences tool" hint="As each role sees it" defaultOpen={false}>{() => <RolePreferences d={d} />}</Fold>
       {d.sample?.length > 0 && (
         <Fold id="sample" title="Sample utilities" hint="Best outcome per role, then a few others" defaultOpen={false}>

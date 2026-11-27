@@ -1,1 +1,0 @@
-import{c as a}from"./index-C6BuAo7L.js";const e={name:"list-indent-increase",size:24,node:[["path",{d:"M21 5H11",key:"us1j55"}],["path",{d:"M21 12H11",key:"wd7e0v"}],["path",{d:"M21 19H11",key:"saa85w"}],["path",{d:"m3 8 4 4-4 4",key:"1a3j6y"}]],aliases:["indent","indent-increase"]};e.node;const t=a(e);export{e as __iconData,t as default};

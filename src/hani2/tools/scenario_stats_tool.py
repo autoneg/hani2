@@ -55,24 +55,43 @@ class ScenarioStatsTool(Tool):
     def scenario_loaded(self, session_state: dict[str, Any], scenario: Any) -> None:
         self._ask()
 
-    def _ask(self, force: bool = False) -> None:
+    def _ask(self, force: bool = False, tries: int = 3) -> None:
         s = self.scenario
         if s is None:
             return
+        try:
+            content = scenario_stats.content_fingerprint(s)
+        except Exception:  # noqa: BLE001
+            content = None
         with self._lock:
             self._version += 1
             version = self._version
             self._for = id(s)
             self._result = {"status": "pending"}
 
+        def fits(result: dict) -> bool:
+            # a result of the saved scenario when this session changed it (e.g. a forced value on
+            # disagreement), or another process still at work: ask again (then it is computed apart)
+            return result.get("status") != "pending" and not (
+                content and result.get("content") and result["content"] != content)
+
         def done(result: dict) -> None:
             with self._lock:
                 if self._version != version:
                     return  # a newer scenario (or a recompute) took over
+            if not fits(result) and tries > 0:
+                self._ask(tries=tries - 1)
+                return
+            with self._lock:
+                if self._version != version:
+                    return
                 self._result = result
             self.refresh()
 
         r = scenario_stats.request(s, self.session_state.get("scenario_dir"), force=force, on_done=done)
+        if r.get("status") != "pending" and not fits(r) and tries > 0:
+            self._ask(tries=tries - 1)
+            return
         with self._lock:
             if self._version == version and r.get("status") != "pending":
                 self._result = r

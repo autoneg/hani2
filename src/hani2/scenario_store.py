@@ -194,16 +194,16 @@ def _read_info(path: Path) -> dict:
 
 def _load_dir(path: Path) -> Scenario | None:
     try:
-        s = Scenario.load(path)
+        s = Scenario.load(path, load_stats=False)
     except Exception as e:  # pragma: no cover - defensive
         print(f"[hani2] cannot load scenario {path}: {e}")
         return None
     if s is None:
         return None
     s.info = _read_info(path) or (s.info or {})
-    from hani2 import scenario_stats
-
-    scenario_stats.drop_stale(s, path)  # negmas read _stats.yaml; it may be of an older version
+    # negmas reads the cached _stats.yaml (hani2.scenario_stats) into ``stats``; HANI2 never uses it
+    # there, and with it set negmas recomputes statistics inline in some transforms
+    s.stats = None
     return s
 
 

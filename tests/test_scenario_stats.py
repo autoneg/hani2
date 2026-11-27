@@ -98,7 +98,7 @@ def test_editing_the_scenario_makes_the_cache_stale(trade):
     seller = trade / "Seller.yml"
     seller.write_text(seller.read_text(encoding="utf-8").replace("0.0", "0.25", 1), encoding="utf-8")
     assert ss.read_cached(trade) is None
-    s = store._load_dir(trade)  # negmas loads the outdated _stats.yaml; HANI2 drops it
+    s = store._load_dir(trade)  # HANI2 never loads the cache into Scenario.stats
     assert s is not None and s.stats is None
 
 
@@ -160,6 +160,58 @@ def test_a_session_starts_the_stats_of_its_saved_scenario(hani2_home):
     make_session(scenario_type="Lease", n_steps=4)
     assert _wait(lambda: ss.read_cached(slot) is not None)
     assert ss.read_cached(slot)["status"] == "ok"
+
+
+def test_hani2_never_loads_the_cache_into_scenario_stats(trade):
+    ss.compute(trade)
+    s = store._load_dir(trade)
+    assert s is not None and s.stats is None
+
+
+def test_a_forced_recompute_is_not_hidden_by_the_old_cache(trade):
+    ss.compute(trade)
+    done = threading.Event()
+    assert ss.request(folder=trade, force=True, on_done=lambda r: done.set())["status"] == "pending"
+    if not done.is_set():
+        assert ss.request(folder=trade)["status"] == "pending"
+    assert done.wait(60)
+
+
+def test_a_session_on_a_saved_scenario_uses_the_disk_cache(hani2_home):
+    from hani2.testing import make_session
+
+    from test_scenario_format import _gen
+
+    _gen(None, ["Lease"], 1, seed=3)
+    slot = store.base_dir() / "Lease" / "0000Lease"
+    ss.compute(slot)
+    s = make_session(scenario_type="Lease", n_steps=4, is_admin=True)
+    assert s.ss["scenario_dir"] == str(slot)
+    hit = ss.lookup(s.scenario, slot)
+    assert hit is not None and hit["cache"] == "disk" and hit["status"] == "ok"
+    t = next(t for t in s.tools if t.name == "Scenario Stats")
+    assert any(c.get("type") == "stats" for c in t.render())  # at once, from the disk
+
+
+def test_the_tool_does_not_show_the_saved_scenario_for_a_changed_one(hani2_home):
+    from hani2 import projects
+    from hani2.testing import make_session
+
+    from test_scenario_format import _gen
+
+    _gen(None, ["Lease"], 1, seed=3)
+    slot = store.base_dir() / "Lease" / "0000Lease"
+    projects.create_project("P", defaults={"force_reserved_value": 0.77})
+    projects.create_study("P/s")
+    s = make_session(scenario_type="Lease", n_steps=4, is_admin=True, study="P/s")
+    t = next(t for t in s.tools if t.name == "Scenario Stats")
+    assert _wait(lambda: any(c.get("type") == "stats" for c in t.render()))
+    assert float(s.scenario.ufuns[s.ss["human_index"]].reserved_value) == pytest.approx(0.77)
+    assert s.ss["scenario_dir"] == str(slot)
+    assert ss.read_cached(slot) is not None  # the saved scenario's stats are on disk ...
+    hit = ss.lookup(s.scenario, slot)  # ... but the tool shows those of the changed one
+    assert hit is not None and hit["cache"] == "memory"
+    assert any(x == pytest.approx(0.77) for x in hit["reserved_values"])
 
 
 def test_the_tool_is_admin_only_and_shows_the_stats(hani2_home):
