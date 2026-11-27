@@ -182,9 +182,9 @@ Scales: `trust_automation` (12 items) — each the mean of its items, reversed i
 | --- | --- | --- | --- | --- |
 | 1 | `tia_deceptive` | The assistant is deceptive. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
 | 2 | `tia_underhanded` | The assistant behaves in an underhanded manner. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 3 | `tia_suspicious` | I am suspicious of the assistant's intent, actions or outputs. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 3 | `tia_suspicious` | I am suspicious of the assistant's intent, action, or output. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
 | 4 | `tia_wary` | I am wary of the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 5 | `tia_harmful` | The assistant's actions will have a harmful or injurious outcome. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 5 | `tia_harmful` | The assistant's action will have a harmful or injurious outcome. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
 | 6 | `tia_confident` | I am confident in the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
 | 7 | `tia_security` | The assistant provides security. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
 | 8 | `tia_integrity` | The assistant has integrity. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
