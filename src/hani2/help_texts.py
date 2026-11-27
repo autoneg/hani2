@@ -281,7 +281,7 @@ most the Assistants of the pool).
 
 | Repeats | Effect |
 |---|---|
-| unset or **No** | a file with $K > N$ is refused on save ("n_required = 6 negotiations but only 5 Assistants"); `random_each` is allowed unless **No** is set explicitly |
+| unset or **No** | a file with $K > N$ is refused on save ("n_required = 6 negotiations but only 5 Assistants"), and so is a project change that would give one of its studies $K > N$; `random_each` is allowed unless **No** is set explicitly |
 | **Yes** | the Assistants wrap around on purpose, so a person meets some of them twice |
 
 A study already running with $K > N$ only gets a warning, and the Assistants wrap around.
@@ -321,7 +321,9 @@ joiner takes the host's scenario. The methods are listed below.""",
         "K of N", "K counted negotiations per person over N Assistants: with K > N an Assistant repeats",
         """\
 $K$ is **Counted negotiations** (`n_required`) and $N$ the number of Assistants in the pool after
-the groups are expanded.
+the groups are expanded. The pool is the one a session would use: `assistants` of the study, else
+of the project, else the one Assistant of `assistant_settings.json` ($N = 1$). `hani2 --assistants`
+on a server only gives a warning in `hani2 study show`.
 
 - With a method that keeps one Assistant per person, $K$ and $N$ are independent.
 - With a method that promises each Assistant at most once per person (`latin_square`, `cyclic`,

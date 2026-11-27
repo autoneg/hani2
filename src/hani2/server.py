@@ -935,23 +935,33 @@ def _count_rows(files: list[Path]) -> int:
 def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
     """What the project and study editor needs besides the file: the project's kind and year (the
     "this year" / "last year" labels of the HAN picker), the years each HAN source covers (read in
-    the file's own layer, as the save checks do), and what a study inherits from its project."""
+    the file's own layer, as the save checks do), what a study inherits from its project, and
+    ``effective``: the Assistant and opponent pools a session would play (with their sources), K,
+    the mode in use and the derived one (:meth:`hani2.study_modes.Pools.to_dict`)."""
     from hani2 import han_submissions, study_modes
 
     pr = projects.load_project(project)
     with study_modes._layer(ref, None if ref is not None else project):
         current = han_submissions.current_year()
         years = han_submissions.package_years()
-    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "pairing": {},
-                                 "scheduling": {}}
+    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "assistants": None,
+                                 "pairing": {}, "scheduling": {}}
     if ref is not None:
         d = pr.defaults
         inherited = {"n_required": d.get("n_required") if d.get("n_required") is not None else 5,
                      "study_mode": d.get("study_mode"), "opponents": d.get("opponents"),
+                     "assistants": d.get("assistants"),
                      "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {},
                      "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {}}
+    try:  # the pools a session would play, K and the mode, for the editor's live checks
+        st = projects.get_study(ref) if ref is not None else None
+        p = study_modes.effective_pools(pr, st.overrides if st is not None else ({} if ref else None), ref)
+        effective, pools = p.to_dict(), p.editor_pools(p.env_opponents)
+    except Exception as e:  # noqa: BLE001 — a broken file is reported by the page's errors
+        effective, pools = {"error": str(e)}, None
     return {"kind": pr.kind, "project_year": pr.year, "han": {"package_years": years, "current_year": current},
-            "inherited": inherited, "leaderboard": _board_editor_info(project, ref)}
+            "inherited": inherited, "pools": pools, "leaderboard": _board_editor_info(project, ref),
+            "effective": effective}
 
 
 def _board_editor_info(project: str, ref: "projects.StudyRef | None") -> dict | None:

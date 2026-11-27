@@ -1521,10 +1521,18 @@ def study_show(
 
     mode = study_modes.resolve(r)
     _echo_mode(mode)
+    pools = study_modes.study_pools(r)
+    if pools is not None:
+        typer.echo("  pools (in use):")
+        typer.echo(f"    assistants: {', '.join(pools.assistants) or '-'}  ({pools.assistants_source})")
+        typer.echo(f"    opponents: {', '.join(pools.opponents) or '-'}  ({pools.opponents_source})")
+        typer.echo(f"    n_required: {pools.n_required}  ({pools.n_required_source})")
     with projects.use_study(r):
         _echo_han_sources(projects.setting("opponents", None, ref=r))
     for e in dict.fromkeys([*st.errors, *errors, *mode.errors]):
         typer.secho(f"  ERROR: {e}", fg="red")
+    for w in study_modes.process_warnings(r):
+        typer.secho(f"  WARNING: {w}", fg="yellow")
     _print_links(r, base_url)
 
 
