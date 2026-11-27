@@ -33,7 +33,9 @@ RAW_ATTR = "_hani2_raw"
 #: spaces larger than this are not searched for their best and worst deals (unless the
 #: utility function is linear-additive: negmas finds those issue by issue)
 MAX_SEARCH = 5000
-_TOL = 1e-6
+#: how far from 0 and 1 (and from 1 for the weights' sum) a normalized utility function may be:
+#: saved scenarios round their numbers (a best deal of 0.9999 is normalized)
+_TOL = 1e-3
 
 
 def searchable(ufun: Any) -> bool:
