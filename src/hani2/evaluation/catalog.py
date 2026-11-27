@@ -432,14 +432,23 @@ def questionnaire_warning(qid: str) -> str:
 
 def form_warnings(question_ids: Iterable[str], sets: dict[str, dict]) -> list[dict[str, str]]:
     """The source warnings of the bundled library sets (``sets``: :func:`hani2.questionnaires.library`) whose
-    questions appear in a form with these question ids: ``[{"set", "title", "warning"}]``."""
+    questions appear in a form with these question ids: ``[{"set", "title", "warning"}]``. Sets sharing
+    questions (``tam_usefulness_short`` is two of ``tam_usefulness``'s items) are told apart: a set is left
+    out when another one matches more of the form, or the same questions as a larger share of itself."""
     ids = set(question_ids)
-    out = []
+    hits: dict[str, tuple[set, float, dict]] = {}
     for sid, s in sets.items():
         w = questionnaire_warning(sid) if s.get("source") == "bundled" else ""
-        if w and ids & {q.get("id") for q in s.get("questions") or []}:
-            out.append({"set": sid, "title": str(s.get("title") or sid), "warning": w})
-    return out
+        own = {q.get("id") for q in s.get("questions") or []}
+        if w and ids & own:
+            hits[sid] = (ids & own, len(ids & own) / len(own), {"set": sid, "title": str(s.get("title") or sid),
+                                                                "warning": w})
+
+    def beaten(a: str) -> bool:
+        ma, fa, _ = hits[a]
+        return any(b != a and (ma < mb or (ma == mb and fb > fa)) for b, (mb, fb, _) in hits.items())
+
+    return [hits[k][2] for k in hits if not beaten(k)]
 
 
 def validation_entries() -> Iterable[tuple[str, str]]:
