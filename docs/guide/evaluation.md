@@ -9,6 +9,8 @@ Every [recording](recordings.md) can be evaluated with optional metrics of four 
   [evaluation criteria](scenarios.md#evaluation-criteria), and the combined scores of the two
   competition tracks, which the [leaderboards](#tracks-and-leaderboards) rank.
 
+The [Metric catalogue](metric-catalog.md) lists every measure in groups of similar measures (outcome, efficiency, fairness, process, Assistant use, …) and marks the validated ones; the app's pickers use the same groups.
+
 The same metrics evaluate human participants, the Assistant and opponents:
 compare recordings grouped by any of them.
 
@@ -420,3 +422,5 @@ appears in the replay tool and in `hani2 replay metrics`. `ctx` (an `EvalContext
 recording (`ctx.rec`), utilities (`ctx.hu(offer)`, `ctx.ou(offer)`), the Pareto frontier, the Nash
 and Kalai points, offers, actions, drafts, chat, language-model and function calls, and the
 browser telemetry. Return `"_details"` for anything that is not a number per recording.
+
+A metric that is part of HANI2 also needs a group in `src/hani2/evaluation/catalog.py` (`METRIC_GROUP`, or `COLUMN_GROUP` for single columns); a metric registered by your own code without one falls into *Scenario and condition*. To mark its columns validated, add a test in `tests/validation/` that computes them on a hand-worked example and name it in `VALIDATED`; then regenerate the catalogue with `python scripts/make_metric_catalog.py`. `tests/test_metric_catalog.py` checks all three.

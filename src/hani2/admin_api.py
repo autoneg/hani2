@@ -395,7 +395,11 @@ def admin_questionnaire_library():
     """The predefined question sets (``hani2.questionnaires.library``) and the forms."""
     from hani2 import questionnaires
 
-    return {"sets": list(questionnaires.library().values()),
+    from hani2.evaluation import catalog
+
+    return {"sets": [{**s, **catalog.questionnaire_payload(s["id"])} if s.get("source") == "bundled" else
+                     {**s, "validated": False} for s in questionnaires.library().values()],
+            "validated_tooltip": catalog.VALIDATED_SOURCE_TOOLTIP,
             "forms": [{"key": f.key, "title": f.title, "file": f"questionnaires/{f.file}"} for f in questionnaires.FORMS.values()],
             "types": list(questionnaires.QUESTION_TYPES)}
 

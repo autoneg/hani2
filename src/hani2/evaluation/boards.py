@@ -412,7 +412,10 @@ def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | No
 def _option(key: str, ss: Any, crit: dict[str, Any]) -> dict[str, Any]:
     if key in ss.scores:
         s = ss.scores[key]
-        d: dict[str, Any] = {"key": key, "title": s.title, "kind": "score"}
+        from hani2.evaluation.catalog import validation_of
+
+        d: dict[str, Any] = {"key": key, "title": s.title, "kind": "score", "group": "scores",
+                             "validated": bool(validation_of(key))}
         if s.description:
             d["description"] = s.description
         return d
@@ -421,6 +424,9 @@ def _option(key: str, ss: Any, crit: dict[str, Any]) -> dict[str, Any]:
          "direction": c.direction if c else "higher"}
     if c is not None and c.description:
         d["description"] = c.description
+    if c is not None and getattr(c, "group", ""):  # the pickers show criteria in groups (hani2.evaluation.catalog)
+        d["group"] = c.group
+        d["validated"] = bool(getattr(c, "validated", False))
     return d
 
 

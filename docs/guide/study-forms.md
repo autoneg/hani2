@@ -99,7 +99,7 @@ When the last counted negotiation (and its questionnaire) is done, a participant
 
 ## Predefined questionnaires
 
-HANI2 comes with complete question sets for questionnaires commonly used in human-agent negotiation studies. On the Study forms page, **Add predefined questionnaires** lists the sets meant for the form you are editing (tick *Show sets meant for other forms* for all of them); tick one or more and **Add** them. Their questions are copied into the form, where you can change, reorder or delete any of them; questions whose `id` is already in the form are skipped. The sets that score a construct carry `scale` and `reverse`, so the [subjective metrics](evaluation.md#subjective-metrics) score them.
+HANI2 comes with complete question sets for questionnaires commonly used in human-agent negotiation studies. On the Study forms page, **Add predefined questionnaires** lists the sets meant for the form you are editing (tick *Show sets meant for other forms* for all of them); tick one or more and **Add** them. Their questions are copied into the form, where you can change, reorder or delete any of them; questions whose `id` is already in the form are skipped. The sets that score a construct carry `scale` and `reverse`, so the [subjective metrics](evaluation.md#subjective-metrics) score them. [Questionnaires](questionnaires.md) lists every question of every set with its source, and marks with ✓ the sets validated against their source instrument (the same mark is shown on the Study forms page).
 
 | Set | Questions | Meant for | What it measures |
 |-----|-----------|-----------|------------------|

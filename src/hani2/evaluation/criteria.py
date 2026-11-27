@@ -205,10 +205,27 @@ class Criterion:
     #: whether HI scores may use it (``False`` for post-session answers of people who used several Assistants)
     hi_usable: bool = True
     reason: str = ""
+    #: the group of similar measures it belongs to (:data:`hani2.evaluation.catalog.GROUPS`)
+    group: str = ""
+    #: the test that validates it on a hand-computed example (empty: not validated)
+    validated_by: str = ""
+
+    def __post_init__(self) -> None:
+        from hani2.evaluation import catalog
+
+        if not self.group:
+            self.group = catalog.group_of(self.id, self.metric, self.source)
+        if not self.validated_by and (self.metric or self.source == "questionnaire"):  # a project's own score: no
+            self.validated_by = catalog.validation_of(self.id)
+
+    @property
+    def validated(self) -> bool:
+        return bool(self.validated_by)
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["normaliser_text"] = describe_normaliser(self.normaliser, self.direction)
+        d["validated"] = self.validated
         return d
 
 
@@ -808,6 +825,18 @@ def docs_section(text: str) -> str:
     return text[a + len(DOCS_START): b].strip() + "\n"
 
 
+def _groups_payload() -> list[dict[str, str]]:
+    from hani2.evaluation import catalog
+
+    return catalog.groups_payload()
+
+
+def _validated_tooltip() -> str:
+    from hani2.evaluation import catalog
+
+    return catalog.VALIDATED_TOOLTIP
+
+
 def api_payload(project: str | None = None, study: str | None = None, rows: list[dict] | None = None) -> dict:
     """What ``GET /api/admin/criteria`` returns."""
     crits = catalogue(project, study, rows)
@@ -817,6 +846,7 @@ def api_payload(project: str | None = None, study: str | None = None, rows: list
                             for k, (t, r, d) in NORMALISER_KINDS.items()],
             "sources": list(SOURCES), "levels": list(LEVELS), "directions": list(DIRECTIONS), "costs": list(COSTS),
             "not_numeric": non_numeric_columns(),
+            "groups": _groups_payload(), "validated_tooltip": _validated_tooltip(),
             "reference": reference_summary(ref), "games": None if rows is None else len(rows)}
 
 

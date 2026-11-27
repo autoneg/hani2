@@ -118,6 +118,7 @@ nav:
       - Evaluation metrics: guide/evaluation.md
       - Simulated participants: guide/simulation.md
       - Metric reference: guide/metrics.md
+      - Metric catalogue: guide/metric-catalog.md
       - Ablations: guide/ablations.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md
@@ -129,6 +130,7 @@ nav:
       - Criteria and scores reference: guide/criteria.md
       - Settings reference: guide/settings-reference.md
       - Study forms: guide/study-forms.md
+      - Questionnaires: guide/questionnaires.md
       - Prolific: guide/prolific.md
   - Tutorials:
       - Build an Assistant: tutorials/assistant.md
