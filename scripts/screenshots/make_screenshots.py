@@ -99,16 +99,21 @@ def _merge_json(path: Path, data: dict) -> None:
 
 @contextlib.contextmanager
 def server(args: list[str], *, env_json: dict | None = None, assistant: dict | None = None,
-           scenario: str | None = "Lease", extra_env: dict | None = None, opponent: str = "BoulwareTBNegotiator"):
+           scenario: str | None = "Lease", extra_env: dict | None = None, opponent: str = "BoulwareTBNegotiator",
+           seed_board: bool = False):
     """A HANI2 server on a fresh home; yields its base URL.
 
     ``scenario`` is the only scenario it serves (``None``: the bundled order); ``opponent`` the
-    opponent agent (later ``--opponents`` in ``args`` win)."""
+    opponent agent (later ``--opponents`` in ``args`` win). ``seed_board`` adds the seeded project ``LB``
+    of tests/e2e/board_seed.py (games for the boards and the score preview)."""
     home = Path(tempfile.mkdtemp(prefix="hani2-shots-"))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("HANI2_", "PROLIFIC_", "SCMLWEB_"))}
     env.update(HANI2_HOME=str(home), HANI2_MODEL_PROBE="off", PYTHONUNBUFFERED="1", **(extra_env or {}))
     cli = [os.environ.get("HANI2_PYTHON", sys.executable), "-m", "hani2.cli"]
     subprocess.run([*cli, "setup"], env=env, check=True, capture_output=True)
+    if seed_board:
+        subprocess.run([os.environ.get("HANI2_PYTHON", sys.executable), str(ROOT / "tests" / "e2e" / "board_seed.py")],
+                       env=env, check=True, capture_output=True)
     settings = home / "settings"
     if scenario:
         (settings / "scenario_order.txt").write_text(scenario + "\n", encoding="utf-8")
@@ -882,7 +887,7 @@ def take_walk_hi(browser, use_llm: bool) -> None:
 def take_editor(browser) -> None:
     """The project editor (Admin → Projects & Studies): a `?` dialog, the Mode and HAN rows, and the
     score builder."""
-    with server([]) as url:
+    with server([], seed_board=True) as url:
         ctx, page = new_page(browser, url, viewport={"width": 1440, "height": 1000})
         login(page, "admin", "adminpass")
         r = page.request.put("/api/admin/projects/HI2027", data={"data": {
@@ -890,7 +895,8 @@ def take_editor(browser) -> None:
             "defaults": {"n_required": 5, "opponents": [":pan"]}}})
         assert r.ok, r.text()
         page.goto("/admin#projects")
-        page.get_by_text("HI2027", exact=False).first.click()
+        page.reload()
+        page.get_by_text("HI2027 — Human-AI negotiation 2027", exact=True).first.click()
         expect(page.get_by_text("Defaults for its studies")).to_be_visible()
         settle(page, 800)
         page.get_by_role("button", name="About Mode").click()
@@ -898,6 +904,11 @@ def take_editor(browser) -> None:
         settle(page, 800)
         save(page, "editor-help")
         page.keyboard.press("Escape")
+        # the score builder on the seeded project LB, so that its preview has games
+        page.goto("/admin#projects")
+        page.reload()
+        page.get_by_text("LB — Demo league 2027", exact=True).first.click()
+        expect(page.get_by_text("Defaults for its studies")).to_be_visible()
         page.get_by_role("button", name="New score").click()
         b = page.locator("[data-score-builder]")
         b.get_by_label("Score key").fill("hi_score")
@@ -911,11 +922,16 @@ def take_editor(browser) -> None:
             f.blur()
         b.get_by_role("combobox", name="Direction of n_offers").select_option("lower")
         b.get_by_label("Search criteria").fill("utility")
+        expect(b.locator("[data-preview-entrant]").first).to_be_visible(timeout=30000)
+        expect(b.locator("[data-preview-state=ready]")).to_be_visible(timeout=30000)
         page.mouse.move(0, 0)
         settle(page, 800)
         save_tall(page, b, "editor-score-builder")
-        # the Mode and HAN rows at the top of the defaults
-        page.get_by_role("button", name="Close").first.click()
+        # the Mode and HAN rows at the top of the defaults (back on HI2027)
+        page.goto("/admin#projects")
+        page.reload()
+        page.get_by_text("HI2027 — Human-AI negotiation 2027", exact=True).first.click()
+        expect(page.get_by_text("Defaults for its studies")).to_be_visible()
         page.get_by_role("combobox", name="Mode").select_option("solo")
         settle(page, 600)
         save_tall(page, page.locator("section").filter(has_text="Defaults for its studies").first, "editor-mode", height=520)

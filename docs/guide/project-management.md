@@ -264,6 +264,22 @@ the settings folder and finally the built-in groups (see [Group files](opponents
 and [Assistant groups](assistant.md#assistant-groups)). `hani2 groups list --project <P>` lists a
 project's groups, and the admin API edits them (see [Admin API](#admin-api)).
 
+**The mode limits the opponent pool.** In the admin console (Opponents → **Opponents participants
+face**), the pool of a project or study that declares a **Mode** offers only the entries that mode
+allows:
+
+| Mode | HI project | HAN project | Research (`kind: none`) |
+|---|---|---|---|
+| Solo | AI agents and groups, no human entry | the same | the same |
+| Paired | `human+assistant` only | `human` only | `human` and `human+assistant` |
+| Mixed, or no mode declared | everything | everything | everything |
+
+An entry already in the pool that the mode does not allow is shown in red with the reason, and the
+pool cannot be saved until it is removed. Without a declared mode the mode is derived from the pool,
+so everything is offered. When no file names an opponent pool, the editor checks the mode against
+the pool an `env.json` layer (the study's, the project's or the settings folder's) gives, and says
+so under the **Mode** row.
+
 ### Assignment
 
 A project chooses, for all its studies, how each dimension is assigned to the humans: the
@@ -298,6 +314,24 @@ counted negotiations ($K$, `n_required`) with the number of Assistants in the po
 groups are expanded), and turns orange when $K > N$ under a method that promises each Assistant at
 most once while **Repeats** is off: saving is then refused. **Repeats** sets `assistant_repeats` and
 **Crossing** sets `cross`.
+
+The rows follow the **Mode** as it is being edited:
+
+- **Solo** and **Mixed** use every row. In Mixed, a game against an AI uses the Assistant method
+  as a slot, and a match with a person uses it as a set (below).
+- **Paired** has no AI opponent sequence, so the **Opponents** method and **Crossing** show *not
+  used* (the AI fallback draws from **Fallback opponents**). The **Assistants** method gives each
+  person a **set** of Assistants, and pairing picks from it: one-per-person methods give their one
+  Assistant for every match, the at-most-once methods the first K of the person's sequence minus
+  those used, `random_each` the whole pool, and `external` the Assistants of the person's
+  `schedule.json`. With `scenarios: by_participant` people meet only people of the same scenario
+  type; otherwise the joiner takes the host's scenario.
+- A Paired **HAN** study plays without Assistants, so its **Assistants** row shows *not used*.
+
+A method that a file sets for a dimension the mode does not use stays shown, with a note that it is
+ignored, so that it can be reset. In the **Pairing** group, **How a match is formed** lists
+`cells` first in a Paired study (its default) and `random` first in a Mixed one (the game's), and
+each empty field shows the value the mode gives.
 
 What these defaults do within a study is described in
 [Assigning Assistants, opponents and scenarios](study-management.md#assigning-assistants-opponents-and-scenarios),
@@ -580,7 +614,29 @@ score builder:
   a criterion without a direction must be given one.
 
 The builder saves the score at once, through the admin API, with the same checks as
-`hani2 scores set`. **Scores enabled** below it is saved with the page.
+`hani2 scores set`. **Scores enabled** below it is saved with the page. Editing a score keeps its
+**Zero if** (`zero_if`) and **Needs an Assistant** (`needs_assistant`) rules, which the builder also
+sets.
+
+### Previewing a score
+
+While you build a score, the **Preview** under its components computes it on the games the board of
+the project (or of the study) reads, as the board would rank them, and updates a moment after each
+change. Nothing is saved:
+
+- **Weights in effect**: each component's share after the coverage rule, summing to 100 %. Weights
+  that do not sum to 100 % yet are previewed rescaled.
+- **Dropped**: components present in fewer than **Minimum coverage** of some entrant's games, which
+  are left out for everyone.
+- **Distribution over the games**: a histogram of the score's values over the counted games, in ten
+  bins of [0, 1], with the mean, the median and the coverage.
+- **Top entrants**: the first five by the score's mean, with the 95 % interval and the games counted.
+
+A score with the track `hi` or `han` is previewed on that track's games. A definition that cannot be
+computed (an unknown criterion, a missing direction) shows why instead. The same preview is
+`POST /api/admin/scores/preview?project=P` (or `?study=P/S`) with
+`{"key": "hi_score", "score": {...}}`: it answers `weights_in_effect`, `dropped`, `histogram`,
+`stats`, `games`, `entries` (the top five) and `n_entrants`, or `problems`.
 
 From the command line:
 
@@ -1133,6 +1189,7 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | `GET /api/admin/scenarios/plot/{token}` | The outcome-space plots of the example those details showed: `plots` (one Plotly figure per pair of roles) and `plot_note`. Fetched apart so the details never wait for it; 404 once the example is no longer kept. |
 | `GET /api/admin/criteria[?project=P \| ?study=P/S][&coverage=true]` | The evaluation criteria (metric columns, the answers of the forms in use, scores) with source, level, direction, default normaliser, cost and optional coverage, the normaliser kinds and the project's reference. See [Scores](#scores). |
 | `GET /api/admin/scores?project=P` (or `?study=P/S`) | The scores: the built-ins (`builtin`, read-only) and the project's and study's definitions, each with `origin`, `enabled`, its components with their weights in effect (summing to 1), directions and normalisers, and `flattened` (the weights down to criteria); `enabled`, `enabled_set_by`, `problems` and `warnings`. |
+| `POST /api/admin/scores/preview?project=P` (or `?study=P/S`) | `{"key": "…", "score": {definition}}`: the score, unsaved, on the board's current games: `weights_in_effect` (after coverage), `dropped`, a ten-bin `histogram` over [0, 1], `stats` (mean, median, coverage), the top five `entries` and `n_entrants`; or `problems`. Nothing is written. See [Previewing a score](#previewing-a-score). |
 | `PUT /api/admin/projects/{project}/scores/{key}` | Add or replace a score in `project.yaml`: the definition as JSON. 400 unless the weights are ≥ 0 and sum to 1 and every check passes. |
 | `DELETE /api/admin/projects/{project}/scores/{key}` | Remove it; 409 while another score contains it or `scores_enabled` names it. |
 | `POST /api/admin/projects/{project}/scores/{key}/duplicate` | `{"from": "hi_team"}`: copy a score (for example a built-in) as `key`. |

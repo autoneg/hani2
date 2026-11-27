@@ -111,11 +111,11 @@ Every choice whose meaning is not plain has a **?** after its name. It opens a d
 
 - **Project**: full name, short description, link, year, kind (research, opponents evaluated, Assistants evaluated), organizer and contact. The hint of each row names the [text variable](study-management.md#texts-with-variables) it fills.
 - **Defaults for its studies**:
-    - **Mode** (Solo, Paired, Mixed, or derived from the opponents when unset). When the mode and the opponent pool disagree, a red note under the row says why, and **Save** is refused until they agree. In a HAN project, Paired shows the note "tests no HAN agent; its results are not ranked".
+    - **Mode** (Solo, Paired, Mixed, or derived from the opponents when unset). When the mode and the opponent pool disagree, a red note under the row says why, and **Save** is refused until they agree. When no file names an opponent pool, the check uses the pool of the `env.json` layers, and a note says so. In a HAN project, Paired shows the note "tests no HAN agent; its results are not ranked".
     - **HAN agents** (not shown for Paired): pick a year and a set (all, qualified, finalists, winners) and **Add** writes `:han<year>-<set>` into the layer's opponent pool. "This year" and "last year" are labels computed from the project's **Year**; a year that no source covers is greyed out ("no agents for 2025").
     - the scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles, and what the participant and the Assistant each know. An empty field keeps the default.
-- **Pairing** (only for Paired and Mixed): where people meet, how a match is formed, the slack, the scenario in a cell, same-Assistant matches, what happens when nobody fits and the fallback opponents. Each empty field shows the value in effect.
-- **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. The `?` of each dimension lists its methods. **K of N** compares the counted negotiations ($K$) with the number of Assistants in the pool ($N$), and turns orange when $K > N$ under a method that promises each Assistant at most once while repeats are off, since saving is then refused. **Repeats** sets `assistant_repeats` (may a person get the same Assistant twice?) and **Crossing** sets `cross` (`shift` crosses the Assistants with the opponents; the hint says whether it applies to the methods chosen). **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
+- **Pairing** (only for Paired and Mixed): where people meet, how a match is formed (`cells` first in Paired, `random` first in Mixed), the slack, the scenario in a cell, same-Assistant matches, what happens when nobody fits and the fallback opponents. Each empty field shows the value in effect.
+- **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. The `?` of each dimension lists its methods. **K of N** compares the counted negotiations ($K$) with the number of Assistants in the pool ($N$), and turns orange when $K > N$ under a method that promises each Assistant at most once while repeats are off, since saving is then refused. **Repeats** sets `assistant_repeats` (may a person get the same Assistant twice?) and **Crossing** sets `cross` (`shift` crosses the Assistants with the opponents; the hint says whether it applies to the methods chosen). The rows follow the Mode: in Paired the opponent is the other person, so **Opponents** and **Crossing** show *not used*, and the Assistants row says that the method gives each person a set of Assistants (in a Paired HAN study, which has no Assistants, that row is *not used* too). **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
 - **Scores**: every score of the project. Built-in scores are read-only, and **Duplicate** copies one into the file; your own scores have **Edit** and **Remove**. **New score** opens the score builder (below). Score changes are saved at once.
 - **Scores enabled**: which scores the boards, results views and exports compute and show. **Choose here** starts from the scores in effect; the reset button goes back to the default. This one is saved with the page.
 - **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for.
@@ -135,10 +135,12 @@ Open a study to see and edit:
 
 ![The score builder: three components, their weights summing to 100 %, and the criteria picker](../assets/screens/editor-score-builder.png)
 
-- **Key**, title, description, **Track** (`hi`, `han`, `any`), **Missing values** and **Minimum coverage**.
+- **Key**, title, description, **Track** (`hi`, `han`, `any`), **Missing values**, **Minimum coverage**, **Same-Assistant games**, **Zero if** (criteria that make the score 0 when they are 1) and **Needs an Assistant**. Editing a score keeps all of them.
 - **Components**: one row per criterion, with its weight in %, its direction and its normaliser. Both start from the criterion's own (*Preset*); a criterion that has no direction says **Direction: choose**, and the score cannot be saved until one is chosen. A normaliser can be replaced, with its bounds or scale.
 - The **running sum** of the weights is green at 100 %. **Save score** works only then; **Normalise** rescales the weights to 100 % keeping their proportions.
 - **Add criteria**: a searchable list of every criterion of the catalogue, grouped by source (measured, judged, questionnaire scales, the items and scales of the project's own forms, scores). Each shows its direction, its default normaliser and its cost; **Show coverage in the current games** adds the share of the games that have a value. Criteria that cannot be used are greyed out with the reason, for example a post-session answer in an HI score when participants used several Assistants.
+
+- **Preview**: the score on the current games of the project's (or study's) board, updated a moment after each change and never saved: the weights in effect after the coverage rule, the parts dropped for everyone, a histogram of the per-game values with the mean and median, and the top five entrants with their intervals. See [Previewing a score](project-management.md#previewing-a-score).
 
 Saving sends the weights as fractions summing to 1 (`PUT /api/admin/projects/{project}/scores/{key}`, or `.../studies/{study}/scores/{key}`); the server checks the definition again. After a save, the weights in effect are listed with the score.
 
@@ -265,7 +267,11 @@ with a one-line description, searchable (useful for `@genius` with its 196 agent
 class does not load are marked.
 
 **Opponents participants face** is the pool of the chosen layer, as a list of groups and single
-classes to tick. It is stored in `env.json` (`opponents`) for the settings layer, in
+classes to tick. At a project or study that declares a **Mode**, it offers only what the mode allows:
+Paired only the person entry of the project's kind (`human+assistant` in HI, `human` in HAN) and
+no AI agent, Solo no person entry; an entry already chosen that the mode does not allow is shown in
+red and must be removed before saving (see
+[Pools of opponents and Assistants](project-management.md#pools-of-opponents-and-assistants)). It is stored in `env.json` (`opponents`) for the settings layer, in
 `project.yaml` (`defaults.opponents`) for a project and in `study.yaml` (`overrides.opponents`)
 for a study. An admin's `?opponents=`, any URL's `?group=`, `HANI2_OPPONENTS` and an outside system's
 schedule still win. See [Opponents](opponents.md#group-files).

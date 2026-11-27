@@ -265,6 +265,7 @@ More: [Information](information.md).
 | Setting | Key | Summary |
 |---|---|---|
 | [HAN agents](#setting-opponents-han) | `opponents` | Add the entrant agents of a HAN league by year and set; the year is always written out |
+| [Opponent pool](#setting-opponents-pool) | `opponents` | Who participants face at this layer; the study's mode decides which human entries are offered |
 
 ### HAN agents {#setting-opponents-han}
 
@@ -291,6 +292,32 @@ An HI study may name several years (`:han2026-finalists`, `:han2027-finalists`):
 the year, the source and the version of the agent it played.
 
 More: [Project management](project-management.md#han-agents-by-year).
+
+### Opponent pool {#setting-opponents-pool}
+
+`opponents`: *Who participants face at this layer; the study's mode decides which human entries are offered*
+
+The pool lists AI agents, groups (`:pan`, `:han2027-finalists`, …) and other people:
+
+| Entry | Means |
+|---|---|
+| `human` | another participant without an Assistant |
+| `human+assistant` | another participant with their own Assistant |
+
+The declared **Mode** (`study_mode`) limits the human entries:
+
+| Mode | HI project (`kind: assistant`) | HAN project (`kind: opponent`) | Research (`kind: none`) |
+|---|---|---|---|
+| Solo | no human entry | no human entry | no human entry |
+| Paired | `human+assistant` only | `human` only | `human`, `human+assistant` |
+| Mixed, or not declared | both | both | both |
+
+A Paired pool lists people only, so its AI agents are not offered either (the AI fallback has its own
+pool, **Fallback opponents**). An entry already in the pool that the mode does not allow stays shown,
+in red, so that it can be removed; the server refuses to save the contradiction. Without a declared
+mode, the mode is derived from the pool, so every entry is offered.
+
+More: [Project management](project-management.md#pools-of-opponents-and-assistants).
 
 ## Assignment
 
@@ -468,12 +495,18 @@ More: [Project management](project-management.md#pairing-defaults).
 |---|---|---|
 | `cells` | a match goes to the least-filled **cell** (scenario, Assistant at side 0, Assistant at side 1) among the people waiting | evaluation studies, the HI game (the default of a declared Paired study) |
 | `order` | each person follows their planned order of Assistants strictly; two people fit only when their next planned Assistants form an allowed pair | small scripted lab sessions (it thins the pool a lot) |
-| `random` | any waiting person who fits | today's behaviour, the default otherwise |
+| `random` | any waiting person who fits | the game; the default of a Mixed study |
 
 Only completed matches fill a cell; an abandoned match or an AI fallback fills none.
 
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
+**By mode.** A declared **Paired** study defaults to `cells` and pairs within the study. A **Mixed**
+study (the game) defaults to `random` and the project-wide lobby; `cells` or `order` set here makes
+its matches balanced too. A **Solo** study has no pairing, and the editor hides this block.
+
+The study's Assistant method gives each person a **set** of Assistants rather than a slot:
+one-per-person methods give that one Assistant for every match, the at-most-once methods the first
+K of the person's sequence minus the used ones, `random_each` the whole pool, `external` the
+Assistants of the person's `schedule.json` slots.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -488,9 +521,6 @@ the tie is broken by the other balance terms and finally at random.
 - `0`: the strictest balance, the most predictable pairing;
 - `1` (default): nearly as balanced, and nobody can aim at a particular person.
 
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
-
 More: [Project management](project-management.md#pairing-defaults).
 
 ### Scenario in a cell {#setting-pairing-cell-scenario}
@@ -502,9 +532,6 @@ scenario is the domain, and the single scenario (which preferences were used) is
 balanced. With `name`, single scenarios are balanced too, which multiplies the number of cells by
 the scenarios per type: with 5 Assistants, 3 domains and 5 scenarios each, 60 cells become 300.
 
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
-
 More: [Project management](project-management.md#pairing-defaults).
 
 ### Same-Assistant matches {#setting-pairing-allow-same-assistant}
@@ -514,9 +541,6 @@ More: [Project management](project-management.md#pairing-defaults).
 **No** (the default) in evaluation studies: a match of an Assistant against itself says nothing
 about it compared with the others. **Yes** in the game, where an invited guest plays with the
 inviter's Assistant, so the two necessarily share one.
-
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -536,9 +560,6 @@ When `human_opponent_fallback` is also set in an `env.json` and disagrees, the f
 keep a supervised session waiting today, set `human_opponent_fallback: false` in the study's
 `env.json`.
 
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
-
 More: [Project management](project-management.md#pairing-defaults).
 
 ### Fallback opponents {#setting-pairing-fallback-opponents}
@@ -546,9 +567,6 @@ More: [Project management](project-management.md#pairing-defaults).
 `pairing.fallback_opponents`: *The AI pool of the fallback (default: the study's AI opponents, else :pan)*
 
 AI entries only (agents and groups such as `:pan`); human entries are refused.
-
-**In this version** only *Where people meet* decides who is paired; this key is checked and stored
-for the balanced pairing of matches, which a later version applies.
 
 More: [Project management](project-management.md#pairing-defaults).
 
@@ -558,6 +576,7 @@ More: [Project management](project-management.md#pairing-defaults).
 |---|---|---|
 | [Scores](#setting-scores) | `scores` | The scores of this project or study: the built-ins (read-only) and your own |
 | [Criteria](#setting-scores-criteria) | `scores.criteria` | Every number a score can use: metric columns, questionnaire answers and other scores |
+| [Preview](#setting-scores-preview) | `scores.preview` | The score on the current games, before saving: weights in effect, dropped parts, its distribution, the top entrants |
 | [Track](#setting-scores-track) | `scores.track` | hi ranks Assistants, han ranks opponent agents, any fits both |
 | [Weights](#setting-scores-weights) | `scores.weights` | Each component's share in %, which must sum to 100 %; Normalise rescales them |
 | [Direction](#setting-scores-direction) | `scores.direction` | higher or lower is better; required when the criterion has none |
@@ -604,6 +623,26 @@ to the Assistant only when each participant used one Assistant throughout; other
 out for HI scores, with the reason.
 
 More: [Criteria](criteria.md).
+
+### Preview {#setting-scores-preview}
+
+`scores.preview`: *The score on the current games, before saving: weights in effect, dropped parts, its distribution, the top entrants*
+
+The preview computes the score being built on the games the board of this project (or study) reads,
+as the board would rank them, and updates a moment after each change. Nothing is saved.
+
+| Part | Shows |
+|---|---|
+| Weights in effect | each component's share after the coverage rule, summing to 100 % |
+| Dropped | components present in fewer than **Minimum coverage** of some entrant's games, left out for everyone |
+| Distribution | how the score's values over the counted games fall into ten bins of [0, 1], with the mean and median |
+| Top entrants | the first five by the score's mean, with the 95 % interval and the games counted |
+
+Weights that do not yet sum to 100 % are previewed rescaled. A score with the track `hi` or `han`
+is previewed on that track's games. The preview needs games: a new project shows "no games yet".
+Admins only (`POST /api/admin/scores/preview`).
+
+More: [Project management](project-management.md#previewing-a-score).
 
 ### Track {#setting-scores-track}
 
