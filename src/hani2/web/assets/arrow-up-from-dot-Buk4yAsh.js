@@ -1,1 +1,0 @@
-import{c as e}from"./index-CO8Nk3t8.js";const o={name:"arrow-up-from-dot",size:24,node:[["path",{d:"m5 9 7-7 7 7",key:"1hw5ic"}],["path",{d:"M12 16V2",key:"ywoabb"}],["circle",{cx:"12",cy:"21",r:"1",key:"o0uj5v"}]]};o.node;const r=e(o);export{o as __iconData,r as default};
