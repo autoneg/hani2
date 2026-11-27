@@ -413,6 +413,32 @@ def test_admin_library_and_check_carry_the_tam_warning_for_tam_sets_only(admin):
     assert admin.post("/api/admin/questionnaires/check", json={"text": sus["text"]}).json()["warnings"] == []
 
 
+def test_tam_warning_names_the_set_a_form_uses(admin, monkeypatch):
+    """tam_usefulness_short is two of tam_usefulness's items: each form names only the set it was built from,
+    and the bundled evaluation form in effect (named in the environment) gets the warning too."""
+    def check(sets):
+        text = admin.post("/api/admin/questionnaires/compose", json={"sets": sets, "form": "post_session"}).json()["text"]
+        return [w["set"] for w in admin.post("/api/admin/questionnaires/check", json={"text": text}).json()["warnings"]]
+
+    assert check(["tam_usefulness_short"]) == ["tam_usefulness_short"]
+    assert check(["tam_usefulness"]) == ["tam_usefulness"]
+    assert sorted(check(["tam_usefulness", "tam_ease"])) == ["tam_ease", "tam_usefulness"]
+    monkeypatch.setenv("HANI2_PER_NEG_YAML", "evaluation")
+    eff = admin.get("/api/admin/settings/per_negotiation?layer=settings").json()
+    assert eff["active"] and eff["effective"]
+    warns = admin.post("/api/admin/questionnaires/check", json={"text": eff["effective"]}).json()["warnings"]
+    assert [w["set"] for w in warns] == ["tam_usefulness_short"]
+
+
+def test_the_warning_apis_are_admin_only(study):
+    """The library and check APIs (the only ones that carry the warning) refuse anyone but an admin."""
+    from hani2.server import app
+
+    with TestClient(app) as c:
+        assert c.get("/api/admin/questionnaires/library").status_code in (401, 403)
+        assert c.post("/api/admin/questionnaires/check", json={"text": "questions: []"}).status_code in (401, 403)
+
+
 def test_participants_never_see_the_tam_warning(study, monkeypatch):
     """A study whose forms use every TAM set: the forms the participant fills in (the session state the
     browser renders) carry no trace of the admin-only source warning."""
