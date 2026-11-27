@@ -41,8 +41,12 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="package")
 def e2e_browser():
+    """One Chromium for the browser tests. Package scope, not session: the sync Playwright API keeps an
+    event loop running in the main thread while it is open, where ``asyncio.run`` then refuses ("cannot be
+    called from a running event loop"); closing it when the e2e folder is done leaves the later tests a
+    clean main thread."""
     with sync_api.sync_playwright() as p:
         try:
             b = p.chromium.launch()
