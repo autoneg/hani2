@@ -1676,10 +1676,13 @@ def _board_viewer(request: Request, project: str, study: str | None) -> bool:
         return True
     tok = _bearer(request)
     if tok is not None:
+        # an ``admins`` board needs the scope leaderboard:admin; the others leaderboard:read (or admin)
+        scope = sso.SCOPE_LEADERBOARD_ADMIN if vis == "admins" else sso.SCOPE_LEADERBOARD
         try:
-            sso.verify_api_token(tok, root_path=root_path())
+            sso.verify_api_token(tok, scope, root_path=root_path())
         except sso.APITokenError as e:
-            raise HTTPException(e.status, f"API token refused ({e.code}): {e}",
+            raise HTTPException(e.status, f"API token refused ({e.code}): {e}"
+                                + (" (this board has visibility: admins)" if e.code == "scope" and vis == "admins" else ""),
                                 headers={"WWW-Authenticate": "Bearer"} if e.status == 401 else None) from None
         return False
     if vis == "public":
@@ -1737,25 +1740,28 @@ def api_study_leaderboard(project: str, study: str, request: Request):
 @app.get("/api/v1/leaderboards")
 def api_leaderboards(request: Request):
     """Every project that has a board, with its track, year and visibility. Without a signed-in user or
-    an API token, only the public boards are listed."""
+    an API token, only the public boards are listed; ``admins`` boards only to an admin or to an API
+    token with the scope ``leaderboard:admin``."""
     from hani2.evaluation import boards
 
     user = current_user(request)
     full = bool(user) and sso.guest_study(user) is None  # a guest sees the public boards only
+    admins = bool(user) and auth.is_admin_user(user)
     tok = _bearer(request)
     if tok is not None:
         try:
-            sso.verify_api_token(tok, root_path=root_path())
-            full = True
+            claims = sso.verify_api_token(tok, root_path=root_path())
         except sso.APITokenError as e:
             raise HTTPException(e.status, f"API token refused ({e.code}): {e}") from None
+        full = True
+        admins = admins or sso.token_has_scope(claims, sso.SCOPE_LEADERBOARD_ADMIN)
     items = boards.list_boards()
-    if not full:
-        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] == "public"])
-                 for b in items if b["visibility"] == "public" or any(x["visibility"] == "public" for x in b["studies"])]
-    elif not (user and auth.is_admin_user(user)) and tok is None:
-        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] != "admins"])
-                 for b in items if b["visibility"] != "admins" or any(x["visibility"] != "admins" for x in b["studies"])]
+    if not (full and admins):
+        def shown(v: str) -> bool:
+            return v == "public" if not full else v != "admins"
+
+        items = [dict(b, studies=[x for x in b["studies"] if shown(x["visibility"])])
+                 for b in items if shown(b["visibility"]) or any(shown(x["visibility"]) for x in b["studies"])]
     return {"schema": "hani2.leaderboards/1", "boards": items}
 
 

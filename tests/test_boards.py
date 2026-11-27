@@ -388,7 +388,11 @@ def test_visibility_and_tokens(api, hi):
     assert api.get(URL).status_code == 200
     set_board({"sort_options": ["utility"], "visibility": "admins", "rules": RULES0})
     assert api.get(URL).status_code == 403
-    assert api.get(URL, headers=bearer()).status_code == 200
+    # an admins board needs the scope leaderboard:admin; leaderboard:read is not enough
+    r = api.get(URL, headers=bearer())
+    assert r.status_code == 403 and "leaderboard:admin" in r.text
+    assert api.get(URL, headers=bearer(scope="leaderboard:admin")).status_code == 200
+    assert api.get(URL, headers=bearer(scope=["leaderboard:read", "leaderboard:admin"])).status_code == 200
     api.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
     assert api.get(URL).status_code == 200
     assert api.get("/api/v1/projects/nope/leaderboard").status_code == 404
@@ -462,7 +466,20 @@ def test_the_list_of_boards(api, hi):
     assert [b["project"] for b in d["boards"]] == ["HI"]
     b = d["boards"][0]
     assert b["track"] == "hi" and b["year"] == 2027 and b["visibility"] == "public"
-    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"]} == {"HI", "PRIV"}
+    # a token with leaderboard:read does not list the admins boards; one with leaderboard:admin does
+    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"]} == {"HI"}
+    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer(scope="leaderboard:admin")).json()[
+        "boards"]} == {"HI", "PRIV"}
+    assert api.get("/api/v1/leaderboards", headers=bearer(scope="other")).status_code == 403
+    # an admins study under a listed project is left out of the token's list too
+    projects.create_study("HI/secret", type="online")
+    set_board({"visibility": "admins"}, study="secret")
+    studies = {x["study"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"][0]["studies"]}
+    assert "secret" not in studies and "play" in studies
+    hi_admin = [b for b in api.get("/api/v1/leaderboards", headers=bearer(scope="leaderboard:admin")).json()["boards"]
+                if b["project"] == "HI"][0]
+    assert "secret" in {x["study"] for x in hi_admin["studies"]}
+
 
 
 # --------------------------------------------------------------------------- #
