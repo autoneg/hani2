@@ -1,1 +1,0 @@
-import{c as o}from"./index-cT4ypc2S.js";const t={name:"handle-bottom-right",size:24,node:[["path",{d:"M21 8 8 21",key:"16gpkk"}],["path",{d:"m21 15-6 6",key:"1kohh4"}]]};t.node;const a=o(t);export{t as __iconData,a as default};
