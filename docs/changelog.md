@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **The Assistant no longer chooses its language models by default.** The `model_choice` ability
+  (the `list_model_sequences` and `use_model_sequence` functions, `use_model_sequence()` and
+  `ask_llm(..., sequence=...)`) is now off by default, like `own_models`. An admin turns it on under
+  *Abilities granted* on the **Assistant settings** page or with
+  `{"capabilities": {"model_choice": true}}` in `assistant_settings.json`. A `model_sequence` set on
+  the Assistant's class by its author is used without it. See
+  [The Assistant's model sequences](guide/models.md#the-assistants-model-sequences).
 - **Value on disagreement under *In short*.** The participant's Preferences tool now shows the
   sentence "If you do not reach agreement you get 10% (your best option gives you 100%)." right under
   the *In short* card, where it stays in sight also when the card is folded, instead of below the
@@ -84,7 +91,7 @@
   layer can override one or disable an inherited one (`{"disabled": true}`). Entries take
   `thinking` (`true`/`false` or a token budget) and `effort` as well as `temperature` and any
   other provider parameter. The Assistant can pick a sequence by name for its replies and for any
-  task (`model_choice`, on by default; `use_model_sequence`, `ask_llm(..., sequence=...)`), and
+  task (`model_choice`, off by default; `use_model_sequence`, `ask_llm(..., sequence=...)`), and
   with `own_models` (off by default) it can define its own sequences signed in with its own keys or
   servers. The **Models** page edits, overrides, disables and tests sequences. `hani2 models list`
   lists them and `hani2 models resolve --sequence` checks one. Results record each sequence used

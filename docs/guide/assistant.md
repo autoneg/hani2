@@ -327,7 +327,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
 | `opponent_model` | Estimate the opponent | Share its estimate of what the opponent wants; the participant's Negotiation Plot and Utility-based Selector then show it, marked as an estimate (see [Estimating the opponent](#estimating-the-opponent)) | `set_opponent_estimate` |
 | `opponent_utility` | Know the opponent's preferences (oracle) | See the opponent's utility function and the opponent's utility of every offer (off by default; admin-only) | `get_opponent_utility` |
-| `model_choice` | Choose its language models | Pick one of the study's [named model sequences](models.md#named-sequences) (`default`, `tiny`, `offline`, `small`, `medium`, `large`, …) for its replies and any other task that uses a model (on by default; admin-only) | `list_model_sequences`, `use_model_sequence` |
+| `model_choice` | Choose its language models | Pick one of the study's [named model sequences](models.md#named-sequences) (`default`, `tiny`, `offline`, `small`, `medium`, `large`, …) for its replies and any other task that uses a model (off by default; admin-only; a `model_sequence` set on the class needs no ability) | `list_model_sequences`, `use_model_sequence` |
 | `own_models` | Bring its own language models | Define its own model sequences for the session, signed in with its own keys or servers (off by default; admin-only; see [its own sequences](models.md#the-assistants-model-sequences)) | `define_model_sequence` (and `list_model_sequences`, `use_model_sequence` for its own sequences) |
 
 `opponent_utility` is an [ablation](ablations.md): it gives the Assistant the information a real
@@ -615,8 +615,8 @@ Tool helpers (each checks the capability shown):
 | `opponent_estimate()` | none | The estimate now set, by anyone, or `None`. |
 | `opponent_view(offer=None)` | `opponent_utility` | The opponent's preferences and utilities (the oracle); with `offer` (`{issue: value}`) also both sides' utility of it. |
 | `model_sequences()` | none | The named model sequences it may use (name, description, source, entries; never a key). |
-| `use_model_sequence(name="")` | `model_choice` (or `own_models` for its own) | Its replies use the sequence `name` from now on (`""`: the `assistant` chain). The class attribute `model_sequence` sets it from the start. |
-| `ask_llm(prompt, sequence=None, system=None, **params)` | `model_choice` for a `sequence` | One prompt, one reply text, for any task of its own; `params`: `temperature`, `effort`, `thinking`, … |
+| `use_model_sequence(name="")` | `model_choice` (or `own_models` for its own) | Its replies use the sequence `name` from now on (`""`: the `assistant` chain). The class attribute `model_sequence` sets it from the start, without any ability. |
+| `ask_llm(prompt, sequence=None, system=None, **params)` | `model_choice` for a `sequence` other than the class's `model_sequence` | One prompt, one reply text, for any task of its own; `params`: `temperature`, `effort`, `thinking`, … |
 | `define_model_sequence(name, entries, description="")` | `own_models` | Defines its own sequence for the session (see [its own sequences](models.md#the-assistants-model-sequences)). |
 
 While the human and the Assistant know different things, `read_tool` and `use_tool` refuse the

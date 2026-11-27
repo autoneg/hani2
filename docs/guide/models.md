@@ -246,8 +246,8 @@ one.
 **Who uses a sequence.**
 
 * A purpose that names it (`"judge": "judge-strict"`).
-* The Assistant, for its replies and any other task, with the `model_choice` ability (on by
-  default): see [The Assistant's model sequences](#the-assistants-model-sequences).
+* The Assistant, for its replies and any other task, with the `model_choice` ability (off by
+  default), or the sequence its author set in code: see [The Assistant's model sequences](#the-assistants-model-sequences).
 * A tool: `self.ask_llm(prompt, sequence="small")`, or
   `hani2.llm_service.complete(prompt, session=s, sequence="small")`.
 * Code: `model_chain.completion("tools", messages, sequence="small")`. An LLM opponent or autopilot
@@ -280,8 +280,15 @@ settings of any layer); participants neither see nor switch them.
 
 | Ability | Default | What it allows |
 | --- | --- | --- |
-| `model_choice` | on | Pick any of the study's named sequences, for its replies and for any other task that uses a model. |
+| `model_choice` | **off** | Pick any of the study's named sequences, for its replies and for any other task that uses a model. |
 | `own_models` | **off** | Define its own sequences for the session, signed in with its own keys or servers, and use them. |
+
+To turn one on, switch it on under *Abilities granted* on the console's **Assistant settings**
+page, or set it in `assistant_settings.json` (in the settings folder, a project or a study):
+
+```json
+{"capabilities": {"model_choice": true}}
+```
 
 An Assistant uses them from Python:
 
@@ -299,16 +306,20 @@ class MyAssistant(Assistant):
 
 | Helper | What it does |
 | --- | --- |
-| `model_sequence` (class attribute) | The sequence its replies use (`""`: the `assistant` chain). |
+| `model_sequence` (class attribute) | The sequence its replies use (`""`: the `assistant` chain). Needs no ability: it is the author's choice. |
 | `model_sequences()` | The sequences it may use: name, description, source and entries (never a key). |
-| `use_model_sequence(name)` | Switch its replies to `name` (`""` goes back to the `assistant` chain). |
-| `ask_llm(prompt, sequence=..., system=..., **params)` | One prompt, one reply, through any sequence. |
+| `use_model_sequence(name)` | With `model_choice`: switch its replies to `name` (`""` goes back to the `assistant` chain). |
+| `ask_llm(prompt, sequence=..., system=..., **params)` | One prompt, one reply. Without `sequence` it uses `model_sequence`; any other sequence needs `model_choice`. |
 | `define_model_sequence(name, entries, description="")` | With `own_models`: define its own sequence (each entry signs in by itself). |
 
 The language model behind the Assistant gets the functions `list_model_sequences` and
 `use_model_sequence` (with `model_choice` or `own_models`), and `define_model_sequence` (with
 `own_models`). It can, for example, switch to `small` for small talk and to `large` for a hard
 analysis.
+
+Without `model_choice`, an Assistant whose class sets `model_sequence = "small"` still answers
+through `small`, but neither its code nor its language model can switch to another sequence, and
+the language model does not get these functions.
 
 **Its own sequences.** With `own_models`, an Assistant can use its own models. Every entry of its
 own sequence signs in by itself, with `api_key`, `api_base` or both:
