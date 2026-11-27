@@ -392,3 +392,51 @@ def test_a_study_can_start_the_assistant_switched_on(study, monkeypatch):
         assert s.ss["support_agent_default_enabled"] is True
     finally:
         s.close()
+
+
+# --------------------------------------------------------------------------- #
+# The TAM source warning: admins see it, participants never do                 #
+# --------------------------------------------------------------------------- #
+def test_admin_library_and_check_carry_the_tam_warning_for_tam_sets_only(admin):
+    from hani2.evaluation import catalog
+
+    sets = {s["id"]: s for s in admin.get("/api/admin/questionnaires/library").json()["sets"]}
+    for k in ("tam_usefulness", "tam_usefulness_short", "tam_ease"):
+        assert sets[k]["warning"] == catalog.TAM_WARNING  # from the registry the docs use
+    for k in ("sus", "subjective_value", "trust_in_automation", "nasa_tlx", "demographics"):
+        assert sets[k]["warning"] == ""
+    tam = admin.post("/api/admin/questionnaires/compose", json={"sets": ["tam_ease", "sus"], "form": "post_session"}).json()
+    c = admin.post("/api/admin/questionnaires/check", json={"text": tam["text"]}).json()
+    assert [w["set"] for w in c["warnings"]] == ["tam_ease"] and c["warnings"][0]["warning"] == catalog.TAM_WARNING
+    assert catalog.TAM_WARNING not in json.dumps(c["form"])  # the preview form stays the participant's form
+    sus = admin.post("/api/admin/questionnaires/compose", json={"sets": ["sus"], "form": "post_session"}).json()
+    assert admin.post("/api/admin/questionnaires/check", json={"text": sus["text"]}).json()["warnings"] == []
+
+
+def test_participants_never_see_the_tam_warning(study, monkeypatch):
+    """A study whose forms use every TAM set: the forms the participant fills in (the session state the
+    browser renders) carry no trace of the admin-only source warning."""
+    from hani2.evaluation import catalog
+
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "1")
+    _set_study(study, practice=False, assistant_starts_on=True)  # the TAM items ask about the Assistant
+    per, _, _ = questionnaires.compose("", ["tam_usefulness", "tam_ease"], "per_negotiation")
+    post, _, _ = questionnaires.compose("", ["tam_usefulness_short"], "post_session")
+    _put(projects.study_dir(study), "per_negotiation", per)
+    _put(projects.study_dir(study), "post_session", post)
+
+    def clean(s):
+        text = json.dumps(s.snapshot(), default=str)
+        assert catalog.TAM_WARNING not in text and "not been checked" not in text and "Items not checked" not in text
+
+    s = prolific("P1", study)
+    try:
+        _play(s)
+        assert s.phase == "questionnaire" and any(q["id"].startswith("tam_") for q in s.questionnaire["questions"])
+        clean(s)
+        assert s.study.submit_questionnaire({q["id"]: 4 for q in s.questionnaire["questions"]})["ok"]
+        assert s.phase == "questionnaire" and s.questionnaire["stage"] == "post"
+        assert {q["id"] for q in s.questionnaire["questions"]} == {"tam_effectiveness", "tam_useful"}
+        clean(s)
+    finally:
+        s.close()
