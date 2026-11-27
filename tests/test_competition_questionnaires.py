@@ -164,3 +164,13 @@ def test_questionnaires_page_has_a_competition_section():
         assert f"{{#{sid}}}" in sec
     assert sec.index("HAN2026-PreSession") < sec.index("HAN2026-PostNegotiation") < sec.index("HAN2025-PreStudy") \
         < sec.index("ANAC-HAL2018-PostNegotiation") < sec.index("ANAC-HAL2017-PostNegotiation")
+
+
+def test_han_sets_are_editable_and_hal_sets_read_only_in_the_explorer(hani2_home):
+    """The organisers maintain the HAN sets (editable in the app); the HAL sets reproduce published papers."""
+    from hani2 import questionnaire_library as QL
+
+    es = {e["id"]: e for e in QL.entries()}
+    for sid in ALL:
+        assert es[sid]["read_only"] is (sid in HAL), sid
+        assert QL.ID_RE.match(sid), sid
