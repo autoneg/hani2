@@ -44,6 +44,20 @@ A project can be created and edited in three ways, which all write the same `pro
 
 `create` on an existing project updates the given fields. `hani2 study create` also creates the project when it is missing.
 
+Saving `project.yaml` (all three ways) checks the project's own defaults **and every study of the
+project**, each with its overrides merged with the new project file: the study's mode against the
+opponent pool it would play, and K ≤ N for the Assistants (see [Mode](study-management.md#checks-and-how-to-fix-the-errors)
+and [K sessions per person over N Assistants](study-management.md#k-sessions-per-person-over-n-assistants)).
+A change that would break a study is refused, naming the study and the problem:
+
+```text
+study HI2027/pairs: study_mode is 'paired' but opponents is [:pan]; a Paired HI study (kind: assistant)
+needs opponents: [human+assistant]
+```
+
+Only problems the change adds block it: a study whose own file is already wrong is reported by that
+study's checks and does not stop an unrelated project edit.
+
 In the admin console, every choice that is not self-explanatory has a **?** after its name, which
 opens an explanation of the choice and its values. The [Settings reference](settings-reference.md)
 collects the same texts, with the key each choice writes.
@@ -1104,8 +1118,8 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | Endpoint | Does |
 |---|---|
 | `GET /api/admin/projects` | The projects with their settings and study names, and the server's default study. |
-| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`) and `errors`. |
-| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block or a HAN year no source covers is a 400 naming the problem. Its `scores` get the same checks as the score endpoints below. |
+| `GET /api/admin/projects/{project}` | A project: its settings, `project.yaml` as text, its studies (with participant counts and links), `study_mode_effective` (`mode`, `declared`, `derived`, `mode_error`, `pairing`, `pairing_effective`, `filled`, `errors`), `editor` and `errors`. `editor.effective` holds what a session would play, resolved from the files without starting one: `assistants` (`entries` as written, `pool` after groups are expanded, `n`, `source`: `study.yaml`, `project.yaml`, `study_mode`, `study`/`project`/`settings assistant_settings.json` or `built-in`), `opponents` (`entries`, `source`: the same, or `study`/`project`/`settings env.json`), `n_required` (`value`, `source`), `assistant_method`, `assistant_repeats` (whether the method may repeat an Assistant), `mode`, `declared`, `derived`, `mode_error`, `repeat_problems` (the K > N message, if any), `process_overrides` (the server's `hani2 --assistants`, `--opponents` and `PROLIFIC_N_REQUIRED`, which replace the files for every session) and `errors`. A study's GET has the same block. |
+| `PUT /api/admin/projects/{project}` | Create or replace `project.yaml`: `{"data": {...}}` or `{"yaml": "..."}`. A mode that disagrees with the pool, a bad `pairing` block, a HAN year no source covers, K > N, or a change that would break one of the project's studies (`study P/S: …`) is a 400 naming the problem. Its `scores` get the same checks as the score endpoints below. |
 | `GET /api/admin/layers` | The layers (`settings`, `project:P`, `study:P/S`) with their folders, and the study the request is bound to (`bound`). |
 | `GET /api/admin/settings/{kind}?layer=L` | `kind`: `env`, `llm`, `assistant`, `autopilot` or a text (`consent`, `announcements`, `scenario_sets`, `scenario_order`). JSON kinds: `{"own", "effective", "inherited"}` (the layer's own file, the values in effect at that layer, and those without its file). Texts: `{"text", "exists", "effective", "source", "source_path"}` (`source`: the layer the text in effect comes from). The old `?study=P/S` / `?project=P` return the layer's raw file, and no parameter the effective settings, as before. |
 | `PATCH /api/admin/settings/{kind}?layer=L` | JSON kinds: merge the body into the layer's own file. |

@@ -977,9 +977,12 @@ Example: 3 Assistants A, B, C and 3 opponents a, b, c, both on `latin_square`
 `latin_square`, `cyclic`, `balanced_subset`, `random_subset` and `external`
 promise that a human gets **each Assistant at most once**. That is possible only
 when the counted negotiations per person ($K$, `n_required`) are at most the
-Assistants of the pool ($N$). With `assistant_repeats` unset (or `false`), a
-study file where $K > N$ is **refused on save** ("n_required = 6 negotiations but
-only 5 Assistants"); a study already running with such a file only gets a
+Assistants of the pool ($N$): the pool a session would use (`assistants` of the
+study, else of the project, else the one Assistant of `assistant_settings.json`).
+With `assistant_repeats` unset (or `false`), a study or project file where
+$K > N$ is **refused on save** ("n_required = 6 negotiations but only 5
+Assistants"), and so is a project change that would give one of its studies
+$K > N$; a study already running with such a file only gets a
 warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
 Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
 on purpose.
