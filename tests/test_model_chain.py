@@ -26,6 +26,35 @@ def write(home, rel, data):
     return p
 
 
+def files_holding(home, *needles):
+    """Every file under ``home`` (outside ``secrets/``) whose bytes, or gunzipped bytes, hold a needle.
+
+    The background evaluation cache is drained first, so every final file exists when the scan runs.
+    Its atomic writes rename ``.<name>.<pid>.<tid>.tmp`` files away, so a listed file that is gone by
+    the time it is read is skipped: its content lives on in the final file, which the scan reads."""
+    import gzip
+
+    from hani2.evaluation import eval_cache
+
+    eval_cache.wait(30)
+    assert not eval_cache._QUEUE.unfinished_tasks, "the evaluation cache never went idle"
+    found = []
+    for f in home.rglob("*"):
+        if not f.is_file() or "secrets" in f.parts:
+            continue
+        try:
+            data = f.read_bytes()
+        except FileNotFoundError:
+            continue
+        try:
+            data += gzip.decompress(data)
+        except OSError:
+            pass
+        if any(n.encode() in data for n in needles):
+            found.append(str(f))
+    return found
+
+
 def reply(text="ok", tool_calls=None):
     msg = SimpleNamespace(content=text, tool_calls=tool_calls)
     return SimpleNamespace(choices=[SimpleNamespace(message=msg)], usage=None)
@@ -386,24 +415,8 @@ def test_secrets_never_reach_results_events_or_recordings(hani2_home, calls, mon
     s.end()
     s.wait_until_done()
     s.close()
-    found = []
-    for f in hani2_home.rglob("*"):
-        if f.is_file() and "secrets" not in f.parts:
-            try:
-                data = f.read_bytes()
-            except OSError:
-                continue
-            if SECRET.encode() in data:
-                found.append(str(f))
-            if f.suffix in (".gz", ".hrec"):
-                import gzip
-
-                try:
-                    if SECRET.encode() in gzip.decompress(data):
-                        found.append(str(f))
-                except OSError:
-                    pass
-    assert not found
+    found = files_holding(hani2_home, SECRET)
+    assert not found, found
     assert SECRET not in json.dumps(s.snapshot(), default=str)
     import csv
 
@@ -614,18 +627,7 @@ def test_llm_opponent_keys_never_reach_files(hani2_home, monkeypatch):
     s.wait_until_done()
     s.close()
     assert any(kw.get("api_key") == SECRET for kw in seen)  # the opponent did get the key
-    found = []
-    import gzip
-
-    for f in hani2_home.rglob("*"):
-        if f.is_file() and "secrets" not in f.parts:
-            data = f.read_bytes()
-            try:
-                data += gzip.decompress(data)
-            except OSError:
-                pass
-            if SECRET.encode() in data or b"hdr-secret-value-1" in data:
-                found.append(str(f))
+    found = files_holding(hani2_home, SECRET, "hdr-secret-value-1")
     assert not found, found
 
 
