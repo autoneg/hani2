@@ -152,9 +152,13 @@ def admin_models(layer: str | None = None):
     own = model_chain.read_layer_file(lay.dir / model_chain.FILE)
     with binding(lay):
         eff = model_chain.effective_chains()
+        seqs = model_chain.effective_sequences()
     with binding(lay, skip_own=True):
         inh = model_chain.effective_chains()
+        inh_seqs = model_chain.effective_sequences()
     return {"layer": lay.id, "own": own, "effective": eff, "inherited": inh,
+            "sequences": seqs, "inherited_sequences": inh_seqs,
+            "builtin_sequences": sorted(model_chain.BUILTIN_SEQUENCES),
             "start": (__import__("os").environ.get(model_chain.ENV) or ""), "purposes": model_chain.PURPOSE_LABELS}
 
 
@@ -175,30 +179,56 @@ def admin_put_models(request: Request, body: dict = Body(...), layer: str | None
 
 @router.post("/api/admin/models/resolve")
 async def admin_resolve_models(body: dict = Body(default={}), layer: str | None = None):
-    """Which entry each purpose resolves to at a layer (``chains`` in the body: try an unsaved chain)."""
+    """Which entry each purpose and each named sequence resolves to at a layer (``chains`` in the
+    body: try an unsaved models.json; ``purpose`` or ``sequence``: only that one)."""
     lay = get_layer(layer)
     assert lay is not None
     draft = body.get("chains")
     if draft is not None:
         check_body(draft)
     only = body.get("purpose")
+    only_seq = body.get("sequence")
 
     def _run() -> dict[str, Any]:
         out: dict[str, Any] = {}
+        seqs: dict[str, Any] = {}
         conns.forget_probes()
         with binding(lay):
-            parsed = model_chain.parse_chains(draft) if draft is not None else None
+            parsed = model_chain.parse_models(draft) if draft is not None else None
+            unsaved = model_chain.Source(f"{lay.id} (unsaved)", {})
+
+            def _named(name: str, purpose: str):
+                if parsed is not None and name in parsed.sequences:
+                    seq = parsed.sequences[name]
+                    if seq.disabled:
+                        r = model_chain.Resolution(purpose, source=unsaved.id, sequence=name)
+                        r.error = f"the model sequence {name!r} is disabled ({unsaved.id})"
+                        return r
+                    return model_chain.resolve(purpose, chain=seq.entries, source=unsaved, fresh=True, sequence=name)
+                return model_chain.resolve(purpose, sequence=name, fresh=True)
+
             for p in model_chain.PURPOSES:
-                if only and p != only:
+                if (only and p != only) or only_seq:
                     continue
-                if parsed is not None and (parsed.get(p) or parsed.get("default")):
-                    ch = parsed.get(p) or parsed["default"]
-                    res = model_chain.resolve(p, chain=ch, source=model_chain.Source(f"{lay.id} (unsaved)", {}),
-                                              fresh=True)
+                ref = parsed.refs.get(p) or (None if parsed.chains.get(p) else parsed.refs.get("default")) \
+                    if parsed is not None else None
+                if ref:
+                    res = _named(ref, p)
+                elif parsed is not None and (parsed.chains.get(p) or parsed.chains.get("default")):
+                    ch = parsed.chains.get(p) or parsed.chains["default"]
+                    res = model_chain.resolve(p, chain=ch, source=unsaved, fresh=True)
                 else:
                     res = model_chain.resolve(p, fresh=True)
                 out[p] = res.record()
-        return {"layer": lay.id, "purposes": out}
+            if not only:
+                names = model_chain.sequence_names(include_disabled=True)
+                if parsed is not None:
+                    names += [n for n in parsed.sequences if n not in names]
+                for n in names:
+                    if n in ("default", *model_chain.PURPOSES) or (only_seq and n != only_seq):
+                        continue
+                    seqs[n] = _named(n, "assistant").record()
+        return {"layer": lay.id, "purposes": out, "sequences": seqs}
 
     return await run_in_threadpool(_run)
 
