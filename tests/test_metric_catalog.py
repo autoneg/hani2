@@ -55,10 +55,22 @@ def test_pages_are_in_the_nav():
         assert rel.removeprefix("docs/") in nav
 
 
-def _functions(path: Path) -> dict[str, str]:
+def _functions(path: Path) -> dict[str, tuple[str, set[str]]]:
+    """Each test's source and the keys of its ``expected = {...}`` dicts that have a value (not ``None``)."""
     src = path.read_text(encoding="utf-8")
-    return {n.name: ast.get_source_segment(src, n) or "" for n in ast.parse(src).body
-            if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")}
+    out = {}
+    for n in ast.parse(src).body:
+        if not (isinstance(n, ast.FunctionDef) and n.name.startswith("test_")):
+            continue
+        keys = set()
+        for a in ast.walk(n):
+            if (isinstance(a, ast.Assign) and isinstance(a.value, ast.Dict)
+                    and any(isinstance(t, ast.Name) and t.id == "expected" for t in a.targets)):
+                keys |= {k.value for k, v in zip(a.value.keys, a.value.values)
+                         if isinstance(k, ast.Constant) and isinstance(k.value, str)
+                         and not (isinstance(v, ast.Constant) and v.value is None)}
+        out[n.name] = (ast.get_source_segment(src, n) or "", keys)
+    return out
 
 
 def test_validated_entries_name_existing_tests_that_name_them():
@@ -72,13 +84,13 @@ def test_validated_entries_name_existing_tests_that_name_them():
         assert p.is_file(), f"{entry}: {file} does not exist"
         funcs = seen.setdefault(file, _functions(p))
         assert func in funcs, f"{entry}: {file} has no test {func}"
-        src = funcs[func]
+        src, expected = funcs[func]
         if entry in C.QUESTIONNAIRES:  # a questionnaire test reads the set by its id
             assert f'"{entry}"' in src, f"{test} does not use the questionnaire {entry}"
-        elif "<" in entry:  # a pattern (q_<id>, scale_<name>): the test names such columns
-            assert entry.split("<")[0] in src, f"{test} names no {entry} column"
-        else:
-            assert f'"{entry}"' in src, f"{test} does not name the column {entry}"
+        elif "<" in entry:  # a pattern (q_<id>, scale_<name>): the test expects values of such columns
+            assert any(k.startswith(entry.split("<")[0]) for k in expected), f"{test} expects no {entry} value"
+        else:  # a column: the test compares it with a hand-derived value (an `expected` key that is not None)
+            assert entry in expected, f"{test} has no hand-derived expected value for {entry}"
 
 
 def test_not_validated_metrics_say_why():

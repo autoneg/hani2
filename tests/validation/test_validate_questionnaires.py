@@ -11,6 +11,8 @@ The source facts are copied here from the instruments themselves:
 * UEQ (full) — the handbook's item list (items 2, 5, 11, 12, 13, 20, 21, 22 and their poles).
 """
 
+import re
+
 import pytest
 
 from hani2 import questionnaires
@@ -22,40 +24,52 @@ def _set(sid):
 
 
 # --------------------------------------------------------------------------- SVI
-SVI_SOURCE = [  # (wording with "counterpart(s)" → "opponent", subscale, reversed, anchor 1, anchor 7)
-    ("How satisfied are you with your own outcome", "svi_instrumental", False, "Not at all", "Perfectly"),
-    ("How satisfied are you with the balance between your own outcome and your opponent's outcome?",
+SVI_SOURCE = [  # (the item as printed in the source, subscale, reversed, anchor 1, anchor 7)
+    ("How satisfied are you with your own outcome—i.e., the extent to which the terms of your agreement (or lack of "
+     "agreement) benefit you?", "svi_instrumental", False, "Not at all", "Perfectly"),
+    ("How satisfied are you with the balance between your own outcome and your counterpart(s)’s outcome(s)?",
      "svi_instrumental", False, "Not at all", "Perfectly"),
-    ("Did you feel like you forfeited or \"lost\" in this negotiation?", "svi_instrumental", True, "Not at all",
+    ("Did you feel like you forfeited or “lost” in this negotiation?", "svi_instrumental", True, "Not at all",
      "A great deal"),
-    ("consistent with principles of legitimacy or objective criteria", "svi_instrumental", False, "Not at all",
-     "Perfectly"),
-    ("Did you \"lose face\"", "svi_self", True, "Not at all", "A great deal"),
+    ("Do you think the terms of your agreement are consistent with principles of legitimacy or objective criteria "
+     "(e.g., common standards of fairness, precedent, industry practice, legality, etc.)?", "svi_instrumental", False,
+     "Not at all", "Perfectly"),
+    ("Did you “lose face” (i.e., damage your sense of pride) in the negotiation?", "svi_self", True, "Not at all",
+     "A great deal"),
     ("Did this negotiation make you feel more or less competent as a negotiator?", "svi_self", False,
      "It made me feel less competent", "It made me feel more competent"),
     ("Did you behave according to your own principles and values?", "svi_self", False, "Not at all", "Perfectly"),
-    ("positively or negatively impact your self-image", "svi_self", False, "It negatively impacted my self-image",
-     "It positively impacted my self-image"),
-    ("Do you feel your opponent listened to your concerns?", "svi_process", False, "Not at all", "Perfectly"),
+    ("Did this negotiation positively or negatively impact your self-image or your impression of yourself?",
+     "svi_self", False, "It negatively impacted my self-image", "It positively impacted my self-image"),
+    ("Do you feel your counterpart(s) listened to your concerns?", "svi_process", False, "Not at all", "Perfectly"),
     ("Would you characterize the negotiation process as fair?", "svi_process", False, "Not at all", "Perfectly"),
     ("How satisfied are you with the ease (or difficulty) of reaching an agreement?", "svi_process", False,
      "Not at all satisfied", "Perfectly satisfied"),
-    ("Did your opponent consider your wishes, opinions or needs?", "svi_process", False, "Not at all", "Perfectly"),
-    ("What kind of \"overall\" impression did your opponent make on you?", "svi_relationship", False,
+    ("Did your counterpart(s) consider your wishes, opinions, or needs?", "svi_process", False, "Not at all",
+     "Perfectly"),
+    ("What kind of “overall” impression did your counterpart(s) make on you?", "svi_relationship", False,
      "Extremely negative", "Extremely positive"),
-    ("How satisfied are you with your relationship with your opponent as a result of this negotiation?",
+    ("How satisfied are you with your relationship with your counterpart(s) as a result of this negotiation?",
      "svi_relationship", False, "Not at all", "Perfectly"),
-    ("Did the negotiation make you trust your opponent?", "svi_relationship", False, "Not at all", "Perfectly"),
-    ("Did the negotiation build a good foundation for a future relationship with your opponent?",
+    ("Did the negotiation make you trust your counterpart(s)?", "svi_relationship", False, "Not at all", "Perfectly"),
+    ("Did the negotiation build a good foundation for a future relationship with your counterpart(s)?",
      "svi_relationship", False, "Not at all", "Perfectly"),
 ]
+
+
+def _words(text):
+    """The words of an item: the source's two-party wording (counterpart → opponent, as its administration notes
+    allow for one counterpart), without punctuation, quotes or "i.e."."""
+    t = text.replace("counterpart(s)’s outcome(s)", "opponent's outcome").replace("counterpart(s)", "opponent")
+    t = re.sub(r"[*_`]", "", t).lower().replace("i.e.", " ")
+    return re.findall(r"[a-z]+(?:-[a-z]+)?", t.replace("’", "'").replace("'s", "s"))
 
 
 def test_svi_matches_source():
     qs = _set("subjective_value")["questions"]
     assert len(qs) == 16
     for i, (q, (text, scale, rev, lo, hi)) in enumerate(zip(qs, SVI_SOURCE), 1):
-        assert text in q["text"], f"item {i}"
+        assert _words(q["text"]) == _words(text), f"item {i}: {q['text']!r}"
         assert q["type"] == "likert7" and q["scale"] == scale, f"item {i}"
         assert bool(q.get("reverse")) is rev, f"item {i}"
         assert (q["labels"][1], q["labels"][7]) == (lo, hi), f"item {i}"
@@ -151,3 +165,58 @@ def test_felt_heard_single_item_scale():
     for k, v in expected.items():
         assert vals[k] == pytest.approx(v), k
     assert texts == {"agent_insights": "none"}
+
+
+# --------------------------------------------------------------------------- NASA-TLX
+TLX_SOURCE = [  # the NASA-TLX rating sheet: (subscale, question, left anchor, right anchor)
+    ("Mental demand", "How mentally demanding was the task?", "Very low", "Very high"),
+    ("Physical demand", "How physically demanding was the task?", "Very low", "Very high"),
+    ("Temporal demand", "How hurried or rushed was the pace of the task?", "Very low", "Very high"),
+    ("Performance", "How successful were you in accomplishing what you were asked to do?", "Perfect", "Failure"),
+    ("Effort", "How hard did you have to work to accomplish your level of performance?", "Very low", "Very high"),
+    ("Frustration", "How insecure, discouraged, irritated, stressed, and annoyed were you?", "Very low", "Very high"),
+]
+
+
+def test_nasa_tlx_matches_source():
+    qs = _set("nasa_tlx")["questions"]
+    assert len(qs) == 6
+    for q, (name, text, lo, hi) in zip(qs, TLX_SOURCE):
+        label, _, question = re.sub(r"[*_`]", "", q["text"]).partition(":")
+        assert label.strip().lower() == name.lower()
+        assert _words(question) == _words(text), q["id"]
+        assert (q["labels"][1].lower(), q["labels"][7].lower()) == (lo.lower(), hi.lower()), q["id"]
+        # every subscale runs towards more workload (Performance from perfect to failure): none is reversed,
+        # and the scale is lower-is-better
+        assert not q.get("reverse") and q["scale"] == "workload" and q["direction"] == "lower"
+    # raw TLX: the unweighted mean of the six ratings. 3, 1, 5, 2, 4, 6 -> 21 / 6 = 3.5; 0–1: (3.5 − 1) / 6
+    vals, _ = answer_values({"questions": qs}, {q["id"]: v for q, v in zip(qs, [3, 1, 5, 2, 4, 6])})
+    expected = {"scale_workload": 3.5, "scale_workload_norm": 2.5 / 6}
+    for k, v in expected.items():
+        assert vals[k] == pytest.approx(v), k
+
+
+# --------------------------------------------------------------------------- trust in automation (Jian et al.)
+JIAN_SOURCE = [  # the checklist's 12 items; the first five are reverse scored; 1 = not at all … 7 = extremely
+    "The system is deceptive.", "The system behaves in an underhanded manner.",
+    "I am suspicious of the system's intent, action, or output.", "I am wary of the system.",
+    "The system's action will have a harmful or injurious outcome.", "I am confident in the system.",
+    "The system provides security.", "The system has integrity.", "The system is dependable.",
+    "The system is reliable.", "I can trust the system.", "I am familiar with the system.",
+]
+
+
+def test_trust_in_automation_matches_source():
+    qs = _set("trust_in_automation")["questions"]
+    assert len(qs) == 12
+    for i, (q, text) in enumerate(zip(qs, JIAN_SOURCE), 1):
+        assert _words(q["text"]) == _words(text.replace("system", "assistant")), f"item {i}"
+        assert bool(q.get("reverse")) is (i <= 5), f"item {i}"
+        assert (q["labels"][1], q["labels"][7]) == ("Not at all", "Extremely") and q["scale"] == "trust_automation"
+    # the trust score is the mean of the 12 items with 1–5 reversed:
+    # answers 2, 1, 3, 2, 1 -> 6, 7, 5, 6, 7; then 6, 5, 6, 6, 5, 6, 4 -> sum 31 + 38 = 69 -> 69 / 12 = 5.75
+    raw = [2, 1, 3, 2, 1, 6, 5, 6, 6, 5, 6, 4]
+    vals, _ = answer_values({"questions": qs}, {q["id"]: v for q, v in zip(qs, raw)})
+    expected = {"scale_trust_automation": 5.75, "q_tia_deceptive": 6}
+    for k, v in expected.items():
+        assert vals[k] == pytest.approx(v), k

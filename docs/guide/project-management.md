@@ -437,7 +437,7 @@ hani2 scores criteria HI2027/play --coverage   # with the share of the study's g
 
 Admins get the same list from `GET /api/admin/criteria?project=<project>` or
 `?study=<project>/<study>`, with `&coverage=true` for the coverage. Each entry has its `id`, `title`,
-`description`, `source`, `level`, `direction`, `normaliser`, `cost` and `coverage`. The response also
+`description`, `source`, `level`, `direction`, `normaliser`, `cost`, `coverage`, `group` (its group of similar measures) and `validated` (see the [Metric catalogue](metric-catalog.md)); the response's `groups` lists the groups in order. The response also
 gives the normaliser kinds and a summary of the project's reference (whether it is frozen, when, from
 which studies and how many games). Coverage is computed from the games without the judge, so judged
 criteria and post-session answers show no coverage (`null`) there.

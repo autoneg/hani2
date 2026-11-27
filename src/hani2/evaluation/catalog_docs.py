@@ -114,7 +114,7 @@ A score is in $[0, 1]$, so it can be part of another score (no cycles). How to w
 A leaderboard ranks entrants (Assistants on the HI track, opponents on the HAN track) by one of its
 `sort_options`, each a score or a criterion with a direction, and shows its `columns`. Each entrant's
 value is the cell-adjusted mean over its counted games with a bootstrap confidence interval; an
-entrant whose interval overlaps the leader's is tied with it. The pickers of the score builder and of the board settings show the
+entrant whose interval overlaps the leader's is tied with it. A board's count columns (games, players, guests, abandon rate, cost) describe the entrant, not a negotiation, so they are not measures of this page. The pickers of the score builder and of the board settings show the
 criteria in the groups below, with {MARK} next to validated ones. See
 [Configuring a board](project-management.md#configuring-a-board) and
 [Tracks and leaderboards](evaluation.md#tracks-and-leaderboards).

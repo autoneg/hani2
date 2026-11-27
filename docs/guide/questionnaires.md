@@ -9,13 +9,13 @@ Pick them on the admin console's **Study forms** page (**Add predefined question
 
 | Questionnaire | Id | Questions | Validated | Source |
 | --- | --- | --- | --- | --- |
-| [NASA-TLX workload (raw, 7-point)](#nasa-tlx) | `nasa_tlx` | 6 |  | [link](https://doi.org/10.1016/S0166-4115(08)62386-9) |
+| [NASA-TLX workload (raw, 7-point)](#nasa-tlx) | `nasa_tlx` | 6 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_nasa_tlx_matches_source">✓</abbr> | [link](https://doi.org/10.1016/S0166-4115%2808%2962386-9) |
 | [Subjective Value Inventory (SVI), 16 items](#subjective-value) | `subjective_value` | 16 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_svi_matches_source">✓</abbr> | [link](https://www.subjectivevalue.com/) |
 | [System Usability Scale (SUS), 10 items](#sus) | `sus` | 10 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_sus_matches_source">✓</abbr> | yes |
 | [TAM perceived ease of use, 6 items](#tam-ease) | `tam_ease` | 6 |  | [link](https://doi.org/10.2307/249008) |
 | [TAM perceived usefulness, 6 items](#tam-usefulness) | `tam_usefulness` | 6 |  | [link](https://doi.org/10.2307/249008) |
 | [TAM perceived usefulness, 2 items](#tam-usefulness-short) | `tam_usefulness_short` | 2 |  | [link](https://doi.org/10.2307/249008) |
-| [Trust in automation (Jian et al.), 12 items](#trust-in-automation) | `trust_in_automation` | 12 |  | [link](https://doi.org/10.1207/S15327566IJCE0401_04) |
+| [Trust in automation (Jian et al.), 12 items](#trust-in-automation) | `trust_in_automation` | 12 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_trust_in_automation_matches_source">✓</abbr> | [link](https://doi.org/10.1207/S15327566IJCE0401_04) |
 | [UEQ, 8 items (the evaluation selection)](#ueq-eval) | `ueq_eval` | 8 |  | [link](https://www.ueq-online.org/) |
 | [UEQ-S (short User Experience Questionnaire)](#ueq-s) | `ueq_s` | 8 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_ueq_s_matches_source">✓</abbr> | [link](https://doi.org/10.9781/ijimai.2017.09.001) |
 | [Experience with AI assistants](#ai-experience) | `ai_experience` | 4 |  | own items |
@@ -30,15 +30,15 @@ Pick them on the admin console's **Study forms** page (**Add predefined question
 
 ## Standard instruments
 
-### NASA-TLX workload (raw, 7-point) {#nasa-tlx}
+### NASA-TLX workload (raw, 7-point) <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_nasa_tlx_matches_source">✓</abbr> {#nasa-tlx}
 
 Id `nasa_tlx` · 6 questions · for: `per_negotiation`, `post_session`
 
 **Measures:** Workload of the task: mental, physical and temporal demand, performance, effort and frustration (raw TLX; lower is better).
 
-**Source:** [Hart & Staveland (1988). Development of NASA-TLX (Task Load Index): results of empirical and theoretical research. In Hancock & Meshkati (eds.), Human Mental Workload. Advances in Psychology 52, 139–183.](https://doi.org/10.1016/S0166-4115(08)62386-9)
+**Source:** [Hart & Staveland (1988). Development of NASA-TLX (Task Load Index): results of empirical and theoretical research. In Hancock & Meshkati (eds.), Human Mental Workload. Advances in Psychology 52, 139–183.](https://doi.org/10.1016/S0166-4115%2808%2962386-9)
 
-**Validation:** Not validated: the official rating sheet could not be retrieved, and the items use 7 points instead of the original 21 gradations (0–100 in steps of 5). The raw TLX (the unweighted mean of the six) is the usual short form.
+**Validated:** Checked against the NASA-TLX rating sheet: the six questions and their anchors (Very low … Very high; Performance from Perfect to Failure, so every item runs towards more workload), scored as the raw TLX (the unweighted mean of the six, without the pairwise weighting) and lower-is-better. Adapted: 7 answer points instead of the sheet's 21 gradations, so values are not on the 0–100 scale (100 × the _norm column is comparable).
 
 Scales: `workload` (6 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -115,7 +115,7 @@ Id `tam_ease` · 6 questions · for: `per_negotiation`, `post_session`
 
 **Source:** [Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3), 319–340.](https://doi.org/10.2307/249008)
 
-**Validation:** Not validated: no open copy of the item sheet could be checked. The six items follow Davis's ease-of-use items, reworded for a negotiation assistant, with agree–disagree anchors.
+**Validation:** Not validated: not yet checked against the published items (no readable copy of the item sheet was found). The six items follow Davis's ease-of-use items, reworded for a negotiation assistant, with agree–disagree anchors.
 
 Scales: `tam_ease` (6 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -136,7 +136,7 @@ Id `tam_usefulness` · 6 questions · for: `per_negotiation`, `post_session`
 
 **Source:** [Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3), 319–340.](https://doi.org/10.2307/249008)
 
-**Validation:** Not validated: no open copy of the item sheet could be checked. The six items follow Davis's usefulness items, reworded for a negotiation assistant, with agree–disagree anchors.
+**Validation:** Not validated: not yet checked against the published items (no readable copy of the item sheet was found). The six items follow Davis's usefulness items, reworded for a negotiation assistant, with agree–disagree anchors.
 
 Scales: `tam_usefulness` (6 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -157,7 +157,7 @@ Id `tam_usefulness_short` · 2 questions · for: `per_negotiation`, `post_sessio
 
 **Source:** [Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3), 319–340.](https://doi.org/10.2307/249008)
 
-**Validation:** Not validated: a two-item selection of the usefulness items, reworded; no open copy of the item sheet could be checked.
+**Validation:** Not validated: a two-item selection of the usefulness items, reworded; not yet checked against the published items (no readable copy of the item sheet was found).
 
 Scales: `tam_usefulness` (2 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -166,7 +166,7 @@ Scales: `tam_usefulness` (2 items) — each the mean of its items, reversed item
 | 1 | `tam_effectiveness` | Using this assistant would enhance my effectiveness in negotiation. *(only with an Assistant)* | 1–7 (1 = Strongly disagree, 7 = Strongly agree) | `tam_usefulness` |
 | 2 | `tam_useful` | I would find this assistant useful in negotiations. *(only with an Assistant)* | 1–7 (1 = Strongly disagree, 7 = Strongly agree) | `tam_usefulness` |
 
-### Trust in automation (Jian et al.), 12 items {#trust-in-automation}
+### Trust in automation (Jian et al.), 12 items <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_trust_in_automation_matches_source">✓</abbr> {#trust-in-automation}
 
 Id `trust_in_automation` · 12 questions · for: `per_negotiation`, `post_session`
 
@@ -174,7 +174,7 @@ Id `trust_in_automation` · 12 questions · for: `per_negotiation`, `post_sessio
 
 **Source:** [Jian, Bisantz & Drury (2000). Foundations for an empirically determined scale of trust in automated systems. International Journal of Cognitive Ergonomics 4(1), 53–71.](https://doi.org/10.1207/S15327566IJCE0401_04)
 
-**Validation:** Not validated: no open copy of the checklist could be checked. “The system” is worded as “the assistant”; the five distrust items are reversed.
+**Validated:** Checked against the checklist's 12 items as reproduced in McGrath et al. (2025, Frontiers in Artificial Intelligence, Table 1): wording, 1 = not at all … 7 = extremely, items 1–5 reverse scored, the trust score the mean of the 12. Adapted: “the system” is worded as “the assistant”.
 
 Scales: `trust_automation` (12 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -201,7 +201,7 @@ Id `ueq_eval` · 8 questions · for: `per_negotiation`, `post_session`
 
 **Source:** [Laugwitz, Held & Schrepp (2008). Construction and evaluation of a user experience questionnaire. USAB 2008, LNCS 5298, 63–76.](https://www.ueq-online.org/)
 
-**Validation:** Not validated as a UEQ scale: the items (UEQ items 2, 5, 11, 12, 13, 20, 21, 22) and their poles match the UEQ and the positive-left items are reversed (tested), but the UEQ has six scales, not these two: ueq_hedonic mixes a Stimulation item (valuable) with an Attractiveness item (good), and the UEQ handbook counts Attractiveness as neither pragmatic nor hedonic.
+**Validation:** Not validated as a UEQ scale: the items are UEQ items 2, 5, 11, 12, 13, 20, 21 and 22 and the positive-left ones are reversed (tested; the handbook confirms the poles of item 21, while the positive-left order of items 5 and 12 could not be checked against a copy of the full questionnaire). The UEQ has six scales, not these two: ueq_hedonic mixes a Stimulation item (valuable) with an Attractiveness item (good), and the UEQ handbook counts Attractiveness as neither pragmatic nor hedonic.
 
 Scales: `ueq_pragmatic` (6 items), `ueq_hedonic` (2 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 

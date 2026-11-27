@@ -50,6 +50,16 @@
   the top of the library's **Tools** page. `tools.isolate_builtin: false` (*Catch built-in tool
   failures*) lets built-in tool errors surface as before, for debugging. See [When a tool
   fails](guide/tools.md#when-a-tool-fails).
+- **Metric catalogue and questionnaires pages.** Every measure is now in a group of similar measures
+  (outcome, efficiency and welfare, fairness, task success and rules, process, behaviour, Assistant use,
+  activity, questionnaires, language-model judgements, scores, LLM cost, simulation, context). The score
+  builder, the board settings and the leaderboard's *Ranked by* show criteria in these groups. A ✓
+  marks measures validated against a hand-computed example, and questionnaires validated against their
+  source instrument; the Study forms page shows the marks and links the sources. See the [Metric
+  catalogue](guide/metric-catalog.md) and [Questionnaires](guide/questionnaires.md).
+- **Workload is lower-is-better.** A questionnaire scale whose items all say `direction: lower` (the
+  NASA-TLX `workload` scale) is lower-is-better in scores and on boards, instead of higher-is-better.
+
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow
