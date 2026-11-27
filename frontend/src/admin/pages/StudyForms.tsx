@@ -11,6 +11,7 @@ import { TextArea } from "../controls/TextField";
 import { Toggle } from "../controls/Toggle";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
+import { FormItemsEditor } from "./FormItemsEditor";
 import { VALIDATED_SOURCE_TIP, ValidatedMark } from "../../ui/metricGroups";
 
 type Form = "pre_questionnaire" | "per_negotiation" | "post_session";
@@ -83,6 +84,7 @@ export function StudyForms() {
   const [text, setText] = useState("");
   const [dirty, setDirty] = useState(false);
   const [showLib, setShowLib] = useState(false);
+  const [mode, setMode] = useState<"items" | "yaml">("items");
   const load = () =>
     api(`/api/admin/settings/${form}${lq(layer)}`).then((r) => {
       setD(r);
@@ -168,15 +170,22 @@ export function StudyForms() {
             title={d.exists ? "This layer's form (YAML)" : "New form for this layer (YAML)"}
             id="setting-form-editor"
             actions={
-              <button className="btn-ghost text-xs" onClick={() => setShowLib((v) => !v)}>
-                <Library size={13} /> {showLib ? "Hide" : "Add"} predefined questionnaires
-              </button>
+              <>
+                <Segmented label="Edit as" value={mode} onChange={setMode} options={[["items", "Items"], ["yaml", "YAML"]]} />
+                <button className="btn-ghost text-xs" onClick={() => setShowLib((v) => !v)}>
+                  <Library size={13} /> {showLib ? "Hide" : "Add"} predefined questionnaires
+                </button>
+              </>
             }
           >
             {showLib && <LibraryPicker form={form} text={text} onText={(t) => (setText(t), setDirty(true))} />}
-            <div className="p-3">
-              <TextArea label="Form" value={text} rows={18} mono onChange={(v) => (setText(v), setDirty(true))} />
-            </div>
+            {mode === "items" ? (
+              <FormItemsEditor key={`${form}-${layer.id}`} text={text} onText={(t) => (setText(t), setDirty(true))} />
+            ) : (
+              <div className="p-3">
+                <TextArea label="Form" value={text} rows={18} mono onChange={(v) => (setText(v), setDirty(true))} />
+              </div>
+            )}
           </Group>
           <Preview text={text} />
           <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-2 border-t border-line bg-paper/85 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
