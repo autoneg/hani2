@@ -260,6 +260,10 @@ class AssistantRunner:
         self._outbox: queue.Queue = queue.Queue()
         self._inbox: queue.Queue = queue.Queue()
         self._turn_thread: threading.Thread | None = None
+        # a turn is open from its event until its reply is posted; the turn's thread may still be exiting
+        # when HANI2 (which has the reply) sends the next event, so that thread being alive is not enough
+        # (and a thread that died without a reply does not keep the turn open)
+        self._turn_open = False
         self._pending: str | None = None
         self.session = ProxySession(self, os_)
         try:
@@ -403,7 +407,7 @@ class AssistantRunner:
                 raise HostedError("no function call is waiting for results")
             self._inbox.put(list((body.get("data") or {}).get("results") or []))
             return self._wait()
-        if self._turn_thread is not None and self._turn_thread.is_alive():
+        if self._turn_open and self._turn_thread is not None and self._turn_thread.is_alive():
             raise HostedError("the previous turn has not finished")
         fn = self._handler(event, dict(body.get("data") or {}), body)
 
@@ -420,8 +424,10 @@ class AssistantRunner:
             m = self.model_info()
             if m:
                 out["model"] = m
+            self._turn_open = False  # before the reply: the next event may arrive as soon as it is read
             self._outbox.put(out)
 
+        self._turn_open = True
         self._turn_thread = threading.Thread(target=_run, daemon=True, name="hosted-assistant-turn")
         self._turn_thread.start()
         return self._wait()

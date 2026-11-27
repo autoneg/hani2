@@ -593,3 +593,33 @@ def test_named_sequences_do_not_apply_to_a_hosted_assistant(tutorial_path, monke
         s.wait_until_done()
     row = results_rows(s)[-1]
     assert row["assistant_llm"] == "remote:none/rules"
+
+
+def test_the_next_event_is_accepted_as_soon_as_the_previous_reply_is_sent():
+    """HANI2 sends the next event once it has the reply; the host's turn thread may still be exiting then
+    (it posts the reply before it ends). That must not count as 'the previous turn has not finished'."""
+    import queue
+
+    from hani2.hosting.host_assistant import AssistantRunner, assistant_factory
+
+    released = threading.Event()
+
+    class LingeringOutbox(queue.Queue):
+        """Keeps the turn's thread alive after it has posted its reply, until the test lets it go."""
+
+        def put(self, item, block=True, timeout=None):
+            super().put(item, block, timeout)
+            if threading.current_thread().name == "hosted-assistant-turn":
+                released.wait(10)
+
+    runner = AssistantRunner(assistant_factory(Suggester), {"outcome_space": None})
+    runner._outbox = LingeringOutbox()
+    try:
+        first = runner.step({"event": "suggest_offer", "data": {"instruction": "one"}})
+        assert runner._turn_thread.is_alive()  # the reply is out, the thread is not done yet
+        second = runner.step({"event": "suggest_offer", "data": {"instruction": "two"}})
+        assert not first.get("error") and not second.get("error"), (first, second)
+        assert second["suggestion"]["text"] == "re: two"
+    finally:
+        released.set()
+
