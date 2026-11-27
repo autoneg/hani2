@@ -1235,12 +1235,14 @@ other one, so work it out together.
 def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: str | None = None,
                             other_holder: str = "your Assistant") -> list[ui.Component]:
     """The part ``part`` (``weights`` / ``values`` / ``none``) of an additive
-    utility function, with a note on who knows the rest. Never raises."""
+    utility function, with a note on who knows the rest. The value on disagreement
+    comes first, on top of the tool (there is no *In short* card here). Never raises."""
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     raw = preferences_raw()
+    reserved: list[ui.Component] = []
     ctx = UfunViewContext(tool=tool, ufun=_raw_of(ufun) if raw else display_ufun(ufun), rv_hidden=reserved_hint is not None,
-                          rv_hidden_hint=reserved_hint or "", raw=raw)
+                          rv_hidden_hint=reserved_hint or "", raw=raw, reserved_sink=reserved)
     ufun = ctx.ufun
     try:
         names = ctx.issue_names
@@ -1253,7 +1255,7 @@ def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: s
         else:
             note = f"Your preferences are known to {other_holder}. Ask it what each deal is worth to you."
             body = ctx.layout()
-        return [ui.alert(note, "info", title="You know part of your preferences"), body,
+        return [*reserved, ui.alert(note, "info", title="You know part of your preferences"), body,
                 *ctx.explain(PARTIAL_HELP_MD)]
     except Exception:  # noqa: BLE001
         traceback.print_exc()

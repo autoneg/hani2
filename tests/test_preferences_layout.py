@@ -268,3 +268,36 @@ def ui_text(t):
     from hani2.tools import ui
 
     return ui.text_block(t)
+
+
+def test_partial_preferences_put_the_value_on_disagreement_on_top():
+    for part in ("weights", "values", "none"):
+        s = make_session(load=False)
+        s.admin_prefs["information"] = {"preferences": {"human": part, "assistant": "full"}}
+        s.load("Trade")
+        view = _prefs(s)
+        assert not any(c.get("title") == "In short" for c in _walk(view)), part
+        assert view[0]["type"] == "alert" and view[0]["text"].startswith(LEAD), part
+        assert view[0].get("id") == "preferences-reserved"
+        assert view[1].get("title") == "You know part of your preferences", part
+        assert len(_sentences(view, LEAD)) == 1, part  # not repeated under the charts
+
+
+def test_partial_preferences_hidden_value_on_top():
+    s = make_session(load=False)
+    s.admin_prefs["information"] = {"preferences": {"human": "weights", "assistant": "full",
+                                                    "reserved_value": "assistant"}}
+    s.load("Trade")
+    view = _prefs(s)
+    assert view[0]["text"].startswith("You do not know what you get if no agreement is reached")
+
+
+def test_opponent_preferences_keep_the_value_under_the_charts():
+    s = make_session(is_admin=True)
+    view = s.tool_controller.find("Opponent Preferences").view()
+    lead = "If no agreement is reached the opponent"
+    assert lead not in json.dumps(view[:1])  # not on top (the admin warning is)
+    alerts = [c for c in _walk(view) if c.get("type") == "alert" and lead in str(c.get("text"))]
+    assert len(alerts) == 1
+    body = next(c for c in view if c.get("type") == "column" and alerts[0] in c["children"])
+    assert body["children"][-1] is alerts[0] and len(body["children"]) > 1  # under the charts, as before

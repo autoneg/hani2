@@ -9,7 +9,9 @@ know.
 Every view shows the **value on disagreement** as one sentence ("If you do
 not reach agreement you get 10% (your best option gives you 100%)."): in the
 participant's Preferences tool right under the *In short* card (so it stays in
-sight when the card is folded), elsewhere under the charts. Every view also has
+sight when the card is folded), or at the very top of the tool when the
+participant knows only part of their preferences (there is no *In short* card
+then); in the admin-only Opponent Preferences tool, under the charts. Every view also has
 a short, plain-language explanation of how the total is worked out (collapsed at
 the bottom). The charts carry a one-line caption saying what
 they mean.
