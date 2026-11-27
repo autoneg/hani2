@@ -440,3 +440,132 @@ def test_admin_api_registers_checks_and_never_lists_tokens(monkeypatch):
         assert c.put("/api/admin/projects/HP/hosted-mode", json={"assistants": "yes"}).status_code == 400
         assert registry.hosted_pool("assistant", projects.StudyRef("HP", "x")) == ["remote:teamA"]
         assert c.delete("/api/admin/projects/HP/hosted/teamA").json()["ok"]
+
+
+def test_hosted_specs_pass_every_check_and_label():
+    """remote:<name> and a {url, token_env} mapping are accepted wherever a class spec is."""
+    from hani2 import groups, library
+    from hani2.agents import expand_agents
+    from hani2.evaluation import boards
+
+    projects.create_project("PS", kind="assistant")
+    registry.add("PS", "teamA", "assistant", "https://a.example")
+    registry.add("PS", "oppX", "opponent", "https://o.example")
+    data = {"defaults": {"assistants": ["remote:teamA", {"url": "https://b.example:9", "token_env": "TB"}],
+                         "opponents": ["remote:oppX", "BoulwareTBNegotiator"]}}
+    assert projects.save_problems(data, "defaults", project="PS") == []
+    assert groups.expand_assistants(["remote:teamA"]) == ["remote:teamA"]
+    assert expand_agents([{"url": "https://o.example:1"}]) == ["remote+https://o.example:1"]
+    assert library.verify("assistants", "remote:teamA").__name__ == "Remote_teamA"
+    assert library.verify("opponents", "remote:oppX").__name__ == "Remote_oppX"
+    assert boards.label_of("remote:teamA") == "teamA" and boards.label_of("remote+b.example:9") == "b.example:9"
+    from hani2.admin_api import _items
+
+    assert _items([{"name": "teamA"}, "x.Y"]) == ["remote:teamA", "x.Y"]
+
+
+def test_a_hosted_llm_opponent_uses_the_hosts_model_and_reports_it():
+    """Built like a local opponent (make_agent): an LLM negotiator gets the host's model chain."""
+    pytest.importorskip("negmas_llm")
+    from hani2.hosting.server import negotiator_model
+
+    f = opponent_factory("LLMBoulwareTBNegotiator")
+    _, _, setup = _setup()
+    r = OpponentRunner(f, setup)
+    m = negotiator_model(r.negotiator)
+    assert m and m["model"] and m["model"] != "smollm2:135m"  # not negmas-llm's tiny default
+    assert r.model == m
+
+
+def test_export_leaves_out_the_hosted_tokens(tmp_path):
+    projects.create_project("EX", kind="assistant")
+    registry.add("EX", "teamA", "assistant", "https://a.example")
+    out = projects.export_project("EX", tmp_path)
+    assert registry.FILE in out["skipped"] and not (tmp_path / "EX" / registry.FILE).exists()
+
+
+from hani2.support_agent.runtime import SupportAgent  # noqa: E402
+
+
+class CounterAgent(SupportAgent):
+    """Counts the messages of its own negotiation; shared state would mix the counts."""
+
+    def handle_user_message(self, text: str) -> None:
+        self.count = getattr(self, "count", 0) + 1
+        time.sleep(0.05)
+        self.post(f"{id(self)}:{self.count}:{text}")
+
+
+def test_two_concurrent_negotiations_against_one_assistant_host_share_no_state():
+    app = make_app("assistant", CounterAgent, token=TOKEN)
+    with run_host(app) as url:
+        registry.add("default", "counter", "assistant", url, token=TOKEN)
+        sessions = [make_session(user=f"c{i}", agent_class="remote:counter") for i in range(2)]
+        for s in sessions:
+            s.start()
+            s.wait_for_turn()
+
+        def chat(s, tag):
+            for k in range(3):
+                s.user_chat(f"{tag}{k}")
+                s.wait_agent_idle()
+
+        threads = [threading.Thread(target=chat, args=(s, f"s{i}-")) for i, s in enumerate(sessions)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(60)
+        assert len(app.state.store) == 2  # one host session per negotiation, both alive
+        owners = []
+        for i, s in enumerate(sessions):
+            said = [m["text"] for m in s.chat if m["user"] == "Assistant" and m["text"].count(":") == 2]
+            ids = {t.split(":")[0] for t in said}
+            assert [t.split(":", 1)[1] for t in said] == [f"{n}:s{i}-{n - 1}" for n in (1, 2, 3)], said
+            assert len(ids) == 1
+            owners.append(ids.pop())
+        assert owners[0] != owners[1]  # two instances
+        for s in sessions:
+            s.end()
+            s.wait_until_done()
+        time.sleep(0.5)
+        assert len(app.state.store) == 0  # closed at the end of each negotiation
+
+
+def test_a_hosted_assistant_drives_the_autopilot(scripted):
+    from conftest import write_settings
+
+    write_settings(Path(__import__("os").environ["HANI2_HOME"]), "autopilot_settings.json",
+                   {"allowed": True, "driver": "Support Agent", "step_delay": 0})
+    app = make_app("assistant", "hani2.support_agent.runtime:SupportAgent", token=TOKEN)
+    with run_host(app) as url:
+        registry.add("default", "pilot", "assistant", url, token=TOKEN)
+        s = make_session(agent_class="remote:pilot", n_steps=4, support_settings={"autonomy": "suggest"})
+        llm = scripted(*([("submit_counter_offer", {"message": "auto"})] * 10))
+        s.start()
+        s.wait_for_turn()
+        assert s.set_autopilot(True)["ok"]
+        assert s.wait_until_done(timeout=60)
+        assert any(c["force"] for c in llm.calls)  # the host's model was asked to act
+        assert s.support_agent._autopilot_stalls == 0  # it acted itself: no fallback counter-offer
+
+
+class Suggester(SupportAgent):
+    def suggest_offer(self, instruction: str, mode: str = "both", timeout: float = 120.0):
+        return {"outcome": {i.name: list(i.all)[0] for i in self.session.issues}, "text": f"re: {instruction}",
+                "error": None}
+
+
+def test_a_hosted_assistant_answers_the_llm_offer_tool():
+    app = make_app("assistant", Suggester, token=TOKEN)
+    with run_host(app) as url:
+        registry.add("default", "sug", "assistant", url, token=TOKEN)
+        s = make_session(agent_class="remote:sug", support_settings={
+            "capabilities": {"llm_tool": True, "fill_offer": True, "fill_text": True, "chat": True}})
+        s.start()
+        s.wait_for_turn()
+        r = s.support_agent.suggest_offer("make it fair", "both")
+        assert r["error"] is None and r["text"] == "re: make it fair"
+        assert r["outcome"] == {i.name: list(i.all)[0] for i in s.issues}
+        # without llm_tool it does not answer (the tool uses its own prompt), as a local Assistant
+        s.support_agent.capabilities.admin_capabilities["llm_tool"] = False
+        assert s.support_agent.suggest_offer("again", "both") is None

@@ -706,7 +706,8 @@ def public_base_url() -> str:
 #: folders never exported (results, recordings, caches)
 EXPORT_SKIP_DIRS = {"results", "recordings", "eval_cache", "secrets", "__pycache__", ".git"}
 #: settings files that may hold keys or passwords: exported only with ``with_settings``
-EXPORT_SECRET_FILES = {"env.json", "llm_settings.json", "models.json", "connections.json", ".env"}
+EXPORT_SECRET_FILES = {"env.json", "llm_settings.json", "models.json", "connections.json", ".env",
+                       "hosted_agents.json"}  # the teams' tokens of self-hosted agents
 
 
 def export_project(name: str, out_dir: "str | Path", *, with_settings: bool = False,

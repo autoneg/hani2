@@ -146,6 +146,16 @@ def test_board_latest_keeps_only_the_newest_study(hi):
     assert set(names(boards.board("HI", None, {}, n_boot=20))) == {A, B}
 
 
+def test_board_latest_ignores_games_that_do_not_count(hi):
+    """A newer study with only a practice or a failed game is not the latest tournament."""
+    projects.create_study("HI/round2", type="online")
+    set_board({"sort_options": ["utility"], "rules": RULES0, "update": "latest"})
+    hi["HI/play"] = [row("u1", A, 0.9, day=1), row("u2", B, 0.1, day=1)]
+    hi["HI/round2"] = [row("u3", B, 0.8, day=9, practice=True), row("u4", B, 0.8, day=9, status="erred")]
+    out = boards.board("HI", None, {}, n_boot=20)
+    assert set(names(out)) == {A, B} and any("HI/play" in n for n in out["notes"])
+
+
 def test_board_continuous_ranks_recent_form_and_flags_changes(hi):
     from datetime import datetime, timezone
 

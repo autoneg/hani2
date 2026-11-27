@@ -90,7 +90,7 @@ The host rejects any request without it, so nobody else can spend the team's mod
 
 | Request | Body → reply |
 |---|---|
-| `GET /info` | → `{protocol, kind: assistant\|opponent, name, version, events?, model?}`. `version` is whatever the team declares. `events` lists the optional Assistant events the host wants (for example `draft_changed`). |
+| `GET /info` | → `{protocol, kind: assistant\|opponent, name, version, events?, model?}`. `version` is whatever the team declares. `events` lists the optional Assistant events the host wants: `draft_changed`, and `action_requested` (which it also gets when the admin turned on the proactive note for it). |
 | `POST /sessions` | `{session_id, kind, setup}` → `{ok, model?}`. Creates **one agent instance for this negotiation**. |
 | `POST /sessions/{id}/step` | `{seq, …}` → the agent's reply (below). `seq` grows by one per step, and a repeated `seq` returns the stored reply, so a retry never acts twice. |
 | `DELETE /sessions/{id}` | → `{ok}`. Ends the negotiation's instance. |
@@ -103,7 +103,9 @@ refuses new sessions beyond `--max-sessions`.
 **Opponent.**
 
 * The setup holds the negotiator's name, its utility function and the outcome space (negmas
-  serialisation), and the mechanism's limits (`n_steps`, `time_limit`).
+  serialisation; the utility function as YAML, because JSON would turn the integer keys of a value
+  table into strings, with a table of every outcome's utility as the fallback), and the mechanism's
+  limits (`n_steps`, `time_limit`).
 * A step sends the negotiation state: step, relative time, the offer on the table, its text and the
   history. The reply is `{response: accept|reject|end, outcome, text, data?, model?}`.
 * The Python helper wraps any negmas `SAONegotiator`. It builds a local stand-in mechanism with the
@@ -114,7 +116,7 @@ refuses new sessions beyond `--max-sessions`.
 * The setup holds the capabilities the admin granted, the autonomy, the issues (outcome space) and the
   function schemas that a local Assistant's language model would see.
 * A step sends one event: `message`, `negotiation_started`, `action_requested`, `negotiation_ended`,
-  `panel_action`, `suggest_offer`, `autopilot`, `draft_changed` or `results`. It also sends the same
+  `panel_action`, `suggest_offer`, `autopilot`, `draft_changed`, `clear` or `results`. It also sends the same
   `context` snapshot a local Assistant reads, and nothing about the participant's identity.
 * The reply is `{status: done|calls, actions: […], calls: […], suggestion?, model?}`.
     * `actions` are fire-and-forget: `post`, `toast`, `show_on_board`, `highlight`, `annotate`,
@@ -128,6 +130,12 @@ refuses new sessions beyond `--max-sessions`.
 * The Python helper runs an unchanged HANI2 `Assistant` subclass on the host. The class's helpers
   become actions, and its function calls become `calls`. It uses the host's own model chain, which is
   the team's LLM. Extra functions defined in the class's own dispatcher run on the host.
+  `session_state["actions"]` maps to the same functions, so a tutorial-style Assistant runs unchanged
+  and stays gated. A step may take the rest of the turn's deadline, since one step can be a whole
+  language-model turn on the host.
+* An opponent's state names the side that made the current offer `self` or `other` (the human's side).
+  The host builds the negotiator the way HANI2 builds a local opponent, so an LLM negotiator uses the
+  **host's** model chain, and the host reports that model.
 
 **Model attribution.** Any reply may carry `model: {provider, model}`. HANI2 records it, unverified,
 in the existing results columns `assistant_llm` / `opponent_llm` as `remote:<provider>/<model>`. The
@@ -209,3 +217,8 @@ leaderboard:
   spare teams a public address. The message set is ready for it, but the transport is not built.
 * The filter's parameters are fixed defaults. They are not fitted by maximum likelihood across entrants.
 * A host can claim any model; we record it and cannot verify it.
+* A hosted Assistant answers events; it cannot speak between them (push transport).
+* The registry file is locked per process: two HANI2 processes writing it at the same moment could lose
+  an edit.
+* Rows record a hosted entrant's declared version only as a hint. The board's change flag rests on the
+  results.

@@ -193,13 +193,15 @@ def _read_yaml_strict(path: Path) -> dict:
 
 
 def _items(raw: Any) -> list[str]:
+    from hani2.hosting.protocol import normalise_spec
+
     if raw is None:
         return []
     if isinstance(raw, str):
         return [s.strip() for s in raw.split(",") if s.strip()]
-    if isinstance(raw, (list, tuple)):
-        return [str(s).strip() for s in raw if str(s).strip()]
-    return [str(raw).strip()]
+    if isinstance(raw, (list, tuple)):  # a hosted agent may be written as a mapping {url, token_env}
+        return [str(normalise_spec(s)).strip() for s in raw if str(normalise_spec(s)).strip()]
+    return [str(normalise_spec(raw)).strip()]
 
 
 def _pool_loc(kind: str, layer: Layer) -> tuple[Path, str, list[str]]:

@@ -157,10 +157,12 @@ def _check_opponents(value: str) -> None:
 
 
 def _check_assistant_class(klass: str) -> None:
-    from hani2.support_agent.runtime import Assistant, load_class
+    from hani2.support_agent.runtime import Assistant, load_assistant_class, load_class
 
     try:
-        cls = load_class(klass)
+        from hani2.hosting.protocol import is_remote_spec
+
+        cls = load_assistant_class(klass) if is_remote_spec(klass) else load_class(klass)
     except Exception as e:  # noqa: BLE001
         raise typer.BadParameter(f"cannot load {klass!r}: {e}", param_hint="--assistant") from None
     if not (isinstance(cls, type) and issubclass(cls, Assistant)):

@@ -136,6 +136,8 @@ def short_label(spec: Any) -> str:
             return direct_name(s[len("remote+"):].partition("#")[0])
         except Exception:  # noqa: BLE001
             return "remote"
+    if s.lower().startswith("remote+"):  # the recorded form of a direct address: remote+host:port
+        return s[len("remote+"):].partition("#")[0]
     return s
 
 

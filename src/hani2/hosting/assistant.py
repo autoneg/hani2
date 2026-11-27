@@ -53,7 +53,8 @@ class RemoteAssistant(SupportAgent):
     is_remote = True
     #: the host brings its own language model: the session never resolves the Assistant's chain for it
     brings_own_model = True
-    #: seconds one turn may take, every round trip and function call included
+    #: seconds one turn may take, every round trip and function call included (at least the endpoint's
+    #: per-call time limit)
     turn_deadline: float = 120.0
 
     def __init__(self, session_state: dict[str, Any], settings: dict):
@@ -230,7 +231,9 @@ class RemoteAssistant(SupportAgent):
                     raise HostedError(f"the hosted agent {self.endpoint.name} took longer than "
                                       f"{self.turn_deadline:g} s for one turn")
                 self._seq += 1
-                reply = self.client.step(sid, {"seq": self._seq, **body}, timeout=min(left, self.endpoint.timeout))
+                # one step may be a whole language-model turn on the host: it may use what is left of the
+                # turn's deadline (at least the per-call time limit)
+                reply = self.client.step(sid, {"seq": self._seq, **body}, timeout=max(1.0, left))
                 self._note(reply)
                 for a in (reply.get("actions") or [])[:50]:
                     if isinstance(a, dict):

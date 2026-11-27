@@ -129,7 +129,7 @@ class OpponentRunner:
         self.other = _Other(name="other")
         self.mechanism.add(self.negotiator, ufun=ufun)
         self.mechanism.add(self.other)
-        self.model = model
+        self.model = model or negotiator_model(self.negotiator)
         self._started = False
 
     def step(self, body: dict) -> dict:
@@ -154,17 +154,37 @@ class OpponentRunner:
 
 
 def opponent_factory(spec: Any) -> Callable[..., Any]:
-    """A callable that makes the negotiator: a class, a ``module:Class`` / ``module.Class`` / negmas name /
-    ``file:`` spec (as HANI2's opponent specs), or any callable taking ``name=``."""
-    if callable(spec) and not isinstance(spec, str):
-        return spec
-    from hani2.agents import get_agent_type
+    """A callable ``factory(name=...)`` that makes the negotiator the way HANI2 makes a local opponent
+    (:func:`hani2.agents.make_agent`): an LLM negotiator gets the **host's** model chain (the
+    ``opponent`` purpose of the HANI2 settings on the host), not negmas-llm's tiny default. ``spec``: a
+    class, a ``module:Class`` / ``module.Class`` / negmas name / ``file:`` spec, or a callable taking
+    ``name=``."""
+    from hani2.agents import get_agent_type, make_agent
 
-    s = str(spec).strip()
-    if ":" in s and not s.startswith("file:"):
-        mod, _, attr = s.rpartition(":")
-        s = f"{mod}.{attr}"
-    return get_agent_type(s)
+    if callable(spec) and not isinstance(spec, (str, type)):
+        return spec
+    if isinstance(spec, str):
+        s = spec.strip()
+        if ":" in s and not s.startswith("file:"):
+            mod, _, attr = s.rpartition(":")
+            s = f"{mod}.{attr}"
+        spec = get_agent_type(s)  # fails now (at start) if it cannot be imported
+
+    def factory(name: str = "opponent") -> Any:
+        return make_agent(spec, {"name": name, "id": name})
+
+    factory.__name__ = getattr(spec, "__name__", "opponent")
+    return factory
+
+
+def negotiator_model(neg: Any) -> dict | None:
+    """``{"provider", "model"}`` of an LLM negotiator (or the LLM layer it wraps), else ``None``."""
+    for obj in (neg, *(getattr(neg, n, None) for n in ("_llm", "llm", "_inner", "inner", "_base"))):
+        m = getattr(obj, "model", None) if obj is not None else None
+        if isinstance(m, str) and m:
+            p = getattr(obj, "provider", "")
+            return {"provider": p if isinstance(p, str) else "", "model": m}
+    return None
 
 
 # --------------------------------------------------------------------------- #
@@ -247,7 +267,7 @@ def make_app(kind: str, agent: Any, *, token: str | None = None, name: str | Non
             return JSONResponse({"ok": False, "error": str(e)}, 503)
         out: dict[str, Any] = {"ok": True, "version": version}
         m = getattr(runner, "model_info", None)
-        m = m() if callable(m) else (m or model)
+        m = m() if callable(m) else (getattr(runner, "model", None) or model)
         if m:
             out["model"] = m
         return json_safe(out)

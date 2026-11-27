@@ -607,6 +607,10 @@ def label_of(spec: str) -> str:
     s = str(spec or "").strip()
     if not s:
         return ""
+    if s.lower().startswith("remote"):  # a self-hosted agent: its registered name, or host:port
+        from hani2.hosting.protocol import short_label
+
+        return short_label(s)
     s = s.split(":")[-1] if ":" in s else s
     return s.split(".")[-1] or s
 
@@ -896,19 +900,6 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
         elif rules.get("exclude_own") and _truthy(r.get("own_assistant")):
             r["_exclude"] = "own team"
     mode = (cfg.update or {}).get("mode", "pooled")
-    latest_study = None
-    if mode == "latest":  # each study is a tournament; the newest one (by its latest game) replaces the board
-        last: dict[str, datetime] = {}
-        for r in in_track:
-            d = _started(r)
-            if d is not None and not r.get("_exclude"):
-                k = str(r.get("_study") or "")
-                last[k] = max(last.get(k, d), d)
-        if last:
-            latest_study = max(last, key=lambda k: (last[k], k))
-            for r in in_track:
-                if not r.get("_exclude") and str(r.get("_study") or "") != latest_study:
-                    r["_exclude"] = "earlier tournament"
     # partners among every row (a left-out partner still names the opponent)
     partners = T._partners(in_track)
     same = {id(r) for r in in_track if track == "hi" and T._match_of(r) and T._same_assistant(r, partners.get(id(r)))}
@@ -924,6 +915,24 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
             for k in names:
                 if k == "utility" or getattr(ss.scores[k], "same_assistant", "once") == "skip":
                     r[k] = None
+    latest_study = None
+    if mode == "latest":
+        # each study of this project is a tournament; the newest one (by its latest game that counts:
+        # no practice, simulated, failed or excluded game) replaces the board; rows taken in from other
+        # projects (include) are not tournaments of this board and stay
+        own = f"{cfg.project}/"
+        last: dict[str, datetime] = {}
+        for r in base:
+            d = _started(r)
+            k = str(r.get("_study") or "")
+            if d is not None and not r.get("_exclude") and k.startswith(own):
+                last[k] = max(last.get(k, d), d)
+        if last:
+            latest_study = max(last, key=lambda k: (last[k], k))
+            for r in in_track:
+                k = str(r.get("_study") or "")
+                if not r.get("_exclude") and k.startswith(own) and k != latest_study:
+                    r["_exclude"] = "earlier tournament"
     # caps (the latest games over a cap are dropped), on the games that count
     caps = {"max_games_per_participant": lambda r: (r["_entrant"], str(r.get("user"))),
             "max_games_per_pair": lambda r: ((r["_entrant"], *sorted([str(r.get("user")), str(r.get("opponent_user"))]))
