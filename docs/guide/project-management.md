@@ -616,7 +616,7 @@ score builder:
 The builder saves the score at once, through the admin API, with the same checks as
 `hani2 scores set`. **Scores enabled** below it is saved with the page. Editing a score keeps its
 **Zero if** (`zero_if`) and **Needs an Assistant** (`needs_assistant`) rules, which the builder also
-sets.
+sets (see [Rules for failures and sessions without an Assistant](#rules-for-failures-and-sessions-without-an-assistant)).
 
 ### Previewing a score
 
