@@ -1,1 +1,0 @@
-import{c as a}from"./index-Ct5ae83e.js";const e={name:"square-letter-m",size:24,node:[["path",{d:"M8 16.001v-7.5a.5.5 0 0 1 .9-.3l2.7 3.599a.5.5 0 0 0 .8 0l2.7-3.6a.5.5 0 0 1 .9.3v7.501",key:"1triz2"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["m-square","square-m"]};e.node;const r=a(e);export{e as __iconData,r as default};
