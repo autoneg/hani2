@@ -65,6 +65,18 @@
   The rules live in the pure module `hani2.ratings`, which other sites can import or run as
   `python -m hani2.ratings`. See [Leaderboard update modes](guide/project-management.md#leaderboard-update-modes).
 
+- **Named model sequences.** Besides the per-purpose chains, `models.json` can define any number
+  of named sequences (`sequences`), and a purpose can name one (`"judge": "judge-strict"`). Built-in
+  `tiny`, `offline` (local Ollama only), `small`, `medium` and `large` sequences come with every
+  installation. Sequences merge by name across the settings folder, project and study, and any
+  layer can override one or disable an inherited one (`{"disabled": true}`). Entries take
+  `thinking` (`true`/`false` or a token budget) and `effort` as well as `temperature` and any
+  other provider parameter. The Assistant can pick a sequence by name for its replies and for any
+  task (`model_choice`, on by default; `use_model_sequence`, `ask_llm(..., sequence=...)`), and
+  with `own_models` (off by default) it can define its own sequences signed in with its own keys or
+  servers. The **Models** page edits, overrides, disables and tests sequences. `hani2 models list`
+  lists them and `hani2 models resolve --sequence` checks one. Results record each sequence used
+  (`llm_models`, `purpose@sequence`).
 - **A failing tool stays in its own tab.** A tool that raises (when created, in `init`, a hook,
   its view, an input or a button) or takes longer than `tools.render_timeout` seconds to render
   (20 by default) no longer breaks the session or leaves a blank pane: its tab shows that it is not

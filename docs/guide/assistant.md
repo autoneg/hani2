@@ -327,11 +327,13 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
 | `opponent_model` | Estimate the opponent | Share its estimate of what the opponent wants; the participant's Negotiation Plot and Utility-based Selector then show it, marked as an estimate (see [Estimating the opponent](#estimating-the-opponent)) | `set_opponent_estimate` |
 | `opponent_utility` | Know the opponent's preferences (oracle) | See the opponent's utility function and the opponent's utility of every offer (off by default; admin-only) | `get_opponent_utility` |
+| `model_choice` | Choose its language models | Pick one of the study's [named model sequences](models.md#named-sequences) (`default`, `tiny`, `offline`, `small`, `medium`, `large`, …) for its replies and any other task that uses a model (on by default; admin-only) | `list_model_sequences`, `use_model_sequence` |
+| `own_models` | Bring its own language models | Define its own model sequences for the session, signed in with its own keys or servers (off by default; admin-only; see [its own sequences](models.md#the-assistants-model-sequences)) | `define_model_sequence` (and `list_model_sequences`, `use_model_sequence` for its own sequences) |
 
 `opponent_utility` is an [ablation](ablations.md): it gives the Assistant the information a real
-Assistant never has, to measure what that information is worth. It is the only *admin-only*
-capability: the participant neither sees it in their settings nor can switch it, so the condition is
-neither self-selected nor revealed. With it, the state the Assistant receives has an `opponent` entry
+Assistant never has, to measure what that information is worth. It is *admin-only*, like
+`model_choice` and `own_models`: the participant neither sees it in their settings nor can switch
+it, so the condition is neither self-selected nor revealed. With it, the state the Assistant receives has an `opponent` entry
 (the opponent's issue weights and option values, or its best outcomes, its reserved value and its
 utility of the offer on the table, the draft and the recent history), and the system prompt tells it
 not to let the opponent know.
@@ -612,6 +614,10 @@ Tool helpers (each checks the capability shown):
 | `set_opponent_estimate(estimate=None)` | `opponent_model` | Sets (or with `None` clears) the estimate of the opponent's utility function: a negmas utility function or a mapping (see [Estimating the opponent](#estimating-the-opponent)). |
 | `opponent_estimate()` | none | The estimate now set, by anyone, or `None`. |
 | `opponent_view(offer=None)` | `opponent_utility` | The opponent's preferences and utilities (the oracle); with `offer` (`{issue: value}`) also both sides' utility of it. |
+| `model_sequences()` | none | The named model sequences it may use (name, description, source, entries; never a key). |
+| `use_model_sequence(name="")` | `model_choice` (or `own_models` for its own) | Its replies use the sequence `name` from now on (`""`: the `assistant` chain). The class attribute `model_sequence` sets it from the start. |
+| `ask_llm(prompt, sequence=None, system=None, **params)` | `model_choice` for a `sequence` | One prompt, one reply text, for any task of its own; `params`: `temperature`, `effort`, `thinking`, … |
+| `define_model_sequence(name, entries, description="")` | `own_models` | Defines its own sequence for the session (see [its own sequences](models.md#the-assistants-model-sequences)). |
 
 While the human and the Assistant know different things, `read_tool` and `use_tool` refuse the
 tools that show something of the human's that the Assistant does not know itself (Preferences
@@ -715,6 +721,9 @@ class MyAgent(Assistant):
 | `show_past_negotiation` | `id` | `private_info`, when the Assistant holds past negotiations |
 | `remove_tool` | `name` | `tool_add` |
 | `get_opponent_utility` | `offer` (optional, issue name to value) | `opponent_utility` |
+| `list_model_sequences` | none | `model_choice` or `own_models` |
+| `use_model_sequence` | `name` (`assistant`: back to the default) | `model_choice` (`own_models`: its own sequences) |
+| `define_model_sequence` | `name`, `entries`, `description` | `own_models` |
 
 Tool names are matched case-insensitively, and a partial name also matches (`"utility"` finds `Utility Plot`). Issue names in `set_offer` are matched the same way, and values are checked against the issue; unknown issues and invalid values are reported back in `unrecognised`.
 

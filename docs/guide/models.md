@@ -104,7 +104,7 @@ A chain is a list of entries. Each entry gives:
 | `connection` | The connection to use, by name. |
 | `provider` | Instead of `connection`: use the provider's first connection (or its implicit one). |
 | `model` | The model id, as the provider names it. |
-| `params` | Optional parameters passed to the call: `temperature`, `max_tokens`, `top_p`, `effort` (or `reasoning`, sent as `reasoning_effort`) and any other litellm parameter. Keys, tokens, headers and addresses are refused here; they belong to a connection. |
+| `params` | Optional parameters passed to the call: `temperature`, `max_tokens`, `top_p`, `effort` (or `reasoning`, sent as `reasoning_effort`), `thinking` (see [Thinking and effort](#thinking-and-effort)) and any other parameter the provider takes. Keys, tokens, headers and addresses are refused here; they belong to a connection. |
 | `label` | An optional name shown in the console and the results. |
 
 Entries are identified by their position, so a model can appear more than once with different
@@ -184,6 +184,146 @@ The list is a comma-separated `provider:model` or `connection:model` list. For e
 uses the provider's first connection, or its implicit one. It replaces the settings folder's chains
 for every purpose. A project's or a study's own chain still wins. `hani2` refuses a list it cannot
 read, and it refuses `--models` when `HANI2_MODELS` is set to a different list.
+
+## Named sequences
+
+A **sequence** is a chain with a name. Besides the purposes above, a `models.json` can define as
+many named sequences as you want, under `sequences`, and a purpose can name a sequence instead of
+giving a chain:
+
+```json title="models.json"
+{
+  "default": ["claude:claude-sonnet-5-5", "ollama:qwen3:4b-instruct"],
+  "judge": "judge-strict",
+  "sequences": {
+    "judge-strict": [{"connection": "openai", "model": "gpt-5", "params": {"effort": "high"}}],
+    "cheap": {"entries": ["anthropic:claude-haiku-5-5", "ollama-local:qwen3:4b-instruct"],
+              "description": "Short answers, quickly"},
+    "large": {"disabled": true}
+  }
+}
+```
+
+| Form | Meaning |
+| --- | --- |
+| `"name": [entries]` | A sequence (entries as in a chain). |
+| `"name": {"entries": [...], "description": "..."}` | The same, with a description shown to admins and to the Assistant. |
+| `"name": {"disabled": true}` | Hide a sequence inherited from a less specific layer or from the built-ins. |
+| `"purpose": "name"` | The purpose (`default`, `assistant`, `opponent`, `tools`, `text`, `judge`) uses that sequence. |
+
+**Built-in sequences.** Every installation has these. Entries whose provider has no connection
+are skipped, as in any chain.
+
+| Name | Entries, first choice first |
+| --- | --- |
+| `default` | The `default` chain above (it is the `default` purpose). |
+| `judge` | The judge's own chain (the `judge` purpose; without one, the `default` chain). |
+| `tiny` | `qwen3:0.6b`, then `gemma3:270m`, on the local Ollama server. |
+| `offline` | `qwen3:4b-instruct`, `qwen3:8b`, `qwen3:0.6b`, all on the local Ollama server (connection `ollama-local`), so nothing leaves the machine. |
+| `small` | Claude Haiku 5.5, GPT-5 mini (`effort: low`), local `qwen3:4b-instruct`. |
+| `medium` | Claude Sonnet 5.5, GPT-5 (`effort: medium`), local `qwen3:30b-a3b`. |
+| `large` | Claude Opus 5.5 (`effort: high`), GPT-5.5 (`effort: high`). |
+
+Pull the local models you want with `ollama pull qwen3:0.6b` (and so on).
+
+**Where a sequence comes from.** Named sequences merge **by name**. For each name, the most
+specific layer that mentions it wins: the study, then its project, the start-time settings file,
+the settings folder, and last the built-ins. So a study that defines only `cheap` still sees the
+settings folder's `large`, and a project can disable `large` for all its studies while one study
+defines it again. `default`, `judge` and the other purposes keep the rule of the previous section.
+A layer's `models.json` that holds only `sequences` does not hide the purposes' chains of the
+layers below it.
+
+On the **Models** page, the **Named model sequences** group lists every sequence at the layer
+with its source. **Override here** copies an inherited sequence to this layer for editing,
+**Disable here** hides it, and **Use the inherited one** removes this layer's version. **Add a
+sequence** creates a new one. Each purpose can be switched from its own chain to a named sequence.
+**Test chains** also shows the entry each sequence resolves to.
+
+`hani2 models list` prints the sequences too, and `hani2 models resolve --sequence small` checks
+one.
+
+**Who uses a sequence.**
+
+* A purpose that names it (`"judge": "judge-strict"`).
+* The Assistant, for its replies and any other task, with the `model_choice` ability (on by
+  default): see [The Assistant's model sequences](#the-assistants-model-sequences).
+* A tool: `self.ask_llm(prompt, sequence="small")`, or
+  `hani2.llm_service.complete(prompt, session=s, sequence="small")`.
+* Code: `model_chain.completion("tools", messages, sequence="small")`. An LLM opponent or autopilot
+  driver gets one through `make_agent(..., sequence="small")`.
+
+A session chooses each sequence's entry the first time it uses it and keeps it, as with a purpose.
+The record says which sequence it came from (`sequence`). In `llm_models` it is stored under
+`purpose@sequence`, for example `assistant@small`. The `assistant_llm` column keeps the purpose's
+own choice. Asking for a disabled or unknown sequence fails with an error that says why.
+
+### Thinking and effort
+
+| Parameter | Values | What is sent |
+| --- | --- | --- |
+| `effort` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (as far as the model supports them) | `reasoning_effort`. litellm translates it for each provider. |
+| `thinking` | `true`, `false`, or a token budget (`2048`) | Ollama: `think: true/false` (gpt-oss models take the effort instead). Anthropic: a budget becomes `thinking: {"type": "enabled", "budget_tokens": n}`. Others: `true` without an effort means `effort: medium`, and `false` leaves the effort out. A mapping is passed as the provider's own `thinking` parameter. |
+
+`thinking: false` is safe for every Ollama model. `thinking: true`, or an `effort`, is refused by
+Ollama models that cannot think (for example `smollm2`), and that error is not retried with the
+next entry. Set it only for models that support it. Claude 5 models get no `temperature`, `top_p`
+or `top_k`, whatever the entry says.
+
+### The Assistant's model sequences
+
+Two abilities of the Assistant are about models. Only the admin decides them (in the Assistant
+settings of any layer); participants neither see nor switch them.
+
+| Ability | Default | What it allows |
+| --- | --- | --- |
+| `model_choice` | on | Pick any of the study's named sequences, for its replies and for any other task that uses a model. |
+| `own_models` | **off** | Define its own sequences for the session, signed in with its own keys or servers, and use them. |
+
+An Assistant uses them from Python:
+
+```python
+from hani2.assistant import Assistant
+
+
+class MyAssistant(Assistant):
+    model_sequence = "small"            # its replies use the `small` sequence
+
+    def on_event(self, event, data):
+        if event == "negotiation_ended":
+            summary = self.ask_llm("Summarise the negotiation ...", sequence="large", effort="high")
+```
+
+| Helper | What it does |
+| --- | --- |
+| `model_sequence` (class attribute) | The sequence its replies use (`""`: the `assistant` chain). |
+| `model_sequences()` | The sequences it may use: name, description, source and entries (never a key). |
+| `use_model_sequence(name)` | Switch its replies to `name` (`""` goes back to the `assistant` chain). |
+| `ask_llm(prompt, sequence=..., system=..., **params)` | One prompt, one reply, through any sequence. |
+| `define_model_sequence(name, entries, description="")` | With `own_models`: define its own sequence. |
+
+The language model behind the Assistant gets the functions `list_model_sequences` and
+`use_model_sequence` (with `model_choice` or `own_models`), and `define_model_sequence` (with
+`own_models`). It can, for example, switch to `small` for small talk and to `large` for a hard
+analysis.
+
+**Its own sequences.** With `own_models`, an entry may sign in by itself, so an Assistant can use
+its own models:
+
+```python
+self.define_model_sequence("mine", [
+    {"provider": "openai", "model": "my-model", "api_base": "https://models.example.org/v1",
+     "api_key": "sk-...", "params": {"temperature": 0.2}},
+    {"provider": "anthropic", "model": "claude-haiku-5-5", "api_key_env": "TEAM_ANTHROPIC_KEY"},
+])
+self.use_model_sequence("mine")
+```
+
+`api_key` is used only for the session's calls. It is masked in every log and error, and it is
+never stored or written to results, events or recordings. `api_key_env` names an environment
+variable of the server. A sequence lives as long as the session. Its name must not be one the
+study already uses, so an Assistant cannot replace the admin's `judge` or `small`. Harness
+providers cannot be used.
 
 ## Choosing an entry
 
@@ -354,9 +494,9 @@ All of these are admin only.
 | `PUT` / `DELETE /api/admin/connections/{name}` | Change (a missing `api_key` keeps the stored one) or remove one. |
 | `POST /api/admin/connections/{name}/test` | Check the credentials, and `{model}` if given; lists the provider's models when it can. For a harness, sends a tiny request through it and returns the `reply`. |
 | `DELETE /api/admin/connections/{name}/login` | Delete a connection's stored tokens (subscription sign-ins are not offered). |
-| `GET /api/admin/models?layer=…` | A layer's own chains, the chains in effect there and what it inherits (with their sources). |
+| `GET /api/admin/models?layer=…` | A layer's own chains, the chains in effect there and what it inherits (with their sources); `sequences` and `inherited_sequences`: every named sequence there (source, disabled, description, entries); `builtin_sequences`. |
 | `PUT /api/admin/models?layer=…` | Replace a layer's chains (`{}` removes them). As with every setting, a console opened in a study must name the layer (409 otherwise). |
-| `POST /api/admin/models/resolve?layer=…` | Which entry each purpose resolves to; `{chains}` tries a chain you have not saved yet. |
+| `POST /api/admin/models/resolve?layer=…` | Which entry each purpose (`purposes`) and each named sequence (`sequences`) resolves to; `{chains}` tries a `models.json` you have not saved yet, `{purpose}` or `{sequence}` checks only one. |
 | `POST /api/admin/models/test-entry` | Check one entry; with `"call": true`, also send a one-word request. |
 
 Connection endpoints accept no layer other than `settings`. `models` is also a settings kind of
@@ -370,6 +510,8 @@ from hani2 import model_chain
 res = model_chain.resolve("assistant")          # the first available entry
 print(res.short(), res.record())                # "claude:claude-sonnet-5-5", the record above
 reply = model_chain.completion("tools", [{"role": "user", "content": "Hi"}])
+reply = model_chain.completion("tools", [{"role": "user", "content": "Hi"}], sequence="tiny")
+model_chain.effective_sequences()               # every named sequence at the current layer
 ```
 
 In a tool, `self.ask_llm(prompt)` uses the session's `tools` model. `session.models` holds the
