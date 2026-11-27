@@ -686,7 +686,7 @@ Every board says what it left out and why under `excluded` (`practice`, `admin o
 | `visibility` | Who may read the board |
 |---|---|
 | `public` | Anyone, without signing in or a token. |
-| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens). |
+| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens). An invited guest sees only the board of the study they were invited to. |
 | `admins` | Admins, and a website with an API token. Signed-in users get *403*. |
 
 No board ever contains a user name, the other person's name, who invited a guest or a participant
@@ -798,7 +798,7 @@ draws exactly the switches the project allows:
 | `unranked` | Entrants below a minimum (`min_games`, `min_participants`) or with no value for the sort key (`no_value`). |
 | `excluded`, `warnings`, `notes` | What was left out and why; problems with the settings or the data; how the values were computed. |
 
-Admins get the same response with every enabled score among `options.sort` and every switch value.
+Admins get the same response with every enabled score among `options.sort` (any criterion with a direction is accepted too) and every switch value.
 
 ### API tokens
 

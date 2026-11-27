@@ -503,3 +503,134 @@ def test_cli_show_refresh_and_project_export(hani2_home, tmp_path, monkeypatch):
     assert (dest / "E" / "project.yaml").read_text() == "x: 1\n"
     r.invoke(app, ["project", "export", "E", "--out", str(dest), "--overwrite"])
     assert "leaderboard" in (dest / "E" / "project.yaml").read_text()
+
+
+# --------------------------------------------------------------------------- #
+# Fixes: HAN cells, data_version, unfinished games, hand-edited blocks         #
+# --------------------------------------------------------------------------- #
+def test_han_vs_team_cells_name_the_assistant_not_the_agent(hi):
+    projects.create_project("HAN", kind="opponent")
+    projects.create_study("HAN/play", type="online")
+    set_board({"sort_options": ["utility"], "user_options": {"stratum": ["alone", "vs_team"]}, "rules": RULES0},
+              project="HAN")
+    X, Y = "han.x:X", "han.y:Y"
+    hi["HAN/play"] = [row("u1", A, 0.2, opponent=X, opponent_han_year=2027),
+                      row("u2", A, 0.8, opponent=Y, opponent_han_year=2027)]
+    out = boards.board("HAN", None, {"stratum": "vs_team"}, n_boot=0)  # adjust: relative
+    e = {x["entrant"]: x["values"]["utility"]["mean"] for x in out["entries"]}
+    assert e[X] != pytest.approx(e[Y]) and e[Y] > e[X]  # one cell (s1 × the Assistant) holds both agents
+
+
+def test_data_version_follows_the_values(hi):
+    set_board({"sort_options": ["utility"], "rules": RULES0})
+    hi["HI/play"] = [row("u1", A, 0.5, id="x1"), row("u2", B, 0.4, id="x2")]
+    v1 = boards.board("HI", None, {}, n_boot=0)["data_version"]
+    hi["HI/play"][0]["human_advantage"] = 0.6
+    v2 = boards.board("HI", None, {}, n_boot=0)["data_version"]
+    assert v1 != v2 and boards.board("HI", None, {}, n_boot=0)["data_version"] == v2
+
+
+def test_a_hand_edited_block_is_still_served(hi):
+    set_board({"sort_options": ["utility", "nope"], "default_sort": "nope", "columns": ["utility", "games"],
+               "user_options": {"games": ["all", "bots"]},
+               "defaults": {"stratum": "sideways", "window": "yesterday", "games": "people"},
+               "rules": {"min_games": "many", "min_participants": 1, "ci": 7}})
+    hi["HI/play"] = [row(f"u{i}", A, 0.5) for i in range(12)]
+    out = boards.board("HI", None, {}, n_boot=0)
+    assert out["query"] == {"sort": "utility", "games": "people", "stratum": "combined", "window": "all"}
+    assert out["rules"]["min_games"] == 10 and out["rules"]["ci"] == 0.95
+    assert out["options"]["games"] == ["all"] and out["options"]["defaults"]["sort"] == "utility"
+    assert any("default_sort 'nope'" in w for w in out["warnings"])
+    assert any("leaderboard settings" in w for w in out["warnings"])
+
+
+def test_unfinished_recordings_are_read_once(hani2_home, monkeypatch):
+    from test_criteria import _write_recording
+
+    from hani2.recording import format as F
+
+    projects.create_project("U", kind="assistant")
+    ref = StudyRef("U", "s")
+    projects.create_study(ref, type="online")
+    res = projects.study_dir(ref) / "results"
+    _write_recording(res / "u1" / "recordings", "done", n_offers=4, started="2027-01-01T10:00:00")
+    _write_recording(res / "u2" / "recordings", "open", n_offers=4, started="2027-01-01T10:00:00", result=False)
+    rows, info = eval_cache.rows(ref)
+    assert len(rows) == 1 and info["computed"] == 2
+    loads = []
+    real = F.Recording.load.__func__
+    monkeypatch.setattr(F.Recording, "load", classmethod(lambda cls, p: loads.append(p) or real(cls, p)))
+    rows, info = eval_cache.rows(ref)
+    assert len(rows) == 1 and info["computed"] == 0 and loads == []
+    # once the game finishes (the file grows), it is read again
+    _write_recording(res / "u2" / "recordings", "open", n_offers=4, started="2027-01-01T10:00:00")
+    rows, _ = eval_cache.rows(ref)
+    assert len(rows) == 2 and len(loads) == 1
+
+
+def test_post_session_answers_join_the_games_of_one_assistant(hani2_home):
+    import yaml
+
+    from test_criteria import _write_recording
+
+    projects.create_project("Q", kind="assistant")
+    ref = StudyRef("Q", "s")
+    projects.create_study(ref, type="online")
+    sdir = projects.study_dir(ref)
+    (sdir / "questionnaires").mkdir(parents=True)
+    (sdir / "questionnaires" / "post_session.yaml").write_text(yaml.safe_dump(
+        {"questions": [{"id": "overall", "text": "Overall?", "type": "likert7"}]}), encoding="utf-8")
+    # a guest's folder is <account>~<browser id>, and their recordings name that user (the helper uses
+    # the recording id as the user)
+    for u, a in (("anac_g~3f2a9c1b0d4e", 6), ("u2", 2)):
+        _write_recording(sdir / "results" / u / "recordings", u, n_offers=4, started="2027-01-01T10:00:00")
+        (sdir / "results" / u / "post_session.json").write_text(json.dumps({"answers": {"overall": a}}))
+    rows, _ = boards.study_rows(ref)
+    assert {r["user"]: r.get("post_q_overall") for r in rows} == {"anac_g~3f2a9c1b0d4e": 6, "u2": 2}
+    # several Assistants used by one person: their answer is credited to none
+    base = {k: v for k, v in rows[0].items() if not k.startswith("post_")}
+    rows2 = boards._post_session(ref, [dict(base, assistant="a:A"), dict(base, assistant="b:B")])
+    assert all("post_q_overall" not in r for r in rows2)
+
+
+def test_judge_adds_its_criteria_to_the_cache(hani2_home, monkeypatch):
+    from test_criteria import _write_recording
+
+    import hani2.evaluation as E
+
+    projects.create_project("J", kind="assistant")
+    ref = StudyRef("J", "s")
+    projects.create_study(ref, type="online")
+    res = projects.study_dir(ref) / "results"
+    for i in range(2):
+        _write_recording(res / f"u{i}" / "recordings", f"g{i}", n_offers=4, started="2027-01-01T10:00:00")
+    calls = []
+
+    def fake(rec, metrics=None, *, use_llm=False, key=None, judge=None, **kw):
+        calls.append((rec.id, tuple(metrics or ()), use_llm, judge))
+        return {"row": {"ja_overall": 6.0, "judge_model": "test:judge", "human_advantage": 0.1}, "details": {},
+                "errors": {}}
+
+    eval_cache.rows(ref)  # the entries exist
+    with monkeypatch.context() as m:
+        m.setattr(E, "evaluate_recording", fake)
+        n = eval_cache.judge(ref, judge="test:judge", limit=1)
+        assert n["judged"] == 1 and calls[0][2] is True and calls[0][3] == "test:judge"
+        assert set(calls[0][1]) == set(eval_cache.soft_metrics())
+        n = eval_cache.judge(ref)
+        assert n == {"judged": 1, "skipped": 1, "failed": 0}
+    rows, info = eval_cache.rows(ref)
+    assert info["judged"] == 2 and all(r["ja_overall"] == 6.0 and r["judge_model"] == "test:judge" for r in rows)
+    assert all(r["human_advantage"] != 0.1 for r in rows)  # only the judged columns are taken
+
+
+def test_a_guest_sees_only_the_board_of_their_study(api, hi, monkeypatch):
+    projects.create_study("HI/other", type="online")
+    set_board({"sort_options": ["utility"], "visibility": "participants", "rules": RULES0})
+    api.post("/api/auth/register", json={"username": "bob", "password": "bobpass1"})
+    api.post("/api/auth/login", json={"username": "bob", "password": "bobpass1"})
+    monkeypatch.setattr(sso, "guest_study", lambda u: "HI/play" if u == "bob" else None)
+    assert api.get("/api/v1/projects/HI/studies/play/leaderboard").status_code == 200
+    assert api.get("/api/v1/projects/HI/studies/other/leaderboard").status_code == 403
+    assert api.get(URL).status_code == 403
+    assert api.get("/api/v1/leaderboards").json()["boards"] == []

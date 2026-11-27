@@ -1674,6 +1674,9 @@ def _board_viewer(request: Request, project: str, study: str | None) -> bool:
                             headers={"WWW-Authenticate": "Bearer"})
     if vis == "admins":
         raise HTTPException(403, "This board is for admins only")
+    gstudy = sso.guest_study(user)
+    if gstudy is not None and gstudy != f"{project}/{study}":
+        raise HTTPException(403, "A guest may see only the board of the study they were invited to")
     return False
 
 
@@ -1716,7 +1719,7 @@ def api_leaderboards(request: Request):
     from hani2.evaluation import boards
 
     user = current_user(request)
-    full = bool(user)
+    full = bool(user) and sso.guest_study(user) is None  # a guest sees the public boards only
     tok = _bearer(request)
     if tok is not None:
         try:

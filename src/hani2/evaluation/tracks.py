@@ -134,6 +134,12 @@ def entrant_of(r: dict, track: str) -> str:
     return str(r.get("opponent") or "?")
 
 
+def _assistant_name(r: dict) -> str:
+    """The row's Assistant (spec and model), whatever entrant name a board gave the row."""
+    name, model = str(r.get("support_agent") or "none"), r.get("support_model")
+    return f"{name} · {model}" if model else name
+
+
 def _match_of(r: dict) -> str | None:
     return None if _blank(r.get("match_id")) or not is_paired(r) else str(r.get("match_id"))
 
@@ -230,7 +236,7 @@ def _cell(r: dict, track: str, stratum: str, partner: dict | None) -> tuple:
     if track == "han":
         if stratum == "alone":
             return (sc,)
-        return (sc, entrant_of(r, "hi") if has_assistant(r) else "none")
+        return (sc, _assistant_name(r) if has_assistant(r) else "none")
     if is_paired(r):
         side = r.get("side") if not _blank(r.get("side")) else r.get("human_index")
         return ("paired", sc, str(side) if not _blank(side) else "?", _opposing(r, partner))

@@ -282,17 +282,35 @@ def settings(project: str, study: str | None = None, *, project_block: Any = ...
     given = _merge(pb or {}, sb)
     track: str = str(given["track"]) if given.get("track") in TRACKS else _default_track(pr.kind)
     ss = score_set if score_set is not None else S.resolve(project, study)
-    sort_options = list(given.get("sort_options") or _default_sort_options(track, ss))
-    default_sort = given.get("default_sort") or (sort_options[0] if sort_options else "utility")
-    columns = list(given.get("columns") or [*sort_options, "games", "participants"])
-    rules = {**RULE_DEFAULTS, **(dict(given["rules"]) if isinstance(given.get("rules"), dict) else {})}
+    so = given.get("sort_options")
+    sort_options = [x for x in so if isinstance(x, str)] if isinstance(so, list) else []
+    sort_options = sort_options or _default_sort_options(track, ss)
+    ds = given.get("default_sort")
+    default_sort = ds if isinstance(ds, str) and ds else (sort_options[0] if sort_options else "utility")
+    co = given.get("columns")
+    columns = [x for x in co if isinstance(x, str)] if isinstance(co, list) else []
+    columns = columns or [*sort_options, "games", "participants"]
+    problems = check_block(given, "leaderboard", track)
+    # a hand-edited file is still served: what cannot be used falls back to the default
+    rules = dict(RULE_DEFAULTS)
+    for k, v in (given.get("rules") if isinstance(given.get("rules"), dict) else {}).items():
+        if k in RULE_DEFAULTS and not check_block({"rules": {k: v}}, "leaderboard", track):
+            rules[k] = v
     defaults = {"games": "all", "stratum": STRATA[track][0], "window": WINDOW_ALL}
     if isinstance(given.get("defaults"), dict):
-        defaults.update({k: v for k, v in given["defaults"].items() if k in SWITCHES})
-    uo = {k: list(v) for k, v in (given.get("user_options") or {}).items() if k in SWITCHES and isinstance(v, list)}
-    studies = list(given.get("studies") or projects.list_studies(project))
-    include = [dict(e) for e in (given.get("include") or []) if isinstance(e, dict)]
-    problems = check_block(given, "leaderboard", track)
+        defaults.update({k: v for k, v in given["defaults"].items() if k in SWITCHES and _switch_ok(k, v, track)})
+    uo = {}
+    for k, v in (given.get("user_options") if isinstance(given.get("user_options"), dict) else {}).items():
+        if k in SWITCHES and isinstance(v, list):
+            vals = list(dict.fromkeys(x for x in v if _switch_ok(k, x, track)))
+            if vals:
+                uo[k] = vals
+    studies = [x for x in given["studies"] if isinstance(x, str) and projects.valid_name(x)] \
+        if isinstance(given.get("studies"), list) and given["studies"] else projects.list_studies(project)
+    include = [dict(e) for e in (given.get("include") if isinstance(given.get("include"), list) else [])
+               if isinstance(e, dict) and isinstance(e.get("study"), str)]
+    if not isinstance(given.get("studies"), (list, type(None))):
+        studies = projects.list_studies(project)
     return Settings(project=project, study=study, track=track, source=str(given.get("source") or "game"),
                     studies=studies, include=include, sort_options=sort_options, default_sort=default_sort,
                     columns=columns, user_options=uo, defaults=defaults,
@@ -418,8 +436,10 @@ def options(cfg: Settings, ss: Any, crit: dict[str, Any], *, admin: bool = False
     defaults. End users get ``sort_options`` and ``user_options``; a switch that is not listed is not
     offered. Admins get the sort options (every enabled score and criterion is accepted too) and every
     value."""
-    sort = [_option(k, ss, crit) for k in cfg.sort_options if _key_problem(k, ss, crit, sort=True) is None]
-    out: dict[str, Any] = {"sort": sort}
+    keys = [k for k in cfg.sort_options if _key_problem(k, ss, crit, sort=True) is None]
+    if admin:  # every enabled score too (any criterion with a direction is accepted as well)
+        keys = list(dict.fromkeys([*keys, *ss.enabled]))
+    out: dict[str, Any] = {"sort": [_option(k, ss, crit) for k in keys]}
     for sw in SWITCHES:
         if admin:
             out[sw] = list(GAMES) if sw == "games" else (list(STRATA[cfg.track]) if sw == "stratum"
@@ -427,8 +447,16 @@ def options(cfg: Settings, ss: Any, crit: dict[str, Any], *, admin: bool = False
                                                                                   "last_30_days", *cfg.user_options.get(sw, [])])))
         elif sw in cfg.user_options:
             out[sw] = list(cfg.user_options[sw])
-    out["defaults"] = {"sort": cfg.default_sort, **cfg.defaults}
+    out["defaults"] = {"sort": default_sort(cfg, ss, crit) or cfg.default_sort, **cfg.defaults}
     return out
+
+
+def default_sort(cfg: Settings, ss: Any, crit: dict[str, Any]) -> str | None:
+    """The sort key of a request that names none: ``default_sort``, else the first usable sort option."""
+    usable = [k for k in cfg.sort_options if _key_problem(k, ss, crit, sort=True) is None]
+    if _key_problem(cfg.default_sort, ss, crit, sort=True) is None:
+        return cfg.default_sort
+    return usable[0] if usable else None
 
 
 def parse_query(cfg: Settings, ss: Any, crit: dict[str, Any], query: dict | None, *, admin: bool = False) -> dict[str, str]:
@@ -438,15 +466,23 @@ def parse_query(cfg: Settings, ss: Any, crit: dict[str, Any], query: dict | None
     if unknown:
         raise BoardError(f"unknown parameter(s) {', '.join(unknown)}; use sort, {', '.join(SWITCHES)}")
     out: dict[str, str] = {}
-    sort = str(q.get("sort") or cfg.default_sort)
     allowed = [k for k in cfg.sort_options if _key_problem(k, ss, crit, sort=True) is None]
     if admin:
         allowed = list(dict.fromkeys([*allowed, *admin_sort_keys(ss, crit)]))
+    if q.get("sort") is None:  # the default: when the file names one that cannot be used, the first that can
+        sort = default_sort(cfg, ss, crit)
+        if sort is None:
+            raise BoardError("this board has no sort key that can be used (see its warnings)")
+    else:
+        sort = str(q["sort"])
     if sort not in allowed:
         raise BoardError(f"sort {sort!r} is not allowed here; use one of {', '.join(allowed) or '(none)'}")
     out["sort"] = sort
     for sw in SWITCHES:
-        v = str(q.get(sw) or cfg.defaults[sw])
+        if sw not in q:  # the default always applies (an unusable one was replaced when the block was read)
+            out[sw] = cfg.defaults[sw]
+            continue
+        v = str(q[sw])
         if admin:
             ok = _switch_ok(sw, v, cfg.track)
             values = _switch_values(sw, cfg.track)
@@ -642,13 +678,11 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
             else:
                 warnings.append(f"study {s!r} of leaderboard.studies does not exist (yet)")
     rows: list[dict] = []
-    fingerprint: list[Any] = []
     stale = 0
     for r in refs:
         rs, info = study_rows(r)
         rows += rs
         stale += info.get("failed", 0)
-        fingerprint.append([str(r), info])
     if not study:
         for inc in cfg.include:
             try:
@@ -662,7 +696,6 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
             for x in rs:
                 x["_only_stratum"] = inc.get("stratum") or None
             rows += rs
-            fingerprint.append([str(r), inc.get("stratum"), info])
     if stale:
         warnings.append(f"{stale} recording(s) could not be evaluated and are left out")
     value_keys = [k for k in dict.fromkeys([q["sort"], *cfg.columns]) if k not in COUNT_COLUMNS
@@ -670,16 +703,22 @@ def board(project: str, study: str | None = None, query: dict | None = None, *, 
     dropped_cols = [k for k in cfg.columns if k not in COUNT_COLUMNS and k not in value_keys]
     if dropped_cols:
         warnings.append(f"column(s) {', '.join(dropped_cols)} are not enabled here and are not shown")
+    if _key_problem(cfg.default_sort, ss, crit, sort=True) is not None:
+        warnings.append(f"default_sort {cfg.default_sort!r} cannot be used here; the board uses {q['sort']!r}")
     if cfg.source == "tournament":
         return _tournament(cfg, q, refs, ss, crit, admin, now, warnings)
     out = _game_board(cfg, q, rows, ss, crit, value_keys, project, study, now, n_boot, seed, warnings)
     out["options"] = options(cfg, ss, crit, admin=admin)
-    ref = out.pop("_reference")
-    out["data_version"] = "sha1:" + hashlib.sha1(json.dumps(
-        [SCHEMA, fingerprint, cfg.to_dict(), {k: ss.defined.get(k) for k in value_keys}, ss.enabled,
-         (ref or {}).get("frozen_at"), q, now.date().isoformat() if q["window"] != WINDOW_ALL else None],
-        sort_keys=True, default=str).encode()).hexdigest()
+    out.pop("_reference")
+    out["data_version"] = data_version(out)
     return _order(out)
+
+
+def data_version(out: dict) -> str:
+    """A hash of everything a board shows except when it was made: the same data give the same version,
+    and any change of a value, an entrant, an option or a note gives another."""
+    body = {k: v for k, v in out.items() if k not in ("generated_at", "data_version")}
+    return "sha1:" + hashlib.sha1(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()
 
 
 _TOP = ("schema", "project", "study", "track", "source", "generated_at", "data_version", "query", "options", "columns",
@@ -930,7 +969,7 @@ def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: 
            "warnings": warnings + ["the simulated table: the sort and switches do not apply to it"],
            "notes": ["simulated participants against each Assistant; goal rate = deals worth at least the persona's "
                      "reservation value"], "visibility": cfg.visibility}
-    out["data_version"] = "sha1:" + hashlib.sha1(json.dumps(entries, sort_keys=True, default=str).encode()).hexdigest()
+    out["data_version"] = data_version(out)
     return _order(out)
 
 

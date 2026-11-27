@@ -68,8 +68,8 @@ def recordings(ref: Any) -> dict[str, Path]:
     out: dict[str, Path] = {}
     if not root.is_dir():
         return out
-    for f in sorted(root.glob("*/recordings/*")):
-        if not f.is_file() or not is_recording(f):
+    for f in sorted(root.rglob("*")):
+        if not f.is_file() or not is_recording(f) or CACHE_DIR in f.relative_to(root).parts:
             continue
         rid = recording_id(f)
         if rid not in out or f.name.endswith(SUFFIX):
@@ -88,7 +88,9 @@ def read_entry(ref: Any, rec_id: str) -> dict | None:
         data = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
     except (OSError, ValueError):
         return None
-    return data if isinstance(data, dict) and data.get("version") == VERSION and isinstance(data.get("row"), dict) else None
+    ok = isinstance(data, dict) and data.get("version") == VERSION and (
+        isinstance(data.get("row"), dict) or data.get("unfinished") is True)
+    return data if ok else None
 
 
 def _write_entry(ref: Any, rec_id: str, entry: dict) -> None:
@@ -126,8 +128,9 @@ def evaluate_file(ref: Any, path: Path, *, previous: dict | None = None) -> dict
 
     size = path.stat().st_size
     rec = Recording.load(path)
-    if rec.result is None:
-        return None
+    if rec.result is None:  # not a finished game (yet): remembered, so it is not read again until it grows
+        return {"version": VERSION, "id": rec.id, "file": path.name, "size": size, "unfinished": True,
+                "row": None, "updated": _now()}
     with projects.use_study(_ref(ref)):
         ev = evaluate_recording(rec, use_llm=False, key=rec.id)
     root = results_dir(ref)
@@ -147,12 +150,11 @@ def update(ref: Any, path: Path) -> dict | None:
     rid = recording_id(path)
     with _LOCK:
         prev = read_entry(ref, rid)
-        if _fresh(prev, path):
-            return prev
-        entry = evaluate_file(ref, path, previous=prev)
-        if entry is not None:
-            _write_entry(ref, rid, entry)
-        return entry
+        if not _fresh(prev, path):
+            prev = evaluate_file(ref, path, previous=prev)
+            if prev is not None:
+                _write_entry(ref, rid, prev)
+        return None if prev is None or prev.get("unfinished") else prev
 
 
 def rows(ref: Any, *, fill: bool = True) -> tuple[list[dict], dict[str, Any]]:
@@ -175,11 +177,17 @@ def rows(ref: Any, *, fill: bool = True) -> tuple[list[dict], dict[str, Any]]:
                         if entry is not None:
                             _write_entry(ref, rid, entry)
                             info["computed"] += 1
-                except Exception:  # noqa: BLE001 — one broken recording must not break a board
+                except Exception as e:  # noqa: BLE001 — one broken recording must not break a board
                     traceback.print_exc()
                     info["failed"] += 1
+                    try:  # remembered (until the file changes), so it is not read on every board
+                        _write_entry(ref, rid, {"version": VERSION, "id": rid, "file": path.name,
+                                                "size": path.stat().st_size, "unfinished": True, "row": None,
+                                                "error": f"{type(e).__name__}: {e}"[:500], "updated": _now()})
+                    except OSError:
+                        pass
                     continue
-        if entry is None:
+        if entry is None or entry.get("unfinished"):
             continue
         info["games"] += 1
         judged = entry.get("judged") or {}
@@ -200,7 +208,7 @@ def refresh(ref: Any) -> dict[str, int]:
                 entry = evaluate_file(ref, path, previous=prev)
                 if entry is not None:
                     _write_entry(ref, rid, entry)
-                    n["games"] += 1
+                    n["games"] += 0 if entry.get("unfinished") else 1
         except Exception:  # noqa: BLE001
             traceback.print_exc()
             n["failed"] += 1
@@ -234,9 +242,7 @@ def judge(ref: Any, *, judge: str | None = None, limit: int | None = None, again
     for rid, path in recordings(ref).items():
         if limit is not None and n["judged"] >= limit:
             break
-        entry = read_entry(ref, rid)
-        if not _fresh(entry, path):
-            entry = update(ref, path)
+        entry = update(ref, path)
         if entry is None or (entry.get("judged") and not again):
             n["skipped"] += 1
             continue
