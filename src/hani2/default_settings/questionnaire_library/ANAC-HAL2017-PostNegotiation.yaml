@@ -1,6 +1,6 @@
 id: ANAC-HAL2017-PostNegotiation
 title: ANAC-HAL2017-PostNegotiation
-description: "The likeability questions of the first Human-Agent League of ANAC (2017, IAGO): three 7-point Likert questions answered after the negotiation; they decided the Agent Likeability prize (Cronbach's alpha 0.880). The paper gives no anchor labels, so none are shown, and does not say whether answers were required. Its demographic questions and the call's attention checks are not itemized in the sources, so they are not included; the call for participation listed other example questions that the results paper does not report."
+description: "The likeability questions of the first Human-Agent League of ANAC (2017, IAGO): three 7-point Likert questions answered after the negotiation; they decided the Agent Likeability prize (Cronbach's alpha 0.880). The paper gives no anchor labels, so none are shown, and does not say whether answers were required or how the three were combined; HANI2 scores them as one scale, hal_likeability (their mean). Its demographic questions and the call's attention checks are not itemized in the sources, so they are not included; the call for participation listed other example questions that the results paper does not report."
 reference: "Mell, Gratch, Baarslag, Aydoğan & Jonker (2018). Results of the first annual human-agent league of the automated negotiating agents competition. IVA '18, 23–28. https://doi.org/10.1145/3267851.3267907"
 forms: [per_negotiation]
 questions:

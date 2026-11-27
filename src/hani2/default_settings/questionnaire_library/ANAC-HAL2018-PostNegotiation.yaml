@@ -1,6 +1,6 @@
 id: ANAC-HAL2018-PostNegotiation
 title: ANAC-HAL2018-PostNegotiation
-description: "The likeability questions of the second Human-Agent League of ANAC (2018, IAGO): the 2017 questions, three 7-point Likert questions answered after each of the three negotiations; an agent's likeability was summed over the three. The paper gives no anchor labels, so none are shown, and does not say whether answers were required. Its demographic questions and the questions asked at the beginning and the end are not itemized in the sources, so they are not included."
+description: "The likeability questions of the second Human-Agent League of ANAC (2018, IAGO): the 2017 questions, three 7-point Likert questions answered after each of the three negotiations; an agent's likeability was summed over the three. The paper gives no anchor labels, so none are shown, and does not say whether answers were required or how the three were combined; HANI2 scores them as one scale, hal_likeability (their mean). Its demographic questions and the questions asked at the beginning and the end are not itemized in the sources, so they are not included."
 reference: "Mell, Gratch, Aydoğan, Baarslag & Jonker (2019). The likeability-success tradeoff: results of the 2nd annual human-agent automated negotiating agents competition. ACII 2019. https://doi.org/10.1109/ACII.2019.8925437"
 forms: [per_negotiation]
 questions:

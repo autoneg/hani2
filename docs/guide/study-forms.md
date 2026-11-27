@@ -141,7 +141,7 @@ HANI2 comes with complete question sets for questionnaires commonly used in huma
 | `HAN2026-PostNegotiation` | 10 | after each negotiation | HAN 2026, as asked: the opponent's strategy, intelligence and skill, would employ it, engagement, its messages, time limit, its offers, satisfaction, comment |
 | `HAN2026-PostSession` | 8 | post-session | HAN 2026, as asked: ease of use, engagement, usefulness of each interface tool, comments |
 | `HAN2025-PreStudy` | 19 | pre-questionnaire | HAN 2025, as asked once before any negotiation: background, expertise, expectations about the system and AI negotiators |
-| `HAN2025-PostSession` | 13 | post-session | HAN 2025, as asked after every session: enjoyment, ease, the opponent, support, expectations |
+| `HAN2025-PostSession` | 13 | post-session | HAN 2025, as asked after a negotiation session: enjoyment, ease, the opponent, support, expectations |
 | `HAN2025-PostStudy` | 17 | post-session | HAN 2025, as asked after the whole competition: the post-session questions, understanding of the scenario, comments, strategy |
 | `ANAC-HAL2018-PostNegotiation` | 3 | after each negotiation | ANAC 2018 Human-Agent League, as reported: likeability of the agent (7-point) |
 | `ANAC-HAL2017-PostNegotiation` | 3 | after each negotiation | ANAC 2017 Human-Agent League, as reported: likeability of the agent (7-point) |

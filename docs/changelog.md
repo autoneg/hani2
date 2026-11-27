@@ -23,6 +23,13 @@
   Raw YAML stays available. `hani2 questionnaire check --set` checks set files with the app's rules. See
   [Your own sets](guide/study-forms.md#your-own-sets) and
   [Editing the items of a form](guide/study-forms.md#editing-the-items-of-a-form).
+- **Questionnaires of negotiation competitions.** Eight predefined questionnaires repeat what human-agent
+  negotiation competitions asked their participants, as asked: `HAN2026-PreSession`,
+  `HAN2026-PostNegotiation` and `HAN2026-PostSession` (the HAN 2026 forms), `HAN2025-PreStudy`,
+  `HAN2025-PostSession` and `HAN2025-PostStudy` (the HAN 2025 forms), and `ANAC-HAL2017-PostNegotiation`
+  and `ANAC-HAL2018-PostNegotiation` (the likeability questions of the ANAC Human-Agent League). Add them on
+  the Study forms page or with `hani2 questionnaire compose`; [Questionnaires](guide/questionnaires.md)
+  lists them in their own section.
 - **Value on disagreement under *In short*.** The participant's Preferences tool now shows the
   sentence "If you do not reach agreement you get 10% (your best option gives you 100%)." right under
   the *In short* card, where it stays in sight also when the card is folded, instead of below the

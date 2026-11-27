@@ -335,7 +335,7 @@ Id `HAN2025-PreStudy` · 19 questions · for: `pre_questionnaire`
 
 **Source:** [Human-Agent Negotiation League Pre-study Questionnaire (HAN 2025).](https://forms.gle/c4tNxYof1Gm7ezmC7)
 
-**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+**Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
 Scales: none (single items).
 
@@ -365,11 +365,11 @@ Scales: none (single items).
 
 Id `HAN2025-PostSession` · 13 questions · for: `post_session`
 
-**Measures:** HAN 2025, after every session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and predictability, support and expectations about AI negotiators.
+**Measures:** HAN 2025, after a negotiation session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and predictability, support and expectations about AI negotiators.
 
 **Source:** [Human-Agent Negotiation League Post-session Questionnaire (HAN 2025).](https://forms.gle/qT8VtQYrV5RuodML6)
 
-**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+**Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
 Scales: none (single items).
 
@@ -397,7 +397,7 @@ Id `HAN2025-PostStudy` · 17 questions · for: `post_session`
 
 **Source:** [Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).](https://forms.gle/HEmb2CpruFD8aUvt8)
 
-**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+**Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
 Scales: none (single items).
 
@@ -429,7 +429,7 @@ Id `ANAC-HAL2018-PostNegotiation` · 3 questions · for: `per_negotiation`
 
 **Source:** [Mell, Gratch, Aydoğan, Baarslag & Jonker (2019). The likeability-success tradeoff: results of the 2nd annual human-agent automated negotiating agents competition. ACII 2019.](https://doi.org/10.1109/ACII.2019.8925437)
 
-**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).
+**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels and no rule for combining the items. HANI2 scores them as the mean of the three (hal_likeability), its own choice.
 
 Scales: `hal_likeability` (3 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -447,7 +447,7 @@ Id `ANAC-HAL2017-PostNegotiation` · 3 questions · for: `per_negotiation`
 
 **Source:** [Mell, Gratch, Baarslag, Aydoğan & Jonker (2018). Results of the first annual human-agent league of the automated negotiating agents competition. IVA '18, 23–28.](https://doi.org/10.1145/3267851.3267907)
 
-**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).
+**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels and no rule for combining the items. HANI2 scores them as the mean of the three (hal_likeability), its own choice.
 
 Scales: `hal_likeability` (3 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
