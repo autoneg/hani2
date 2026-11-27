@@ -283,6 +283,9 @@ def pool_put(kind: str, layer: Layer, items: list[str]) -> dict:
         data = guard(read_json_own, f)
     else:
         data = guard(_read_yaml_strict, f)
+        inner = data.get(path[0]) if isinstance(data.get(path[0]), dict) else {}
+        if path[-1] in data and path[-1] not in inner:
+            path = [path[-1]]  # the file has the key at the top level: change it there, not twice
     cur = data
     for p in path[:-1]:
         if not isinstance(cur.get(p), dict):
@@ -299,6 +302,18 @@ def pool_put(kind: str, layer: Layer, items: list[str]) -> dict:
             cur.pop(path[-1], None)
             if len(path) > 1 and not cur:
                 data.pop(path[0], None)
+    if f.suffix != ".json":
+        # project.yaml / study.yaml: the save checks (the mode, K <= N, a project's studies); only what
+        # this pool edit adds is refused, so a problem already in the file does not block it
+        def problems(d: dict) -> list[str]:
+            if layer.kind == "project":
+                return projects.save_problems(d, "defaults", project=layer.project)
+            return projects.save_problems(d, "overrides", ref=layer.ref)
+
+        before = set(problems(guard(_read_yaml_strict, f)))
+        new = [p for p in problems(data) if p not in before]
+        if new:
+            raise HTTPException(400, "; ".join(new))
     if f.suffix == ".json":
         write_json_own(f, data)
     else:

@@ -225,3 +225,42 @@ def test_the_get_payloads_carry_the_effective_pools_and_the_mode(study, client):
     assert eff["n_required"] == {"value": 2, "source": "study.yaml"}
     assert eff["assistant_method"] == "latin_square" and eff["assistant_repeats"] is True
     assert eff["repeat_problems"] == [] and eff["process_overrides"] == {}
+
+
+def test_the_editor_pools_block_has_the_shape_the_editor_reads(study, client):
+    _write_json(projects.project_dir("HI"), "env.json", {"opponents": [":pan"]})
+    projects.create_project("HI", kind="assistant", assistants=[HELLO, RULES])
+    ed = client.get("/api/admin/projects/HI/studies/s1").json()["editor"]
+    assert ed["inherited"]["assistants"] == [HELLO, RULES]
+    assert ed["pools"] == {"opponents": {"effective": [":pan"], "source": "env", "env": [":pan"]},
+                           "assistants": {"effective": [HELLO, RULES], "source": "project"},
+                           "derived_mode": "solo"}
+
+
+def test_the_refusals_name_where_a_pool_from_outside_the_files_comes_from(study):
+    _write_json(projects.project_dir("HI"), "env.json", {"opponents": ["human"]})
+    with pytest.raises(ValueError, match=r"\(the opponents come from project env.json\)"):
+        projects.create_study(study, study_mode="solo")
+    with pytest.raises(ValueError, match=r"\(the Assistants come from built-in\)"):
+        projects.create_study(study, n_required=2, scheduling={"assistants": "cyclic"})
+
+
+def test_the_pool_editor_refuses_a_project_pool_that_breaks_a_study(study, client):
+    projects.create_study(study, study_mode="paired")
+    r = client.put("/api/admin/pools/opponent?layer=project:HI", json={"items": ["BoulwareTBNegotiator"]})
+    assert r.status_code == 400 and "study HI/s1: study_mode is 'paired'" in r.json()["detail"]
+    assert "opponents" not in projects.load_project("HI").defaults
+    projects.create_project("HI", kind="assistant", assistants=[HELLO, RULES])
+    projects.create_study("HI/s2", n_required=2, scheduling={"assistants": "latin_square"})
+    r = client.put("/api/admin/pools/assistant?layer=project:HI", json={"items": [HELLO]})
+    assert r.status_code == 400 and "study HI/s2: " in r.json()["detail"]
+    r = client.put("/api/admin/pools/assistant?layer=project:HI", json={"items": [HELLO, RULES, COACH]})
+    assert r.status_code == 200, r.text
+
+
+def test_the_process_opponents_warn_in_study_show(study, monkeypatch, run):
+    projects.create_study(study, study_mode="paired")
+    monkeypatch.setenv("HANI2_OPPONENTS", "BoulwareTBNegotiator")
+    out = _flat(run("study", "show", str(study)).output)
+    assert "WARNING: study_mode is 'paired' but opponents is [BoulwareTBNegotiator]" in out
+    assert "hani2 --opponents" in out

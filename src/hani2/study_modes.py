@@ -430,6 +430,8 @@ class Pools:
     scheduling: dict[str, Any] = field(default_factory=dict)
     mode: ModeInfo = field(default_factory=ModeInfo)
     errors: list[str] = field(default_factory=list)
+    #: the pool env.json gives under the files (whether or not it is used)
+    env_opponents: list[str] = field(default_factory=list)
 
     @property
     def assistant_method(self) -> str:
@@ -454,7 +456,24 @@ class Pools:
             opts = self.options()
         except ValueError:
             return []  # reported by check_scheduling
-        return scheduling.repeat_problems(self.assistant_method, self.n_required, self.assistants, opts)
+        out = scheduling.repeat_problems(self.assistant_method, self.n_required, self.assistants, opts)
+        if self.assistants_source not in ("study.yaml", "project.yaml"):
+            out = [f"{p} (the Assistants come from {self.assistants_source})" for p in out]
+        return out
+
+    def editor_pools(self, env_pool: list[str]) -> dict[str, Any]:
+        """The editor's ``pools`` block: the pools in effect as saved, their source (``study``,
+        ``project``, ``study_mode``, ``env``: an env.json layer, ``settings``: assistant_settings.json,
+        ``default``: built in), the env.json pool under the files (``env``: what an unsaved layer with
+        no pool falls back to) and the mode the pool implies."""
+        def short(src: str) -> str:
+            return {"study.yaml": "study", "project.yaml": "project", "built-in": "default"}.get(
+                src, "env" if src.endswith("env.json") else "settings" if "assistant_settings" in src else src)
+
+        return {"opponents": {"effective": list(self.opponents), "source": short(self.opponents_source),
+                              "env": list(env_pool)},
+                "assistants": {"effective": list(self.assistant_entries), "source": short(self.assistants_source)},
+                "derived_mode": self.mode.derived}
 
     def to_dict(self) -> dict[str, Any]:
         from hani2 import scheduling
@@ -535,6 +554,7 @@ def effective_pools(project: Any, overrides: dict | None = None, ref: Any = None
     out = Pools()
     with _layer(r, None if r is not None else pname):
         env_pool, env_source = _env_opponents(dirs)
+        out.env_opponents = list(env_pool)
         info = check_settings(merged, project.kind, explicit_fallback=_explicit_fallback([d for d in dirs if d]),
                               where=where, env_opponents=env_pool)
         out.mode = info
@@ -548,6 +568,9 @@ def effective_pools(project: Any, overrides: dict | None = None, ref: Any = None
             out.opponents, out.opponents_source = list(info.filled["opponents"]), "study_mode"
         elif env_pool:
             out.opponents, out.opponents_source = env_pool, env_source
+            # say where a pool no file names comes from, so the fix goes to the right file
+            info.errors = [f"{e} (the opponents come from {env_source})"
+                           if "study_mode" in e or "opponents:" in e else e for e in info.errors]
         else:
             from hani2.agents import DEFAULT_POOL
 

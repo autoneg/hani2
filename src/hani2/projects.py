@@ -338,6 +338,15 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
     of ``:han<year>-<set>`` entries (see :mod:`hani2.study_modes`), and ``n_required`` against
     the Assistants for a method that uses each at most once (:func:`hani2.scheduling.save_problems`).
     A project.yaml is also checked against the project's studies: see :func:`project_change_problems`."""
+    problems = save_problems(data, nested, ref=ref, project=project)
+    if problems:
+        raise ValueError("; ".join(problems))
+    return data
+
+
+def save_problems(data: dict, nested: str, *, ref: "StudyRef | str | None" = None,
+                  project: str | None = None) -> list[str]:
+    """What :func:`check_file_data` refuses in ``data``, as a list."""
     problems = file_problems(data, nested)
     if ref is not None or project is not None:
         from hani2 import scheduling, study_modes
@@ -349,9 +358,7 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
                                        *boards.save_problems(data, nested, ref=ref, project=project)]))
         if nested == "defaults" and project is not None and not problems:
             problems = project_change_problems(project, data)
-    if problems:
-        raise ValueError("; ".join(problems))
-    return data
+    return problems
 
 
 def project_change_problems(name: str, data: dict) -> list[str]:
