@@ -674,9 +674,19 @@ def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     # options ("From best to worst: ...") get none
     dds = p.locator("[data-region=tools] dd").filter(has_text=re.compile(r"^(The (higher|lower|more|fewer)|Best at)"))
     assert p.locator("[data-region=tools] [data-mark]").count() == dds.count()
+    # the value on disagreement comes right under the card, before the charts
+    rv = p.locator("[data-region=tools]").get_by_text(re.compile(r"^If you do not reach agreement you get"))
+    expect(rv).to_have_count(1)
+    expect(rv).to_be_visible()
+    weights = p.locator("[data-region=tools]").get_by_text("What you want on each issue")
+    assert rv.bounding_box()["y"] > weights.bounding_box()["y"]
     summary.click()
     expect(summary).to_have_attribute("aria-expanded", "false")
     expect(p.get_by_text("What you want on each issue")).to_have_count(0)
+    expect(rv).to_be_visible()  # still in sight with the card folded
+    plot = p.locator("[data-region=tools] .js-plotly-plot").first
+    expect(plot).to_be_visible()
+    assert rv.bounding_box()["y"] < plot.bounding_box()["y"]
     issue = p.locator("[data-region=tools] select").first
     options = issue.locator("option").all_inner_texts()
     issue.select_option(options[-1])

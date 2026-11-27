@@ -170,3 +170,58 @@ def test_forced_reserved_value_is_a_project_and_study_setting(hani2_home):
     s = make_session(study="G/b")
     assert "forced_reserved_value" not in s.ss["scenario_info"]
 
+
+
+# --------------------------------------------------------------------------- #
+# The value on disagreement right under In short                               #
+# --------------------------------------------------------------------------- #
+LEAD = "If you do not reach agreement you get"
+
+
+def _sentences(comps, needle):
+    return [c["text"] for c in _walk(comps) if c.get("type") == "alert" and needle in str(c.get("text", ""))]
+
+
+def test_value_on_disagreement_is_right_under_in_short():
+    view = _prefs(make_session())
+    assert view[0]["title"] == "In short"
+    under = view[1]
+    assert under["type"] == "alert" and under["text"].startswith(LEAD) and "(your best option gives you 100%)" in under["text"]
+    assert under.get("id") == "preferences-reserved"
+    assert len(_sentences(view, LEAD)) == 1  # not repeated below the charts
+    assert not _sentences(view[0].get("children"), LEAD)  # outside the card: seen also when it is folded
+
+
+def test_value_on_disagreement_under_in_short_in_raw_numbers(hani2_home):
+    from hani2.config import settings_dir
+
+    _write(settings_dir() / "env.json", {"tools": {"preferences_scale": "raw"}})
+    view = _prefs(make_session())
+    assert view[0]["title"] == "In short" and view[1]["text"].startswith(LEAD)
+    assert "%" not in view[1]["text"] and len(_sentences(view, LEAD)) == 1
+
+
+def test_value_on_disagreement_hidden_is_said_under_in_short():
+    s = make_session(load=False)
+    s.admin_prefs["information"] = {"preferences": {"reserved_value": "assistant"}}
+    s.load("Trade")
+    view = _prefs(s)
+    assert view[0]["title"] == "In short"
+    assert view[1]["text"].startswith("You do not know what you get if no agreement is reached")
+    assert not _sentences(view, LEAD)
+
+
+def test_reserved_out_takes_the_sentence_of_any_view():
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+    from negmas.preferences import MappingUtilityFunction
+
+    class _Tool:
+        values: dict = {}
+
+    os_ = make_os([make_issue([1, 2, 3], "A")])
+    u = MappingUtilityFunction({(1,): 0.0, (2,): 0.5, (3,): 1.0}, outcome_space=os_, reserved_value=0.25)
+    out: list = []
+    comps = uv.render_ufun_view(_Tool(), u, reserved_out=out)
+    assert len(out) == 1 and out[0]["text"].startswith(LEAD) and not _sentences(comps, LEAD)
+    assert len(_sentences(uv.render_ufun_view(_Tool(), u), LEAD)) == 1  # without it: in the view, as before
