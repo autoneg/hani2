@@ -1,1 +1,0 @@
-import{c as e}from"./index-BPeWN3m0.js";const a={name:"rotate-cw-square",size:24,node:[["path",{d:"M12 5H6a2 2 0 0 0-2 2v3",key:"l96uqu"}],["path",{d:"m9 8 3-3-3-3",key:"1gzgc3"}],["path",{d:"M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2",key:"1w2k5h"}]]};a.node;const o=e(a);export{a as __iconData,o as default};

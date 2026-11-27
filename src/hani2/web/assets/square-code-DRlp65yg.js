@@ -1,0 +1,1 @@
+import{c as o}from"./index-DnOFi0UQ.js";const e={name:"square-code",size:24,node:[["path",{d:"m10 9-3 3 3 3",key:"1oro0q"}],["path",{d:"m14 15 3-3-3-3",key:"bz13h7"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["code-square"]};e.node;const t=o(e);export{e as __iconData,t as default};
