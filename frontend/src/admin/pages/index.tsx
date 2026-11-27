@@ -1,4 +1,4 @@
-import { Activity, Bot, ClipboardList, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
+import { Activity, Award, Bot, ClipboardList, MonitorCog, ListOrdered, Plug, ChartColumn, Clapperboard, FileText, FolderKanban, Handshake, Map as MapIcon, Plane, Settings, Sparkles, Swords, Trophy, UsersRound, Wrench, BotMessageSquare } from "lucide-react";
 import type { PageDef } from "../types";
 import { entriesOf } from "../schema";
 import { Analytics, Overview, Results } from "./Activity";
@@ -7,6 +7,7 @@ import { ASSISTANT_GROUPS, AUTOPILOT, AssistantSettings, CHOICES, Autopilot, GEN
 import { Texts, TEXT_KINDS } from "./Texts";
 import { StudyForms, FORMS } from "./StudyForms";
 import { PROJECT_ENTRIES, Projects } from "./Projects";
+import { LEADERBOARD_ENTRIES, Leaderboards } from "./Leaderboards";
 import { CONNECTION_ENTRIES, Connections } from "./Connections";
 import { MODEL_ENTRIES, Models } from "./Models";
 import { Explorer } from "../explorer/Explorer";
@@ -26,6 +27,7 @@ export const PAGES: PageDef[] = [
   { id: "overview", title: "Live sessions", icon: Activity, color: "bg-good", group: "Activity", subtitle: "Everyone with a session on this server right now.", entries: [{ id: "stats", label: "Session counts", hint: "Open sessions, negotiating now, recorded sessions, events" }, { id: "sessions", label: "Sessions table" }] },
   { id: "results", title: "Results", icon: Trophy, color: "bg-warn", group: "Activity", entries: [{ id: "results-download", label: "Download results CSV" }, { id: "leaderboard", label: "Leaderboard" }, { id: "leaderboard-by-type", label: "Leaderboard by participant type" }, { id: "simulated", label: "Qualifying round (simulated)" }, { id: "results-table", label: "Results table", hint: "Choose columns" }] },
   { id: "analytics", title: "Event analytics", icon: ChartColumn, color: "bg-opponent", group: "Activity", entries: [{ id: "events-export", label: "Export events CSV" }, { id: "events-filter", label: "Filter events", hint: "User, type, dates" }] },
+  { id: "leaderboards", title: "Leaderboards", icon: Award, color: "bg-warn", group: "Activity", subtitle: "Any project or study board, as admins see it: every score and criterion, the strata, the weights in effect and the games left out.", entries: LEADERBOARD_ENTRIES, aliases: ["boards"] },
   { id: "replay", title: "Replay", icon: Clapperboard, color: "bg-muted", group: "Activity", href: "/replay", Component: () => null },
 
   { id: "projects", title: "Projects & Studies", icon: FolderKanban, color: "bg-you", group: "Studies", subtitle: "Projects, their studies, participant links and assignments.", entries: PROJECT_ENTRIES, aliases: ["studies"] },
@@ -56,6 +58,7 @@ set("overview", Overview);
 set("results", Results);
 set("analytics", Analytics);
 set("projects", Projects);
+set("leaderboards", Leaderboards);
 set("texts", Texts);
 set("forms", StudyForms);
 set("scenarios", () => <Explorer adapter={scenariosAdapter} />);

@@ -4,6 +4,7 @@ import { ReplayPage } from "./replay/ReplayPage";
 import { ReplayFrame } from "./replay/Frame";
 import { AdminPage } from "./pages/AdminPage";
 import { ConsentPage, LoginPage, RegisterPage } from "./pages/AuthPages";
+import { LeaderboardIndex, LeaderboardPage, boardOfPath } from "./pages/Leaderboard";
 import { navigate, usePath, withBase } from "./router";
 import { Toasts } from "./ui/Toasts";
 import { useTheme } from "./negotiate/Header";
@@ -19,6 +20,9 @@ function Route({ path }: { path: string }) {
   if (p === "/replay/frame") return <ReplayFrame />;
   if (p === "/play" || p === "/hanplay" || p === "/guest") return <NegotiatePage key="guest" mode="guest" />;
   if (p === "/app") return <NegotiatePage key="main" mode="main" />;
+  const board = boardOfPath(p);
+  if (board) return <LeaderboardPage key={`${board.project}/${board.study ?? ""}`} project={board.project} study={board.study} />;
+  if (p === "/leaderboard") return <LeaderboardIndex />;
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-2 text-center">
       <div className="text-lg font-semibold">There is nothing at {p}</div>

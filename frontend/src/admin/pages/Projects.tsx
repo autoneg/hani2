@@ -19,6 +19,7 @@ import { toast } from "../toast";
 import { useScheduling as useSchedulingMethods } from "../help";
 import { HAN_SETS, MODE_LABEL, crossingActive, derive, hanEntry, hanToken, hanYearLabel, hanYears, items, kOfN, modeProblems } from "../modes";
 import { ScoresGroup } from "../ScoreBuilder";
+import { LeaderboardSettings } from "../LeaderboardSettings";
 
 const PROJECT_FIELDS = ["name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact"];
 const STUDY_FIELDS = ["name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id", "completion_code", "completion_url", "end_text", "organizer", "contact"];
@@ -461,7 +462,7 @@ function SaveRow({ dirty, save, where }: { dirty: boolean; save: () => void; whe
 }
 
 /* ---------- a project ---------- */
-function ProjectView({ name }: { name: string }) {
+export function ProjectView({ name }: { name: string }) {
   const [d, setD] = useState<any>(null);
   const [data, setData] = useState<any>(null);
   const [dirty, setDirty] = useState(false);
@@ -534,6 +535,7 @@ function ProjectView({ name }: { name: string }) {
         <>
           <ScoresGroup project={name} onChange={refreshScores} />
           <ScoresEnabledGroup value={data.defaults?.scores_enabled} onChange={(x) => set("defaults", putKey(data.defaults, "scores_enabled", x))} project={name} inherit="Default" version={scoresVersion} />
+          <LeaderboardSettings value={data.defaults?.leaderboard} onChange={(x) => set("defaults", putKey(data.defaults, "leaderboard", x))} project={name} kind={data.kind ?? "none"} info={d.editor?.leaderboard} studies={d.studies.map((s: any) => s.name)} version={scoresVersion} />
         </>
       )}
       <ExtraGroup data={data} keys={extraKeys(data, PROJECT_FIELDS, "defaults")} onChange={set} prefix="project" />
@@ -676,9 +678,102 @@ export function StudyView({ project, study }: { project: string; study: string }
       <SchedulingGroup value={data.scheduling} onChange={(v) => set("scheduling", v)} inherit="Project" effective={d.scheduling_effective} k={data.overrides?.n_required ?? d.editor?.inherited?.n_required} layer={`study:${project}/${study}`} version={d} inherited={d.editor?.inherited?.scheduling} />
       <ScoresGroup project={project} study={study} onChange={refreshScores} />
       <ScoresEnabledGroup value={data.overrides?.scores_enabled} onChange={(x) => set("overrides", putKey(data.overrides, "scores_enabled", x))} project={project} study={study} inherit="Project" version={scoresVersion} />
+      <LeaderboardSettings value={data.overrides?.leaderboard} onChange={(x) => set("overrides", putKey(data.overrides, "leaderboard", x))} project={project} study={study} kind={d.editor?.kind ?? "none"} info={d.editor?.leaderboard} version={scoresVersion} />
       <ExtraGroup data={data} keys={extraKeys(data, STUDY_FIELDS, "overrides")} onChange={set} prefix="study" />
       <SaveRow dirty={dirty} save={save} where={`study.yaml of ${project}/${study}`} />
     </>
+  );
+}
+
+const short = (spec: string) => String(spec).split(":").pop()!.split(".").pop() || String(spec);
+
+/** A small count table (rows × columns), the largest counts strongest. */
+function CountGrid({ rows, cols, cell, label }: { rows: string[]; cols: string[]; cell: (r: string, c: string) => number | null; label: string }) {
+  const max = Math.max(1, ...rows.flatMap((r) => cols.map((c) => cell(r, c) ?? 0)));
+  return (
+    <div className="overflow-x-auto px-4 py-3">
+      <table className="text-xs" aria-label={label}>
+        <thead>
+          <tr>
+            <th />
+            {cols.map((c) => <th key={c} className="px-1.5 pb-1 text-left font-medium text-muted" title={c}>{short(c)}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r}>
+              <th className="pr-2 text-left font-medium text-muted" title={r}>{short(r)}</th>
+              {cols.map((c) => {
+                const n = cell(r, c);
+                return (
+                  <td key={c} className="tnum min-w-[2.25rem] rounded px-1.5 py-1 text-center" style={n === null ? undefined : { background: `rgb(var(--you) / ${(0.08 + (0.5 * n) / max).toFixed(2)})` }}>
+                    {n === null ? <span className="text-muted">–</span> : n}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The Paired part of the balance report: cells, matches per Assistant, positions, fallbacks, people
+ *  who could not complete (``paired`` of the balance endpoint; absent in a Solo study). */
+function PairedBalance({ p }: { p: any }) {
+  const cells: Record<string, number> = p.cells ?? {};
+  const parsed = Object.entries(cells).map(([k, n]) => {
+    const [scen, l = "", r = ""] = k.split("|");
+    return { scen, a: l.replace(/@0$/, ""), b: r.replace(/@1$/, ""), n };
+  });
+  const scenarios = [...new Set(parsed.map((x) => x.scen))];
+  const assistants: string[] = p.assistants ?? [];
+  const max = Math.max(1, ...Object.values(p.totals ?? {}).map(Number));
+  const width = Math.max(0, ...Object.values(p.positions ?? {}).map((x: any) => x.length));
+  return (
+    <Group title="Paired balance" id="setting-study-paired-balance" footer="Completed matches between people, by cell (scenario, the Assistant on side 0, the Assistant on side 1). The spread is the largest count minus the smallest.">
+      <InfoRow label="Matches" value={`${p.matches ?? 0} completed${p.inflight ? ` · ${p.inflight} in flight` : ""}`} hint={p.pairing?.assign ? `How a match is formed: ${p.pairing.assign}` : undefined} />
+      <InfoRow label="Planned cells" value={`${p.expected_cells ?? 0}${p.expected_cells ? ` · ${p.empty_cells ?? 0} still empty · spread ${p.spread?.cells ?? 0}` : ""}`} />
+      <InfoRow label="AI fallbacks" value={p.fallbacks ?? 0} hint="Negotiations against an AI opponent because nobody could be paired" />
+      <InfoRow label="Same-Assistant matches" value={p.same_assistant_matches ?? 0} />
+      <InfoRow label="People below K" value={(p.incomplete ?? []).length} hint="Fewer than K counted negotiations: still playing, or left with nobody to meet" />
+      {assistants.map((a) => (
+        <Row key={a} label={<code className="text-[0.8rem]">{a}</code>} hint="matches">
+          <div className="flex w-32 items-center gap-2 sm:w-48">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-line/70">
+              <div className="h-full rounded-full bg-opponent" style={{ width: `${(100 * (p.totals?.[a] ?? 0)) / max}%` }} />
+            </div>
+            <span className="tnum w-8 text-right text-sm">{p.totals?.[a] ?? 0}</span>
+          </div>
+        </Row>
+      ))}
+      {scenarios.length > 0 && (
+        <Disclosure label="Every cell" value={`${parsed.length} cells`} title="Paired cells" render={() => (
+          <>
+            {scenarios.map((sc) => (
+              <Group key={sc} title={sc} footer="Rows: the Assistant on side 0; columns: side 1.">
+                <CountGrid label={`Cells of ${sc}`} rows={assistants} cols={assistants} cell={(r, c) => parsed.find((x) => x.scen === sc && x.a === r && x.b === c)?.n ?? null} />
+              </Group>
+            ))}
+          </>
+        )} />
+      )}
+      {width > 0 && (
+        <Disclosure label="Assistant × position" value={`spread ${p.spread?.positions ?? 0}`} title="Positions" render={() => (
+          <Group footer="How often each Assistant was a person's 1st, 2nd, … Paired negotiation.">
+            <CountGrid label="Positions" rows={assistants} cols={Array.from({ length: width }, (_, i) => String(i + 1))} cell={(r, c) => p.positions?.[r]?.[Number(c) - 1] ?? 0} />
+          </Group>
+        )} />
+      )}
+      {(p.incomplete ?? []).length > 0 && (
+        <Disclosure label="People below K" value={String(p.incomplete.length)} title="People below K" render={() => (
+          <Group>
+            {p.incomplete.map((u: string) => <InfoRow key={u} label={u} value={`${p.matches_per_person?.[u] ?? 0} with people`} />)}
+          </Group>
+        )} />
+      )}
+    </Group>
   );
 }
 
@@ -691,6 +786,7 @@ export function Balance({ project, study }: { project: string; study: string }) 
   if (b === null) return null;
   const max = Math.max(1, ...Object.values(b.counts ?? {}).map(Number));
   return (
+    <>
     <Group title="Assistant balance" footer={`Each counted human keeps one Assistant; the next human gets the least used one. Pool from ${b.source}${b.group ? ` (group ${b.group})` : ""}. Admins and guests are not counted.`} id="setting-study-balance">
       <InfoRow label="Humans assigned" value={b.humans ?? 0} />
       {Object.entries(b.counts ?? {}).map(([spec, n]: any) => (
@@ -713,5 +809,7 @@ export function Balance({ project, study }: { project: string; study: string }) 
         )} />
       )}
     </Group>
+    {b.paired && <PairedBalance p={b.paired} />}
+    </>
   );
 }

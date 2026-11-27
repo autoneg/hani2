@@ -176,6 +176,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
   const [track, setTrack] = useState(initial?.track ?? "any");
   const [missing, setMissing] = useState(initial?.missing ?? "renormalise");
   const [minCov, setMinCov] = useState<number>(initial?.min_coverage ?? 0.5);
+  const [same, setSame] = useState<string>(initial?.same_assistant ?? "once");
   const [comps, setComps] = useState<Comp[]>(() => fromDefinition(initial));
   const [coverage, setCoverage] = useState(false);
   const [error, setError] = useState("");
@@ -199,6 +200,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
       track,
       missing,
       min_coverage: minCov,
+      ...(same !== "once" ? { same_assistant: same } : {}),
       components: comps.map((c, i) => ({
         criterion: c.criterion,
         weight: fr[i],
@@ -231,6 +233,9 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
         <Row label="Missing values" help="scores.missing"><Select label="Missing values" value={missing} onChange={setMissing} options={MISSING} /></Row>
         <Row label="Minimum coverage" help="scores.min_coverage">
           <NumberInput aria-label="Minimum coverage" className="field tnum w-20" min={0} max={1} step={0.05} value={minCov} onCommit={setMinCov} />
+        </Row>
+        <Row label="Same-Assistant games" help="scores.same_assistant">
+          <Select label="Same-Assistant games" value={same} onChange={setSame} options={[{ value: "once", label: "Count once (the mean of the two rows)" }, { value: "skip", label: "Leave out" }]} />
         </Row>
       </Group>
       <Group
