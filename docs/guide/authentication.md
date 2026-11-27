@@ -225,6 +225,49 @@ HANI2 accepts a guest token only when `next` names a study (`?study=<project>/<s
   to `<account>~<browser id>` (for example `anac_invite-42~3f2a9c1b0d4e`), and every row records
   `invited_by`.
 
+## API tokens for the leaderboard API
+
+The same website can read HANI2's [leaderboards](project-management.md#the-leaderboard-api) with
+**API tokens**, signed with the same secret but for a different audience, so the two kinds never
+mix:
+
+| | Sign-in token | API token |
+|---|---|---|
+| Sent as | `?token=` on `/api/sso/<name>` | `Authorization: Bearer <token>` |
+| `aud` | `hani2` (plus the root path) | `hani2-api` (plus the root path, for example `hani2-api/hiplay2`) |
+| Also needs | `sub`, `jti` (single use) | `scope` containing `leaderboard:read` |
+| `iat` / `exp` | at most 120 seconds apart | at most 120 seconds apart |
+| Used | once | as often as needed while it is valid |
+
+A sign-in token sent to the API is refused (401), an API token sent to the sign-in page opens
+`/login?error=sso_audience`, and a token whose `aud` names both is refused by both. A valid API token
+without the scope gets 403. Boards with `visibility: public` need no token at all.
+
+Minting one takes a few lines in any language. In Python, with the standard library only:
+
+```python
+import base64, hashlib, hmac, json, time
+
+def b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+def api_token(secret: str, issuer: str = "mysite", root_path: str = "") -> str:
+    now = int(time.time())
+    aud = "hani2-api" + (f"/{root_path.strip('/')}" if root_path.strip("/") else "")
+    head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": "leaderboard:read",
+                           "iat": now, "exp": now + 60}).encode())
+    sig = b64(hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest())
+    return f"{head}.{body}.{sig}"
+
+# requests.get(f"{base}/api/v1/projects/HI2027/leaderboard",
+#              headers={"Authorization": f"Bearer {api_token(SECRET)}"})
+```
+
+With PyJWT: `jwt.encode({"iss": ..., "aud": "hani2-api", "scope": "leaderboard:read", "iat": now,
+"exp": now + 60}, secret, algorithm="HS256")`. On the server, `hani2 leaderboard token <provider>`
+prints one, to try the API by hand.
+
 ## Admins
 
 A user is an admin when any of these is true:

@@ -926,8 +926,8 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `opponent_info_tools` | Whether the participant's tools could show the opponent's utilities (admins, or `tools.show_opponent_utility`). |
 | `autopilot_driver` | Who drove the seat when autopilot was used (`Assistant` or a negotiator); empty otherwise. |
 | `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
-| `opponent_han_year` | The HAN year of the AI opponent when it is a HAN entrant (from a `:han<year>-<set>` group), else empty. |
-| `opponent_han_source` | Where that agent came from: `submissions` (the current year's submitted zips) or `han-agents` (the package). |
+| `opponent_han_year` | The HAN year of the AI opponent when it is a HAN entrant (from a `:han<year>-<set>` group, or from the `han_year` of the group file that names it by class path), else empty. |
+| `opponent_han_source` | Where that agent came from: `submissions` (the current year's submitted zips), `han-agents` (the package) or `group-file` (a group file with `han_year`). |
 | `opponent_han_version` | Which build played: the sha256 of the submitted zip, or the `han-agents` version. |
 | `opponent_scheduling`, `assistant_scheduling`, `scenario_scheduling` | The [scheduling method](scheduling.md#recorded-in-the-results) that chose the opponent, the Assistant and the scenario type (`external` for `schedule.json`, empty when HANI2 did not schedule it). In a Paired study the joiner's `scenario_scheduling` is `host` (it plays the host's scenario), and a host whose scenario type was chosen to balance the cells has `cells`. |
 | `project`, `study` | The project and study of the session (`default` and an empty study without one). Added after the other columns in files from earlier versions. |
@@ -941,6 +941,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `opponent_user` | The other participant's user name. |
 | `abandoned` | Who left a match between two people: `self`, `opponent` or empty. |
 | `invited_by` | Who invited a guest, else empty. |
+| `counted` | Whether the game counts for boards and balance: `false` for admins, admins in participant view, the playground and test runs. |
 | `study_mode` | The planned mode of the study: `solo`, `paired` or `mixed` (empty outside a study). |
 | `pairing` | How the match was formed: `cells`, `order`, `random`, `code` (a shared `?match=` link) or `fallback` (nobody fitted, an AI played); empty for an AI game that was planned as one. |
 | `match_cell` | The match's cell, `"<scenario>|<A>@0|<B>@1"`, the same in both rows; empty for AI games. |
@@ -949,7 +950,7 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `opponent_assistant_entrant` | The other side's `assistant_entrant`. |
 | `opponent_participant` | The other side's participant index in their study (pseudonymous). |
 | `assistant_entrant` | The entrant id of the participant's Assistant, from the group file's `entrant` key (empty without one). |
-| `own_assistant` | `true` when the participant plays their own team's Assistant (the group file's `own` key), else empty. |
+| `own_assistant` | `true` when the participant plays their own team's Assistant, `false` when not (the group file's `own` key), empty when the group file does not say. |
 | `assistant_position` | The position of this Assistant in the participant's plan, from 0: the counted negotiation in a Solo study, the number of Assistants used before in a Paired one (empty outside a study, for admins and guests). |
 | `plan_size` | K: the counted negotiations per person (`n_required`). |
 | `cross_study` | Whether the two people of a match came from two studies (the match is counted in the host's study). |
@@ -1190,6 +1191,34 @@ hani2 scores set HI2027/play quick_check -f quick_check.yaml
 hani2 scores enable HI2027/play hi_score,quick_check,utility
 ```
 
+### The study's board
+
+Every study has a board of its own: the games of that study alone, ranked with the same rules as
+the project board (see [Leaderboards](project-management.md#leaderboards)). It uses the project's
+`leaderboard` block, and `study.yaml` overrides it **key by key** (`rules`, `user_options` and
+`defaults` merge per key, so you can change one rule and keep the others):
+
+```yaml
+# study.yaml of HI2027/prolific-03
+leaderboard:
+  default_sort: hi_score
+  user_options: {stratum: [combined, solo]}
+  visibility: admins                     # the study's board stays internal while it runs
+  rules: {min_games: 5, adjust: balanced} # a planned study: every Assistant plays every cell
+```
+
+A study board ignores `studies` and `include`: it always shows its own study. Its `sort_options`
+and `columns` must be enabled in the study (`scores_enabled`); saving a study whose scores no longer
+include what its board (or the project board that reads it) sorts by is refused, naming the key.
+
+```bash
+hani2 leaderboard show HI2027/prolific-03                       # as an admin sees it
+hani2 leaderboard show HI2027/prolific-03 --as-user --json     # what the API serves to end users
+hani2 leaderboard refresh HI2027/prolific-03                    # rebuild its evaluation cache
+curl -H "Authorization: Bearer $TOKEN" \
+     https://hani2.example.org/api/v1/projects/HI2027/studies/prolific-03/leaderboard
+```
+
 ## Command line and admin API
 
 ### Command line
@@ -1203,6 +1232,9 @@ hani2 study create PROJECT/STUDY [--type prolific|online|lab] [--title TEXT] [--
 hani2 study list [PROJECT]
 hani2 study show PROJECT/STUDY [--base-url URL]   # settings, scheduling, mode, pairing, HAN sources, errors
 hani2 study balance PROJECT/STUDY [--json]        # totals, positions, pairs and crossing so far
+hani2 leaderboard show PROJECT/STUDY [--sort K] [--games G] [--stratum S] [--window W] [--as-user] [--json]
+hani2 leaderboard refresh PROJECT/STUDY            # rebuild the study's evaluation cache
+hani2 leaderboard judge PROJECT/STUDY [--judge provider:model] [--limit N]
 hani2 --study PROJECT/STUDY         # the default study of this server
 hani2 experiment create|list ...    # see Experiments above
 ```
@@ -1224,3 +1256,4 @@ These JSON endpoints are for admins only; the conventions (names, layers) are th
 | `PUT /api/admin/projects/{project}/studies/{study}/scores_enabled` | `{"enabled": [...]}`, or `null` for the project's choice. `GET /api/admin/scores?study=P/S` lists the study's scores. |
 | `GET /api/admin/projects/{project}/studies/{study}/balance` | The study's Assistant pool and how many counted humans each Assistant has, with every assignment (each with its `cross` rule and `assistant_plan`), and under `solo` the report of `hani2 study balance`. |
 | `GET /api/admin/projects/{project}/studies/{study}/assignments` | The study's `assignments.json`. |
+| `GET /api/v1/projects/{project}/studies/{study}/leaderboard` | The study's board (for admins: every enabled score and switch value). See [The leaderboard API](project-management.md#the-leaderboard-api). |

@@ -427,8 +427,10 @@ Each component names a criterion and its weight. It may also give:
 - a `normaliser`, which replaces the criterion's default (see [Mapping every value to [0, 1]](#mapping-every-value-to-0-1));
 - a `label`, a short text for tables.
 
-`title`, `description`, `track` (default `any`), `missing` (default `renormalise`) and
-`min_coverage` (default 0.5) are optional.
+`title`, `description`, `track` (default `any`), `missing` (default `renormalise`),
+`min_coverage` (default 0.5) and `same_assistant` (default `once`: how a board counts a game where
+both people used the same Assistant, see [Which games count](#which-games-count); `skip` leaves such
+games out of the score) are optional.
 
 **Weights are ≥ 0 and sum to 1** (100 %, to within $10^{-6}$). The admin API and `hani2 scores set`
 refuse any other sum, and suggest rescaling (**Normalise**). A weight of 0 keeps a component in the
@@ -551,6 +553,173 @@ though loading rescales them. With `--coverage` it also evaluates the games (wit
 applies the rule for post-session answers and prints how many games have a value for each enabled
 score. A score cannot be removed while another score contains it or `scores_enabled` names it.
 
+## Leaderboards
+
+A **project board** ranks the entrants of a project over the studies it names: for example the
+year's game and its Prolific studies, in one table. A **study board** shows one study. Both are
+built by one function with one set of rules, whoever reads them: `hani2 leaderboard show`, the admin
+console and the [leaderboard API](#the-leaderboard-api) that a trusted website (for example the
+competition's site) reads. A website therefore shows exactly the board HANI2 computes, and keeps no
+rules of its own.
+
+| Track | Entrants | Strata |
+|---|---|---|
+| `hi` | the Assistants: the `entrant` id of their group file, else their spec | `combined` (default), `solo` (AI opponents, including the fallbacks of Paired studies), `paired` (a person on the other side) |
+| `han` | the opponent agents | `alone` (default, the official board: people without an Assistant), `vs_team` (people with an Assistant), `both` (the two pooled, labelled as such) |
+
+### Configuring a board
+
+The `leaderboard` block of `project.yaml` configures the project board. A study's `study.yaml`
+overrides it key by key for the study's own board (see
+[The study's board](study-management.md#the-studys-board)). Every key is optional:
+
+```yaml
+leaderboard:
+  track: hi                         # hi: entrants are Assistants; han: entrants are opponents
+  source: game                      # game (default) | tournament (the simulated table)
+  studies: [play, prolific-03]      # project board: which studies feed it (default: all)
+  include:                          # rows from other projects, each with its stratum
+    - {study: HI2027/play, stratum: vs_team}       # for example on HAN2027's board
+  sort_options: [hi_score, utility, agreement]     # what end users may sort by
+  default_sort: hi_score
+  columns: [hi_score, utility, agreement, games, participants]
+  user_options:                     # the switches end users get, with their allowed values
+    games:   [all, people, ai]
+    stratum: [combined, solo, paired]
+    window:  [all, last_30_days]
+  defaults: {games: all, stratum: combined, window: all}
+  visibility: participants          # public | participants | admins
+  rules: {min_games: 10, min_participants: 3, max_games_per_pair: 3,
+          max_games_per_participant: 20, exclude_own: false, adjust: relative, ci: 0.95}
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `track` | `han` for a project of kind `opponent`, else `hi` | Who is ranked. |
+| `source` | `game` | `game`: the games people played. `tournament`: the table of simulated participants (each Assistant's goal rate over the personas), which the sort and the switches do not apply to. |
+| `studies` | every study of the project | The studies that feed the project board. Add new ones as they start; a study that does not exist yet is named in the board's warnings. |
+| `include` | none | Studies of other projects whose games of one stratum join the board ([below](#rows-from-other-projects)). |
+| `sort_options` | the enabled scores of the track | What end users may rank by: enabled scores, and criteria that have a direction. |
+| `default_sort` | the first sort option | Must be one of `sort_options`. |
+| `columns` | the sort options, `games`, `participants` | The values each entry shows. Scores and criteria come with a mean and a confidence interval; `games`, `participants`, `guests`, `abandon_rate` and `cost_usd` are counts. |
+| `user_options` | none | The switches end users get, each with its allowed values. |
+| `defaults` | `games: all`, the first stratum, `window: all` | The value of each switch when the viewer does not choose. |
+| `visibility` | `participants` | Who may see the board ([below](#visibility)). |
+| `rules` | see [Which games count](#which-games-count) | Minimums, caps, own-team games, adjustment, confidence level. |
+
+**Sorting.** A score is ranked by its entrant-level mean, and a criterion by its mean in its own
+direction (a criterion where lower is better, such as `irrational_accept`, ranks upwards). End
+users may sort only by `sort_options`; admins may sort by any enabled score or criterion with a
+direction.
+
+**Switches.** `games` is `all`, `people` (games against another person) or `ai` (against an AI
+opponent, including fallbacks); `stratum` is one of the track's strata; `window` is `all` or
+`last_<n>_days`. End users get only the switches listed in `user_options`, each with only the values
+listed there; a switch that is not listed is not shown, and its default applies. Admins may use every
+value.
+
+**Checks when saving.** `hani2 project create`, `hani2 study create` and the admin console refuse a
+block whose keys are not known, whose switch values or defaults are not allowed, whose
+`default_sort` is not one of `sort_options`, or whose `sort_options` and `columns` are not enabled
+(`scores_enabled`) in every study the board reads. A study that disables a score its board sorts by
+is refused too. A hand-edited file that breaks these rules is still served: what cannot be used is
+left out and named in the board's `warnings`.
+
+### Rows from other projects
+
+`include` takes games from a study of another project into the board, for **one stratum** only.
+The typical use is a HAN board that also shows how this year's HAN agents fared against people
+**with** an Assistant, in the HI project's games:
+
+```yaml
+# HAN2027/project.yaml
+leaderboard:
+  track: han
+  studies: [play]
+  include: [{study: HI2027/play, stratum: vs_team}]
+  user_options: {stratum: [alone, vs_team]}
+  defaults: {stratum: alone}
+```
+
+The official HAN board stays `alone`. The HI games against HAN agents are a stratum of their own,
+`vs_team`, whose cells are scenario × Assistant (the Assistant makes a game harder or easier for
+the agent). The two are pooled only when a viewer asks for `both`, and that view is labelled as
+pooled.
+
+### Which games count
+
+| Rule | Value |
+|---|---|
+| Games counted | Games against people (Paired matches) and against AI opponents (including the fallbacks of Paired studies), shown apart with the `games` switch and combined by default. |
+| Entrant | HI: the row's Assistant, by the `entrant` id of the participant's group file, else its spec. HAN: the opponent agent. |
+| Guests | A guest invited by a participant plays with the inviter's Assistant, so their games count for it. `guests` counts them; no name is ever shown. |
+| Not counted | Practice rounds; simulated participants; admin, participant-view and playground sessions (`counted` false); system failures; abandoned matches (both rows: they show only in the Assistant's `abandon_rate`). In HI, games the opponent agent broke are not the Assistant's fault and are left out too. |
+| Same-Assistant games | A game where both people used the same Assistant (an inviter against their guest) is left out of `utility`, and counts **once** (the mean of its two rows) in other scores, unless the score says `same_assistant: skip`. |
+| Minimums | `min_games` counted games (default 10) **and** `min_participants` distinct players who are not the Assistant's own team (default 3). Below either, the entrant is listed under `unranked` ("not ranked yet") with the reason. The minimums count every counted game of the board, whatever the switches show, so an entrant does not drop in and out of the ranking when a viewer changes a switch. |
+| Caps | `max_games_per_pair` (games of one entrant between the same two people) and `max_games_per_participant` (games of one entrant by one person); empty means no cap. Games over a cap are left out, the latest first, and counted under `excluded: cap`. |
+| Own-team games | Counted. `exclude_own: true` leaves them out (`excluded: own team`). |
+
+Every board says what it left out and why under `excluded` (`practice`, `admin or test session`,
+`simulated participant`, `abandoned`, `system failure`, `opponent failure`, `human opponent`, `cap`,
+`own team`).
+
+### Confidence intervals and ties
+
+- Values are cell-adjusted (`adjust: relative`, the default): each game's value minus the mean of
+  its cell over all entrants, plus the overall mean, so the numbers stay on the values' scale. A
+  cell is a scenario with an opponent (Solo games), or a scenario, a side and the opposing Assistant
+  (Paired games). This is right for a game, where entrants play different and uneven cells. Planned
+  studies, where every entrant plays every cell, can use `adjust: balanced` (the mean of the cell
+  means).
+- The interval is a percentile bootstrap at the level `ci` (default 0.95) that resamples
+  participants. When an entrant has a single participant, it resamples games instead, and the entry
+  says `ci_unit: session`.
+- An entrant whose interval overlaps the leader's is tied with it: `tied_with_leader` is true, shown
+  as "=2". Entrants with the same mean share a rank.
+- A score that needs the language-model judge is **provisional** while fewer than 80 % of its games
+  were judged. Until a normalisation reference is frozen (`hani2 scores freeze`), scores with
+  unbounded criteria are scaled on the current games and are provisional too. The board's `notes`
+  say which reference it uses.
+
+### Visibility
+
+| `visibility` | Who may read the board |
+|---|---|
+| `public` | Anyone, without signing in or a token. |
+| `participants` (default) | Signed-in users, and a website with an [API token](#api-tokens). |
+| `admins` | Admins, and a website with an API token. Signed-in users get *403*. |
+
+No board ever contains a user name, the other person's name, who invited a guest or a participant
+index: only entrants and counts.
+
+### Where the numbers come from
+
+A board never re-reads recordings. When a game's row is written, the metrics that need no language
+model are computed from its recording in the background and stored in
+`<study results>/eval_cache/<recording id>.json`; when the recording is closed (it may then hold the
+post-game questionnaire) the entry is computed again. A board reads these files, and computes any
+entry that is missing or out of date, so it is right even for games recorded before the cache
+existed. Post-session answers are joined onto a participant's games only when they used one
+Assistant throughout (see [Questionnaire answers in scores](study-management.md#questionnaire-answers-in-scores)).
+
+```bash
+hani2 leaderboard refresh HI2027            # rebuild the cache of every study the board reads
+hani2 leaderboard judge HI2027 --limit 200  # run the judge on games not judged yet
+hani2 leaderboard show HI2027               # the board as an admin sees it
+hani2 leaderboard show HI2027 --as-user --sort utility --games people --json   # what end users get
+hani2 leaderboard list                      # every project that has a board
+```
+
+`refresh` keeps the judge's values; `judge` adds the judged criteria to the same files (pass
+`--judge provider:model` to use one model, `--again` to judge every game again).
+
+### The game board and the simulated table
+
+For an HI project the board ranks the games people played (`source: game`), which is the default.
+`source: tournament` shows the table of simulated participants instead: each Assistant's goal rate
+(deals worth at least the persona's reservation value) over its valid simulated trials. It stays
+available for qualifying rounds.
+
 ## Connecting a website
 
 There are two ways to run HANI2.
@@ -564,6 +733,204 @@ hani2 --host 0.0.0.0 --no-browser
 ```
 
 **Driven by an outside system** (for example a trusted website such as a competition's site, which recruits participants and schedules the opponents). Such a system usually starts one HANI2 process per league with `HANI2_EXPERIMENT=<wave>`, `--root-path`, `--assistant on|off` and `--page play`, sends participants to `<root>/play?PROLIFIC_PID=<pid>&group=<key>`, writes `schedule.json` and `groups/<key>.json` into the results folder and sets `PROLIFIC_*` variables. All of this works unchanged: the wave is the default study of that process, its results stay in `$HANI2_EXPERIMENTS/<wave>/results/prolific_<PID>/` with the same files and columns (new columns are only ever added), and the rule is that **an outside system's explicit input wins**: environment variables, `schedule.json`, group files and query parameters always take precedence over what `project.yaml` and `study.yaml` say. HANI2's own project and study settings only fill in what is not given.
+
+### The leaderboard API
+
+A website reads boards with plain `GET` requests:
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/v1/projects/{project}/leaderboard?sort=&games=&stratum=&window=` | The project board. |
+| `GET /api/v1/projects/{project}/studies/{study}/leaderboard?…` | One study's board. |
+| `GET /api/v1/leaderboards` | Every project that has a `leaderboard` block, with its track, source, year and visibility, and the visibility of each study's board. Without a sign-in or a token only public boards are listed. |
+
+The parameters are optional: each missing one takes the board's default. A value outside the
+board's `sort_options` or `user_options` is refused with **400**, so a website can only show the
+views the project allows. An unknown project or study gives 404; a board the caller may not see
+gives 401 (no sign-in, no token) or 403 (see [Visibility](#visibility)). Each response carries an
+`ETag`; send it back as `If-None-Match` to get a 304 when nothing changed, or cache on
+`data_version`.
+
+The response (schema `hani2.leaderboard/2`) carries the options the viewer may use, so a website
+draws exactly the switches the project allows:
+
+```json
+{
+  "schema": "hani2.leaderboard/2",
+  "project": "HI2027", "study": null, "track": "hi", "source": "game",
+  "generated_at": "2027-03-14T09:30:00Z", "data_version": "sha1:4be1…",
+  "query": {"sort": "hi_score", "games": "all", "stratum": "combined", "window": "all"},
+  "options": {
+    "sort": [{"key": "hi_score", "title": "HI-score", "description": "…", "kind": "score"},
+             {"key": "utility", "title": "Utility", "kind": "score"},
+             {"key": "agreement", "title": "Deals", "kind": "criterion", "direction": "higher"}],
+    "games": ["all", "people", "ai"],
+    "defaults": {"sort": "hi_score", "games": "all", "stratum": "combined", "window": "all"}
+  },
+  "columns": ["hi_score", "utility", "agreement", "games", "participants"],
+  "scores": {"hi_score": {"weights_in_effect": {"human_advantage": 0.333, "ja_overall": 0.167},
+                          "dropped": ["q_ueq_2"], "provisional": false, "title": "HI-score"}},
+  "rules": {"min_games": 10, "min_participants": 3, "max_games_per_pair": 3,
+            "max_games_per_participant": 20, "exclude_own": false, "adjust": "relative", "ci": 0.95},
+  "entries": [
+    {"rank": 1, "tied_with_leader": false, "entrant": "sub_0412",
+     "assistant": "team42.assistant:Helper", "label": "Helper",
+     "values": {"hi_score": {"mean": 0.71, "ci": [0.64, 0.77]},
+                "utility":  {"mean": 0.62, "ci": [0.55, 0.69]},
+                "agreement": {"mean": 0.88, "ci": [0.80, 0.94]}},
+     "games": {"all": 58, "people": 21, "ai": 37}, "participants": 17, "guests": 6,
+     "ci_unit": "participant", "abandon_rate": 0.03, "cost_usd": 0.012}
+  ],
+  "unranked": [{"entrant": "sub_0533", "label": "Coach", "games": {"all": 4}, "reason": "min_games"}],
+  "excluded": {"practice": 3, "abandoned": 5, "cap": 12},
+  "warnings": [],
+  "notes": ["normalisation: the frozen reference of play (games until 2027-03-31)", "…"],
+  "visibility": "public"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `options.sort` | The keys the viewer may sort by, with their title, description, kind (`score` or `criterion`) and, for criteria, direction. |
+| `options.games`, `options.stratum`, `options.window` | Present only for the switches the viewer may use, with their allowed values. |
+| `scores` | For each score shown: the weights in effect after coverage (summing to 1), the components dropped because some entrant had too few games with them, and whether the score is provisional. |
+| `entries` | The ranked entrants, best first. On a HAN board, `opponent` replaces `assistant`. `values` hold the mean and the confidence interval of each score and criterion column. `games` counts the entrant's games in the view, split into people and AI. |
+| `unranked` | Entrants below a minimum (`min_games`, `min_participants`) or with no value for the sort key (`no_value`). |
+| `excluded`, `warnings`, `notes` | What was left out and why; problems with the settings or the data; how the values were computed. |
+
+Admins get the same response with every enabled score among `options.sort` and every switch value.
+
+### API tokens
+
+Boards with `visibility: public` need nothing. For the others, a website sends
+`Authorization: Bearer <token>`, where the token is a short-lived HS256 JSON Web Token signed with
+the secret it already shares with HANI2 for [sign-in from a trusted website](authentication.md#sign-in-from-a-trusted-website):
+
+| Claim | Value |
+|---|---|
+| `iss` | The provider's `issuer` (default: its name), as in sign-in tokens. |
+| `aud` | `hani2-api` plus this server's root path, for example `hani2-api/hiplay2`. |
+| `scope` | Contains `leaderboard:read` (a space-separated string or a list). |
+| `iat`, `exp` | Issue and expiry times (Unix seconds), at most 120 seconds apart. |
+
+An API token is not single use: mint one per request or per minute. Because the audiences differ,
+a sign-in token cannot read the API and an API token cannot sign anyone in; a token that names both
+audiences is refused by both. A token without the scope gets 403. To try the API by hand:
+
+```bash
+TOKEN=$(hani2 leaderboard token mysite)       # the provider's name in auth.sso
+curl -H "Authorization: Bearer $TOKEN" https://hani2.example.org/api/v1/projects/HI2027/leaderboard
+```
+
+See [API tokens](authentication.md#api-tokens-for-the-leaderboard-api) for a minting example.
+
+### Group files from a website
+
+A website that invites its users into a study writes a group file per invitation into the study's
+results folder (`<project>/studies/<study>/results/groups/<key>.json`) and sends the participant to
+the study with `?group=<key>`. Besides the opponents (`agents`), the Assistant (`assistant`) and
+`ai_fallback`, three keys describe the session for the results and the boards:
+
+```json
+{"agents": ["human+assistant", ":han2026-finalists"],
+ "assistant": "team42.assistant:Helper",
+ "entrant": "sub_0412",
+ "own": true,
+ "ai_fallback": true}
+```
+
+| Key | Type | Written to | Meaning |
+|---|---|---|---|
+| `entrant` | text | `assistant_entrant` | The website's id for the Assistant (a submission or team id). It becomes the board's `entrant`, so the website can map entries without parsing specs. |
+| `own` | `true` / `false` | `own_assistant` | Whether the participant is on the team that submitted the Assistant. A guest's invitation says `false`. |
+| `han_year` | a year | `opponent_han_year` | The HAN year of the AI agents the file names by class path (rather than by a `:han<year>-<set>` group), so their games reach the HAN board's `vs_team` stratum. |
+
+The admin API keeps these keys when a group file is saved through it, and refuses wrong types
+(`own: "yes"`, `han_year: "2027"`). Files written by hand are read leniently.
+
+### Seeding projects from a website, and `hani2 project export`
+
+A website can ship the files of its projects (`project.yaml`, each study's `study.yaml`, group
+files, questionnaires) and copy them into HANI2's projects folder. Copy **only the files that are
+missing** and never overwrite: after the first copy, HANI2's admin console owns the scores and the
+leaderboard settings, and every change made there would otherwise be lost on the next start. To
+bring the changes back into the website's repository:
+
+```bash
+hani2 project export HI2027 --out ~/site/resources/hani2/projects            # writes .../HI2027/
+hani2 project export HI2027 --out ~/site/resources/hani2/projects --overwrite
+```
+
+`export` copies the configuration only: results, recordings and caches are never copied, and
+settings files that may hold keys (`env.json`, `llm_settings.json`, `models.json`) only with
+`--with-settings`. Files already in the target folder are kept unless you pass `--overwrite`.
+
+## A competition year, worked through
+
+A competition year has two projects, one per track, and each game is a study of its year's
+project, so one project board pools the game and the year's Prolific studies. Earlier years'
+projects stay as they are, for the history.
+
+```yaml title="HI2027/project.yaml"
+full_name: Human-AI Interaction League 2027
+kind: assistant
+year: 2027
+defaults:
+  study_mode: mixed
+  opponents: [human+assistant, ":han2027-qualified"]   # this year's HAN agents, from the submitted zips
+  scheduling: {assistants: balanced}
+  pairing: {scope: study, assign: cells, allow_same_assistant: true, fallback: ai}
+scores:
+  hi_score:
+    title: HI-score
+    track: hi
+    components:
+      - {criterion: human_advantage, weight: 0.6}
+      - {criterion: hi_team,         weight: 0.4}
+scores_enabled: [utility, hi_score, hi_interaction]
+leaderboard:
+  track: hi
+  source: game
+  studies: [play]                       # add Prolific studies as they run
+  sort_options: [hi_score, utility]
+  default_sort: hi_score
+  user_options: {games: [all, people, ai]}
+  visibility: public
+```
+
+```yaml title="HAN2027/project.yaml"
+full_name: Human-Agent Negotiation League 2027
+kind: opponent
+year: 2027
+defaults:
+  study_mode: solo
+scores_enabled: [han_outcome, han_interaction]
+leaderboard:
+  track: han
+  studies: [play]
+  include: [{study: HI2027/play, stratum: vs_team}]   # HI games against HAN agents, as their own stratum
+  sort_options: [han_outcome, han_interaction]
+  user_options: {stratum: [alone, vs_team]}
+  defaults: {stratum: alone}
+```
+
+`:han2027-qualified` resolves from this year's submitted zips, so `env.json` must name the current
+year and the submissions folder (see [HAN agents by year](#han-agents-by-year)):
+`{"han": {"current_year": 2027, "submissions": {"2027": {"dir": "~/anac/_agents_han/2027"}}}}`.
+
+How a game reaches the boards:
+
+1. A participant plays in `HI2027/play` with their team's Assistant, against another person (a
+   Paired match) or against an AI opponent, which may be one of this year's HAN agents.
+2. The row is written with the Assistant's `assistant_entrant` and `own_assistant` from the group
+   file, and, for a HAN agent, `opponent_han_year`; the evaluation cache gets its entry.
+3. `HI2027`'s board ranks the Assistants over `play` (and the Prolific studies added to
+   `studies`), with the [rules above](#which-games-count).
+4. `HAN2027`'s board ranks the HAN agents over `HAN2027/play` in the official `alone` stratum, and
+   shows their games against HI teams from `HI2027/play` in `vs_team`, never pooled unless a viewer
+   asks for `both`.
+5. The website reads both boards through the API, for the projects it names as active, and shows
+   them with the switches each project allows.
 
 ## Command line and admin API
 
@@ -588,6 +955,12 @@ hani2 scores set P[/S] KEY (-f FILE | --json TEXT)
 hani2 scores remove P[/S] KEY
 hani2 scores enable P[/S] (KEY,KEY,... | --default)
 hani2 scores duplicate P[/S] SOURCE KEY
+hani2 leaderboard show P[/S] [--sort K] [--games G] [--stratum S] [--window W] [--as-user] [--json]
+hani2 leaderboard list                  # every project that has a board
+hani2 leaderboard refresh P[/S]         # rebuild the evaluation cache from the recordings
+hani2 leaderboard judge P[/S] [--judge provider:model] [--limit N] [--again]
+hani2 leaderboard token PROVIDER        # an API token, to try the leaderboard API by hand
+hani2 project export P --out DIR [--with-settings] [--overwrite]
 ```
 
 The commands for studies (`hani2 study create`, `list`, `show`) are in [Study management](study-management.md#command-line).
@@ -620,8 +993,9 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | `PUT /api/admin/projects/{project}/scores_enabled` | `{"enabled": [...]}`, or `{"enabled": null}` for every score. |
 | `GET /api/admin/groups?project=P` | The project's opponent and Assistant groups (its folder, its studies, the settings folder and the built-in groups): key, members, `syspath`, description, the group file's `assistant`, source and file. With `?study=P/S` instead: the groups as that study resolves them, `active` marking the file a token resolves to. |
 | `GET /api/admin/projects/{project}/groups/{kind}/{key}` | One group file of the project (`kind`: `opponent` or `assistant`, plural accepted). |
-| `PUT /api/admin/projects/{project}/groups/{kind}/{key}` | Create or replace it: a list of specs, or `{"description", "syspath", "agents"` (opponents) or `"assistants"`, and for opponent groups `"assistant"` and `"ai_fallback"` (a boolean)`}`. Checked before it is written. |
+| `PUT /api/admin/projects/{project}/groups/{kind}/{key}` | Create or replace it: a list of specs, or `{"description", "syspath", "agents"` (opponents) or `"assistants"`, and for opponent groups `"assistant"`, `"ai_fallback"` (a boolean), `"entrant"` (text), `"own"` (a boolean) and `"han_year"` (a year)`}`. Checked before it is written. |
 | `DELETE /api/admin/projects/{project}/groups/{kind}/{key}` | Delete it. |
+| `GET /api/v1/projects/{project}/leaderboard`, `GET /api/v1/leaderboards` | The project board and the list of boards (also for websites, with an API token): see [The leaderboard API](#the-leaderboard-api). Admins may use every enabled score and switch value. |
 | `POST /api/admin/templates/preview` | `{"text": "...", "study": "P/S"}` or `{"kind": "consent", "study": "P/S"}`: the rendered text, the unknown variables, and every variable with its value. |
 
 The endpoints for one study (its `study.yaml`, its balance and its assignments) are in [Study management](study-management.md#admin-api).
