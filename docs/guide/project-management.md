@@ -264,6 +264,20 @@ the settings folder and finally the built-in groups (see [Group files](opponents
 and [Assistant groups](assistant.md#assistant-groups)). `hani2 groups list --project <P>` lists a
 project's groups, and the admin API edits them (see [Admin API](#admin-api)).
 
+**Self-hosted pools.** With
+
+```yaml
+hosted:
+  assistants: true      # the Assistant pool: every hosted Assistant registered for the project and switched on
+  opponents: false      # the same for opponents
+  timeout: 30           # seconds HANI2 waits for a host per call
+  max_failures: 3       # failed calls in a row before a hosted opponent walks away
+```
+
+in `project.yaml` (or a study's `study.yaml`), the teams' own hosts make up the pool (see
+[Self-hosting an Assistant or opponent](self-hosting.md)). An `assistants:` or `opponents:` list
+still wins and may name hosted agents itself as `remote:<name>`.
+
 **The mode limits the opponent pool.** In the admin console (Opponents → **Opponents participants
 face**), the pool of a project or study that declares a **Mode** offers only the entries that mode
 allows:
@@ -693,6 +707,7 @@ leaderboard:
   visibility: participants          # public | participants | admins
   rules: {min_games: 10, min_participants: 3, max_games_per_pair: 3,
           max_games_per_participant: 20, exclude_own: false, adjust: relative, ci: 0.95}
+  update: pooled                    # pooled (default) | latest | continuous (see below)
 ```
 
 | Key | Default | Meaning |
@@ -708,6 +723,7 @@ leaderboard:
 | `defaults` | `games: all`, the first stratum, `window: all` | The value of each switch when the viewer does not choose. |
 | `visibility` | `participants` | Who may see the board ([below](#visibility)). |
 | `rules` | see [Which games count](#which-games-count) | Minimums, caps, own-team games, adjustment, confidence level. |
+| `update` | `pooled` | How games combine over time: `pooled`, `latest` or `continuous` ([below](#leaderboard-update-modes)). |
 
 **Sorting.** A score is ranked by its entrant-level mean, and a criterion by its mean in its own
 direction (a criterion where lower is better, such as `irrational_accept`, ranks upwards). End
@@ -726,6 +742,51 @@ block whose keys are not known, whose switch values or defaults are not allowed,
 (`scores_enabled`) in every study the board reads. A study that disables a score its board sorts by
 is refused too. A hand-edited file that breaks these rules is still served: what cannot be used is
 left out and named in the board's `warnings`.
+
+### Leaderboard update modes
+
+`update` says how a board combines games played at different times:
+
+| `update` | Which games | Use it for |
+|---|---|---|
+| `pooled` (default) | Every counted game, each weighing the same. | A study that runs once, or entrants whose code is fixed. |
+| `latest` | Only the newest **tournament**. Each study of the board is one tournament, and the newest by its latest game replaces the board; an entrant missing from it is not listed. The notes name the tournament, and `excluded` counts the earlier games. | Periodic or aperiodic competitions in which every round replaces the previous ranking. |
+| `continuous` | Every counted game, with recent games weighing more. Nothing assumes that an entrant's code stays the same. | Self-hosted agents ([Self-hosting](self-hosting.md)): teams may change their agent at any time, and we cannot see its code. |
+
+A continuous board takes options:
+
+```yaml
+leaderboard:
+  update: {mode: continuous, method: kalman, drift_sd: 0.1, z: 1.0, change_h: 5}
+  # or {mode: continuous, method: decayed, half_life_days: 30, shrinkage: 5}
+```
+
+* **`method: kalman`** (default). Each entrant's skill is a level that drifts over time (`drift_sd`
+  per 30 days). Every game is a noisy observation of the level. The observation noise and the prior
+  come from the board's own games, so an entrant with few games is pulled toward the field.
+    * The board ranks by the **lower bound** `mean − z·sd`, so a new entrant, an idle one (its
+      uncertainty grows while it does not play) or one that just changed is not ranked above an
+      established one on a few lucky games. Use `rank_by: mean` to rank by the mean instead.
+    * A **change flag** (a two-sided CUSUM test on the filter's surprises, threshold `change_h`) marks
+      a probable new version when the results shift. The estimate then re-learns within a few games
+      instead of averaging the old and new versions.
+    * A change of the version the entrant declares (`assistant_version` / `opponent_version`, from
+      self-hosted agents) does the same. It is only a hint (`version_hint: false` ignores it): a
+      declared version never splits an entrant.
+* **`method: decayed`**. An exponentially time-decayed mean with half-life `half_life_days`, pulled
+  toward the field's mean by `shrinkage` games.
+
+The filter reads each game's **cell-adjusted** value (the same adjustment as `rules.adjust`), so a
+change in the mix of scenarios or opponents is not read as a change in the entrant. On a continuous
+board each entry's `values[k].mean` and `ci` are the filtered mean and `mean ± z·sd`, and the entry
+gains a `rating` field: `mean`, `sd`, `lower`, `score` (what the rank uses), `n_eff`, `first_game`,
+`last_game`, `versions` and `changes` (time and kind of each flagged change). The notes say which
+entrants were flagged. `min_games`, `min_participants` and the switches work as on every board.
+
+The same rules are available outside HANI2 in the module `hani2.ratings`, which needs only the Python
+standard library. Another site can import it, or run
+`python -m hani2.ratings '{"mode": "continuous"}' < games.jsonl`, where each line is
+`{"entrant", "time", "value", "version"?, "tournament"?}`.
 
 ### Setting up a board in the admin console
 

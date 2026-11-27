@@ -8,7 +8,7 @@ This note records the research and design behind two features:
   does not assume that an agent's code stays the same.
 
 The user guide for teams is [Self-hosting an Assistant or opponent](../guide/self-hosting.md). The
-settings are in [Leaderboard update modes](#leaderboard-update-modes) below and in the
+settings are in [Leaderboard update modes](../guide/project-management.md#leaderboard-update-modes) and in the
 [settings reference](../guide/settings-reference.md).
 
 ## 1. Research

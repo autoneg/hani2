@@ -41,6 +41,30 @@
   skipped and say why. They show under **Statistics** on the console's Scenarios page and in the
   new admin-only **Scenario Stats** tool. See [Scenario statistics](guide/scenarios.md#scenario-statistics).
 
+- **Self-hosted Assistants and opponents.** A team runs its Assistant or opponent on its own machine,
+  with any language model, by running `hani2 host-assistant my_agent:MyAssistant` or
+  `hani2 host-opponent my_neg:MyNegotiator` with its token. HANI2 calls the agent over HTTP (protocol
+  `hani2-hosted/1`), and to the rest of HANI2 it looks like a local agent.
+    * **How you name one.** Wherever a class is accepted, you can name a hosted agent as
+      `remote:<name>`. Organisers register it in **Library → Hosted agents** or with
+      `hani2 hosted add|list|check|enable|remove`. A project or study can make a side self-hosted with
+      `hosted: {assistants: true}`.
+    * **Isolation and safety.** Every negotiation is a separate host session, so concurrent
+      negotiations never share state. A hosted Assistant can only do what its capabilities and
+      autonomy allow, because everything it asks for runs in HANI2. A slow or unreachable host never
+      hangs a negotiation, and its games still count.
+    * **What results record.** The registered name, the version and model the host declares, and
+      `hosted_failures`.
+    * See [Self-hosting an Assistant or opponent](guide/self-hosting.md).
+- **Continuous leaderboards.** A board's `update` is one of three rules:
+    * `pooled` (as before);
+    * `latest` (the newest study replaces the board, for periodic tournaments);
+    * `continuous` (every game, recent ones weigh more, with a Kalman filter that flags a probable
+      change of agent and ranks by its lower bound).
+  
+  The rules live in the pure module `hani2.ratings`, which other sites can import or run as
+  `python -m hani2.ratings`. See [Leaderboard update modes](guide/project-management.md#leaderboard-update-modes).
+
 - **A failing tool stays in its own tab.** A tool that raises (when created, in `init`, a hook,
   its view, an input or a button) or takes longer than `tools.render_timeout` seconds to render
   (20 by default) no longer breaks the session or leaves a blank pane: its tab shows that it is not

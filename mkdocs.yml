@@ -110,6 +110,7 @@ nav:
       - Language models: guide/llms.md
       - Opponents: guide/opponents.md
       - Human opponents: guide/human-opponents.md
+      - Self-hosting an Assistant or opponent: guide/self-hosting.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
       - Compositional scenarios: guide/compositional.md
@@ -138,6 +139,7 @@ nav:
       - Shape the interface: tutorials/interface.md
   - Reference:
       - Architecture: reference/architecture.md
+      - "Design note: self-hosted agents and a continuous leaderboard": reference/hosted-agents-design.md
       - Python API: reference/api.md
       - Library API: reference/library-api.md
   - Changelog: changelog.md
