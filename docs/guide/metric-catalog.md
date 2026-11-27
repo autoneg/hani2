@@ -3,7 +3,7 @@
 
 # Metric catalogue
 
-Every measure HANI2 computes for a negotiation, in groups of similar measures: what it measures, its range and direction, whether a score can use it, and whether its implementation is validated (✓). The same groups and marks appear in the app: in the score builder's criteria picker, the leaderboard's sort and column choices and the board settings. How each measure is calculated, with formulas and worked examples, is in the [Metric reference](metrics.md); defaults for scores are in the [Criteria and scores reference](criteria.md). The questionnaires a study can use are listed in [Questionnaires](questionnaires.md).
+Every measure HANI2 computes for a negotiation, in groups of similar measures: what it measures, its range and direction, whether a score can use it, and whether its implementation is validated (✓). The same groups and marks appear in the app: in the score builder's criteria picker and its Zero if rule, the leaderboard's sort and column choices and the board settings. How each measure is calculated, with formulas and worked examples, is in the [Metric reference](metrics.md); defaults for scores are in the [Criteria and scores reference](criteria.md). The questionnaires a study can use are listed in [Questionnaires](questionnaires.md).
 
 190 numeric measures of 25 metrics; 155 are validated.
 

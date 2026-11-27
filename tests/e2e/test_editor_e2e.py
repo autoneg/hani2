@@ -60,7 +60,7 @@ def test_build_a_score_then_save_a_contradiction(new_page):
     builder.get_by_label("Score key").fill("e2e_score")
     for crit in ("human_advantage", "agreement"):
         builder.get_by_label("Search criteria").fill(crit)
-        builder.get_by_role("option").filter(has_text=crit).first.click()
+        builder.get_by_role("listbox", name="Criteria").get_by_role("option").filter(has_text=crit).first.click()
     for crit in ("human_advantage", "agreement"):
         w = builder.get_by_label(f"Weight of {crit} (%)")
         w.fill("30")
@@ -202,3 +202,24 @@ def test_predefined_questionnaires_mark_the_validated_ones(new_page):
     tam = p.locator("#setting-form-library label").filter(has_text="TAM perceived ease of use")
     expect(tam).to_have_count(1)
     expect(tam.locator("[data-validated]")).to_have_count(0)
+
+
+def test_zero_if_offers_grouped_criteria(new_page):
+    """The score builder's Zero if menu lists the criteria in the catalogue's groups, validated ones marked."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    _open_project(p, name)
+    p.get_by_role("button", name="New score").click()
+    builder = p.locator("[data-score-builder]")
+    menu = builder.get_by_role("combobox", name="Add to Zero if")
+    expect(menu.locator("optgroup").first).to_be_attached()  # the catalogue has loaded
+    labels = [g.get_attribute("label") for g in menu.locator("optgroup").all()]
+    assert labels[:2] == ["Outcome and utility", "Efficiency and welfare"] and "Task success and rules" in labels, labels
+    assert "Combined scores" not in labels  # a rule names criteria, not scores
+    failed = menu.locator("optgroup[label='Task success and rules'] option[value='opponent_failed']")
+    expect(failed).to_have_attribute("data-validated", "")
+    menu.select_option("opponent_failed")
+    chips = builder.locator("[data-key-list='Zero if'] .chip")
+    expect(chips).to_have_count(1)
+    expect(chips.first.locator("[data-validated]")).to_have_count(1)

@@ -41,13 +41,13 @@ export function useCriteria(project: string | null, study?: string | null): Crit
   return c;
 }
 
-/** ``GET /api/admin/scores``: every defined score (key, title, track) and the enabled ones. */
+/** ``GET /api/admin/scores``: every defined score (key, title, track, whether it is validated) and the enabled ones. */
 export function useScores(project: string | null, study?: string | null, version?: unknown) {
-  const [d, setD] = useState<{ scores: { key: string; title: string; track: string }[]; enabled: string[] } | null | undefined>(undefined);
+  const [d, setD] = useState<{ scores: { key: string; title: string; track: string; validated: boolean }[]; enabled: string[] } | null | undefined>(undefined);
   useEffect(() => {
     if (!project) return;
     api(`/api/admin/scores?${qs(project, study)}`)
-      .then((r: any) => setD({ scores: (r.scores ?? []).map((s: any) => ({ key: s.key, title: s.title || s.key, track: s.track })), enabled: r.enabled ?? [] }))
+      .then((r: any) => setD({ scores: (r.scores ?? []).map((s: any) => ({ key: s.key, title: s.title || s.key, track: s.track, validated: !!s.validated })), enabled: r.enabled ?? [] }))
       .catch(() => setD(null));
   }, [project, study, version]);
   return d;

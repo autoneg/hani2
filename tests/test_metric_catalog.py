@@ -125,3 +125,17 @@ def test_questionnaire_library_api_sends_marks_and_sources(client):
     assert sets["sus"]["validated"] is True and sets["subjective_value"]["url"].startswith("https://")
     assert sets["tam_ease"]["validated"] is False and sets["tam_ease"]["validation_note"]
     assert sets["demographics"]["validated"] is False
+
+
+def test_scores_api_marks_validated_built_ins_only(client):
+    """The built-in scores are checked on hand-worked examples; a project's own score (or a copy of a
+    built-in) is not, whatever its key."""
+    name = "CatalogScores"
+    assert client.put(f"/api/admin/projects/{name}", json={"data": {"kind": "assistant", "year": 2027}}).status_code == 200
+    assert client.post(f"/api/admin/projects/{name}/scores/my_team/duplicate", json={"from": "hi_team"}).status_code == 200
+    d = client.get(f"/api/admin/scores?project={name}").json()
+    by = {s["key"]: s for s in d["scores"]}
+    assert by["hi_team"]["validated"] is True and by["han_outcome"]["validated"] is True
+    assert by["my_team"]["validated"] is False
+    assert d["validated_tooltip"] == C.VALIDATED_TOOLTIP
+

@@ -7,7 +7,7 @@ import { Row } from "./Row";
 import { HelpFor } from "./help";
 import { Select } from "./controls/Select";
 import { TextField } from "./controls/TextField";
-import { Tags } from "./controls/Tags";
+import { KeyList } from "./controls/KeyList";
 import { Note, Spinner } from "./schema";
 import { toast } from "./toast";
 import { atHundred, normalise, sumText, toFractions } from "./weights";
@@ -289,6 +289,12 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
   const [saving, setSaving] = useState(false);
   const cat = useCriteria(project, study, coverage);
   const byId = useMemo(() => Object.fromEntries((cat?.criteria ?? []).map((c: any) => [c.id, c])), [cat]);
+  // the criteria a rule can name, in the catalogue's groups (scores cannot be named)
+  const zeroIfGroups = useMemo(() => {
+    const crit = (cat?.criteria ?? []).filter((c: any) => c.source !== "score");
+    return grouped(crit, (c: any) => c.group, cat?.groups).map((g) => ({ label: g.title, keys: g.items.map((c: any) => ({ key: c.id, title: c.title || c.id, validated: !!c.validated })) }));
+  }, [cat]);
+  const critTitles = useMemo(() => Object.fromEntries((cat?.criteria ?? []).map((c: any) => [c.id, c.title || c.id])), [cat]);
   const weights = comps.map((c) => c.weight);
   /** The definition as saved (and previewed): weights as fractions summing to 1. */
   const bodyOf = () => {
@@ -357,7 +363,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
           <Select label="Same-Assistant games" value={same} onChange={setSame} options={[{ value: "once", label: "Count once (the mean of the two rows)" }, { value: "skip", label: "Leave out" }]} />
         </Row>
         <Row label="Zero if" help="scores.zero_if">
-          <Tags label="Zero if" value={zeroIf} onChange={(x: string[] | undefined) => setZeroIf(x ?? [])} placeholder="opponent_failed" suggestions={(cat.criteria ?? []).filter((c: any) => c.source !== "score").map((c: any) => c.id)} />
+          <KeyList label="Zero if" value={zeroIf} onChange={setZeroIf} groups={zeroIfGroups} titles={critTitles} tip={cat?.validated_tooltip} />
         </Row>
         <Row label="Needs an Assistant" help="scores.needs_assistant">
           <Select label="Needs an Assistant" value={needsAssistant ? "yes" : "no"} onChange={(x) => setNeedsAssistant(x === "yes")} options={[{ value: "no", label: "No: every session" }, { value: "yes", label: "Yes: empty without an Assistant" }]} />

@@ -12,7 +12,8 @@ import { Stepper } from "./controls/Stepper";
 import { Checks } from "./controls/Checks";
 import { Toggle } from "./controls/Toggle";
 import { type Criteria, useCriteria, useScores } from "./boards";
-import { grouped, markText, VALIDATED_TIP } from "../ui/metricGroups";
+import { grouped } from "../ui/metricGroups";
+import { type KeyGroup, KeyList } from "./controls/KeyList";
 import { COUNT_COLUMNS, SWITCH_TITLE, type Switch, boardPage, switchLabel } from "../leaderboard/board";
 import { ROOT } from "../pages/Leaderboard";
 
@@ -24,38 +25,6 @@ function switchValues(sw: Switch, track: string, extra: string[] = []): string[]
   if (sw === "games") return ["all", "people", "ai"];
   if (sw === "stratum") return STRATA[track] ?? STRATA.hi;
   return [...new Set([...WINDOWS, ...extra.filter((x) => /^last_\d+_days$/.test(x))])];
-}
-
-type KeyGroup = { label: string; keys: { key: string; title: string; validated?: boolean }[] };
-
-/** An ordered list of score or criterion keys: chips with a remove button, and an "Add…" menu. */
-function KeyList({ label, value, groups, onChange, titles }: { label: string; value: string[]; groups: KeyGroup[]; onChange: (v: string[]) => void; titles: Record<string, string> }) {
-  return (
-    <span className="flex flex-wrap items-center justify-end gap-1.5" data-key-list={label}>
-      {value.map((k) => (
-        <span key={k} className="chip py-0.5 text-[0.78rem]" title={k}>
-          {titles[k] ?? k}
-          <button type="button" aria-label={`Remove ${k} from ${label}`} className="text-muted hover:text-bad" onClick={() => onChange(value.filter((x) => x !== k))}>
-            <X size={12} />
-          </button>
-        </span>
-      ))}
-      <select aria-label={`Add to ${label}`} value="" onChange={(e) => e.target.value && onChange([...value, e.target.value])} className="max-w-[12rem] rounded-md border border-line bg-surface py-1 pl-2 pr-6 text-xs text-ink focus:border-you focus:outline-none">
-        <option value="">Add…</option>
-        {groups.map((g) => (
-          <optgroup key={g.label} label={g.label}>
-            {g.keys.filter((x) => !value.includes(x.key)).map((x) => (
-              <option key={x.key} value={x.key} title={x.validated ? VALIDATED_TIP : undefined} data-validated={x.validated ? "" : undefined}>
-                {x.title}
-                {x.title !== x.key ? ` (${x.key})` : ""}
-                {markText(x.validated)}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-    </span>
-  );
 }
 
 export function LeaderboardSettings({ value, onChange, project, study, kind, info, studies, version }: {
@@ -100,7 +69,8 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
   const enabled = scores?.enabled ?? [];
   const titleOf: Record<string, string> = { ...(crit?.titles ?? {}), ...COUNT_TITLE };
   for (const s of scores?.scores ?? []) titleOf[s.key] = s.title;
-  const scoreGroup: KeyGroup = { label: "Enabled scores", keys: enabled.map((k) => ({ key: k, title: titleOf[k] ?? k })) };
+  const validatedScore = new Set((scores?.scores ?? []).filter((s) => s.validated).map((s) => s.key));
+  const scoreGroup: KeyGroup = { label: "Enabled scores", keys: enabled.map((k) => ({ key: k, title: titleOf[k] ?? k, validated: validatedScore.has(k) })) };
   const sortGroups: KeyGroup[] = [scoreGroup, ...(crit?.sortGroups ?? []).map((g) => ({ label: g.label, keys: g.options.map((o) => ({ key: o.key, title: o.title, validated: o.validated })) }))];
   const criteriaGroups: KeyGroup[] = grouped(crit?.all ?? [], (c) => c.group, crit?.groups).map((g) => ({ label: g.title, keys: g.items.map((c) => ({ key: c.key, title: c.title, validated: c.validated })) }));
   const columnGroups: KeyGroup[] = [scoreGroup, { label: "Counts", keys: COUNT_COLUMNS.map((k) => ({ key: k, title: COUNT_TITLE[k] })) }, ...criteriaGroups];

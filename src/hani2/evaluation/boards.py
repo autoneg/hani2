@@ -415,7 +415,7 @@ def _option(key: str, ss: Any, crit: dict[str, Any]) -> dict[str, Any]:
         from hani2.evaluation.catalog import validation_of
 
         d: dict[str, Any] = {"key": key, "title": s.title, "kind": "score", "group": "scores",
-                             "validated": bool(validation_of(key))}
+                             "validated": bool(s.builtin and validation_of(key))}
         if s.description:
             d["description"] = s.description
         return d
