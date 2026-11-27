@@ -121,6 +121,11 @@ criteria in the groups below, with {MARK} next to validated ones. See
 """
 
 
+def _warning(title: str, text: str) -> str:
+    """A warning box (the ``admonition`` extension)."""
+    return f'!!! warning "{title}"\n    {text}\n'
+
+
 def catalog_markdown() -> str:
     """The page ``docs/guide/metric-catalog.md``."""
     from hani2.evaluation.base import REGISTRY
@@ -172,6 +177,12 @@ def catalog_markdown() -> str:
             out.append("")
         if labels.get(g.id):
             out.append("Labels in this group (not numbers, so not usable in a score): " + ", ".join(labels[g.id]) + ".\n")
+        warned: dict[str, list[str]] = {}
+        for c in cs:
+            if c.id in C.SOURCE_WARNINGS:
+                warned.setdefault(C.SOURCE_WARNINGS[c.id], []).append(f"`{c.id}`")
+        for w, ids in warned.items():
+            out.append(_warning("Items not checked against the source", ", ".join(ids) + ": " + w))
         why = sorted({C.not_validated_reason(c.id, c.metric) for c in cs if not c.validated} - {""})
         for w in why:
             out.append(f"*Not validated:* {w}\n")
@@ -233,6 +244,8 @@ def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str 
             src = f"[{info.citation}]({info.url})" if info.url else info.citation
             out.append(f"**Source:** {src}\n")
         out.append(f"**{'Validated' if v else 'Validation'}:** {info.note}\n")
+    if qid in C.QUESTIONNAIRE_WARNINGS:
+        out.append(_warning("Items not checked against the source", C.QUESTIONNAIRE_WARNINGS[qid]))
     out.append(_scales_line(qs) + "\n")
     out.append(_questions_table(qs) + "\n")
     return out

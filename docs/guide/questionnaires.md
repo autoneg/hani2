@@ -117,6 +117,9 @@ Id `tam_ease` · 6 questions · for: `per_negotiation`, `post_session`
 
 **Validation:** Not validated: not yet checked against the published items (no readable copy of the item sheet was found). The six items follow Davis's ease-of-use items, reworded for a negotiation assistant, with agree–disagree anchors.
 
+!!! warning "Items not checked against the source"
+    The TAM items have not been checked against the published instrument (Davis, 1989): no readable copy of the item sheet was found. The scoring of the scale is validated; the wording of its items is not, so results may not be comparable with published TAM scores.
+
 Scales: `tam_ease` (6 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
 | # | Id | Question | Answer | Scale |
@@ -138,6 +141,9 @@ Id `tam_usefulness` · 6 questions · for: `per_negotiation`, `post_session`
 
 **Validation:** Not validated: not yet checked against the published items (no readable copy of the item sheet was found). The six items follow Davis's usefulness items, reworded for a negotiation assistant, with agree–disagree anchors.
 
+!!! warning "Items not checked against the source"
+    The TAM items have not been checked against the published instrument (Davis, 1989): no readable copy of the item sheet was found. The scoring of the scale is validated; the wording of its items is not, so results may not be comparable with published TAM scores.
+
 Scales: `tam_usefulness` (6 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
 | # | Id | Question | Answer | Scale |
@@ -158,6 +164,9 @@ Id `tam_usefulness_short` · 2 questions · for: `per_negotiation`, `post_sessio
 **Source:** [Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3), 319–340.](https://doi.org/10.2307/249008)
 
 **Validation:** Not validated: a two-item selection of the usefulness items, reworded; not yet checked against the published items (no readable copy of the item sheet was found).
+
+!!! warning "Items not checked against the source"
+    The TAM items have not been checked against the published instrument (Davis, 1989): no readable copy of the item sheet was found. The scoring of the scale is validated; the wording of its items is not, so results may not be comparable with published TAM scores.
 
 Scales: `tam_usefulness` (2 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
@@ -402,6 +411,9 @@ Id `evaluation` · 21 questions ·
 **Measures:** The evaluation questionnaire after each negotiation: satisfaction, enjoyment, UEQ items, TAM usefulness, intention to use, feeling heard, and the view of the opponent.
 
 **Validation:** A combination of own items and the ueq_eval and tam_usefulness_short selections (see those).
+
+!!! warning "Items not checked against the source"
+    Its `tam_usefulness` scale uses TAM items. The TAM items have not been checked against the published instrument (Davis, 1989): no readable copy of the item sheet was found. The scoring of the scale is validated; the wording of its items is not, so results may not be comparable with published TAM scores.
 
 Scales: `satisfaction` (1 item), `appreciation` (1 item), `ueq_pragmatic` (6 items), `ueq_hedonic` (2 items), `tam_usefulness` (2 items), `intention_to_use` (1 item), `felt_heard` (1 item), `opponent_kindness` (1 item), `opponent_intelligence` (1 item), `opponent_humanlike` (1 item), `relationship` (2 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 

@@ -139,3 +139,12 @@ def test_scores_api_marks_validated_built_ins_only(client):
     assert by["my_team"]["validated"] is False
     assert d["validated_tooltip"] == C.VALIDATED_TOOLTIP
 
+
+def test_tam_measures_carry_a_source_warning():
+    """No readable copy of Davis's item sheet: every TAM set and TAM scale says so in a warning box."""
+    tam_sets = {k for k in C.QUESTIONNAIRES if k.startswith("tam_")}
+    assert tam_sets and tam_sets <= set(C.QUESTIONNAIRE_WARNINGS)
+    tam_cols = {c.name for m in REGISTRY.values() for c in m.columns if "tam_" in c.name}
+    assert tam_cols and tam_cols <= set(C.SOURCE_WARNINGS)
+    for md in catalog_docs.pages().values():
+        assert '!!! warning "Items not checked against the source"' in md

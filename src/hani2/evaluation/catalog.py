@@ -235,6 +235,18 @@ _validated(_SC + "test_scores_hi_interaction_full_row", "hi_interaction", "hi_in
 SCORE_RULES_VALIDATED_BY = _SC + "test_defined_score_three_components_catalogue_defaults"
 
 
+#: warnings about the source of a measure or questionnaire whose scoring may be validated but whose items
+#: are not checked against the published instrument (shown as warnings in the docs)
+TAM_WARNING = ("The TAM items have not been checked against the published instrument (Davis, 1989): no readable "
+               "copy of the item sheet was found. The scoring of the scale is validated; the wording of its items "
+               "is not, so results may not be comparable with published TAM scores.")
+SOURCE_WARNINGS: dict[str, str] = {"scale_tam_usefulness": TAM_WARNING, "scale_tam_usefulness_norm": TAM_WARNING}
+QUESTIONNAIRE_WARNINGS: dict[str, str] = {
+    "tam_usefulness": TAM_WARNING, "tam_usefulness_short": TAM_WARNING, "tam_ease": TAM_WARNING,
+    "evaluation": "Its `tam_usefulness` scale uses TAM items. " + TAM_WARNING,
+}
+
+
 #: why a column is not validated (shown in the docs)
 NOT_VALIDATED: dict[str, str] = {}
 _JUDGED = ("The rating is a language-model judgement, which no hand-computed example can check; only the parsing, "

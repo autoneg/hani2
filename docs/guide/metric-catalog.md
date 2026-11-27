@@ -237,6 +237,9 @@ Besides the scales of the bundled evaluation questionnaire listed here, every it
 | `scale_relationship_norm` | Relationship (0–1) | Wish to negotiate again / feeling connected to the opponent, rescaled to 0–1 | [0, 1] | higher | yes | <abbr title="validated against a hand-computed example: tests/validation/test_validate_subjective.py::test_questionnaire_bundled_form_scales">✓</abbr> | [`questionnaire`](metrics.md) |
 | `questionnaire_answered` | Answered | 1 if the participant answered the questionnaire | 0 or 1 | none | with a direction | <abbr title="validated against a hand-computed example: tests/validation/test_validate_subjective.py::test_questionnaire_bundled_form_scales">✓</abbr> | [`questionnaire`](metrics.md) |
 
+!!! warning "Items not checked against the source"
+    `scale_tam_usefulness`, `scale_tam_usefulness_norm`: The TAM items have not been checked against the published instrument (Davis, 1989): no readable copy of the item sheet was found. The scoring of the scale is validated; the wording of its items is not, so results may not be comparable with published TAM scores.
+
 ### Language-model judgements {#group-judge}
 
 Ratings and checks by a language-model judge: the Assistant, the opponent and the human, natural-language assertions, error review.
