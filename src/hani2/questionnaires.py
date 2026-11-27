@@ -226,7 +226,8 @@ def library_dirs() -> list[Path]:
 
 def library() -> dict[str, dict]:
     """Every predefined question set by id: ``title``, ``description``, ``reference``,
-    ``forms`` (the forms it suits), ``questions`` and ``source`` (``bundled`` or ``settings``)."""
+    ``forms`` (the forms it suits), ``questions``, ``source`` (``bundled`` or ``settings``) and ``path``
+    (the file that defines it)."""
     import yaml
 
     out: dict[str, dict] = {}
@@ -244,7 +245,7 @@ def library() -> dict[str, dict]:
             sid = str(data.get("id") or p.stem)
             out[sid] = {"id": sid, "title": str(data.get("title") or sid), "description": str(data.get("description") or ""),
                         "reference": str(data.get("reference") or ""), "forms": list(data.get("forms") or list(FORMS)),
-                        "questions": data["questions"], "source": "bundled" if i == 0 else "settings"}
+                        "questions": data["questions"], "source": "bundled" if i == 0 else "settings", "path": str(p)}
     return out
 
 

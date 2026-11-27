@@ -445,3 +445,8 @@ def admin_questionnaire_check(body: dict = Body(...)):
             ids = [q.get("id") for q in data.get("questions") or [] if isinstance(q, dict)]
             warnings = catalog.form_warnings(ids, questionnaires.library())
     return {"problems": problems, "form": form, "warnings": warnings}
+
+
+from hani2 import admin_questionnaire_library  # noqa: E402
+
+router.include_router(admin_questionnaire_library.router)  # the questionnaire explorer, form parse / dump

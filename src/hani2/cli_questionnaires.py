@@ -57,13 +57,20 @@ def questionnaire_compose(
 
 
 @questionnaire_app.command("check")
-def questionnaire_check(files: Annotated[list[Path], typer.Argument(help="Form files to check.")]):
-    """Check form files (YAML, ids, types, options); exits 1 on a problem."""
-    from hani2 import questionnaires
+def questionnaire_check(
+    files: Annotated[list[Path], typer.Argument(help="Form files (or, with --set, question set files) to check.")],
+    as_set: Annotated[bool, typer.Option("--set", help="Check predefined question sets (id, title, forms, questions) instead of forms. Files inside a questionnaire_library/ folder are always checked as sets.")] = False,
+):
+    """Check form files or question set files (YAML, ids, types, options); exits 1 on a problem."""
+    from hani2 import questionnaire_library, questionnaires
 
     bad = False
     for f in files:
-        problems = questionnaires.validate(f.read_text(encoding="utf-8"))
+        text = f.read_text(encoding="utf-8")
+        if as_set or f.resolve().parent.name == questionnaires.LIBRARY_DIR:
+            problems = questionnaire_library.check(text, in_app=False)
+        else:
+            problems = questionnaires.validate(text)
         if problems:
             bad = True
             typer.secho(f"{f}:", fg="red", bold=True)
