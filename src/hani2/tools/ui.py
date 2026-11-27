@@ -70,6 +70,7 @@ __all__ = [
     "row",
     "column",
     "grid",
+    "placed",
     "card",
     "divider",
     "legend",
@@ -449,9 +450,23 @@ def column(*children: Component | None, gap: int = 3) -> Component:
     return _c("column", children=[c for c in children if c], gap=gap)
 
 
-def grid(*children: Component | None, cols: int = 2, gap: int = 3) -> Component:
-    """Responsive grid (collapses to one column on narrow panes)."""
-    return _c("grid", children=[c for c in children if c], cols=cols, gap=gap)
+def grid(*children: Component | None, cols: int = 2, gap: int = 3, narrow_min: int | None = None) -> Component:
+    """Responsive grid (collapses to one column on narrow panes). ``narrow_min``: the
+    smallest column width (px) in a tool pane pinned outside the full view (the simple
+    view), so the columns stay side by side there in less room than usual (260 px)."""
+    return _c("grid", children=[c for c in children if c], cols=cols, gap=gap, narrow_min=narrow_min)
+
+
+PLACES = ("pane", "window")
+
+
+def placed(pane: Component, window: Component | None = None) -> Component:
+    """One component in a tool pane and another in the tool's window (the popup or the
+    enlarged tool). The browser shows the one for where the tool is; text descriptions
+    use ``pane``. Without ``window`` it is ``pane`` itself."""
+    if window is None:
+        return pane
+    return _c("placed", children=[pane, window], places=list(PLACES))
 
 
 def card(*children: Component | None, title: str | None = None, collapsible: bool = False,

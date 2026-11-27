@@ -290,18 +290,84 @@ def simple_scenarios(ref: Any = None, default: Any = None) -> bool:
         return bool(default)
 
 
+def normalized_scenarios(ref: Any = None, default: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study generates *normalized* scenarios (every
+    utility function's best deal worth 1, the weights adding up to 1): the ``normalized_scenarios`` setting of its ``study.yaml``, else of its
+    project's ``project.yaml``, else ``default`` (the global setting
+    ``negotiation.normalized_scenarios`` in ``env.json``); **on** by default. Off, every
+    generated scenario is scaled to points (see :func:`denormalize_scenario`). Saved
+    scenarios are served as they were saved."""
+    from hani2 import projects
+
+    if default is None:
+        from hani2.config import get_env
+
+        default = (get_env("negotiation", {}) or {}).get("normalized_scenarios", True)
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        return bool(projects.setting("normalized_scenarios", bool(default), cast=bool, **kw))
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return bool(default)
+
+
+#: the key of a scenario's info that marks it as generated not normalized
+NORMALIZED_KEY = "normalized"
+#: what the best deal is worth in a scenario generated not normalized
+RAW_SCALE = 100.0
+
+
+def normalize_scenario(scenario: Scenario) -> Scenario:
+    """Every utility function of ``scenario`` scaled so that its best deal is worth 1, the
+    weights adding up to 1 (see :mod:`hani2.ufun_scale`; scaled, never shifted). The
+    utility functions of the built-in generators are like that already and are kept as
+    they are, so a normalized scenario does not change."""
+    from hani2.ufun_scale import scale_to_best
+
+    ufuns = list(scenario.ufuns)
+    scaled = [scale_to_best(u) for u in ufuns]
+    if any(a is not b for a, b in zip(scaled, ufuns)):
+        scenario.ufuns = tuple(scaled)
+    return scenario
+
+
+def denormalize_scenario(scenario: Scenario, scale: float = RAW_SCALE) -> Scenario:
+    """``scenario`` in points: every utility function multiplied by ``scale`` (the best deal is
+    worth ``scale`` points, the value on disagreement follows). An additive utility function
+    keeps its option values and scales its weights, so the weights read as points. Marks the
+    scenario's info ``normalized: false``."""
+    from hani2.ufun_scale import scale_by
+
+    ufuns = list(scenario.ufuns)
+    for i, u in enumerate(ufuns):
+        try:
+            ufuns[i] = scale_by(u, scale)
+        except Exception:  # noqa: BLE001 - left as it is
+            continue
+    scenario.ufuns = tuple(ufuns)
+    scenario.info = dict(scenario.info or {})
+    scenario.info[NORMALIZED_KEY] = False
+    return scenario
+
+
+def _scaled(scenario: Scenario, normalized: bool) -> Scenario:
+    return normalize_scenario(scenario) if normalized else denormalize_scenario(scenario)
+
+
 def _simple_dir(path: Path) -> bool:
     return bool(_read_info(path).get(simple.SIMPLE_KEY))
 
 
-def make_scenario(type_: str, index: int, simple_mode: bool = False) -> Scenario:
+def make_scenario(type_: str, index: int, simple_mode: bool = False, normalized: bool = True) -> Scenario:
     """Generate slot ``index`` of ``type_``; ``simple_mode`` makes it a simple scenario
-    (a maker that knows nothing about the mode is simplified afterwards)."""
+    (a maker that knows nothing about the mode is simplified afterwards). ``normalized``
+    (the default) scales every utility function to [0, 1]; ``False`` gives it in points
+    (:func:`denormalize_scenario`; a simple scenario is simplified first, on the [0, 1]
+    scale, and then scaled)."""
     if not simple_mode:
-        return MAKER_MAP[type_](index)
+        return _scaled(MAKER_MAP[type_](index), normalized)
     with simple.simple_mode():
         s = MAKER_MAP[type_](index)
-        return s if simple.is_simple(s) else simple.simplify_scenario(s)
+        return _scaled(s if simple.is_simple(s) else simple.simplify_scenario(s), normalized)
 
 
 GENERATION_RULES: dict[str, dict[str, str]] = {
@@ -318,13 +384,14 @@ def default_rule(ref: Any = None) -> str:
     return "simple" if simple_scenarios(ref) else "random"
 
 
-def generate_scenario(type_: str, index: int, rule: str | None = None) -> Scenario:
+def generate_scenario(type_: str, index: int, rule: str | None = None, normalized: bool | None = None) -> Scenario:
     """Generate slot ``index`` of ``type_`` by ``rule`` (a :data:`GENERATION_RULES` key;
-    ``None``: the current study's rule)."""
+    ``None``: the current study's rule), normalized or not (``None``: the current
+    study's ``normalized_scenarios`` setting)."""
     rule = rule or default_rule()
     if rule not in GENERATION_RULES:
         raise ValueError(f"unknown generation rule {rule!r}; one of {', '.join(GENERATION_RULES)}")
-    return make_scenario(type_, index, rule == "simple")
+    return make_scenario(type_, index, rule == "simple", normalized_scenarios() if normalized is None else normalized)
 
 
 def pool_problems(types: list[str]) -> dict[str, str]:
@@ -388,6 +455,7 @@ def load_scenario(
     name: str | None = None,
     strict: bool = False,
     simple_mode: bool = False,
+    normalized: bool = True,
 ) -> tuple[Scenario, dict[str, Any], str | None]:
     """Return ``(scenario, basic_info, scenario_dir)`` for slot ``index`` of ``type_``.
 
@@ -405,6 +473,9 @@ def load_scenario(
     has none) a scenario generated in simple mode. With ``strict`` the saved set
     wins: a pool without simple scenarios is served as it is. Saved scenarios are
     never changed when they are served.
+
+    ``normalized`` (the setting ``normalized_scenarios``, on by default): a scenario
+    generated on the fly is normalized, else in points (saved scenarios are served as saved).
     """
     if strict:
         load_existing, generate_on_failure = True, False
@@ -444,10 +515,10 @@ def load_scenario(
                 return s, dict(index=index, load_index=None, load_path=str(sample),
                                scenario_name=type_, generated=False, scenario_type=type_), None
         raise ValueError(f"Unknown scenario type {type_!r}")
-    s = make_scenario(type_, index, simple_mode)
+    s = make_scenario(type_, index, simple_mode, normalized)
     info = dict(index=index, load_index=None, load_path=None,
                 scenario_name=s.outcome_space.name, generated=True, scenario_type=type_,
-                **({"simple": True} if simple_mode else {}))
+                **({"simple": True} if simple_mode else {}), **({} if normalized else {NORMALIZED_KEY: False}))
     return s, info, None
 
 

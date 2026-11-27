@@ -60,6 +60,7 @@ More: [Study management](study-management.md#study-types).
 | [Scenario set](#setting-scenario-set) | `scenario_set` | The scenario types participants negotiate, and their order |
 | [Strict scenarios](#setting-strict-scenarios) | `strict_scenarios` | Serve saved scenarios only: a missing or broken pool is an error, never a generated scenario |
 | [Simple scenarios](#setting-simple-scenarios) | `simple_scenarios` | Generate scenarios with round numbers and linear or symmetric preferences |
+| [Normalized scenarios](#setting-normalized-scenarios) | `normalized_scenarios` | Generate scenarios whose best deal is worth 1 (100%), with weights adding up to 1 |
 | [Forced value on disagreement](#setting-force-reserved-value) | `force_reserved_value` | The participant's value on disagreement in every negotiation, whatever the scenario says |
 | [Counted negotiations](#setting-n-required) | `n_required` | K: how many negotiations of each participant count (practice not included) |
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
@@ -123,6 +124,17 @@ same way are served. With **No**, any saved scenario may be served and generated
 shape.
 
 More: [Scenarios](scenarios.md#simple-scenarios).
+
+### Normalized scenarios {#setting-normalized-scenarios}
+
+`normalized_scenarios`: *Generate scenarios whose best deal is worth 1 (100%), with weights adding up to 1*
+
+With **Yes** (the default), every generated scenario is normalized: for each side the best deal is
+worth 1 (scaled, never shifted), the issue weights add up to 1 and the values on disagreement are on the same
+scale. With **No**, generated scenarios are saved in points: the best deal is worth 100 and the weights
+add up to 100 (the shape of the preferences is the same). Saved scenarios are served as they were saved.
+
+More: [Scenarios](scenarios.md#normalized-scenarios).
 
 ### Forced value on disagreement {#setting-force-reserved-value}
 

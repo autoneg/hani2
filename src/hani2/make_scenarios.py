@@ -168,8 +168,12 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
                  force: bool, cache_inverter: bool, rng: random.Random,
                  min_opp: float, max_opp: float, set_reservations: bool,
                  user_max: float, agent_max: float, max_tries: int,
-                 seed: int | str | None = None, simple: bool = False) -> tuple[bool, str]:
+                 seed: int | str | None = None, simple: bool = False,
+                 normalized: bool = True) -> tuple[bool, str]:
     """Generate (or skip) one scenario directory, optionally caching its inverse.
+    ``normalized=False``: the opposition band and the reservation values are worked out
+    on the normalized scale, then the scenario is saved in points
+    (:func:`hani2.scenario_store.denormalize_scenario`).
 
     Returns (wrote, message)."""
     out_dir = type_dir / f"{index:04d}{scenario_type}"
@@ -197,6 +201,11 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
             scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max, simple
         )
         res_note = f" res h={human_r}/a={agent_r}"
+    if not normalized:
+        from hani2.scenario_store import denormalize_scenario
+
+        denormalize_scenario(scenario)
+        res_note += " (in points)"
     # <Type>.yml / per-role ufuns / _info.yml, including the reservation values we just set
     from hani2.scenario_store import save_scenario
 
@@ -278,6 +287,12 @@ def generate(
         help="Simple scenarios: round numbers, linear and symmetric preferences (default: the "
         "simple_scenarios setting of the current project/study, else of env.json; on unless switched off). Existing slots are "
         "kept unless --force.")] = None,
+    normalized: Annotated[Optional[bool], typer.Option(
+        "--normalized/--no-normalized",
+        help="Normalized scenarios: the best deal worth 1, the weights adding up to 1 (default: the "
+        "normalized_scenarios setting of the current project/study, else of env.json; on unless switched off). "
+        "--no-normalized saves them in points (the best deal is worth 100). Existing slots are kept unless "
+        "--force.")] = None,
 ):
     """Generate a pool of scenarios, optionally with cached utility inverses."""
     from hani2 import scenario_sets
@@ -326,6 +341,11 @@ def generate(
 
         simple = simple_scenarios()
     print(f"Simple        : {simple}")
+    if normalized is None:
+        from hani2.scenario_store import normalized_scenarios
+
+        normalized = normalized_scenarios()
+    print(f"Normalized    : {normalized}")
     print(f"Force rewrite : {force}")
     print("-" * 60)
 
@@ -340,7 +360,7 @@ def generate(
                 did_write, msg = generate_one(
                     scenario_type, i, type_dir, human_index, force, cache_inverter,
                     rng, min_opposition, max_opposition, set_reservations,
-                    user_reserved_max, agent_reserved_max, max_tries, seed, bool(simple),
+                    user_reserved_max, agent_reserved_max, max_tries, seed, bool(simple), bool(normalized),
                 )
             except Exception as e:
                 total_err += 1

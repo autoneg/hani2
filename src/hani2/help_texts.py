@@ -133,6 +133,14 @@ With **Yes** (the default), generated scenarios use round numbers and plain shap
 same way are served. With **No**, any saved scenario may be served and generated ones may use any
 shape.""",
         section="Defaults", docs="scenarios.md#simple-scenarios"),
+    "normalized_scenarios": Help(
+        "Normalized scenarios", "Generate scenarios whose best deal is worth 1 (100%), with weights adding up to 1",
+        """\
+With **Yes** (the default), every generated scenario is normalized: for each side the best deal is
+worth 1 (scaled, never shifted), the issue weights add up to 1 and the values on disagreement are on the same
+scale. With **No**, generated scenarios are saved in points: the best deal is worth 100 and the weights
+add up to 100 (the shape of the preferences is the same). Saved scenarios are served as they were saved.""",
+        section="Defaults", docs="scenarios.md#normalized-scenarios"),
     "force_reserved_value": Help(
         "Forced value on disagreement", "The participant's value on disagreement in every negotiation, whatever the scenario says",
         """\
@@ -649,6 +657,7 @@ REQUIRED = (
     "scenario_set",
     "strict_scenarios",
     "simple_scenarios",
+    "normalized_scenarios",
     "force_reserved_value",
     "n_required",
     "practice",

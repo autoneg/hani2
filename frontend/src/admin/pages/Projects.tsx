@@ -267,6 +267,7 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effe
       </Row>
       <Row label="Strict scenarios" help="strict_scenarios" hint="strict_scenarios: serve saved scenarios only; a missing or broken pool is an error, never a generated scenario">{tri("strict_scenarios")}</Row>
       <Row label="Simple scenarios" help="simple_scenarios" hint="simple_scenarios: generate scenarios with round numbers and linear or symmetric preferences, and serve only saved scenarios generated that way">{tri("simple_scenarios")}</Row>
+      <Row label="Normalized scenarios" help="normalized_scenarios" hint="normalized_scenarios: generate scenarios whose best deal is worth 1 and whose weights add up to 1 (the default); off, they are generated in points (the best deal is worth 100). Saved scenarios are served as saved">{tri("normalized_scenarios")}</Row>
       <Row label="Forced value on disagreement" help="force_reserved_value" hint="force_reserved_value: the participant's value on disagreement (0 to 1 on normalised scenarios) in every negotiation, whatever the scenario says; the opponent keeps the scenario's. Empty: each scenario's own values">
         <Stepper label="Forced value on disagreement" value={v.force_reserved_value ?? null} nullable placeholder={inherit.toLowerCase()} step={0.05} min={0} onChange={(x) => put("force_reserved_value", x)} />
       </Row>

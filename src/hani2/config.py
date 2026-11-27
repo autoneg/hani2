@@ -327,7 +327,11 @@ DEFAULT_ENV: dict[str, Any] = {
     "playground": {"enabled": True},
     # WebMCP: expose the negotiation to AI agents running in the browser.
     "webmcp": {"enabled": True, "actions": True, "studies": False},
-    "tools": {"maximize": "window", "weights_chart": "donut"},
+    # the Preferences tools: weights as a bar (``donut`` in the tool's window when
+    # weights_chart_window says so), normalized percentages or raw numbers, a line
+    # instead of bars above values_line_above options
+    "tools": {"maximize": "window", "weights_chart": "bar", "weights_chart_window": "same",
+              "preferences_scale": "normalized", "values_line_above": 12},
     # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),
     # every other year from the han-agents package; None: every year from the package
     "han": {"current_year": None, "submissions": {}},

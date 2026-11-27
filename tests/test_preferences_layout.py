@@ -77,12 +77,34 @@ def test_weights_chart_donut_or_bar(hani2_home):
         return pies, stacks
 
     s = make_session()
-    assert pies_and_stacks(s) == (1, 0)  # the donut by default
+    assert pies_and_stacks(s) == (0, 1)  # the bar by default
+    assert not any(c.get("type") == "placed" for c in _walk(_prefs(s)))  # one chart: the window draws it alike
     projects.create_project("P")
-    projects.create_study("P/bar")
-    _write(projects.study_dir(projects.StudyRef("P", "bar")) / "env.json", {"tools": {"weights_chart": "bar"}})
-    s = make_session(study="P/bar")
-    assert pies_and_stacks(s) == (0, 1)
+    projects.create_study("P/donut")
+    _write(projects.study_dir(projects.StudyRef("P", "donut")) / "env.json", {"tools": {"weights_chart": "donut"}})
+    s = make_session(study="P/donut")
+    assert pies_and_stacks(s) == (1, 0)
+
+
+def test_weights_donut_in_the_window_only(hani2_home):
+    projects.create_project("P")
+    projects.create_study("P/win")
+    _write(projects.study_dir(projects.StudyRef("P", "win")) / "env.json",
+           {"tools": {"weights_chart_window": "donut"}})
+    s = make_session(study="P/win")
+    placed = [c for c in _walk(_prefs(s)) if c.get("type") == "placed"]
+    assert len(placed) == 1 and placed[0]["places"] == ["pane", "window"]
+    pane, window = placed[0]["children"]
+    assert next(c for c in _walk([pane]) if c.get("type") == "plot")["figure"]["layout"]["barmode"] == "stack"
+    assert window["figure"]["data"][0]["type"] == "pie"
+    from hani2.tools.describe import describe_components
+
+    assert describe_components([placed[0]]) == describe_components([pane])  # text: the pane's version
+
+
+def test_weights_and_values_side_by_side_when_narrow():
+    grids = [c for c in _walk(_prefs(make_session())) if c.get("type") == "grid"]
+    assert grids and grids[0]["narrow_min"] == uv.NARROW_COLUMN
 
 
 def test_weights_bar_shares():

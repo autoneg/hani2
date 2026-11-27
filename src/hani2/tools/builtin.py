@@ -92,9 +92,11 @@ class PreferencesTool(Tool):
       sentences, the hints of your role and, for every issue, what you want in plain words
       ("the lower, the better", "best at 5 days") with an arrow: green up (the more, the better),
       red down (the less, the better) or blue arrows meeting (best at one value).
-    - **Issue weights** (a donut, or one thin bar when the administrator chooses it): how
-      important each issue is; the weights add up to 100%.
-    - **Value of each option** (bars): pick an issue to see what each of its options is worth to you.
+    - **Issue weights** (one thin bar, or a donut when the administrator chooses it): how
+      important each issue is; the weights add up to 100%. Pinned in the simple view, the
+      weights and the option values sit side by side when there is room.
+    - **Value of each option** (bars, or a line for an issue with many options): pick an issue
+      to see what each of its options is worth to you.
     - **Value on disagreement**: one sentence under the charts, e.g. "If you do not reach agreement
       you get 10% (your best option gives you 100%)".
 

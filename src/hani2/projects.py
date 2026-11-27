@@ -41,7 +41,7 @@ STUDY_TYPES = ("prolific", "online", "lab")
 DEFAULT_KEYS = (
     "scenario_set", "n_required", "practice", "practice_time_limit", "counted_time_limit", "time_limit",
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
-    "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
+    "strict_scenarios", "simple_scenarios", "normalized_scenarios", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
     "scores", "scores_enabled", "normalisation", "leaderboard",
     "force_reserved_value",

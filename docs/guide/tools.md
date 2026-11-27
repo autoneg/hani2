@@ -106,8 +106,8 @@ made by `scripts/screenshots/make_screenshots.py` in the source repository.
 
 **Everyone, always (permanent).** Your preferences in the current scenario: on top, a collapsible
 *In short* card with a summary, your role's hints and an arrow per issue (up: the more, the better;
-down: the less, the better; meeting arrows: best at one value); then a donut chart (or, with
-`tools.weights_chart: bar`, one thin bar) of the issue weights (how much each issue matters to you), a bar chart of what every option of the issue
+down: the less, the better; meeting arrows: best at one value); then one thin bar (or, with
+`tools.weights_chart: donut`, a donut) of the issue weights (how much each issue matters to you), a bar chart (a line for many options) of what every option of the issue
 picked in **Issue** is worth to you, your value on disagreement (what you get if there is no deal)
 and a collapsible explanation of how a deal's value is computed from the two. The value of a deal is
 the weighted sum of its options' values, so it is what the history, the offer panel and the other

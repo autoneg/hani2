@@ -97,6 +97,14 @@ simple_scenarios: false   # the original, finer-grained preferences
 
 `hani2 generate` follows the same setting (`--simple` / `--no-simple` override it). It keeps existing slots, so pass `--force` to regenerate an old pool as simple scenarios. In code, `with hani2.scenarios.simple.simple_mode(): ...` generates simple scenarios and `simplify_scenario(s)` simplifies any linear-additive scenario.
 
+### Normalized scenarios
+
+Generated scenarios are **normalized** by default: for every side the best deal is worth 1 (100%), the issue weights add up to 1 and the value on disagreement is on the same scale. Normalizing scales a utility function and never shifts it (a deal worth 0 stays at 0); the built-in generators produce normalized scenarios already, so the setting changes nothing for them.
+
+Switch it off (`normalized_scenarios: false`) to generate scenarios **in points**: every utility function is multiplied by 100, so the best deal is worth 100 points and the weights add up to 100 (each option's value is unchanged). The shape of the preferences, the opposition and the values on disagreement are worked out as usual first. A scenario generated this way is marked `normalized: false` in its `_info.yaml`. Saved scenarios are served as they were saved.
+
+The setting is global (*Settings* → *Scenarios and opponents* → *Normalized scenarios*, `negotiation.normalized_scenarios` in `env.json`), per project (`project.yaml`) and per study (`study.yaml`), with the same precedence as [simple scenarios](#simple-scenarios). `hani2 generate` follows it (`--normalized` / `--no-normalized` override it). Combined with simple scenarios, a scenario is simplified on the normalized scale first and then scaled to points. To *show* any scenario in raw numbers or as percentages, see [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers).
+
 The [Prolific](prolific.md) study has its own rules for the type and slot.
 
 ## Scenario sets

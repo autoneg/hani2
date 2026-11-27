@@ -643,6 +643,22 @@ def fresh_admin(p) -> str:
     return name
 
 
+def test_simple_view_preferences_weights_bar_beside_the_option_values(new_page):
+    """Pinned in the simple view, the Preferences tool draws the weights as one bar (the default)
+    beside the value of each option; in its popup it shows the same and the page has no errors."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    p.goto("/play")
+    p.get_by_role("tab", name="Preferences").first.click()
+    tools = p.locator("[data-region=tools]")
+    weights = tools.get_by_text("Issue weights", exact=True).first
+    values = tools.get_by_text("Value of each option", exact=True).first
+    expect(weights).to_be_visible()
+    expect(values).to_be_visible()
+    wb, vb = weights.bounding_box(), values.bounding_box()
+    assert abs(wb["y"] - vb["y"]) < 4 and vb["x"] > wb["x"] + 100  # side by side
+    expect(tools.locator(".js-plotly-plot .pielayer .slice")).to_have_count(0)  # a bar, not a donut
+
+
 def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     """Sessions open in the simple view (tools on the right). The Preferences tool's In short card,
     on top, holds the hints with an arrow per issue, folds away and stays folded when the tool

@@ -22,6 +22,12 @@ export interface RenderCtx {
   renderIssue?: (c: Component) => React.ReactNode;
   /** an anchor id for an input with this name (so highlights and notes can target it) */
   anchorFor?: (name: string) => string | undefined;
+  /** where a tool is drawn: its pane (the default) or its window (the popup or the enlarged
+   *  tool); a ``placed`` component shows its version for this place */
+  place?: "pane" | "window";
+  /** a tool pane pinned outside the full view (the simple view): a ``grid`` with
+   *  ``narrow_min`` keeps its columns side by side down to that width */
+  narrow?: boolean;
 }
 
 const ALERT: Record<string, string> = {
@@ -340,9 +346,16 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
           ))}
         </div>
       );
-    case "grid":
+    case "placed": {
+      // one version per place (pane, window): the one for where the tool is drawn
+      const kids: Component[] = c.children || [];
+      const i = Math.max(0, (c.places || []).indexOf(ctx.place ?? "pane"));
+      return kids[i] ? <Node c={kids[i]} ctx={ctx} /> : null;
+    }
+    case "grid": {
+      const min = c.cols > 1 ? (ctx.narrow && c.narrow_min ? c.narrow_min : 260) : 9999;
       return (
-        <div className="grid" style={{ ...GAP(c.gap), gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${c.cols > 1 ? 260 : 9999}px), 1fr))` }}>
+        <div className="grid" style={{ ...GAP(c.gap), gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))` }}>
           {(c.children || []).map((x: Component, i: number) => (
             <div key={i} className="min-w-0">
               <Node c={x} ctx={ctx} />
@@ -350,6 +363,7 @@ function NodeBody({ c, ctx }: { c: Component; ctx: RenderCtx }) {
           ))}
         </div>
       );
+    }
     case "card":
       return <Card c={c} ctx={ctx} />;
     default:

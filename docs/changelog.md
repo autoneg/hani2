@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **Preferences: weights as a bar, side by side, normalized or raw.** The issue weights are now
+  drawn as one thin coloured bar by default (`tools.weights_chart: bar`; `donut` brings the ring
+  back). In a tool pane pinned outside the full view (the simple view) the weights and the value of
+  each option sit side by side when the pane allows it. When the tool is enlarged or popped out,
+  `tools.weights_chart_window: donut` (or `bar`) draws the weights its own way there, independently
+  of the pane (`same`, the default, keeps the pane's chart). `tools.preferences_scale: raw` shows the
+  utility function's own numbers instead of normalized percentages (`normalized`, the default;
+  preferences whose best deal is not worth 1 are scaled for display). An issue with more than
+  `tools.values_line_above` options (12 by default), or a continuous one, shows its values as a line
+  drawn the same way round as the bars. For tool authors: `ui.placed(pane, window)` shows one
+  component in a pane and another in the tool's window, and `ui.grid(..., narrow_min=...)` keeps the
+  columns side by side in a narrow pinned pane. See [Showing preferences](guide/preferences.md#weights-as-a-bar-or-a-donut).
+- **Normalized or raw generated scenarios.** The setting `normalized_scenarios` (global
+  `negotiation.normalized_scenarios`, project and study; on by default) keeps every generated
+  scenario normalized: the best deal is worth 1 and the weights add up to 1. Off, generated
+  scenarios are in points (the best deal is worth 100). `hani2 generate --no-normalized` does the
+  same for a pool. See [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
+
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow
@@ -9,8 +27,8 @@
   (best at one value). Administrators can draw the issue weights as one thin horizontal bar instead
   of the donut (`tools.weights_chart: bar`, *Issue weights shown as* on the **Tools** page). For
   tool authors: `ui.kv(..., marks=[...])` puts such an icon after a value, `ui.legend(...)` is a colour key that wraps, and
-  `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a donut
-  or a bar](guide/preferences.md#weights-as-a-donut-or-a-bar).
+  `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a bar
+  or a donut](guide/preferences.md#weights-as-a-bar-or-a-donut).
 - **Tools on either side in the simple view.** `interface.simple_tools_side` (`right`, the
   default, or `left`) puts the simple view's tools column on either side of the negotiation. The
   console's **Participant interface** page gets a *Layout* group with the starting view, the view

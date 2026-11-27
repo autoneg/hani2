@@ -117,6 +117,9 @@ class UfunViewContext:
     #: the value on disagreement is not known to the viewer (see hani2.information); the hint says who knows it
     rv_hidden: bool = False
     rv_hidden_hint: str = "You do not know it"
+    #: show the ufun's own numbers (weights, values, value on disagreement) instead of
+    #: normalized percentages (env.json → ``tools.preferences_scale: raw``)
+    raw: bool = False
 
     # -- widgets ---------------------------------------------------------- #
     def key(self, name: str) -> str:
@@ -152,7 +155,7 @@ class UfunViewContext:
     def child(self, ufun: Any, label: str) -> "UfunViewContext":
         return UfunViewContext(
             tool=self.tool, ufun=ufun, title_prefix="", help_card=False, depth=self.depth + 1,
-            path=f"{self.path}_{label}" if self.path else label,
+            path=f"{self.path}_{label}" if self.path else label, raw=self.raw,
         )
 
     @property
@@ -164,19 +167,20 @@ class UfunViewContext:
         """The value on disagreement, as one sentence."""
         self.rv_shown = True
         return ui.alert(reserved_sentence(self.ufun, hidden=self.rv_hidden, hidden_hint=self.rv_hidden_hint,
-                                          opponent=self.opponent), "neutral")
+                                          opponent=self.opponent, raw=self.raw), "neutral")
 
     def layout(self, *left: ui.Component | None, right: ui.Component | None = None) -> ui.Component:
         """The standard two-column layout: summary on the left, details on the right.
 
         The value on disagreement goes under both columns (also when they stack
-        on a narrow pane).
+        on a narrow pane). In a tool pane pinned outside the full view the columns
+        stay side by side down to :data:`NARROW_COLUMN` px each.
         """
         left_items = [c for c in left if c]
         if right is None:
             body = ui.column(*left_items) if left_items else None
         else:
-            body = ui.grid(ui.column(*left_items), right, cols=2) if left_items else right
+            body = ui.grid(ui.column(*left_items), right, cols=2, narrow_min=NARROW_COLUMN) if left_items else right
         if self.nested:
             return body or ui.column()
         return ui.column(body, self.reserved_stat())
@@ -249,8 +253,11 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     if ctx is None:
-        ctx = UfunViewContext(tool=tool, ufun=ufun, title_prefix=title_prefix, help_card=help_card,
-                              rv_hidden=reserved_hint is not None, rv_hidden_hint=reserved_hint or "")
+        raw = preferences_raw()
+        ctx = UfunViewContext(tool=tool, ufun=ufun if raw else display_ufun(ufun), title_prefix=title_prefix,
+                              help_card=help_card, rv_hidden=reserved_hint is not None,
+                              rv_hidden_hint=reserved_hint or "", raw=raw)
+        ufun = ctx.ufun
     view = generic_view if ctx.depth >= MAX_DEPTH else find_ufun_view(ufun)
     try:
         comps = list(view(ctx))
@@ -265,6 +272,56 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
     if not ctx.nested and not ctx.rv_shown:
         comps.append(ctx.reserved_stat())
     return comps
+
+
+#: the smallest column width (px) of the two-column layout in a tool pane pinned outside the full view
+NARROW_COLUMN = 170
+#: how the Preferences tools show numbers (env.json → ``tools.preferences_scale``)
+PREFERENCE_SCALES = ("normalized", "raw")
+#: issues with more options than this show their values as a line (env.json → ``tools.values_line_above``)
+DEFAULT_LINE_ABOVE = 12
+
+
+def preferences_scale() -> str:
+    """``normalized`` (percentages: every deal between 0% and 100%, the weights as shares
+    adding up to 100%) or ``raw`` (the numbers of the utility function as they are):
+    env.json → ``tools.preferences_scale``."""
+    from hani2.config import get_env
+
+    v = str(get_env("tools.preferences_scale", "normalized") or "normalized").lower()
+    return v if v in PREFERENCE_SCALES else "normalized"
+
+
+def preferences_raw() -> bool:
+    return preferences_scale() == "raw"
+
+
+def values_line_above() -> int:
+    """Issues with more options than this draw their value function as a line, not bars."""
+    from hani2.config import get_env
+
+    try:
+        return max(1, int(get_env("tools.values_line_above", DEFAULT_LINE_ABOVE)))
+    except (TypeError, ValueError):
+        return DEFAULT_LINE_ABOVE
+
+
+def _cheap_minmax(ufun: Any) -> bool:
+    """Whether the best and worst deals can be found quickly: an additive utility function
+    (issue by issue) or a small outcome space."""
+    from hani2.ufun_scale import _cheap
+
+    return _cheap(ufun)
+
+
+def display_ufun(ufun: Any) -> Any:
+    """``ufun`` as the normalized scale shows it: itself when its best deal is worth 1
+    already (the scenarios hani2 generates), else a copy scaled so that it is (each
+    issue's favourite option worth 100%, the weights adding up to 100%, the value on
+    disagreement following; see :mod:`hani2.ufun_scale`). Unchanged when it cannot be scaled."""
+    from hani2.ufun_scale import scale_to_best
+
+    return ufun if ufun is None else scale_to_best(ufun)
 
 
 def _section(fn: Callable[[], ui.Component | list | None], what: str = "") -> list[ui.Component]:
@@ -300,10 +357,10 @@ def _reserved(ufun: Any) -> float | None:
         return None
 
 
-def _fmt_value(v: float | None) -> str:
+def _fmt_value(v: float | None, raw: bool = False) -> str:
     if v is None:
         return "Not set"
-    if -1e-9 <= v <= 1 + 1e-9:
+    if not raw and -1e-9 <= v <= 1 + 1e-9:
         return _pct(v)
     return f"{v:.3g}"
 
@@ -314,9 +371,11 @@ def _pct(v: float) -> str:
     return f"{p:.0f}%" if abs(p - round(p)) < 1e-9 else f"{p:.1f}%"
 
 
-def reserved_sentence(ufun: Any, *, hidden: bool = False, hidden_hint: str = "", opponent: bool = False) -> str:
+def reserved_sentence(ufun: Any, *, hidden: bool = False, hidden_hint: str = "", opponent: bool = False,
+                      raw: bool = False) -> str:
     """The value on disagreement in one sentence: "If you do not reach agreement you
-    get 10% (your best option gives you 100%)." ``hidden``: the viewer does not know it."""
+    get 10% (your best option gives you 100%)." ``hidden``: the viewer does not know it;
+    ``raw``: the number as it is (with the best deal's value)."""
     who, gets, its = ("the opponent", "gets", "its best option gives it") if opponent else \
         ("you", "get", "your best option gives you")
     if hidden:
@@ -327,9 +386,13 @@ def reserved_sentence(ufun: Any, *, hidden: bool = False, hidden_hint: str = "",
     lead = "If you do not reach agreement you" if not opponent else "If no agreement is reached the opponent"
     if rv is None:
         return f"{lead} {gets} nothing set by these preferences."
-    if _unit_scale(ufun) and -1e-9 <= rv <= 1 + 1e-9:
+    if not raw and _unit_scale(ufun) and -1e-9 <= rv <= 1 + 1e-9:
         return f"{lead} {gets} {_pct(rv)} ({its} 100%)."
-    return f"{lead} {gets} {rv:.3g}."
+    try:
+        hi = float(ufun.minmax()[1]) if _cheap_minmax(ufun) else float("nan")
+    except Exception:  # noqa: BLE001
+        hi = float("nan")
+    return f"{lead} {gets} {rv:.3g}" + (f" ({its} {hi:.3g})." if _finite(hi) else ".")
 
 
 def _unit_scale(ufun: Any) -> bool:
@@ -408,10 +471,10 @@ def _short_labels(labels: list[str], limit: int = MAX_AXIS_LABEL) -> list[str]:
     return out
 
 
-def _bars(labels: list, vals: list[float], *, color: str = HUMAN_COLOR) -> ui.Component:
-    """Horizontal bars; percentages when every value is within 0..1. The labels
-    are shown in full (the margin grows to fit them) unless excessively long."""
-    pct = _unit(vals)
+def _bars(labels: list, vals: list[float], *, color: str = HUMAN_COLOR, raw: bool = False) -> ui.Component:
+    """Horizontal bars; percentages when every value is within 0..1 (unless ``raw``). The
+    labels are shown in full (the margin grows to fit them) unless excessively long."""
+    pct = not raw and _unit(vals)
     xs = [100 * v if pct else v for v in vals]
     full = [_label(v) for v in labels]
     fig = go.Figure(data=[go.Bar(
@@ -424,44 +487,80 @@ def _bars(labels: list, vals: list[float], *, color: str = HUMAN_COLOR) -> ui.Co
     return ui.plot(fig)
 
 
-def _line(xs: list, ys: list[float]) -> ui.Component:
-    pct = _unit(ys)
-    fig = go.Figure(data=[go.Scatter(x=xs, y=[100 * y if pct else y for y in ys], mode="lines",
-                                     line=dict(color=HUMAN_COLOR))])
-    fig.update_layout(**base_layout(220, legend=False, yaxis=dict(ticksuffix="%" if pct else "")))
+#: points of a continuous issue's line
+LINE_POINTS = 60
+
+
+def _line(labels: list, vals: list[float], *, color: str = HUMAN_COLOR, raw: bool = False) -> ui.Component:
+    """The value of each option as a line, drawn like :func:`_bars` (the options down the
+    side, top to bottom, the value across): for issues with many options or continuous ones."""
+    pct = not raw and _unit(vals)
+    xs = [100 * v if pct else v for v in vals]
+    numeric = all(_is_number(v) for v in labels)
+    full = [_label(v) for v in labels]
+    ys = [float(v) for v in labels] if numeric else _short_labels(full)
+    fig = go.Figure(data=[go.Scatter(
+        x=xs, y=ys, mode="lines+markers" if len(labels) <= 30 else "lines", line=dict(color=color),
+        marker=dict(size=4, color=color), customdata=full,
+        hovertemplate="%{customdata}: %{x:.3g}" + ("%" if pct else "") + "<extra></extra>")])
+    xaxis: dict[str, Any] = dict(range=[0, 100], ticksuffix="%") if pct else dict(zeroline=True)
+    yaxis: dict[str, Any] = dict(autorange="reversed", automargin=True)
+    if not numeric:
+        yaxis["type"] = "category"
+    fig.update_layout(**base_layout(min(320, max(180, 6 * len(labels) + 60)), legend=False, xaxis=xaxis,
+                                    yaxis=yaxis, margin=dict(l=8, r=16, t=12, b=40)))
     return ui.plot(fig)
 
 
-def _fun_plot(issue: Any, fn: Any) -> ui.Component:
+def _fun_plot(issue: Any, fn: Any, *, raw: bool = False) -> ui.Component:
+    """Bars of every option's value, or a line for a continuous issue or one with more
+    than :func:`values_line_above` options."""
+    if issue.is_continuous():
+        labels = _issue_labels(issue, LINE_POINTS)
+        return _line(labels, [_apply(fn, v) for v in labels], raw=raw)
     labels = _issue_labels(issue)
     vals = [_apply(fn, v) for v in labels]
-    if issue.is_continuous():
-        return _line(labels, vals)
-    return _bars(labels, vals)
+    if len(labels) > values_line_above():
+        return _line(labels, vals, raw=raw)
+    return _bars(labels, vals, raw=raw)
 
 
 #: how the Preferences tool draws non-negative issue weights (env.json → ``tools.weights_chart``)
 WEIGHTS_CHARTS = ("donut", "bar")
 
 
-def weights_chart() -> str:
-    """``donut`` (a ring) or ``bar`` (one thin stacked bar, saves space): env.json → ``tools.weights_chart``."""
+def weights_chart(place: str = "pane") -> str:
+    """``bar`` (one thin stacked bar, saves space; the default) or ``donut`` (a ring):
+    env.json → ``tools.weights_chart``. ``place="window"``: in the tool's window (the
+    popup or the enlarged tool), where ``tools.weights_chart_window`` (``donut`` /
+    ``bar``) wins over it; ``same`` (the default) keeps ``tools.weights_chart``."""
     from hani2.config import get_env
 
-    v = str(get_env("tools.weights_chart", "donut") or "donut").lower()
-    return v if v in WEIGHTS_CHARTS else "donut"
+    v = str(get_env("tools.weights_chart", "bar") or "bar").lower()
+    v = v if v in WEIGHTS_CHARTS else "bar"
+    if place == "window":
+        w = str(get_env("tools.weights_chart_window", "same") or "same").lower()
+        if w in WEIGHTS_CHARTS:
+            return w
+    return v
 
 
-def _weights_bar(names: list[str], weights: list[float]) -> ui.Component:
+def _fmt_weight(w: float) -> str:
+    return f"{w:.3g}"
+
+
+def _weights_bar(names: list[str], weights: list[float], raw: bool = False) -> ui.Component:
     """One thin horizontal bar split into the issues' shares (the share inside a segment when it
-    fits), with a key under it that wraps to the pane's width and names every issue."""
+    fits; ``raw``: the weight itself), with a key under it that wraps to the pane's width and
+    names every issue."""
     tot = sum(weights)
     shares = [100 * w / tot for w in weights]
+    shown = [_fmt_weight(w) if raw else f"{sh:.0f}%" for w, sh in zip(weights, shares)]
     colors = SEQUENCE * (len(names) // len(SEQUENCE) + 1)
     data = [go.Bar(y=[""], x=[sh], orientation="h", name=str(n), marker_color=colors[i],
-                   text=[f"{sh:.0f}%"], textposition="inside", insidetextanchor="middle",
-                   textangle=0, customdata=[str(n)],
-                   hovertemplate="%{customdata}: %{x:.0f}%<extra></extra>")
+                   text=[shown[i]], textposition="inside", insidetextanchor="middle",
+                   textangle=0, customdata=[[str(n), shown[i]]],
+                   hovertemplate="%{customdata[0]}: %{customdata[1]}<extra></extra>")
             for i, (n, sh) in enumerate(zip(names, shares))]
     fig = go.Figure(data=data)
     fig.update_layout(**base_layout(
@@ -470,22 +569,29 @@ def _weights_bar(names: list[str], weights: list[float]) -> ui.Component:
         yaxis=dict(visible=False, fixedrange=True),
         uniformtext=dict(mode="hide", minsize=9),
         margin=dict(l=2, r=2, t=2, b=2)))
-    key = ui.legend([(n, colors[i], f"{sh:.0f}%") for i, (n, sh) in enumerate(zip(names, shares))])
+    key = ui.legend([(n, colors[i], shown[i]) for i, n in enumerate(names)])
     return ui.column(ui.plot(fig), key, gap=2)
 
 
-def _weights_plot(names: list[str], weights: list[float], style: str | None = None) -> ui.Component:
-    """A donut (or, with ``style="bar"``, one stacked bar) when all weights are
-    non-negative, signed bars otherwise."""
-    if all(w >= 0 for w in weights) and sum(weights) > 0 and (style or weights_chart()) == "bar":
-        return _weights_bar([str(n) for n in names], weights)
-    if all(w >= 0 for w in weights) and sum(weights) > 0:
+def _positive(weights: list[float]) -> bool:
+    return all(w >= 0 for w in weights) and sum(weights) > 0
+
+
+def _weights_plot(names: list[str], weights: list[float], style: str | None = None,
+                  raw: bool = False) -> ui.Component:
+    """One stacked bar (or, with ``style="donut"``, a donut) when all weights are
+    non-negative, signed bars otherwise. ``style=None``: the pane's setting
+    (:func:`weights_chart`). ``raw``: the weights themselves, not their shares."""
+    if _positive(weights) and (style or weights_chart()) == "bar":
+        return _weights_bar([str(n) for n in names], weights, raw)
+    if _positive(weights):
         fig = go.Figure(
-            data=[go.Pie(labels=names, values=weights, hole=0.55, textinfo="label+percent",
+            data=[go.Pie(labels=names, values=weights, hole=0.55, textinfo="label+value" if raw else "label+percent",
+                         texttemplate="%{label}<br>%{value:.3g}" if raw else None,
                          # labels sit outside the ring and the margins grow to fit
                          # them, so none is cut off by the card title or edges
                          textposition="outside", automargin=True,
-                         hovertemplate="%{label}: %{percent}<extra></extra>",
+                         hovertemplate="%{label}: " + ("%{value:.3g}" if raw else "%{percent}") + "<extra></extra>",
                          marker=dict(colors=SEQUENCE * 4), sort=False)]
         )
         fig.update_layout(**base_layout(260 + 6 * max(0, len(names) - 6), legend=False,
@@ -522,6 +628,15 @@ SIGNED_WEIGHTS_CAPTION = ("How much your total changes for every extra unit of e
                           "goes down).")
 PARTS_CAPTION = ("How much each set of preferences counts in your total. The shares add up to 100%.",
                  "How much each set of preferences counts in the opponent's total. The shares add up to 100%.")
+RAW_WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal (its weight): a bigger weight is a more "
+                       "important issue.",
+                       "How much each issue counts in the opponent's total for a deal (its weight): a bigger weight "
+                       "is a more important issue.")
+RAW_PARTS_CAPTION = ("How much each set of preferences counts in your total (its weight).",
+                     "How much each set of preferences counts in the opponent's total (its weight).")
+RAW_VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: the higher, the better.",
+                      "Pick an issue to see what each of its options is worth to the opponent: the higher, the "
+                      "better.")
 VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: 100% is your favourite option "
                   "of that issue, 0% your least favourite.",
                   "Pick an issue to see what each of its options is worth to the opponent: 100% is its "
@@ -538,19 +653,25 @@ def _per_issue_card(ctx: UfunViewContext, funs: list, *, title: str | None = Non
     if not names or not funs:
         return None
     selected, select = ctx.choose("issue", names, "Issue")
-    children = [_caption(ctx, VALUES_CAPTION), select]
+    children = [_caption(ctx, RAW_VALUES_CAPTION if ctx.raw else VALUES_CAPTION), select]
     idx = names.index(selected)
     if idx < len(funs):
-        children += _section(lambda: _fun_plot(ctx.issues[idx], funs[idx]))
+        children += _section(lambda: _fun_plot(ctx.issues[idx], funs[idx], raw=ctx.raw))
     return ui.card(*children, title=title or f"{ctx.title_prefix}Value of each option")
 
 
 def _weights_card(ctx: UfunViewContext, names: list[str], weights: list[float],
                   title: str = "Issue weights", caption: tuple[str, str] | None = None) -> ui.Component:
+    signed = not _positive(weights)
     if caption is None:
-        signed = not (all(w >= 0 for w in weights) and sum(weights) > 0)
-        caption = SIGNED_WEIGHTS_CAPTION if signed else WEIGHTS_CAPTION
-    return ui.card(_caption(ctx, caption), _weights_plot(names, weights), title=f"{ctx.title_prefix}{title}")
+        caption = SIGNED_WEIGHTS_CAPTION if signed else RAW_WEIGHTS_CAPTION if ctx.raw else WEIGHTS_CAPTION
+    elif caption is PARTS_CAPTION and ctx.raw:
+        caption = RAW_PARTS_CAPTION
+    pane, window = weights_chart(), weights_chart("window")
+    plot = _weights_plot(names, weights, pane, raw=ctx.raw)
+    if window != pane and not signed:  # the tool's window draws the weights its own way
+        plot = ui.placed(plot, _weights_plot(names, weights, window, raw=ctx.raw))
+    return ui.card(_caption(ctx, caption), plot, title=f"{ctx.title_prefix}{title}")
 
 
 def _plain(ctx: UfunViewContext, text: str) -> ui.Component | None:
@@ -603,7 +724,7 @@ def ranking_components(ctx: UfunViewContext, ufun: Any | None = None, *, top: in
     scored.sort(key=lambda t: -t[1])
     names = [str(i.name) for i in getattr(getattr(ufun, "outcome_space", None), "issues", None) or []]
     vals = [u for _, u in scored]
-    pct = _unit(vals)
+    pct = not ctx.raw and _unit(vals)
     rows = [{"Rank": i + 1, **_outcome_row(names, o), "Value": u} for i, (o, u) in enumerate(scored[:top])]
     note = ("" if complete else f" (estimated from a sample of {len(scored)} possible deals)")
     comps: list[ui.Component] = [
@@ -706,7 +827,7 @@ def _heatmap(ctx: UfunViewContext, indices: tuple, fn: Any) -> ui.Component | No
         return None
     av, bv = list(a.all), list(b.all)
     z = [[_apply(fn, (x, y)) for x in av] for y in bv]
-    pct = _unit([v for r in z for v in r])
+    pct = not ctx.raw and _unit([v for r in z for v in r])
     fig = go.Figure(data=[go.Heatmap(z=[[100 * v if pct else v for v in r] for r in z],
                                      x=[_label(v) for v in av], y=[_label(v) for v in bv],
                                      colorscale="Blues", colorbar=dict(ticksuffix="%" if pct else ""))])
@@ -727,7 +848,7 @@ def _factor_card(ctx: UfunViewContext, factors: list, title: str) -> ui.Componen
     children: list[ui.Component | None] = [select]
     issues = ctx.issues
     if len(indices) == 1 and 0 <= indices[0] < len(issues):
-        children += _section(lambda: _fun_plot(issues[indices[0]], fn))
+        children += _section(lambda: _fun_plot(issues[indices[0]], fn, raw=ctx.raw))
     elif len(indices) == 2 and all(0 <= i < len(issues) for i in indices):
         hm = _section(lambda: _heatmap(ctx, indices, fn))
         children += hm or [ui.text_block("This factor depends on several issues together.", muted=True)]
@@ -988,7 +1109,7 @@ def rank_only_view(ctx: UfunViewContext) -> list[ui.Component]:
 
 def const_view(ctx: UfunViewContext) -> list[ui.Component]:
     v = _num(getattr(ctx.ufun, "value", float("nan")))
-    comps = [ctx.layout(ui.stat("Value of every deal", _fmt_value(v if _finite(v) else None),
+    comps = [ctx.layout(ui.stat("Value of every deal", _fmt_value(v if _finite(v) else None, ctx.raw),
                                 hint="All deals are equally good"))]
     return comps + ctx.explain("Every possible deal has the **same value** for you, so no deal is better "
                                "than another.")
@@ -1061,7 +1182,10 @@ def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: s
     utility function, with a note on who knows the rest. Never raises."""
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
-    ctx = UfunViewContext(tool=tool, ufun=ufun, rv_hidden=reserved_hint is not None, rv_hidden_hint=reserved_hint or "")
+    raw = preferences_raw()
+    ctx = UfunViewContext(tool=tool, ufun=ufun if raw else display_ufun(ufun), rv_hidden=reserved_hint is not None,
+                          rv_hidden_hint=reserved_hint or "", raw=raw)
+    ufun = ctx.ufun
     try:
         names = ctx.issue_names
         if part == "weights":
@@ -1233,12 +1357,16 @@ def issue_explanations(ufun: Any, info: dict | None = None, *, roles: Sequence[s
     return out
 
 
-def preference_summary(ufun: Any, *, opponent: bool = False) -> str:
-    """A short, always-visible summary of ``ufun`` in plain words (markdown)."""
+def preference_summary(ufun: Any, *, opponent: bool = False, raw: bool | None = None) -> str:
+    """A short, always-visible summary of ``ufun`` in plain words (markdown). ``raw``: the
+    numbers as they are (``None``: the setting ``tools.preferences_scale``)."""
     you, your = ("the opponent", "its") if opponent else ("you", "your")
     if ufun is None:
         return ""
-    unit = _unit_scale(ufun)
+    raw = preferences_raw() if raw is None else raw
+    if not raw:
+        ufun = display_ufun(ufun)
+    unit = not raw and _unit_scale(ufun)
     scale = (f"Every possible deal is worth between 0% and 100% to {you}: 100% is {your} best deal."
              if unit else f"Every possible deal has a value for {you}; higher is better.")
     ws = getattr(ufun, "weights", None)
@@ -1250,12 +1378,13 @@ def preference_summary(ufun: Any, *, opponent: bool = False) -> str:
         ws = None
     if ws and len(ws) == len(names) and all(w >= 0 for w in ws) and sum(ws) > 0:
         tot = sum(ws)
-        ranked = sorted(zip(names, [w / tot for w in ws]), key=lambda t: -t[1])
+        ranked = sorted(zip(names, ws if raw else [w / tot for w in ws]), key=lambda t: -t[1])
+        fmt = _fmt_weight if raw else _pct
         if len(ranked) == 1:
             imp = f"Only **{ranked[0][0]}** is negotiated."
         else:
-            imp = f"What matters most: {', then '.join(f'**{n}** ({_pct(w)})' for n, w in ranked[:2])}"
-            imp += (f"; least: **{ranked[-1][0]}** ({_pct(ranked[-1][1])})." if len(ranked) > 2 else ".")
+            imp = f"What matters most: {', then '.join(f'**{n}** ({fmt(w)})' for n, w in ranked[:2])}"
+            imp += (f"; least: **{ranked[-1][0]}** ({fmt(ranked[-1][1])})." if len(ranked) > 2 else ".")
         how = (f"A deal is worth the weighted sum of the values of its options, so give way on the issues "
                f"that matter little to {you} to win the ones that matter most.")
         return f"{scale} {imp} {how}"
