@@ -217,16 +217,16 @@ export interface LiveMode {
 }
 
 /** The mode of a layer being edited: its own unsaved values, else the project's (``ed.inherited``),
- *  else, for the pool of an undeclared mode, the env.json layers' (``ed.pools``). ``kind``: the
- *  project's (unsaved) kind. */
+ *  else, for the pool (except in a declared Paired study), the env.json layers' (``ed.pools``).
+ *  ``kind``: the project's (unsaved) kind. */
 export function liveMode(own: any, ed: any, kind?: string): LiveMode {
   const inh = ed?.inherited ?? {};
   const env = envOpponents(ed);
   const filePool = own?.opponents ?? inh.opponents;
   const declared: string | null = own?.study_mode ?? inh.study_mode ?? null;
-  // as hani2.study_modes: a declared mode is checked against the files (a Paired study without a pool
-  // gets its human entry filled in); only an undeclared mode is derived from the env.json pool
-  const fromEnv = declared === null && filePool == null && env.length > 0;
+  // as hani2.study_modes: with no pool in the files the env.json pool is checked, except in a declared
+  // Paired study, whose filled-in human entry wins over env.json
+  const fromEnv = declared !== "paired" && filePool == null && env.length > 0;
   const opponents = fromEnv ? env : filePool;
   const derived = derive(opponents);
   return { declared, derived, mode: declared ?? derived, opponents, assistants: own?.assistants ?? inh.assistants, fromEnv, kind: kind ?? ed?.kind ?? "none" };
