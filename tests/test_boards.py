@@ -506,6 +506,37 @@ def test_a_tournament_board_offers_only_what_it_honours(api, hi):
             boards.board("HI", None, bad, admin=True)
 
 
+def test_a_tournament_board_ranks_simulated_trials_by_goal_rate(hi):
+    """With real simulated rows: entries ranked by goal rate, with the tournament's columns and values."""
+    set_board({"source": "tournament", "visibility": "public", "rules": RULES0})
+    d = eval_cache.results_dir(StudyRef("HI", "play")) / "sim_run"
+    d.mkdir(parents=True, exist_ok=True)
+    goals = {A: [True, False, False, False], B: [True, True, True, False]}
+    with open(d / "results.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, ["user", "mode", "assistant", "persona", "scenario", "goal_met", "human_utility", "status"])
+        w.writeheader()
+        for spec, gs in goals.items():
+            for i, g in enumerate(gs):
+                w.writerow({"user": f"sim_p{i % 2}", "mode": "simulated", "assistant": spec, "persona": f"p{i % 2}",
+                            "scenario": "s1", "goal_met": g, "human_utility": 0.8 if g else 0.2, "status": "success"})
+    out = boards.board("HI", "play", {})
+    assert out["source"] == "tournament" and out["columns"] == ["goal_rate", "mean_utility", "games"]
+    assert [e["entrant"] for e in out["entries"]] == [B, A] and [e["rank"] for e in out["entries"]] == [1, 2]
+    assert out["entries"][0]["values"]["goal_rate"]["mean"] == pytest.approx(0.75)
+    assert out["entries"][1]["values"]["mean_utility"]["mean"] == pytest.approx(0.35)
+    assert out["entries"][0]["games"] == {"all": 4} and out["entries"][0]["personas"] == 2
+    assert out["query"] == {"sort": "goal_rate"} and out["options"] == boards.tournament_options()
+    # the command line shows it (no switches to print, no player counts)
+    from typer.testing import CliRunner
+
+    from hani2.cli import app
+
+    r = CliRunner().invoke(app, ["leaderboard", "show", "HI/play"])
+    assert r.exit_code == 0, r.output
+    assert "sorted by goal_rate;" in r.output and "games all" not in r.output
+    assert CliRunner().invoke(app, ["leaderboard", "show", "HI/play", "--games", "people"]).exit_code == 1
+
+
 # --------------------------------------------------------------------------- #
 # The evaluation cache, with real games                                        #
 # --------------------------------------------------------------------------- #
