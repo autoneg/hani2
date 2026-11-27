@@ -501,6 +501,26 @@ is dropped for **every** entrant, and the remaining weights are rescaled to sum 
 scored on the same parts. For example, if one Assistant's participants skipped the questionnaire,
 its items are left out for all Assistants rather than counting only for some.""",
         section="Scores", docs="project-management.md#coverage-across-entrants"),
+    "scores.zero_if": Help(
+        "Zero if", "Criteria that, when 1, make the score 0 for the game (for example opponent_failed)",
+        """\
+A list of criteria; when one of them is **1** in a game, the score of that game is **0** (with
+coverage 1), whatever its components say. The built-in `han_outcome` has
+`zero_if: [opponent_failed]`: an opponent agent that ended the session by failing gets 0.
+
+```yaml
+zero_if: [opponent_failed]
+```
+
+Default: none. Every entry must be a known criterion.""",
+        section="Scores", key="scores.<key>.zero_if", docs="project-management.md#rules-for-failures-and-sessions-without-an-assistant"),
+    "scores.needs_assistant": Help(
+        "Needs an Assistant", "true: the score is empty for sessions without an Assistant",
+        """\
+With `needs_assistant: true`, a game whose human played without an Assistant has **no value** for
+this score (and no coverage), so it neither helps nor hurts anyone. The built-in `hi_assistant`,
+`hi_team` and `hi_interaction` have it. Default: `false`.""",
+        section="Scores", key="scores.<key>.needs_assistant", docs="project-management.md#rules-for-failures-and-sessions-without-an-assistant"),
     "scores_enabled": Help(
         "Scores enabled", "Which scores this project's (or study's) boards, results and exports compute and show",
         """\
@@ -683,6 +703,8 @@ REQUIRED = (
     "scores.normaliser",
     "scores.missing",
     "scores.min_coverage",
+    "scores.zero_if",
+    "scores.needs_assistant",
     "scores_enabled",
     "scores.same_assistant",
     "leaderboard",

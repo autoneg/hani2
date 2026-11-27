@@ -558,6 +558,8 @@ More: [Project management](project-management.md#pairing-defaults).
 | [Normaliser](#setting-scores-normaliser) | `scores.normaliser` | How a value is mapped to [0, 1] before it is weighted; preset from the criterion |
 | [Missing values](#setting-scores-missing) | `scores.missing` | renormalise: rescale the parts present; zero: a missing value is 0; skip_game: the game does not count |
 | [Minimum coverage](#setting-scores-min-coverage) | `scores.min_coverage` | A part present in fewer than this share of some entrant's games is dropped for everyone |
+| [Zero if](#setting-scores-zero-if) | `scores.<key>.zero_if` | Criteria that, when 1, make the score 0 for the game (for example opponent_failed) |
+| [Needs an Assistant](#setting-scores-needs-assistant) | `scores.<key>.needs_assistant` | true: the score is empty for sessions without an Assistant |
 | [Scores enabled](#setting-scores-enabled) | `scores_enabled` | Which scores this project's (or study's) boards, results and exports compute and show |
 | [Same-Assistant games](#setting-scores-same-assistant) | `scores.<key>.same_assistant` | How boards count a game where both people used the same Assistant: once, or not at all |
 
@@ -682,6 +684,32 @@ scored on the same parts. For example, if one Assistant's participants skipped t
 its items are left out for all Assistants rather than counting only for some.
 
 More: [Project management](project-management.md#coverage-across-entrants).
+
+### Zero if {#setting-scores-zero-if}
+
+`scores.<key>.zero_if`: *Criteria that, when 1, make the score 0 for the game (for example opponent_failed)*
+
+A list of criteria; when one of them is **1** in a game, the score of that game is **0** (with
+coverage 1), whatever its components say. The built-in `han_outcome` has
+`zero_if: [opponent_failed]`: an opponent agent that ended the session by failing gets 0.
+
+```yaml
+zero_if: [opponent_failed]
+```
+
+Default: none. Every entry must be a known criterion.
+
+More: [Project management](project-management.md#rules-for-failures-and-sessions-without-an-assistant).
+
+### Needs an Assistant {#setting-scores-needs-assistant}
+
+`scores.<key>.needs_assistant`: *true: the score is empty for sessions without an Assistant*
+
+With `needs_assistant: true`, a game whose human played without an Assistant has **no value** for
+this score (and no coverage), so it neither helps nor hurts anyone. The built-in `hi_assistant`,
+`hi_team` and `hi_interaction` have it. Default: `false`.
+
+More: [Project management](project-management.md#rules-for-failures-and-sessions-without-an-assistant).
 
 ### Scores enabled {#setting-scores-enabled}
 

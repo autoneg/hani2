@@ -417,6 +417,7 @@ scores:
          normaliser: {kind: reciprocal, scale: reference_median}}
     missing: renormalise         # renormalise | zero | skip_game
     min_coverage: 0.5
+    needs_assistant: true        # empty for sessions without an Assistant
 ```
 
 Each component names a criterion and its weight. It may also give:
@@ -430,7 +431,9 @@ Each component names a criterion and its weight. It may also give:
 `title`, `description`, `track` (default `any`), `missing` (default `renormalise`),
 `min_coverage` (default 0.5) and `same_assistant` (default `once`: how a board counts a game where
 both people used the same Assistant, see [Which games count](#which-games-count); `skip` leaves such
-games out of the score) are optional.
+games out of the score), `zero_if` (default: none) and `needs_assistant` (default `false`, see
+[Rules for failures and sessions without an Assistant](#rules-for-failures-and-sessions-without-an-assistant))
+are optional.
 
 **Weights are ≥ 0 and sum to 1** (100 %, to within $10^{-6}$). The admin API and `hani2 scores set`
 refuse any other sum, and suggest rescaling (**Normalise**). A weight of 0 keeps a component in the
@@ -475,6 +478,34 @@ direction is `higher` and its normaliser `bounded [0, 1]`. Cycles are refused. `
 also prints the weights **flattened** down to criteria: `hi_team` with weight 0.15 shares its 0.15
 among its own parts.
 
+#### Rules for failures and sessions without an Assistant
+
+Two optional keys decide, before the components are looked at, whether a game gets the usual value:
+
+| Key | Default | The game's score |
+| --- | --- | --- |
+| `zero_if: [<criterion>, ...]` | none | **0** (with coverage 1) when one of these criteria is 1 in the game |
+| `needs_assistant: true` | `false` | **empty** (no value, no coverage) when the human played without an Assistant |
+
+```yaml
+scores:
+  my_han_outcome:
+    track: han
+    components:
+      - {criterion: opponent_advantage, weight: 1}
+    zero_if: [opponent_failed]        # an opponent agent that failed gets 0
+  my_team:
+    track: hi
+    components:
+      - {criterion: irrational_accept,  weight: 0.5}
+      - {criterion: jh_engagement,      weight: 0.5}
+    needs_assistant: true             # a game without an Assistant says nothing about one
+```
+
+Every entry of `zero_if` must be a known criterion (usually a 0/1 column such as `opponent_failed`).
+`han_outcome` has `zero_if: [opponent_failed]`; `hi_assistant`, `hi_team` and `hi_interaction` have
+`needs_assistant: true`.
+
 ### Built-in scores
 
 Every project has the built-in scores. They are read-only, written in the same format, and their
@@ -498,9 +529,8 @@ the project, where it can be edited:
 hani2 scores duplicate HI2027 hi_assistant my_assistant
 ```
 
-The copy starts with the same parts, weights and normalisers. Two rules of the built-ins are not part
-of the format and are not copied: `han_outcome` is 0 when the opponent failed, and the HI interaction
-scores are empty for sessions without an Assistant.
+The copy starts with the same parts, weights, normalisers and rules (`zero_if`, `needs_assistant`),
+so until you change it, it gives the same values as the original.
 
 ### Which scores a study uses
 
