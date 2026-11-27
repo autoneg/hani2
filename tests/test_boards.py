@@ -392,6 +392,37 @@ def test_the_api_serves_the_same_board_and_400s(api, hi):
     assert api.get("/api/v1/projects/HI/studies/play/leaderboard").json()["study"] == "play"
 
 
+def test_view_user_gives_an_admin_the_end_users_board(api, hi):
+    hi["HI/play"] = [row("u1", A, 0.5), row("u2", B, 0.4)]
+    set_board({"sort_options": ["utility"], "user_options": {"games": ["all", "people"]}, "visibility": "public",
+               "rules": RULES0})
+    assert api.get(URL, params={"view": "user"}).json()["options"]["games"] == ["all", "people"]
+    assert "stratum" not in api.get(URL, params={"view": "user"}).json()["options"]
+    api.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
+    full = api.get(URL).json()["options"]
+    assert full["games"] == ["all", "people", "ai"] and "stratum" in full and "window" in full
+    user = api.get(URL, params={"view": "user"}).json()["options"]
+    assert user["games"] == ["all", "people"] and "stratum" not in user and "window" not in user
+    assert [o["key"] for o in user["sort"]] == ["utility"]
+    assert api.get(URL, params={"view": "user", "games": "ai"}).status_code == 400   # as end users would
+    assert api.get(URL, params={"games": "ai"}).status_code == 200
+    assert api.get(URL, params={"view": "admin"}).status_code == 400
+
+
+def test_the_project_board_page_is_not_a_study(api, hi):
+    """/s/<project>/leaderboard is the project board's page; /s/<project>/<study>/leaderboard the study's."""
+    from hani2.server import WEB_DIR
+
+    if not (WEB_DIR / "index.html").exists():
+        pytest.skip("the web app is not built")
+    r = api.get("/s/HI/leaderboard")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"]
+    assert 'name="hani2-base"' not in r.text  # the app's own base: no study bound
+    r = api.get("/s/HI/play/leaderboard")
+    assert r.status_code == 200 and 'content="/s/HI/play"' in r.text
+    assert api.get("/s/HI/nope/leaderboard").status_code == 404
+
+
 def test_the_list_of_boards(api, hi):
     projects.create_project("PRIV", kind="assistant")
     set_board({"sort_options": ["utility"], "visibility": "public"})

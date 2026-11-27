@@ -1685,6 +1685,13 @@ def _board_response(request: Request, project: str, study: str | None) -> Respon
 
     admin = _board_viewer(request, project, study)
     q = dict(request.query_params)
+    # ``view=user``: the board exactly as end users get it (the end-user pages send it, so an admin who
+    # opens them sees what everyone else sees); it only ever takes options away
+    view = q.pop("view", None)
+    if view not in (None, "", "user"):
+        raise HTTPException(400, f"view {view!r} is not known; use view=user or leave it out")
+    if view == "user":
+        admin = False
     try:
         out = boards.board(project, study, q, admin=admin)
     except boards.BoardError as e:
@@ -1852,6 +1859,8 @@ def _study_allowed(ref: "projects.StudyRef | None") -> bool:
 
 
 _STUDY_PATH = __import__("re").compile(r"^/s/([^/]+)/([^/]+)(/.*)?$")
+#: ``/s/<project>/leaderboard``: the project board's page (not a study named "leaderboard")
+_PROJECT_BOARD_PAGE = __import__("re").compile(r"^/s/[^/]+/leaderboard/?$")
 
 
 class _StripPrefix:
@@ -1872,6 +1881,10 @@ class _StripPrefix:
             if "raw_path" in scope and scope["raw_path"]:
                 scope["raw_path"] = scope["raw_path"][len(base):] or b"/"
         ref, named = None, False
+        if _PROJECT_BOARD_PAGE.match(scope.get("path", "")):
+            # the project board's page /s/<project>/leaderboard: the app at the root base (no study)
+            await self.inner(scope, receive, send)
+            return
         m = _STUDY_PATH.match(scope.get("path", ""))
         try:
             if m:

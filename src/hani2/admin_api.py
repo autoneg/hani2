@@ -357,9 +357,10 @@ def admin_balance(project: str, study: str):
              "assistant_plan": h.get("assistant_plan") or []} for u, h in humans.items()]
     from hani2 import balance
 
+    rep = balance.study_balance(ref)
     return {"pool": pool, "source": source, "group": group,
             "counts": assignment.assistant_counts(data, pool), "humans": len(humans), "assignments": rows,
-            "solo": balance.study_balance(ref)}
+            "solo": rep, "paired": rep.get("paired")}
 
 
 from hani2 import admin_scenarios  # noqa: E402
