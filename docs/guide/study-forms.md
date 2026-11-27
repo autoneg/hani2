@@ -101,6 +101,9 @@ When the last counted negotiation (and its questionnaire) is done, a participant
 
 HANI2 comes with complete question sets for questionnaires commonly used in human-agent negotiation studies. On the Study forms page, **Add predefined questionnaires** lists the sets meant for the form you are editing (tick *Show sets meant for other forms* for all of them); tick one or more and **Add** them. Their questions are copied into the form, where you can change, reorder or delete any of them; questions whose `id` is already in the form are skipped. The sets that score a construct carry `scale` and `reverse`, so the [subjective metrics](evaluation.md#subjective-metrics) score them. [Questionnaires](questionnaires.md) lists every question of every set with its source, and marks with ✓ the sets validated against their source instrument (the same mark is shown on the Study forms page).
 
+!!! warning "TAM items not checked against the source"
+    The three TAM sets (`tam_usefulness`, `tam_usefulness_short`, `tam_ease`) have not been checked against the published item sheet (Davis, 1989). The Study forms page shows this warning on each of them in the picker, above the preview of a form that uses their questions, and under *In effect here* when the form in effect uses them. It comes from the same registry as the warnings in [Questionnaires](questionnaires.md) and the [metric catalogue](metric-catalog.md). It is for admins only: participants never see it, neither in the form they fill in nor anywhere else in the session.
+
 | Set | Questions | Meant for | What it measures |
 |-----|-----------|-----------|------------------|
 | `ueq_eval` | 8 | after each negotiation, post-session | UEQ items 2, 5, 11, 12, 13, 20, 21, 22 about the Assistant (7-point differentials; Laugwitz, Held & Schrepp, 2008) |
