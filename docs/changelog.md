@@ -22,6 +22,10 @@
   Grocery draws preferences that are not normalized, its items' points; simple scenarios, on by
   default, stay normalized). `hani2 generate --no-normalized` does the same for a pool. See
   [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
+- **Negotiations run on normalized scenarios.** A scenario that is not normalized is normalized
+  (as negmas normalizes) when the negotiation starts, so every number on the negotiation screen is on
+  0 to 1; one that is normalized already is used as it is. The Preferences tools in raw numbers show
+  the original numbers. `assume_normalized` (project or study) skips the check.
 - **A wider tools column in the simple view.** On a desktop the simple view's tools column now
   takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and
   the option values side by side; it has its own size (`layout.sizes.simple_tools`).

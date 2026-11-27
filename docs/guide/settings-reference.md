@@ -61,6 +61,7 @@ More: [Study management](study-management.md#study-types).
 | [Strict scenarios](#setting-strict-scenarios) | `strict_scenarios` | Serve saved scenarios only: a missing or broken pool is an error, never a generated scenario |
 | [Simple scenarios](#setting-simple-scenarios) | `simple_scenarios` | Generate scenarios with round numbers and linear or symmetric preferences |
 | [Normalized scenarios](#setting-normalized-scenarios) | `normalized_scenarios` | Generate scenarios normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1 |
+| [Assume normalized](#setting-assume-normalized) | `assume_normalized` | Start every negotiation on the scenario as it is, without checking that it is normalized |
 | [Forced value on disagreement](#setting-force-reserved-value) | `force_reserved_value` | The participant's value on disagreement in every negotiation, whatever the scenario says |
 | [Counted negotiations](#setting-n-required) | `n_required` | K: how many negotiations of each participant count (practice not included) |
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
@@ -136,6 +137,19 @@ generated scenarios are kept as their generators draw them without normalizing (
 included; of the built-in generators only Grocery draws such preferences, its items' points). Simple scenarios
 are always normalized, so switch **Simple scenarios** off too for this to have an effect. Saved scenarios are
 served as they were saved.
+
+More: [Scenarios](scenarios.md#normalized-scenarios).
+
+### Assume normalized {#setting-assume-normalized}
+
+`assume_normalized`: *Start every negotiation on the scenario as it is, without checking that it is normalized*
+
+Every negotiation is played on a normalized scenario (every deal worth 0 to 1, as negmas normalizes), so
+the offer buttons, gauges, history and scores read as percentages. A scenario that is not normalized is
+normalized when the negotiation starts; one that is normalized already (every built-in generator makes
+those) is used as it is. With **Yes**, the check is skipped too and every scenario is taken as normalized:
+use it when the scenarios are known to be normalized and the check takes too long. The Preferences tools
+in raw numbers show a scenario's original numbers either way.
 
 More: [Scenarios](scenarios.md#normalized-scenarios).
 

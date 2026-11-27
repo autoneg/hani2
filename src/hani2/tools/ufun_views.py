@@ -281,7 +281,7 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     if ctx is None:
         raw = preferences_raw()
-        ctx = UfunViewContext(tool=tool, ufun=ufun if raw else display_ufun(ufun), title_prefix=title_prefix,
+        ctx = UfunViewContext(tool=tool, ufun=_raw_of(ufun) if raw else display_ufun(ufun), title_prefix=title_prefix,
                               help_card=help_card, rv_hidden=reserved_hint is not None,
                               rv_hidden_hint=reserved_hint or "", raw=raw)
         ufun = ctx.ufun
@@ -350,6 +350,14 @@ def display_ufun(ufun: Any) -> Any:
     from hani2.ufun_scale import normalize
 
     return normalize(ufun)
+
+
+def _raw_of(ufun: Any) -> Any:
+    """What raw numbers show: the original of a utility function the negotiation normalized
+    at its start (see :func:`hani2.ufun_scale.normalize_for_play`), else ``ufun`` itself."""
+    from hani2.ufun_scale import raw_of
+
+    return raw_of(ufun)
 
 
 def _section(fn: Callable[[], ui.Component | list | None], what: str = "") -> list[ui.Component]:
@@ -1222,7 +1230,7 @@ def partial_preference_view(tool: Any, ufun: Any, part: str, *, reserved_hint: s
     if ufun is None:
         return [ui.text_block("No preferences loaded yet.", muted=True)]
     raw = preferences_raw()
-    ctx = UfunViewContext(tool=tool, ufun=ufun if raw else display_ufun(ufun), rv_hidden=reserved_hint is not None,
+    ctx = UfunViewContext(tool=tool, ufun=_raw_of(ufun) if raw else display_ufun(ufun), rv_hidden=reserved_hint is not None,
                           rv_hidden_hint=reserved_hint or "", raw=raw)
     ufun = ctx.ufun
     try:
@@ -1403,8 +1411,7 @@ def preference_summary(ufun: Any, *, opponent: bool = False, raw: bool | None = 
     if ufun is None:
         return ""
     raw = preferences_raw() if raw is None else raw
-    if not raw:
-        ufun = display_ufun(ufun)
+    ufun = _raw_of(ufun) if raw else display_ufun(ufun)
     unit = not raw and _unit_scale(ufun)
     scale = (f"Every possible deal is worth between 0% and 100% to {you}: 100% is {your} best deal."
              if unit else f"Every possible deal has a value for {you}; higher is better.")

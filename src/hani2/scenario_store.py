@@ -244,6 +244,37 @@ def strict_scenarios(ref: Any = None) -> bool:
     return bool(projects.setting("strict_scenarios", False, cast=bool, **kw))
 
 
+def assume_normalized(ref: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study takes every scenario as normalized: the
+    ``assume_normalized`` setting of its ``study.yaml``, else of its project's
+    ``project.yaml``; off by default. On, a negotiation starts on the scenario as it is,
+    without checking whether it is normalized (see :func:`normalize_for_play`)."""
+    from hani2 import projects
+
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        return bool(projects.setting("assume_normalized", False, cast=bool, **kw))
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return False
+
+
+def normalize_for_play(scenario: Scenario, ref: Any = None) -> Scenario:
+    """The scenario a negotiation is played on: normalized (as negmas normalizes) unless it
+    is normalized already, or the study assumes it is (:func:`assume_normalized`). Every
+    part of the negotiation screen but the Preferences tools' raw numbers works on 0..1;
+    the original utility functions stay with the normalized ones for those (see
+    :func:`hani2.ufun_scale.normalize_for_play`).
+
+    TODO: show utilities in a scenario's own numbers everywhere (the offer buttons, gauges,
+    history, scores, Assistant), chosen by the admin, so a scenario that is not normalized
+    could be played as it is."""
+    if assume_normalized(ref):
+        return scenario
+    from hani2.ufun_scale import normalize_for_play as _for_play
+
+    return _for_play(scenario)
+
+
 def forced_reserved_value(ref: Any = None) -> float | None:
     """The value on disagreement the current (or ``ref``'s) study gives the participant (the
     human) in every negotiation; the opponent keeps the scenario's: the ``force_reserved_value`` setting of its ``study.yaml``, else of its

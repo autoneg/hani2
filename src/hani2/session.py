@@ -1788,6 +1788,8 @@ class NegotiationSession:
                 traceback.print_exc()
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
+            if joined is None:  # the host of a match normalized the shared scenario already
+                scenario = store.normalize_for_play(scenario, self.study_ref)
             self.round_plan = plan
             # a participant who joined plays the waiting participant's scenario (and its type)
             self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype

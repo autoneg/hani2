@@ -24,7 +24,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
-__all__ = ["is_normalized", "normalize", "normalize_scenario", "keep_names", "searchable", "on_range"]
+__all__ = ["is_normalized", "normalize", "normalize_scenario", "keep_names", "searchable", "on_range",
+           "normalize_for_play", "raw_of", "RAW_ATTR"]
+
+#: the attribute of a utility function normalized for a negotiation that holds the original
+RAW_ATTR = "_hani2_raw"
 
 #: spaces larger than this are not searched for their best and worst deals (unless the
 #: utility function is linear-additive: negmas finds those issue by issue)
@@ -128,3 +132,43 @@ def normalize_scenario(scenario: Any) -> Any:
         return scenario
     scenario.ufuns = tuple(keep_names(n, o) for n, o in zip(scenario.ufuns, ufuns))
     return scenario
+
+
+def normalize_for_play(scenario: Any) -> Any:
+    """The scenario a negotiation is played on: ``scenario`` itself when it is normalized
+    already, else a copy with every utility function normalized (:func:`normalize_scenario`),
+    so the offer buttons, the gauges, the history, the scores, the opponent and the Assistant
+    all work on 0..1. Each normalized utility function keeps a copy of the original (see
+    :func:`raw_of`), which the Preferences tools show when they show raw numbers. The
+    scenario passed in is never changed (saved scenarios may be cached)."""
+    import copy
+
+    ufuns = list(scenario.ufuns)
+    if all(is_normalized(u) for u in ufuns) or not all(searchable(u) for u in ufuns):
+        return scenario
+    raws = [copy.deepcopy(u) for u in ufuns]
+    play = copy.copy(scenario)
+    play.ufuns = tuple(ufuns)
+    play.stats = None
+    normalize_scenario(play)
+    for n, r in zip(play.ufuns, raws):
+        try:
+            setattr(n, RAW_ATTR, r)
+        except Exception:  # noqa: BLE001
+            pass
+    return play
+
+
+def raw_of(ufun: Any) -> Any:
+    """The original of a utility function normalized for a negotiation
+    (:func:`normalize_for_play`), with its value on disagreement at the place the normalized
+    one has (so a forced value on disagreement shows in the original's numbers too); any
+    other utility function as it is."""
+    raw = getattr(ufun, RAW_ATTR, None)
+    if raw is None:
+        return ufun
+    try:
+        raw.reserved_value = on_range(raw, float(ufun.reserved_value))
+    except Exception:  # noqa: BLE001
+        pass
+    return raw

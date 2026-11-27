@@ -144,6 +144,16 @@ included; of the built-in generators only Grocery draws such preferences, its it
 are always normalized, so switch **Simple scenarios** off too for this to have an effect. Saved scenarios are
 served as they were saved.""",
         section="Defaults", docs="scenarios.md#normalized-scenarios"),
+    "assume_normalized": Help(
+        "Assume normalized", "Start every negotiation on the scenario as it is, without checking that it is normalized",
+        """\
+Every negotiation is played on a normalized scenario (every deal worth 0 to 1, as negmas normalizes), so
+the offer buttons, gauges, history and scores read as percentages. A scenario that is not normalized is
+normalized when the negotiation starts; one that is normalized already (every built-in generator makes
+those) is used as it is. With **Yes**, the check is skipped too and every scenario is taken as normalized:
+use it when the scenarios are known to be normalized and the check takes too long. The Preferences tools
+in raw numbers show a scenario's original numbers either way.""",
+        section="Defaults", docs="scenarios.md#normalized-scenarios"),
     "force_reserved_value": Help(
         "Forced value on disagreement", "The participant's value on disagreement in every negotiation, whatever the scenario says",
         """\
@@ -661,6 +671,7 @@ REQUIRED = (
     "strict_scenarios",
     "simple_scenarios",
     "normalized_scenarios",
+    "assume_normalized",
     "force_reserved_value",
     "n_required",
     "practice",
