@@ -96,7 +96,7 @@ def settings_problems() -> list[str]:
         import json
 
         from hani2.config import settings_dir
-        from hani2.model_chain import FILE, check_chains
+        from hani2.model_chain import FILE, check_chains, unknown_refs
 
         f = settings_dir() / FILE
         if f.exists():
@@ -105,7 +105,7 @@ def settings_problems() -> list[str]:
             except json.JSONDecodeError as e:
                 out.append(f"{f} is not valid JSON ({e})")
             else:
-                out += [f"{f}: {p}" for p in check_chains(data)]
+                out += [f"{f}: {p}" for p in check_chains(data) or unknown_refs(data)]
     except Exception:  # noqa: BLE001 - reported where it is read
         pass
     return out

@@ -168,6 +168,10 @@ def admin_put_models(request: Request, body: dict = Body(...), layer: str | None
 
     check_body(body)
     lay = write_target(request, layer, None, None)
+    with binding(lay):
+        bad = model_chain.unknown_refs(body)
+    if bad:
+        raise HTTPException(400, "; ".join(bad))
     clean = {k: v for k, v in body.items() if v not in (None, [], "")}
     f = lay.dir / model_chain.FILE
     if clean:
