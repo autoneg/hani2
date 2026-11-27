@@ -74,7 +74,7 @@ questions:
     type: text
 ```
 
-The question types are `likert5`, `likert7`, `yes_no`, `select` (with `options`) and `text`. Every text may use the `{{variables}}` of [Study management](study-management.md#texts-with-variables). `scale` and `reverse` feed the [subjective metrics](evaluation.md#subjective-metrics). A question with `requires: support_agent` is asked only when an Assistant took part in the negotiation (for the post-session questionnaire: in the last negotiation). The pre-questionnaire may also have a `participant_type` block (see [Pre-questionnaire and participant types](study-management.md#pre-questionnaire-and-participant-types)).
+The question types are `likert5`, `likert7`, `yes_no`, `select` (with `options`) and `text`. Every text may use the `{{variables}}` of [Study management](study-management.md#texts-with-variables). `scale` and `reverse` feed the [subjective metrics](evaluation.md#subjective-metrics). `direction: lower` says that a lower answer is better (workload, for example); a scale whose items all say so is lower-is-better too, so a score or a leaderboard ranks it the right way round. A question with `requires: support_agent` is asked only when an Assistant took part in the negotiation (for the post-session questionnaire: in the last negotiation). The pre-questionnaire may also have a `participant_type` block (see [Pre-questionnaire and participant types](study-management.md#pre-questionnaire-and-participant-types)).
 
 The admin console checks a file before saving it: valid YAML, an `id` and a `text` for every question, unique ids, known types, and `options` for every `select`. `hani2 questionnaire check <files>` does the same on the command line.
 
