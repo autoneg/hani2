@@ -354,6 +354,8 @@ class Match:
         """One look at the seats; returns whether to keep watching."""
         if self.finished() or self._stopped:
             return False
+        if not LOBBY.current(self):
+            return False  # made before the lobby was cleared (tests): its seats are never kicked back into it
         if not self.began and all(s.match is not self or s.closed for s in list(self.seats.values())):
             return False  # everyone moved on (an AI opponent after the wait, a new round)
         now = time.time()
@@ -582,6 +584,10 @@ class Lobby:
         m.arm(wait_seconds(m.host))
         m.watch()
         self.notify(m.key)
+
+    def current(self, m: Match) -> bool:
+        """Whether ``m`` was made since the lobby was last cleared."""
+        return getattr(m, "generation", self._generation) == self._generation
 
     def claim(self, m: Match) -> bool:
         """Take waiting ``m`` out of the lobby for its host to leave it (an AI opponent, the end):

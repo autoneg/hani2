@@ -465,6 +465,21 @@ def test_a_person_arriving_as_the_wait_ends_still_meets_the_waiting_one(hani2_ho
     b.close()
 
 
+def test_a_pair_from_before_the_lobby_was_cleared_never_comes_back(hani2_home, monkeypatch):
+    """Tests clear the lobby between them: a pair left over from an earlier test, where one side
+    pressed Start and the other did not, never kicks the other back into the cleared lobby."""
+    monkeypatch.setattr(matches, "TICK", 0.05)
+    game_study(hani2_home, human_opponent_wait=0.1)
+    a, b = play("alice"), play("bob")
+    assert a.match is not None and a.match is b.match
+    a.start()
+    matches.LOBBY.clear()
+    time.sleep(0.6)  # many watcher ticks past the wait for bob's Start
+    assert b.match is a.match and matches.LOBBY.n_waiting() == 0
+    a.close()
+    b.close()
+
+
 def test_a_people_only_group_has_no_choice_screen_and_refuses_an_ai(hani2_home):
     folder = game_study(hani2_home, human_opponent_choice=True)
     _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
