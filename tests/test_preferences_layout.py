@@ -301,3 +301,57 @@ def test_opponent_preferences_keep_the_value_under_the_charts():
     assert len(alerts) == 1
     body = next(c for c in view if c.get("type") == "column" and alerts[0] in c["children"])
     assert body["children"][-1] is alerts[0] and len(body["children"]) > 1  # under the charts, as before
+
+
+# --------------------------------------------------------------------------- #
+# The human may switch the weights between the bar and the donut               #
+# --------------------------------------------------------------------------- #
+def _switches(s):
+    return [c for c in _walk(_prefs(s)) if c.get("type") == "radio" and c.get("name") == uv.WEIGHTS_CHART_INPUT]
+
+
+def test_weights_chart_switch_is_off_by_default():
+    from hani2.config import DEFAULT_ENV, get_env
+
+    assert DEFAULT_ENV["tools"]["weights_chart_switch"] is False
+    assert get_env("tools.weights_chart_switch") is False and not uv.weights_chart_switch()
+    assert _switches(make_session()) == []
+
+
+def test_weights_chart_switch_inherits_and_studies_override(hani2_home):
+    projects.create_project("P")
+    _write(projects.project_dir("P") / "env.json", {"tools": {"weights_chart_switch": True, "weights_chart": "donut"}})
+    projects.create_study("P/on")
+    projects.create_study("P/off")
+    _write(projects.study_dir(projects.StudyRef("P", "off")) / "env.json", {"tools": {"weights_chart_switch": False}})
+    sw = _switches(make_session(study="P/on"))
+    assert len(sw) == 1 and sw[0]["value"] == "donut"  # starts at the configured chart
+    assert [o["value"] for o in sw[0]["options"]] == ["bar", "donut"]
+    assert _switches(make_session(study="P/off")) == []
+
+
+def test_weights_chart_switch_changes_the_chart_and_is_remembered(hani2_home, monkeypatch):
+    from hani2 import events as ev
+
+    projects.create_project("P")
+    projects.create_study("P/sw")
+    _write(projects.study_dir(projects.StudyRef("P", "sw")) / "env.json",
+           {"tools": {"weights_chart_switch": True, "weights_chart_window": "donut"}})
+    s = make_session(study="P/sw")
+    placed = [c for c in _walk(_prefs(s)) if c.get("type") == "placed"]
+    assert len(placed) == 1  # each place starts at its own configured chart, with its own toggle
+    assert [next(c for c in _walk([p]) if c.get("type") == "radio")["value"] for p in placed[0]["children"]] == \
+        ["bar", "donut"]
+    logged = []
+    monkeypatch.setattr(ev, "log_event", lambda *a, **k: logged.append((a, k)))
+    t = next(t for t in s.tools if t.name == "Preferences")
+    s.tool_input(s.tool_state(t)["id"], uv.WEIGHTS_CHART_INPUT, "donut")
+    assert logged and logged[-1][1]["action"] == "input:weights_chart" and logged[-1][1]["value"] == "donut"
+    view = _prefs(s)  # rendered again: the choice holds in the pane and the window alike
+    assert not any(c.get("type") == "placed" for c in _walk(view))
+    assert [c["value"] for c in _switches(s)] == ["donut"]
+    figs = [c["figure"] for c in _walk(view) if c.get("type") == "plot"]
+    assert any(tr.get("type") == "pie" for f in figs for tr in f.get("data") or [])
+    assert not any((f.get("layout") or {}).get("barmode") == "stack" for f in figs)
+    s.tool_input(s.tool_state(t)["id"], uv.WEIGHTS_CHART_INPUT, "bar")
+    assert [c["value"] for c in _switches(s)] == ["bar"]

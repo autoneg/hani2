@@ -1749,7 +1749,11 @@ class NegotiationSession:
             self.guard_tool(t, "on_input", t.on_input, name, value)
         except Exception:
             traceback.print_exc()
-        ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=f"input:{name}")
+        from hani2.tools.ufun_views import WEIGHTS_CHART_INPUT
+
+        # the chart the human picked for the issue weights is kept with the event (a small, known value)
+        ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=f"input:{name}",
+                     value=value if name == WEIGHTS_CHART_INPUT and isinstance(value, str) else None)
 
     @_in_own_study
     def tool_action(self, tid: str, action: str, payload: dict[str, Any]) -> None:

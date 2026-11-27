@@ -157,6 +157,11 @@ class UfunViewContext:
         values = getattr(self.tool, "values", None) or {}
         return values.get(self.key(name), default)
 
+    def value_of(self, name: str, default: Any = None) -> Any:
+        """The tool's input ``name`` itself, shared by every nested view (not :meth:`key`-ed)."""
+        values = getattr(self.tool, "values", None) or {}
+        return values.get(name, default)
+
     def choose(self, name: str, options: list[str], label: str) -> tuple[Any, ui.Component | None]:
         """A select over ``options`` and the currently selected option."""
         if not options:
@@ -594,6 +599,21 @@ def weights_chart(place: str = "pane") -> str:
     return v
 
 
+def weights_chart_switch() -> bool:
+    """Whether the human may switch the issue weights between the bar and the donut
+    (env.json → ``tools.weights_chart_switch``; off by default)."""
+    from hani2.config import get_env
+
+    v = get_env("tools.weights_chart_switch", False)
+    return v if isinstance(v, bool) else str(v).lower() in ("1", "true", "yes", "on")
+
+
+#: the tool input that holds the human's choice of chart (one for the whole tool, so every weights
+#: chart of the tool follows it, in the pane and in the window)
+WEIGHTS_CHART_INPUT = "weights_chart"
+WEIGHTS_CHART_LABELS = {"Bar": "bar", "Donut": "donut"}
+
+
 def _fmt_weight(w: float) -> str:
     return f"{w:.3g}"
 
@@ -724,9 +744,21 @@ def _weights_card(ctx: UfunViewContext, names: list[str], weights: list[float],
     elif caption is PARTS_CAPTION and ctx.raw:
         caption = RAW_PARTS_CAPTION
     pane, window = weights_chart(), weights_chart("window")
-    plot = _weights_plot(names, weights, pane, raw=ctx.raw)
+    switch = weights_chart_switch() and not signed
+    if switch:  # the human's choice (once made) wins in the pane and in the window
+        chosen = ctx.value_of(WEIGHTS_CHART_INPUT)
+        if chosen in WEIGHTS_CHARTS:
+            pane = window = chosen
+
+    def chart(style: str) -> ui.Component:
+        plot = _weights_plot(names, weights, style, raw=ctx.raw)
+        if not switch:
+            return plot
+        return ui.column(ui.radio(WEIGHTS_CHART_INPUT, WEIGHTS_CHART_LABELS, style), plot, gap=2)
+
+    plot = chart(pane)
     if window != pane and not signed:  # the tool's window draws the weights its own way
-        plot = ui.placed(plot, _weights_plot(names, weights, window, raw=ctx.raw))
+        plot = ui.placed(plot, chart(window))
     return ui.card(_caption(ctx, caption), plot, title=f"{ctx.title_prefix}{title}")
 
 

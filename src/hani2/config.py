@@ -328,12 +328,12 @@ DEFAULT_ENV: dict[str, Any] = {
     # WebMCP: expose the negotiation to AI agents running in the browser.
     "webmcp": {"enabled": True, "actions": True, "studies": False},
     # the Preferences tools: weights as a bar (``donut`` in the tool's window when
-    # weights_chart_window says so), normalized percentages or raw numbers, a line
+    # weights_chart_window says so; weights_chart_switch: the human may switch bar <-> donut), normalized percentages or raw numbers, a line
     # instead of bars above values_line_above options;
     # tools.isolate_builtin: built-in tools' failures are shown in their pane too (external tools' always are);
     # tools.render_timeout: seconds a guarded tool may take to render (see hani2.tools.failure)
     "tools": {"maximize": "window", "weights_chart": "bar", "weights_chart_window": "same",
-              "preferences_scale": "normalized", "values_line_above": 12, "isolate_builtin": True,
+              "weights_chart_switch": False, "preferences_scale": "normalized", "values_line_above": 12, "isolate_builtin": True,
               "render_timeout": 20},
     # negmas statistics of each scenario, computed in the background (see hani2.scenario_stats)
     "scenario_stats": {"enabled": True, "pareto_max_outcomes": 1_000_000, "timeout": 300},
