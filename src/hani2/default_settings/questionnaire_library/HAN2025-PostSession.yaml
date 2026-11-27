@@ -1,7 +1,7 @@
 id: HAN2025-PostSession
 title: HAN2025-PostSession
-description: "The post-session questionnaire of HAN 2025, which the competition page asked participants to fill after every negotiation session (a later version of the page drops it, and the rules required only the pre- and post-study forms): enjoyment, ease, the opponent's human-likeness, intelligence, speed and predictability, the support tools, and expectations about AI negotiators. Converted from the Google Form: the identification items (registered user name, session id, date and time, number of negotiations) are left out, since HANI2 records them; a question the form asks twice is kept once. The 1\u20135 scales had no endpoint labels."
-reference: 'Human-Agent Negotiation League Post-session Questionnaire, HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025): https://forms.gle/qT8VtQYrV5RuodML6'
+description: 'The post-session questionnaire of HAN 2025, which the competition page asked participants to fill after every negotiation session (a later version of the page drops it, and the rules required only the pre- and post-study forms): enjoyment, ease, the opponent''s human-likeness, intelligence, speed and predictability, the support tools, and expectations about AI negotiators. Converted from the Google Form: the identification items (registered user name, session id, date and time, number of negotiations) are left out, since HANI2 records them; a question the form asks twice is kept once. The 1–5 scales had no endpoint labels. The form: “Human-Agent Negotiation League Post-session Questionnaire”, https://forms.gle/qT8VtQYrV5RuodML6.'
+reference: "Questionnaires of the HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025)"
 forms: [post_session]
 questions:
   - {id: han2025_enjoyable, text: 'How enjoyable was the negotiation with our system (5 = most enjoyable)?', type: likert5, required: true}

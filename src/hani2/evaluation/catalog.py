@@ -292,7 +292,8 @@ class QuestionnaireInfo:
     url: str = ""  #: a link to the source (only where certain)
     validated_by: str = ""  #: the test that checks it against the source instrument
     note: str = ""  #: adaptations, what was checked, or why it is not validated
-    competition: str = ""  #: the competition that asked these questions (its own section in the docs)
+    competition: str = ""  #: the competition that asked these questions (its own section in the docs); a set
+    #: its organisers maintain has no citation or url (so it stays editable), one taken from a paper cites it
 
 
 _Q = _T + "test_validate_questionnaires.py::"
@@ -401,28 +402,28 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
     "HAN2026-PreSession": QuestionnaireInfo(
         "HAN 2026, once before the first session: negotiation experience, familiarity with AI, own skill and the "
         "skill expected of the opponents.",
-        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+        "", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
     "HAN2026-PostNegotiation": QuestionnaireInfo(
         "HAN 2026, after each negotiation: the opponent's strategy, intelligence and skill, employability, "
         "engagement, its messages, time pressure and satisfaction with the outcome.",
-        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+        "", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
     "HAN2026-PostSession": QuestionnaireInfo(
         "HAN 2026, after each session: ease of use, engagement and the usefulness of each interface tool.",
-        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+        "", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
     "HAN2025-PreStudy": QuestionnaireInfo(
         "HAN 2025, once before any negotiation: background, expertise and expectations about the system and AI "
         "negotiators.",
-        "Human-Agent Negotiation League Pre-study Questionnaire (HAN 2025).", "https://forms.gle/c4tNxYof1Gm7ezmC7", "",
+        "", "", "",
         "Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.", "HAN 2025"),
     "HAN2025-PostSession": QuestionnaireInfo(
         "HAN 2025, after a negotiation session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and "
         "predictability, support and expectations about AI negotiators.",
-        "Human-Agent Negotiation League Post-session Questionnaire (HAN 2025).", "https://forms.gle/qT8VtQYrV5RuodML6",
+        "", "",
         "", "Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.", "HAN 2025"),
     "HAN2025-PostStudy": QuestionnaireInfo(
         "HAN 2025, once after the whole competition: the post-session questions, understanding of the scenario, "
         "comments and strategy.",
-        "Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).", "https://forms.gle/HEmb2CpruFD8aUvt8",
+        "", "",
         "", "Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.", "HAN 2025"),
     "ANAC-HAL2018-PostNegotiation": QuestionnaireInfo(
         "ANAC 2018 Human-Agent League, after each negotiation: likeability of the agent (satisfaction with the "

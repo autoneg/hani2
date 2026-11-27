@@ -232,7 +232,7 @@ def _scales_line(qs: list[dict]) -> str:
         " — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`."
 
 
-def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str = "###") -> list[str]:
+def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str = "###", reference: str = "") -> list[str]:
     info = C.questionnaire_info(qid)
     v = bool(info and info.validated_by)
     mark = f" {_mark(info.validated_by, C.VALIDATED_SOURCE_TOOLTIP)}" if v else ""
@@ -243,6 +243,8 @@ def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str 
         if info.citation:
             src = f"[{info.citation}]({info.url})" if info.url else info.citation
             out.append(f"**Source:** {src}\n")
+        elif reference:
+            out.append(f"**Source:** {reference}\n")
         out.append(f"**{'Validated' if v else 'Validation'}:** {info.note}\n")
     if qid in C.QUESTIONNAIRE_WARNINGS:
         out.append(_warning("Items not checked against the source", C.QUESTIONNAIRE_WARNINGS[qid]))
@@ -283,7 +285,8 @@ def questionnaires_markdown() -> str:
     for k in sourced + competition + own:
         d, qi = lib[k], info(k)
         v = _mark(qi.validated_by, C.VALIDATED_SOURCE_TOOLTIP) if qi and qi.validated_by else ""
-        src = (f"[link]({qi.url})" if qi and qi.url else ("yes" if qi and qi.citation else "own items"))
+        src = (f"[link]({qi.url})" if qi and qi.url else ("yes" if qi and qi.citation else
+                                                          "competition" if qi and qi.competition else "own items"))
         out.append(f"| [{_cell(d.get('title', k))}](#{k.replace('_', '-')}) | `{k}` | {len(d['questions'])} | {v} | {src} |")
     out.append("")
     out.append("## Standard instruments\n")
@@ -296,7 +299,8 @@ def questionnaires_markdown() -> str:
                "validated instruments.\n")
     for k in competition:
         d = lib[k]
-        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"])
+        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"],
+                      reference=str(d.get("reference") or ""))
     out.append("## HANI2's own question sets\n")
     out.append("Items written for HANI2 studies. They have no source instrument, so they are not validated against "
                "one; their scales are scored by the same validated rules as every questionnaire.\n")

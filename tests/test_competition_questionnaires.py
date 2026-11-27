@@ -60,6 +60,12 @@ def test_competition_set_loads_and_passes_the_form_checker(lib, sid):
     assert questionnaires.validate(text) == [] and len(added) == len(s["questions"]) and not skipped
     info = C.questionnaire_info(sid)
     assert info and info.competition and not info.validated_by, "competition sets are not validated instruments"
+    # the organisers' own sets cite nothing (editable in the app); sets taken from a paper cite it (read-only)
+    if sid in HAL:
+        assert info.citation and info.url.startswith("https://doi.org/")
+    else:
+        assert not info.citation and not info.url and "url" not in yaml.safe_load(
+            (questionnaires.library_dirs()[0] / f"{sid}.yaml").read_text(encoding="utf-8"))
 
 
 def test_hyphenated_capitalised_ids_are_valid_set_ids(lib, client):
@@ -120,7 +126,7 @@ def test_han2025_sets_match_the_google_forms(lib, sid):
     got = [{k: v for k, v in q.items() if k != "id"} for q in lib[sid]["questions"]]
     assert got == expected
     assert all(q["id"].startswith("han2025_") for q in lib[sid]["questions"])
-    assert form["url"] in lib[sid]["reference"]
+    assert form["url"] in lib[sid]["description"]
 
 
 @pytest.mark.parametrize("sid", sorted(HAL))

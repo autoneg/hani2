@@ -18,12 +18,12 @@ Pick them on the admin console's **Study forms** page (**Add predefined question
 | [Trust in automation (Jian et al.), 12 items](#trust-in-automation) | `trust_in_automation` | 12 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_trust_in_automation_matches_source">✓</abbr> | [link](https://doi.org/10.1207/S15327566IJCE0401_04) |
 | [UEQ, 8 items (the evaluation selection)](#ueq-eval) | `ueq_eval` | 8 |  | [link](https://www.ueq-online.org/) |
 | [UEQ-S (short User Experience Questionnaire)](#ueq-s) | `ueq_s` | 8 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_ueq_s_matches_source">✓</abbr> | [link](https://doi.org/10.9781/ijimai.2017.09.001) |
-| [HAN2026-PreSession](#HAN2026-PreSession) | `HAN2026-PreSession` | 4 |  | yes |
-| [HAN2026-PostNegotiation](#HAN2026-PostNegotiation) | `HAN2026-PostNegotiation` | 10 |  | yes |
-| [HAN2026-PostSession](#HAN2026-PostSession) | `HAN2026-PostSession` | 8 |  | yes |
-| [HAN2025-PreStudy](#HAN2025-PreStudy) | `HAN2025-PreStudy` | 19 |  | [link](https://forms.gle/c4tNxYof1Gm7ezmC7) |
-| [HAN2025-PostSession](#HAN2025-PostSession) | `HAN2025-PostSession` | 13 |  | [link](https://forms.gle/qT8VtQYrV5RuodML6) |
-| [HAN2025-PostStudy](#HAN2025-PostStudy) | `HAN2025-PostStudy` | 17 |  | [link](https://forms.gle/HEmb2CpruFD8aUvt8) |
+| [HAN2026-PreSession](#HAN2026-PreSession) | `HAN2026-PreSession` | 4 |  | competition |
+| [HAN2026-PostNegotiation](#HAN2026-PostNegotiation) | `HAN2026-PostNegotiation` | 10 |  | competition |
+| [HAN2026-PostSession](#HAN2026-PostSession) | `HAN2026-PostSession` | 8 |  | competition |
+| [HAN2025-PreStudy](#HAN2025-PreStudy) | `HAN2025-PreStudy` | 19 |  | competition |
+| [HAN2025-PostSession](#HAN2025-PostSession) | `HAN2025-PostSession` | 13 |  | competition |
+| [HAN2025-PostStudy](#HAN2025-PostStudy) | `HAN2025-PostStudy` | 17 |  | competition |
 | [ANAC-HAL2018-PostNegotiation](#ANAC-HAL2018-PostNegotiation) | `ANAC-HAL2018-PostNegotiation` | 3 |  | [link](https://doi.org/10.1109/ACII.2019.8925437) |
 | [ANAC-HAL2017-PostNegotiation](#ANAC-HAL2017-PostNegotiation) | `ANAC-HAL2017-PostNegotiation` | 3 |  | [link](https://doi.org/10.1145/3267851.3267907) |
 | [Experience with AI assistants](#ai-experience) | `ai_experience` | 4 |  | own items |
@@ -266,7 +266,7 @@ Id `HAN2026-PreSession` · 4 questions · for: `pre_questionnaire`
 
 **Measures:** HAN 2026, once before the first session: negotiation experience, familiarity with AI, own skill and the skill expected of the opponents.
 
-**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition
 
 **Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
 
@@ -285,7 +285,7 @@ Id `HAN2026-PostNegotiation` · 10 questions · for: `per_negotiation`
 
 **Measures:** HAN 2026, after each negotiation: the opponent's strategy, intelligence and skill, employability, engagement, its messages, time pressure and satisfaction with the outcome.
 
-**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition
 
 **Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
 
@@ -310,7 +310,7 @@ Id `HAN2026-PostSession` · 8 questions · for: `post_session`
 
 **Measures:** HAN 2026, after each session: ease of use, engagement and the usefulness of each interface tool.
 
-**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition
 
 **Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
 
@@ -333,7 +333,7 @@ Id `HAN2025-PreStudy` · 19 questions · for: `pre_questionnaire`
 
 **Measures:** HAN 2025, once before any negotiation: background, expertise and expectations about the system and AI negotiators.
 
-**Source:** [Human-Agent Negotiation League Pre-study Questionnaire (HAN 2025).](https://forms.gle/c4tNxYof1Gm7ezmC7)
+**Source:** Questionnaires of the HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025)
 
 **Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
@@ -367,7 +367,7 @@ Id `HAN2025-PostSession` · 13 questions · for: `post_session`
 
 **Measures:** HAN 2025, after a negotiation session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and predictability, support and expectations about AI negotiators.
 
-**Source:** [Human-Agent Negotiation League Post-session Questionnaire (HAN 2025).](https://forms.gle/qT8VtQYrV5RuodML6)
+**Source:** Questionnaires of the HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025)
 
 **Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
@@ -395,7 +395,7 @@ Id `HAN2025-PostStudy` · 17 questions · for: `post_session`
 
 **Measures:** HAN 2025, once after the whole competition: the post-session questions, understanding of the scenario, comments and strategy.
 
-**Source:** [Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).](https://forms.gle/HEmb2CpruFD8aUvt8)
+**Source:** Questionnaires of the HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025)
 
 **Validation:** Not validated: the questions of the competition's Google Form as asked (typos included), not a validated instrument. Converted to HANI2 questions: the identification items (user name, session id, date and time, number of negotiations) are left out, a question the form asks twice is kept once, the expertise grid is one question per field, and the 1–5 linear scales (no endpoint labels in the form) are likert5.
 
