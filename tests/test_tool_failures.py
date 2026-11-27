@@ -15,6 +15,8 @@ from hani2.tools import registry
 from hani2.tools.failure import FailedTool
 
 BROKEN_TOOLS = textwrap.dedent('''
+    import os
+    import sys
     import time
     from hani2.tools import Tool, ui
 
@@ -71,6 +73,57 @@ BROKEN_TOOLS = textwrap.dedent('''
 
     class SlowRender(_Base):
         fail_in = "slow"
+
+    # misbehave only when a test arms them (HANI_TEST_ARM=Name,Name), so other sessions stay quick
+    def _armed(name):
+        return name in os.environ.get("HANI_TEST_ARM", "").split(",")
+
+    class HangAction(_Base):
+        def on_action(self, action, payload):
+            if _armed("HangAction"):
+                time.sleep(1.0)
+
+    class HangInit(_Base):
+        def init(self, ss):
+            if _armed("HangInit"):
+                time.sleep(1.0)
+
+    class HangHook(_Base):
+        def action_executed(self, ss, nmi, action):
+            if _armed("HangHook"):
+                time.sleep(1.0)
+            self.refresh()
+
+    class ExitView(_Base):
+        def view(self):
+            if _armed("ExitView"):
+                raise SystemExit(3)
+            return super().view()
+
+    class ExitAction(_Base):
+        def on_action(self, action, payload):
+            if _armed("ExitAction"):
+                sys.exit(2)
+
+    class AlwaysSlow(_Base):
+        calls = 0
+        def view(self):
+            type(self).calls += 1
+            if _armed("AlwaysSlow"):
+                time.sleep(0.5)
+            return super().view()
+
+    class ExitCtor(_Base):
+        def __init__(self, *a, **kw):
+            if _armed("ExitCtor"):
+                sys.exit(4)
+            super().__init__(*a, **kw)
+
+    class FenceView(_Base):
+        def view(self):
+            if _armed("FenceView"):
+                raise RuntimeError("a ``` fence ```` inside")
+            return super().view()
 ''')
 
 SECRETS = ("boom", "RuntimeError", "Traceback")
@@ -374,3 +427,216 @@ def test_load_errors_endpoint(hani2_home, monkeypatch):
         assert r.status_code == 200
         assert any("missing dependency" in e["error"] for e in r.json()["errors"])
     hub.sessions.clear()
+
+
+# -- review fixes -------------------------------------------------------------- #
+def _arm(monkeypatch, *names):
+    monkeypatch.setenv("HANI_TEST_ARM", ",".join(names))
+
+
+def _assistant(s):
+    s.start()
+    assert s.wait_for_turn()
+    return s.support_agent
+
+
+def test_the_assistant_is_not_blocked_by_a_hung_tool(broken_tools):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    s = make_session(support_settings={"autonomy": "suggest"})
+    sa = _assistant(s)
+    t0 = time.monotonic()
+    res = sa.read_tool("SlowRender")  # its view sleeps 1.5 s
+    assert time.monotonic() - t0 < 1.2
+    assert res["ok"] and "not available" in res["text"]
+    assert s.tool_unusable(_tool(s, "SlowRender"))
+    res = sa.use_tool("SlowRender", action="go")
+    assert not res["ok"] and "not working" in res["error"]
+    assert sa.use_tool("GoodTool", action="go")["ok"]  # other tools are fine
+    s.end()
+
+
+def test_describe_for_agent_uses_the_guarded_path(broken_tools):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    s = make_session()
+    bad, slow = _tool(s, "BadRender"), _tool(s, "SlowRender")
+    assert "not available" in bad.describe_for_agent() and "boom" not in bad.describe_for_agent()
+    assert s.tool_failure(bad)["where"] == "render"
+    t0 = time.monotonic()
+    assert "not available" in slow.describe_for_agent()
+    assert time.monotonic() - t0 < 1.2
+
+
+def test_a_finish_at_the_limit_never_leaves_a_tool_hung():
+    from hani2.hub import Hub
+
+    class Fake:
+        sid = "fake"
+
+        def __init__(self):
+            self.hung = False
+            self.lock = __import__("threading").Lock()
+
+        def tool_render_timeout(self, tid):
+            return 0.05
+
+        def render_tool(self, tid):
+            time.sleep(0.05)  # finishes right at the limit
+            return {"id": tid, "view": []}
+
+        def tool_render_timed_out(self, tid, seconds):
+            with self.lock:
+                self.hung = True
+            return {"id": tid, "view": ["timeout"]}
+
+        def tool_render_returned(self, tid):
+            with self.lock:
+                self.hung = False
+            return True
+
+        def tool_render_in_time(self, tid):
+            pass
+
+    async def run():
+        hub = Hub()
+        hub.attach_loop(asyncio.get_running_loop())
+        for _ in range(150):
+            s = Fake()
+            await hub.render_tool_view(s, "t")
+            await asyncio.sleep(0.15)
+            assert not s.hung
+
+    asyncio.run(run())
+
+
+def test_participants_never_see_exception_text(broken_tools, monkeypatch):
+    toasts = []
+    for admin in (False, True):
+        s = make_session(is_admin=admin, support_settings={"autonomy": "suggest"})
+        monkeypatch.setattr(s, "toast", lambda m, level="info", **kw: toasts.append((admin, m)))
+        s.tool_action(s.tool_state(_tool(s, "BadAction"))["id"], "go", {})
+        res = _assistant(s).use_tool("BadAction", action="go")
+        text = json.dumps(res)
+        assert ("boom" in text) == admin and ("RuntimeError" in text) == admin
+        s.end()
+    shown = {a: m for a, m in toasts}
+    assert "boom" not in shown[False] and "RuntimeError" not in shown[False] and "BadAction" in shown[False]
+    assert "boom" in shown[True]
+
+
+def test_a_hung_action_does_not_block_the_session(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    _arm(monkeypatch, "HangAction")
+    s = make_session()
+    hang, good = _tool(s, "HangAction"), _tool(s, "GoodTool")
+    hid, gid = s.tool_state(hang)["id"], s.tool_state(good)["id"]
+    t0 = time.monotonic()
+    s.submit_ui(s.tool_action, hid, "go", {}).result()  # the single-worker UI executor
+    assert time.monotonic() - t0 < 0.9
+    assert s.tool_unusable(hang) and s.tool_failure(hang)["where"] == "on_action"
+    t0 = time.monotonic()
+    s.submit_ui(s.tool_action, hid, "go", {}).result()  # skipped while the first call hangs
+    s.submit_ui(s.tool_input, hid, "x", 1).result()
+    s.submit_ui(s.tool_action, gid, "go", {}).result()  # other tools carry on
+    assert time.monotonic() - t0 < 0.3
+    assert _is_failure_view(_view(s, "HangAction")) and _shows_tool(_view(s, "GoodTool"))
+    assert s.wait(lambda: not s.tool_unusable(hang), 5)  # the abandoned call returned
+    _arm(monkeypatch)
+    s.tool_action(hid, "go", {})
+    assert s.tool_failure(hang) is None
+
+
+def test_a_hung_init_and_hook_are_abandoned(broken_tools, monkeypatch):
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    _arm(monkeypatch, "HangInit", "HangHook")
+    t0 = time.monotonic()
+    s = make_session()
+    assert time.monotonic() - t0 < 3
+    init = _tool(s, "HangInit")
+    assert s.tool_failure(init)["where"] == "init" and s.tool_failure(init)["error_type"] == "TimeoutError"
+    assert _is_failure_view(_view(s, "HangInit"))
+    s.start()
+    assert s.wait_for_turn()
+    t0 = time.monotonic()
+    s.play_counters(1)
+    hook = _tool(s, "HangHook")
+    assert s.wait(lambda: s.tool_failure(hook) is not None, 10)
+    assert s.tool_failure(hook)["where"] == "action_executed"
+    assert time.monotonic() - t0 < 1.5  # not held up by the 1 s hang
+    s.end()
+
+
+def test_sys_exit_in_a_tool_is_caught(broken_tools, monkeypatch):
+    _arm(monkeypatch, "ExitView", "ExitAction")
+    s = make_session(is_admin=True)
+    view = _view(s, "ExitView")
+    assert _is_failure_view(view) and "SystemExit" in _text(view)
+    s.tool_action(s.tool_state(_tool(s, "ExitAction"))["id"], "go", {})  # does not raise
+    assert s.tool_failure(_tool(s, "ExitAction"))["error_type"] == "SystemExit"
+    sa = _assistant(s)
+    assert not sa.use_tool("ExitAction", action="go")["ok"]
+    s.end()
+
+
+def test_an_always_slow_tool_stops_being_retried(broken_tools, monkeypatch):
+    from hani2.hub import Hub
+    from hani2.tools import failure
+
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.2}})
+    monkeypatch.setattr(failure, "MAX_TIMEOUTS", 2)
+    _arm(monkeypatch, "AlwaysSlow")
+    s = make_session(is_admin=True)
+    tool = _tool(s, "AlwaysSlow")
+    tid = s.tool_state(tool)["id"]
+    hub = Hub()
+
+    async def run():
+        hub.attach_loop(asyncio.get_running_loop())
+        for _ in range(2):
+            view = await hub.render_tool_view(s, tid)
+            assert "took too long" in _text(view["view"])
+            skipped = await hub.render_tool_view(s, tid)  # while it hangs: skipped, and proves nothing
+            assert "took too long" in _text(skipped["view"])
+            await asyncio.sleep(0.7)  # the slow render returns
+        calls = type(tool).calls
+        view = await hub.render_tool_view(s, tid)
+        assert "not tried again" in _text(view["view"]) and type(tool).calls == calls  # not called any more
+        assert s.tool_unusable(tool)
+        s.retry_tool(tool)  # explicit retry: the tab is opened again
+        _arm(monkeypatch)
+        view = await hub.render_tool_view(s, tid)
+        assert view["view"][0]["text"] == "AlwaysSlow works"
+
+    asyncio.run(run())
+    assert s.tool_failure(tool) is None
+
+
+def test_a_fence_in_the_exception_text_does_not_break_the_traceback(broken_tools, monkeypatch):
+    _arm(monkeypatch, "FenceView")
+    s = make_session(is_admin=True)
+    view = _view(s, "FenceView")
+    md = next(c for c in view if c["type"] == "card")["children"][0]["text"]
+    fence = md.split("text\n", 1)[0]
+    assert len(fence) >= 5 and set(fence) == {"`"} and md.rstrip().endswith(fence)  # longer than the ```` inside
+
+
+def test_help_text_in_describe_for_agent_is_guarded(broken_tools, monkeypatch):
+    s = make_session()
+    good = _tool(s, "GoodTool")
+
+    def broken():
+        raise ValueError("no help")
+
+    monkeypatch.setattr(good, "help_text", broken)
+    assert "GoodTool works" in good.describe_for_agent()
+    assert good.describe_for_agent().startswith("Tool: GoodTool")
+
+
+def test_sys_exit_in_a_constructor_or_at_import_does_not_end_the_server(broken_tools, monkeypatch):
+    (broken_tools / "exits_on_import.py").write_text("import sys\nsys.exit(5)\n", encoding="utf-8")
+    _arm(monkeypatch, "ExitCtor")
+    s = make_session(is_admin=True)
+    tool = _tool(s, "ExitCtor")
+    assert isinstance(tool, FailedTool)
+    assert "failed to start" in _text(_view(s, "ExitCtor")) and "SystemExit" in _text(_view(s, "ExitCtor"))
+    assert any("exits_on_import" in k and "SystemExit" in v["error"] for k, v in registry.LOAD_ERRORS.items())
+    assert _shows_tool(_view(s, "GoodTool"))

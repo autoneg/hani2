@@ -325,7 +325,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
 | `tools.weights_chart` | How the Preferences tool draws issue weights: `donut` (default) or `bar` (one thin horizontal bar, saves space). See [Weights as a donut or a bar](preferences.md#weights-as-a-donut-or-a-bar). |
 | `tools.isolate_builtin` | Catch the failures of built-in tools too and show them in the tool's own tab (default `true`). `false`: built-in tool errors surface as they used to, for debugging. External tools are always guarded. See [When a tool fails](tools.md#when-a-tool-fails). |
-| `tools.render_timeout` | Seconds a guarded tool may take to render before its tab shows that it took too long (default `20`; `0`: no limit). |
+| `tools.render_timeout` | Seconds a guarded tool may take for one call (render, input, button, hook, `init`, or the Assistant reading it) before the call is abandoned and its tab shows that it took too long (default `20`; `0`: no limit). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |
 | `webmcp.enabled` | Register WebMCP tools for browser agents (default `true`). See [WebMCP](webmcp.md). |

@@ -109,6 +109,8 @@ def test_full_round_over_websocket(client):
         ws.send_text(json.dumps({"type": "send", "text": "hello", "values": d["draft"]}))
         h = recv_until(ws, lambda m: m["type"] == "history" and any(x.get("by") == "human" for x in m["items"]))
         assert any(x.get("text") == "hello" for x in h["items"])
+        # an end sent before the turn is back with the participant is refused: wait for it
+        recv_until(ws, lambda m: m["type"] == "state" and m["state"]["negotiation"]["is_my_turn"] and not m["state"]["negotiation"]["thinking"])
         ws.send_text(json.dumps({"type": "end"}))
         end = recv_until(ws, lambda m: m["type"] == "state" and m["state"]["phase"] == "ended")
         assert end["state"]["result"]["ended_by"] == "human"

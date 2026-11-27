@@ -255,27 +255,39 @@ class Hub:
             return await loop.run_in_executor(TOOL_EXECUTOR, s.render_tool, tid)
         if self._render_slots is None or self._render_slots[0] is not loop:
             self._render_slots = (loop, asyncio.Semaphore(TOOL_RENDER_SLOTS))
-        timed_out = False
-
-        def finish(fut: asyncio.Future, result: Any, error: BaseException | None) -> None:
-            if timed_out:  # the render that took too long is back: it may be rendered again
-                try:
-                    s.tool_render_returned(tid)
-                    self.tool_changed(s.sid, tid)
-                except Exception:  # noqa: BLE001
-                    traceback.print_exc()
-            elif not fut.done():
-                fut.set_exception(error) if error is not None else fut.set_result(result)
-
+        # one state variable, changed only under this lock: "running" -> "done" (the render
+        # finished in time) or "timed_out" (the limit passed first), never both
+        mu = threading.Lock()
+        box: dict[str, Any] = {"state": "running"}
+        recorded = threading.Event()  # the timeout is on the tool: only then may a late return clear it
         fut = loop.create_future()
+
+        def deliver(result: Any, error: BaseException | None) -> None:
+            if not fut.done():
+                fut.set_exception(error) if error is not None else fut.set_result(result)
 
         def work() -> None:
             try:
                 result, error = s.render_tool(tid), None
             except BaseException as e:  # noqa: BLE001 - handed to the event loop
                 result, error = None, e
+            with mu:
+                late = box["state"] == "timed_out"
+                if not late:
+                    box["state"] = "done"
+            if late:  # the render that took too long is back: it may be rendered again (a bounded number of times)
+                recorded.wait(10)
+                try:
+                    s.tool_render_returned(tid)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
+                return
             try:
-                loop.call_soon_threadsafe(finish, fut, result, error)
+                s.tool_render_in_time(tid)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+            try:
+                loop.call_soon_threadsafe(deliver, result, error)
             except RuntimeError:  # the loop is gone
                 pass
 
@@ -291,9 +303,16 @@ class Hub:
                 return await asyncio.wait_for(asyncio.shield(fut), timeout - grace)
         except asyncio.TimeoutError:
             pass
-        timed_out = True
+        with mu:
+            if box["state"] == "running":
+                box["state"] = "timed_out"
+        if box["state"] == "done":  # finished just as the limit passed: use that render
+            return await fut
         fut.cancel()
-        return s.tool_render_timed_out(tid, timeout)
+        try:
+            return s.tool_render_timed_out(tid, timeout)
+        finally:
+            recorded.set()
 
     async def _flush_tool(self, sid: str, tid: str) -> None:
         await asyncio.sleep(0.05)

@@ -483,13 +483,20 @@ failure is shown **in that tool's own tab only**, and everything else carries on
 | --- | --- |
 | Creating the tool, or its `init` | The failure, for the rest of the session. The tool keeps its tab but is not called again. |
 | Its `view` raises | The failure, until a later render works. |
-| Its `view` takes longer than `tools.render_timeout` seconds (20 by default) | That it took too long. The tool is not rendered again until that render returns, so a hanging tool never holds up the other tools or sessions. |
+| Its `view` takes longer than `tools.render_timeout` seconds (20 by default) | That it took too long. The tool is not rendered again until that render returns, so a hanging tool never holds up the other tools or sessions. A tool that is too slow three times in a row is not tried again until the participant opens its tab again. |
 | A hook (`scenario_loaded`, `negotiation_started`, `action_executed`, …), an input or a button | The tool's normal view under an error banner, until the same call works again. A failing button also shows a notification, as before. |
+| Any of those calls (`init`, a hook, an input, a button) takes longer than `tools.render_timeout` seconds | The call is abandoned (it never blocks the page, the other tools or the Assistant), the tool shows the failure and is skipped until the abandoned call returns. |
+| The tool calls `sys.exit()` or raises `KeyboardInterrupt` | Handled like any other error (a tool file that calls `sys.exit()` while it is imported is listed with the load errors). |
 
 Participants only read that the tool is not working right now. Administrators also see the error
 type, the message and, folded away, the traceback. Every failure is written to the server log and
-recorded as an `error` event once per kind of failure. When the Assistant tries to use a tool that
-failed to start or is stuck rendering, it is told the tool is not working right now.
+recorded as an `error` event once per kind of failure. Notifications about a failing button show
+the error only to administrators; everyone else gets a generic message. The Assistant reads and
+uses tools through the same guarded, time-limited path: a tool that failed to start, is stuck or
+fails while the Assistant uses it is reported as not working right now (with the error text only
+for administrators), and a tool that cannot be read shows as unavailable. One limit: a call made
+while the session is locked (a hook fired by something the Assistant did) runs without the time
+limit, because the call could not use the session while the caller waits for it.
 
 A tool file (or `tools.extra` entry, entry point or library entry) that cannot even be imported
 gives no tab at all. The admin console lists such files at the top of the **Tools** page of the

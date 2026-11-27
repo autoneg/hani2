@@ -291,7 +291,7 @@ def discover_tool_classes() -> list[type[Tool]]:
                 if isinstance(obj, type) and issubclass(obj, Tool):
                     add(obj, f"entry point {ep.name}")
                 load_ok(f"entry point {ep.name}")
-            except Exception as e:  # noqa: BLE001
+            except (Exception, SystemExit) as e:  # noqa: BLE001
                 _report(f"ep:{ep.name}:{e}", f"[hani2] could not load tool entry point {ep.name!r}: {e}")
                 load_failed(f"entry point {ep.name}", e)
     except Exception:  # pragma: no cover
@@ -304,7 +304,7 @@ def discover_tool_classes() -> list[type[Tool]]:
                 for c in load_tool_file(f):
                     add(c, str(f))
                 load_ok(str(f))
-            except Exception as e:  # noqa: BLE001 - a broken file must not break the server
+            except (Exception, SystemExit) as e:  # noqa: BLE001 - a broken file must not break the server
                 _report(f"file:{f}:{f.stat().st_mtime}", f"[hani2] could not load tools from {f}: {e}")
                 load_failed(str(f), e)
     for spec in _extra_entries():
@@ -313,7 +313,7 @@ def discover_tool_classes() -> list[type[Tool]]:
         try:
             add(import_tool(spec), f"tools.extra / --tools ({spec})")
             load_ok(f"tools.extra / --tools ({spec})")
-        except Exception as e:  # noqa: BLE001
+        except (Exception, SystemExit) as e:  # noqa: BLE001
             _report(f"extra:{spec}", f"[hani2] could not load tool {spec!r}: {e}")
             load_failed(f"tools.extra / --tools ({spec})", e)
     try:  # tools uploaded or linked in the library (settings, project and study layers)
@@ -396,7 +396,7 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
         try:
             tool = spec.cls(session.ss, enabled=spec.enabled)
             tool.name = spec.name
-        except Exception as e:  # noqa: BLE001 - a broken tool must not break the session
+        except (Exception, SystemExit) as e:  # noqa: BLE001 - a broken tool must not break the session
             if spec.builtin and not isolate_builtin():
                 traceback.print_exc()  # as before; a guarded failure is logged by the session
                 continue

@@ -279,20 +279,34 @@ class Tool:
         the agent a better summary than the generic one."""
         from hani2.tools.describe import describe_components
 
+        session = getattr(self, "session", None)
+        guard = getattr(session, "guard_tool", None)
         head = [f"Tool: {self.name}"]
-        if self.help_text():
-            head.append(self.help_text())
+        helptext = guard(self, "help_text", self.help_text, default="", timed=False) if guard else _safe_help(self)
+        if helptext:
+            head.append(helptext)
         if self.agent_hint:
             head.append(f"How to use it: {self.agent_hint}")
-        try:
+
+        def read() -> list:
             with self.view_lock:
-                comps = list(self.view() or [])
-            relabel = getattr(self.session, "relabel", None)
-            if relabel is not None:
-                comps = relabel(comps)
-            body = describe_components(comps, max_chars=max_chars)
+                return list(self.view() or [])
+
+        try:
+            # the same guarded, time-limited path as the pane (hani2.tools.failure)
+            comps = guard(self, "render", read, default=None, timed=True) if guard else read()
+            if comps is None:
+                body = "(this tool is not available right now)"
+            else:
+                relabel = getattr(session, "relabel", None)
+                if relabel is not None:
+                    comps = relabel(comps)
+                body = describe_components(comps, max_chars=max_chars)
         except Exception as e:  # noqa: BLE001
-            body = f"(this tool could not be read: {e})"
+            from hani2.tools.failure import public_error
+
+            detail = public_error(e, bool(getattr(session, "is_admin", False)), "")
+            body = "(this tool is not available right now" + (f": {detail}" if detail else "") + ")"
         return "\n".join(head) + "\n\n" + (body or "(nothing to show yet)")
 
     def toast(self, message: str, level: str = "info") -> None:
@@ -370,6 +384,13 @@ class Tool:
 
             traceback.print_exc()
             return [ui.alert(f"`{self.name}` failed to render: {e}", "error")]
+
+
+def _safe_help(tool: Tool) -> str:
+    try:
+        return tool.help_text()
+    except Exception:  # noqa: BLE001 - a broken tool must not break the Assistant
+        return ""
 
 
 class OutcomeSelector(Tool):

@@ -656,6 +656,7 @@ def _dispatch_msg(s: NegotiationSession, msg: dict[str, Any]) -> Any:
         s.active_tabs[str(msg.get("pane"))] = msg.get("name")
         tool = s.tool_controller.find(msg.get("name") or "")
         if tool is not None:
+            s.retry_tool(tool)  # opening the tab retries a tool given up for being too slow
             tool.refresh()
         s.push_state()
         ev.log_event(s.sid, ev.EventType.TAB_CHANGED, user=s.user, component=str(msg.get("name")))

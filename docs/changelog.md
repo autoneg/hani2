@@ -10,7 +10,11 @@
   the failure instead of disappearing silently. Tool files that cannot be imported are listed at
   the top of the library's **Tools** page. `tools.isolate_builtin: false` (*Catch built-in tool
   failures*) lets built-in tool errors surface as before, for debugging. See [When a tool
-  fails](guide/tools.md#when-a-tool-fails).
+  fails](guide/tools.md#when-a-tool-fails). The same guard covers inputs, buttons, hooks, `init`
+and what the Assistant reads or presses (each gets `tools.render_timeout` seconds; a hung call is
+abandoned and never blocks the page or the Assistant), `sys.exit()` in a tool, and a tool that is
+always too slow (not retried after three timeouts until its tab is opened again); participants
+never see exception text, only administrators do.
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow

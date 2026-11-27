@@ -11,9 +11,16 @@ the tool and shows it **in that tool's own pane** only:
   shows the failure view for the rest of the session;
 * a tool that fails to **render** (:meth:`Tool.view` raises, or takes longer than
   ``tools.render_timeout`` seconds) shows the failure view until a later render
-  succeeds;
+  succeeds. A render that is always too slow is retried only :data:`MAX_TIMEOUTS` times
+  in a row; then the failure stays until the participant opens the tab again;
 * a tool that fails in a **hook**, an input or a button shows its normal view under
   an error banner until the same call succeeds again.
+
+Every other call into a tool (inputs, buttons, hooks, ``init``, what the Assistant
+reads or presses) gets the same ``tools.render_timeout`` seconds: a call that takes longer
+is abandoned, the tool is marked hung and skipped until that call returns, and nothing
+else waits for it. ``SystemExit`` and ``KeyboardInterrupt`` raised by tool code are
+caught like any other error.
 
 Admins see the error type, the message and the traceback; participants see only
 that the tool is not working right now.
@@ -26,6 +33,7 @@ raised for a render), which helps when debugging HANI2 itself.
 
 from __future__ import annotations
 
+import re
 import time
 import traceback
 from typing import Any
@@ -34,14 +42,36 @@ from hani2.config import get_env
 from hani2.tools import ui
 from hani2.tools.base import Tool
 
-__all__ = ["FailedTool", "is_builtin", "isolate_builtin", "render_timeout", "make_failure", "failure_view",
-           "failure_banner", "START", "RENDER"]
+__all__ = ["FailedTool", "ToolCallFailed", "ToolUnavailable", "is_builtin", "isolate_builtin", "render_timeout",
+           "make_failure", "failure_view", "failure_banner", "public_error", "START", "RENDER", "MAX_TIMEOUTS",
+           "UNAVAILABLE"]
 
 #: failures of these calls mean the tool never started: it stays failed
 START = ("create", "init")
 #: failures of a render (an exception or a timeout): cleared by the next good render
 RENDER = ("render", "timeout")
 DEFAULT_RENDER_TIMEOUT = 20.0
+#: consecutive render timeouts after which a tool is not rendered again until it is retried explicitly
+MAX_TIMEOUTS = 3
+#: what the Assistant reads in place of a tool that cannot be read
+UNAVAILABLE = "(this tool is not available right now)"
+
+
+class ToolCallFailed(Exception):
+    """A tool call ended with ``SystemExit`` or ``KeyboardInterrupt`` (raised again as an ordinary error)."""
+
+
+class ToolUnavailable(Exception):
+    """A tool is hung or failed to start, so it was not called."""
+
+
+def public_error(e: BaseException | str, admin: bool, generic: str = "something went wrong.") -> str:
+    """Text about a tool's failure that may be shown or told to the Assistant: the error
+    (type and message, shortened) for admins, only ``generic`` for everyone else."""
+    if not admin:
+        return generic
+    text = f"{type(e).__name__}: {e}" if isinstance(e, BaseException) else str(e)
+    return text[:500]
 
 
 def is_builtin(cls: type) -> bool:
@@ -92,10 +122,18 @@ def _what(f: dict[str, Any]) -> str:
     return f"failed in `{where}`"
 
 
+def _fence(text: str) -> str:
+    """A backtick fence longer than any run of backticks in ``text``."""
+    longest = max((len(m) for m in re.findall(r"`+", text)), default=0)
+    return "`" * max(3, longest + 1)
+
+
 def _details(f: dict[str, Any]) -> list[ui.Component]:
     out: list[ui.Component] = []
     if f.get("traceback"):
-        out.append(ui.card(ui.markdown("```text\n" + f["traceback"].rstrip() + "\n```"), title="Traceback",
+        tb = f["traceback"].rstrip()
+        fence = _fence(tb)
+        out.append(ui.card(ui.markdown(f"{fence}text\n{tb}\n{fence}"), title="Traceback",
                            collapsible=True, collapsed=True))
     return out
 

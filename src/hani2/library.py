@@ -342,7 +342,7 @@ def tool_classes() -> list[tuple[type, str]]:
         try:
             out.append((import_tool(e["spec"]), f"library {e.get('source', 'uploaded')} ({e['layer']}: {e['name']})"))
             load_ok(f"library ({e['layer']}: {e['name']})")
-        except Exception as ex:  # noqa: BLE001 - one broken tool must not hide the others
+        except (Exception, SystemExit) as ex:  # noqa: BLE001 - one broken tool must not hide the others
             print(f"[hani2] library tool {e['name']!r} ({e['layer']}) cannot be loaded: {ex}")
             load_failed(f"library ({e['layer']}: {e['name']})", ex)
     return out
@@ -531,7 +531,7 @@ def discover(kind: str, path: Path) -> tuple[list[dict[str, Any]], list[str]]:
                 mod = importlib.import_module(dotted)
             else:
                 mod = _import_file(f)
-        except Exception as e:  # noqa: BLE001
+        except (Exception, SystemExit) as e:  # noqa: BLE001
             errors.append(f"{f.name}: {type(e).__name__}: {e}")
             continue
         for c in _candidates(kind, mod):
@@ -563,7 +563,7 @@ def verify(kind: str, spec: str) -> type:
             from hani2.tools.registry import import_tool
 
             cls = import_tool(spec)
-    except Exception as e:  # noqa: BLE001
+    except (Exception, SystemExit) as e:  # noqa: BLE001
         raise LibraryError(f"cannot load {spec!r}: {type(e).__name__}: {e}", 422) from None
     base = _base_class(kind)
     if not (isinstance(cls, type) and issubclass(cls, base)):

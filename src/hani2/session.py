@@ -23,6 +23,7 @@ Threading model
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import math
 
 import os
@@ -209,6 +210,11 @@ def _in_own_study(fn: Callable) -> Callable:
 
 #: what :meth:`NegotiationSession.guard_tool` returns when a render failed
 _FAILED = object()
+#: threads for time-limited tool calls: idle ones are reused (cheap), a hung call keeps its thread and the
+#: next call gets another, so one hung tool never holds up the rest
+_CALL_POOL = ThreadPoolExecutor(max_workers=256, thread_name_prefix="hani2-tool-call")
+#: set inside a time-limited tool call: nested guarded calls are covered by the outer limit
+_IN_TIMED_CALL: contextvars.ContextVar[bool] = contextvars.ContextVar("hani2_in_timed_tool_call", default=False)
 
 # old names of admin preferences, still accepted
 PREF_ALIASES = {"partner_types": "opponent_types", "show_partner_type": "show_opponent_type"}
@@ -827,10 +833,10 @@ class NegotiationSession:
         """Whether ``tool`` shows the human's private information that the
         Assistant must not read this round (it asks the human instead)."""
         fn = getattr(tool, "private_now", None)
-        if callable(fn):
-            try:
-                return bool(fn())
-            except Exception:  # noqa: BLE001 - fail closed
+        if callable(fn) and not self.tool_unusable(tool):  # a failed or hung tool shows nothing: not called
+            try:  # tool code: guarded and time-limited, and a failure keeps the information private
+                return bool(self.guard_tool(tool, "private_now", fn, default=True))
+            except (Exception, SystemExit):  # noqa: BLE001 - fail closed
                 traceback.print_exc()
                 return True
         return bool(getattr(tool, "private_information", False)) and self.information.split
@@ -1489,6 +1495,7 @@ class NegotiationSession:
             present = {t.name.lower() for t in self.tools}
             new = [(spec, tool) for spec, tool in new if tool.name.lower() not in present]
             front: dict[str, float] = {}
+            started: list = []
             for spec, tool in new:
                 shift = 0 if spec.at_front else 1000
                 # where the tool goes in each view (see hani2.tool_groups); the current view's applies now
@@ -1508,24 +1515,31 @@ class NegotiationSession:
                     # only a tool placed differently per view moves when the view changes
                     views=views if len({tuple(sorted(p.items())) for p in views.values()}) > 1 else None,
                     builtin=bool(spec.builtin),
+                    starting=True,  # until its init has run (below): not rendered
                 )
                 if isinstance(tool, tool_failure.FailedTool):  # its constructor raised (hani2.tools.registry)
                     self.tool_failed(tool, "create", failure=tool.failure)
-                try:
-                    self.guard_tool(tool, "init", tool.init, self.ss)
-                except Exception:
-                    traceback.print_exc()
+                started.append(tool)
                 # an at-front tool opens its pane; of several added together, the first by order
                 if here["visible"] and ((spec.at_front and here["order"] < front.get(pane, float("inf")))
                                         or self.active_tabs.get(pane) is None):
                     self.active_tabs[pane] = tool.name
                     if spec.at_front:
                         front[pane] = here["order"]
-                if timing in ("load", "start", "end") and self.scenario is not None:
-                    try:
-                        self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
-                    except Exception:
-                        traceback.print_exc()
+        # tool code runs outside the session lock: a time-limited call runs in a thread of its own,
+        # which must be free to use the session (see guard_tool)
+        for tool in started:
+            try:
+                self.guard_tool(tool, "init", tool.init, self.ss)
+            except Exception:
+                traceback.print_exc()
+            if timing in ("load", "start", "end") and self.scenario is not None:
+                try:
+                    self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
+                except Exception:
+                    traceback.print_exc()
+            self._tool_states[id(tool)].pop("starting", None)
+            tool.refresh()
         self.push_state()
 
     def _tools_hook(self, hook: str, *args) -> None:
@@ -1586,6 +1600,8 @@ class NegotiationSession:
         if t is None or not self.tool_available(t):
             return None
         st = self.tool_state(t)
+        if st.get("starting"):  # its init is still running (the tool refreshes itself when it is done)
+            return None
         if not st["enabled"] and not t.permanent and self.admin_prefs.get("allow_tool_switch", True):
             return {"id": tid, "view": None}
         if not self.isolates_tool(t):  # a built-in tool with tools.isolate_builtin off: as it always was
@@ -1634,30 +1650,143 @@ class NegotiationSession:
                 hit = cache[key] = (read(), now)
         return hit[0]
 
-    def guard_tool(self, tool, where: str, fn: Callable, *args, default: Any = None, reraise: bool = False, **kw):
+    def guard_tool(self, tool, where: str, fn: Callable, *args, default: Any = None, reraise: bool = False,
+                   timed: bool | None = None, **kw):
         """Call ``fn`` (a method of ``tool``) so that its failure cannot break the
         session: the error is recorded on the tool (shown in its pane, logged once)
-        and ``default`` returned (``reraise`` raises it again after recording).
+        and ``default`` returned (``reraise`` raises it again after recording; a
+        ``SystemExit`` or ``KeyboardInterrupt`` of the tool is raised as
+        :class:`~hani2.tools.failure.ToolCallFailed`).
         Built-in tools with ``tools.isolate_builtin`` off are called unguarded. A tool
-        that failed to start is not called again."""
+        that failed to start, or is hung in an earlier call, is not called.
+
+        The call gets ``tools.render_timeout`` seconds (``timed``; by default every call but
+        ``render``, which :mod:`hani2.hub` times itself): past them it is abandoned, the tool is
+        marked hung and skipped until that call returns, and ``default`` is returned."""
         if not self.isolates_tool(tool):
             return fn(*args, **kw)
         st = self._tool_states.get(id(tool))
         f = st.get("failure") if st is not None else None
-        if f is not None and f["where"] in tool_failure.START:
+        if (f is not None and f["where"] in tool_failure.START) or (st is not None and st.get("hung")):
+            if reraise:
+                raise tool_failure.ToolUnavailable(f"{getattr(tool, 'name', 'the tool')} is not working right now")
             return default
+        limit = None
+        if (where != "render") if timed is None else timed:
+            # no time limit inside another limited call (it covers this one) or when the caller holds the
+            # session lock (the Assistant's actions run under it): the call's thread could not use the
+            # session while the caller waits, so it runs here, as it always did
+            limit = (None if _IN_TIMED_CALL.get() or self.lock._is_owned()  # type: ignore[attr-defined]
+                     else self._tool_setting("render_timeout", tool_failure.render_timeout))
         try:
-            result = fn(*args, **kw)
-        except Exception as e:  # noqa: BLE001 - a broken tool must not break the session
+            if limit is None:
+                result = fn(*args, **kw)
+            else:
+                ok, result = self._call_limited(tool, where, limit, fn, args, kw)
+                if not ok:  # timed out (already recorded)
+                    if reraise:
+                        raise tool_failure.ToolUnavailable(f"{getattr(tool, 'name', 'the tool')} took too long")
+                    return default
+                if where == "render" and st is not None:
+                    st.pop("render_timeouts", None)
+        except (Exception, SystemExit, KeyboardInterrupt) as e:  # noqa: BLE001 - a broken tool must not break the session
+            if isinstance(e, tool_failure.ToolUnavailable):
+                raise
             self.tool_failed(tool, where, e)
             if reraise:
-                raise
+                if isinstance(e, Exception):
+                    raise
+                raise tool_failure.ToolCallFailed(f"{type(e).__name__} raised by the tool") from e
             return default
         if f is not None and (f["where"] == where or (where == "render" and f["where"] in tool_failure.RENDER)):
             st.pop("failure", None)  # the call that failed works again
             if where not in tool_failure.RENDER:
                 tool.refresh()
         return result
+
+    def _call_limited(self, tool, where: str, limit: float, fn: Callable, args: tuple, kw: dict) -> tuple[bool, Any]:
+        """``fn(*args, **kw)`` in a thread of its own, waited for at most ``limit`` seconds.
+        Returns ``(True, result)`` (an error is raised again here) or ``(False, None)``: the
+        call timed out and was abandoned, the tool is marked hung (and failed) until it returns.
+        Finishing and timing out are decided under one lock, so a call finishing at the limit
+        is never left hanging."""
+        mu = threading.Lock()
+        done = threading.Event()
+        recorded = threading.Event()  # the timeout is on the tool: only then may a late return clear it
+        box: dict[str, Any] = {"state": "running"}
+        ctx = contextvars.copy_context()
+        viewer, caps = getattr(_VIEWER, "who", None), getattr(_AGENT_CONTEXT, "caps", None)
+
+        def run() -> Any:
+            _IN_TIMED_CALL.set(True)
+            _VIEWER.who, _AGENT_CONTEXT.caps = viewer, caps
+            with rec.bind(self.sid), projects.use_study(self.study_ref):
+                return fn(*args, **kw)
+
+        def work() -> None:
+            try:
+                out: tuple[str, Any] = ("ok", ctx.run(run))
+            except BaseException as e:  # noqa: BLE001 - handed to the caller (or recorded when late)
+                out = ("err", e)
+            with mu:
+                late = box["state"] == "timed_out"
+                if not late:
+                    box.update(state="done", out=out)
+            done.set()
+            if late:
+                recorded.wait(10)
+                try:
+                    self._late_return(tool, where, out)
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc()
+
+        _CALL_POOL.submit(work)
+        done.wait(limit)
+        with mu:
+            if box["state"] == "running":
+                box["state"] = "timed_out"
+        if box["state"] == "timed_out":
+            try:
+                self._tool_timed_out(tool, where, limit)
+            finally:
+                recorded.set()
+            return False, None
+        kind, value = box["out"]
+        if kind == "err":
+            raise value
+        return True, value
+
+    def _tool_timed_out(self, tool, where: str, seconds: float) -> None:
+        """A call of ``tool`` took longer than ``seconds``: mark it hung and failed."""
+        st = self._tool_states.get(id(tool))
+        if st is None:
+            return
+        st["hung"] = True
+        if where == "render":
+            st["render_timeouts"] = st.get("render_timeouts", 0) + 1
+            tool._dirty = False
+            self.tool_failed(tool, "timeout", failure=tool_failure.make_failure(
+                "timeout", error_type="TimeoutError", message=f"it took longer than {seconds:g} s to render"))
+        else:
+            self.tool_failed(tool, where, failure=tool_failure.make_failure(
+                where, error_type="TimeoutError", message=f"it took longer than {seconds:g} s"))
+
+    def _late_return(self, tool, where: str, out: tuple[str, Any]) -> None:
+        """A call that was abandoned for taking too long has returned: the tool may be called again."""
+        kind, value = out
+        if where == "render":
+            self.tool_render_returned_for(tool)
+            return
+        st = self._tool_states.get(id(tool))
+        if st is not None:
+            st.pop("hung", None)
+            f = st.get("failure")
+            if kind == "ok" and f is not None and f["where"] == where and f["error_type"] == "TimeoutError":
+                st.pop("failure", None)
+        if kind == "err" and isinstance(value, (Exception, SystemExit, KeyboardInterrupt)):
+            self.tool_failed(tool, where, value)
+        else:
+            tool.refresh()
 
     def tool_failed(self, tool, where: str, exc: BaseException | None = None, *, failure: dict | None = None) -> None:
         """Record that ``tool`` failed in ``where`` (shown in its pane; logged and
@@ -1698,7 +1827,7 @@ class NegotiationSession:
             return False
         st = self._tool_states.get(id(tool)) or {}
         f = st.get("failure")
-        return bool(st.get("hung")) or (f is not None and f["where"] in tool_failure.START)
+        return bool(st.get("hung")) or bool(st.get("gave_up")) or (f is not None and f["where"] in tool_failure.START)
 
     def tool_render_timeout(self, tid: str) -> float | None:
         """Seconds the hub waits for ``tid`` to render (``tools.render_timeout``), ``None``: no limit."""
@@ -1715,10 +1844,7 @@ class NegotiationSession:
         if t is None:
             return None
         st = self.tool_state(t)
-        st["hung"] = True
-        t._dirty = False
-        self.tool_failed(t, "timeout", failure=tool_failure.make_failure(
-            "timeout", error_type="TimeoutError", message=f"it took longer than {seconds:g} s to render"))
+        self._tool_timed_out(t, "render", seconds)
         return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
 
     def tool_view_unsendable(self, tid: str, exc: BaseException) -> dict[str, Any] | None:
@@ -1729,11 +1855,49 @@ class NegotiationSession:
         self.tool_failed(t, "render", exc)
         return {"id": tid, "view": tool_failure.failure_view(t.name, self.tool_state(t).get("failure"), self.is_admin)}
 
-    def tool_render_returned(self, tid: str) -> None:
-        """The render that took too long has returned: the tool may be rendered again."""
+    def tool_render_returned(self, tid: str) -> bool:
+        """The render that took too long has returned. Returns whether the tool may be rendered
+        again: not after :data:`~hani2.tools.failure.MAX_TIMEOUTS` timeouts in a row (the failure
+        then stays until :meth:`retry_tool`)."""
         t = self.tool_by_id(tid)
-        if t is not None:
-            self.tool_state(t).pop("hung", None)
+        return t is None or self.tool_render_returned_for(t)
+
+    def tool_render_returned_for(self, tool) -> bool:
+        st = self._tool_states.get(id(tool))
+        if st is None:
+            return False
+        st.pop("hung", None)
+        if st.get("render_timeouts", 0) >= tool_failure.MAX_TIMEOUTS:
+            st["gave_up"] = True
+            # the late render may have succeeded and cleared the failure: it is still too slow
+            n = st["render_timeouts"]
+            st["failure"] = tool_failure.make_failure(
+                "timeout", error_type="TimeoutError",
+                message=f"it was too slow to render {n} times in a row, so it is not tried again until its tab is opened again")
+            return False
+        tool.refresh()
+        return True
+
+    def tool_render_in_time(self, tid: str) -> None:
+        """A render of ``tid`` finished within its time limit: forget earlier timeouts."""
+        t = self.tool_by_id(tid)
+        st = self._tool_states.get(id(t)) if t is not None else None
+        if st is not None and not st.get("hung") and not st.get("gave_up"):  # a skipped render proves nothing
+            st.pop("render_timeouts", None)
+
+    def retry_tool(self, tool) -> None:
+        """Explicit retry (the participant opened the tool's tab): a tool given up for being
+        too slow is rendered again."""
+        st = self._tool_states.get(id(tool))
+        if st is not None and st.pop("gave_up", None):
+            st.pop("render_timeouts", None)
+            if (st.get("failure") or {}).get("where") == "timeout":
+                st.pop("failure", None)
+
+    def tool_error_text(self, e: BaseException | str, generic: str = "something went wrong.") -> str:
+        """Text about a tool's error for a participant or the Assistant: the error for admins
+        only, ``generic`` for everyone else."""
+        return tool_failure.public_error(e, self.is_admin, generic)
 
     @_in_own_study
     def tool_input(self, tid: str, name: str, value: Any) -> None:
@@ -1756,9 +1920,7 @@ class NegotiationSession:
         except Exception as e:  # noqa: BLE001
             if not self.isolates_tool(t):  # a guarded failure is logged already
                 traceback.print_exc()
-            from hani2.connections import llm_error
-
-            self.toast(f"{t.name}: {llm_error(e, admin=self.is_admin, generic='something went wrong.')}", "error")
+            self.toast(f"{t.name}: {self.tool_error_text(e)}", "error")
         ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=action)
 
     # ------------------------------------------------------------------ #
@@ -3848,9 +4010,10 @@ class NegotiationSession:
 
         try:
             inst = tool(self.ss, enabled=enabled) if isinstance(tool, type) else tool
-        except Exception as e:  # noqa: BLE001
+        except (Exception, SystemExit) as e:  # noqa: BLE001
             traceback.print_exc()
-            return {"ok": False, "error": f"could not create the tool: {e}"}
+            why = self.tool_error_text(e, "")
+            return {"ok": False, "error": "could not create the tool" + (f": {why}" if why else "")}
         if not isinstance(inst, Tool):
             return {"ok": False, "error": "not a hani2 Tool"}
         name = inst.name or type(inst).__name__
@@ -4149,7 +4312,7 @@ class NegotiationSession:
                 s = self.tool_state(t)
                 tools.append(
                     dict(id=s["id"], name=t.name, icon=t.icon, description=t.description,
-                         help=self.guard_tool(t, "help_text", t.help_text, default=""), pane=s["pane"],
+                         help=self.guard_tool(t, "help_text", t.help_text, default="", timed=False), pane=s["pane"],
                          order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
                          added_by=s.get("added_by"), generator=_is_generator(t), failed="failure" in s)
                 )

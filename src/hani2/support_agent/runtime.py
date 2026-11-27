@@ -450,7 +450,7 @@ class SupportAgent:
         st = self.session.tool_state(t)
         if not st["enabled"] and not t.permanent and self.session.admin_prefs.get("allow_tool_switch", True):
             return None, {"ok": False, "error": f"{t.name} is switched off; turn it on first (set_tool_enabled)",
-                          "help": t.help_text()}
+                          "help": self._help_of(t)}
         return t, None
 
     def read_tool(self, name: str, max_chars: int = 4000) -> dict:
@@ -462,9 +462,15 @@ class SupportAgent:
         t, err = self._find_tool(name)
         if err:
             return err
-        with self._as_assistant():
-            text = t.describe_for_agent(max_chars=max_chars)
+        text = self._describe(t, max_chars=max_chars)
         return {"ok": True, "tool": t.name, "text": text}
+
+    def _help_of(self, t) -> str:
+        guard = getattr(self.session, "guard_tool", None)
+        try:
+            return guard(t, "help_text", t.help_text, default="", timed=False) if guard else t.help_text()
+        except Exception:  # noqa: BLE001
+            return ""
 
     def _as_assistant(self):
         """Render tools as the Assistant sees them (see ``NegotiationSession.viewing_as``)."""
@@ -549,7 +555,11 @@ class SupportAgent:
         guard = getattr(sess, "guard_tool", None)
 
         def call(where: str, fn, *a):  # a failing tool shows the failure in its pane (hani2.tools.failure)
-            return guard(t, where, fn, *a, reraise=True) if guard is not None else fn(*a)
+            # time-limited like the pane's render, so a hung tool cannot block the Assistant
+            return guard(t, where, fn, *a, reraise=True, timed=True) if guard is not None else fn(*a)
+
+        def why(e: BaseException) -> str:  # only admins get to see what went wrong inside a tool
+            return sess.tool_error_text(e) if hasattr(sess, "tool_error_text") else "something went wrong."
 
         def view():
             with t.view_lock, self._as_assistant():
@@ -561,7 +571,7 @@ class SupportAgent:
         except Exception as e:  # noqa: BLE001
             if not guarded:
                 raise
-            return {"ok": False, "error": f"{t.name} is not working right now: {e}"}
+            return {"ok": False, "error": f"{t.name} is not working right now" + self._because(why(e))}
         for key in inputs or {}:
             if key not in controls["inputs"]:
                 return {"ok": False, "error": f"{t.name} has no input {key!r}", "inputs": sorted(controls["inputs"])}
@@ -575,7 +585,7 @@ class SupportAgent:
                 try:
                     call("on_input", t.on_input, key, value)
                 except Exception as e:  # noqa: BLE001
-                    return {"ok": False, "error": f"setting {key!r} failed: {e}"}
+                    return {"ok": False, "error": f"setting {key!r} failed" + self._because(why(e))}
             if action is not None:
                 if inputs:  # the new inputs may change the buttons and tables on offer
                     try:
@@ -583,7 +593,7 @@ class SupportAgent:
                     except Exception as e:  # noqa: BLE001
                         if not guarded:
                             raise
-                        return {"ok": False, "error": f"{t.name} is not working right now: {e}"}
+                        return {"ok": False, "error": f"{t.name} is not working right now" + self._because(why(e))}
                 if action not in controls["actions"] and action not in controls["tables"]:
                     return {"ok": False, "error": f"{t.name} has no button or table action {action!r} now",
                             "actions": sorted(controls["actions"]) + sorted(controls["tables"]),
@@ -602,16 +612,28 @@ class SupportAgent:
                 try:
                     results.append(call("on_action", t.on_action, action, data))
                 except Exception as e:  # noqa: BLE001
-                    return {"ok": False, "error": f"{action!r} failed: {e}"}
+                    return {"ok": False, "error": f"{action!r} failed" + self._because(why(e))}
         self._wait_while_busy(t)
         _log_agent_action(self.session_state, "use_tool", f"{t.name}:{action or ''}:{sorted(inputs or {})}")
         ev.log_event(sess.sid, ev.EventType.TOOL_INTERACTION, user=sess.user, component=t.name,
                      action=f"agent:{action or 'input'}", value={"inputs": inputs or {}, "row": row})
         return {"ok": True, "tool": t.name, "text": self._describe(t)}
 
-    def _describe(self, t) -> str:
+    @staticmethod
+    def _because(text: str) -> str:
+        return f": {text}" if text and text != "something went wrong." else "; use another tool or try again later"
+
+    def _describe(self, t, max_chars: int | None = None) -> str:
+        """What ``t`` shows, as text; a tool that fails or hangs reads as unavailable
+        (guarded and time-limited like the pane's render)."""
+        from hani2.tools.failure import UNAVAILABLE
+
+        kw = {} if max_chars is None else {"max_chars": max_chars}
+        guard = getattr(self.session, "guard_tool", None)
         with self._as_assistant():
-            return t.describe_for_agent()
+            if guard is None:
+                return t.describe_for_agent(**kw)
+            return guard(t, "describe", t.describe_for_agent, default=UNAVAILABLE, timed=True, **kw)
 
     # ------------------------------------------------------------------ #
     # Participant controls                                                 #
