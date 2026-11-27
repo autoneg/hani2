@@ -27,7 +27,11 @@ HAN2026 = {"HAN2026-PreSession": ("pre_session", "pre_questionnaire"),
 HAN2025 = {"HAN2025-PreStudy": ("pre_study", "pre_questionnaire"),
            "HAN2025-PostSession": ("post_session", "post_session"),
            "HAN2025-PostStudy": ("post_study", "post_session")}
-ALL = {**HAN2026, **HAN2025}
+#: the likeability items as printed in the results papers (IVA 2018 for ANAC 2017, ACII 2019 for ANAC 2018)
+HAL_ITEMS = ["How satisfied were you with the final agreement?", "How much do you like your opponent?",
+             "Would you negotiate with this opponent again?"]
+HAL = {"ANAC-HAL2017-PostNegotiation": (None, "per_negotiation"), "ANAC-HAL2018-PostNegotiation": (None, "per_negotiation")}
+ALL = {**HAN2026, **HAN2025, **HAL}
 
 
 @pytest.fixture
@@ -119,6 +123,14 @@ def test_han2025_sets_match_the_google_forms(lib, sid):
     assert form["url"] in lib[sid]["reference"]
 
 
+@pytest.mark.parametrize("sid", sorted(HAL))
+def test_anac_hal_sets_match_the_results_papers(lib, sid):
+    qs = lib[sid]["questions"]
+    assert [q["text"] for q in qs] == HAL_ITEMS
+    assert all(q["type"] == "likert7" and q["scale"] == "hal_likeability" and "labels" not in q for q in qs)
+    assert "https://doi.org/" in lib[sid]["reference"]
+
+
 def test_han2025_ids_are_shared_by_the_same_question_across_sets(lib):
     by_text: dict[str, set[str]] = {}
     for sid in HAN2025:
@@ -144,4 +156,5 @@ def test_questionnaires_page_has_a_competition_section():
     sec = md.split("## Questionnaires of negotiation competitions", 1)[1].split("\n## ", 1)[0]
     for sid in ALL:
         assert f"{{#{sid}}}" in sec
-    assert sec.index("HAN2026-PreSession") < sec.index("HAN2026-PostNegotiation") < sec.index("HAN2025-PreStudy")
+    assert sec.index("HAN2026-PreSession") < sec.index("HAN2026-PostNegotiation") < sec.index("HAN2025-PreStudy") \
+        < sec.index("ANAC-HAL2018-PostNegotiation") < sec.index("ANAC-HAL2017-PostNegotiation")

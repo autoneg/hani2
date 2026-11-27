@@ -424,6 +424,18 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
         "comments and strategy.",
         "Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).", "https://forms.gle/HEmb2CpruFD8aUvt8",
         "", "Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).", "HAN 2025"),
+    "ANAC-HAL2018-PostNegotiation": QuestionnaireInfo(
+        "ANAC 2018 Human-Agent League, after each negotiation: likeability of the agent (satisfaction with the "
+        "agreement, liking the opponent, would negotiate again).",
+        "Mell, Gratch, Aydoğan, Baarslag & Jonker (2019). The likeability-success tradeoff: results of the 2nd annual "
+        "human-agent automated negotiating agents competition. ACII 2019.", "https://doi.org/10.1109/ACII.2019.8925437",
+        "", "Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).", "ANAC 2018"),
+    "ANAC-HAL2017-PostNegotiation": QuestionnaireInfo(
+        "ANAC 2017 Human-Agent League, after the negotiation: likeability of the agent (satisfaction with the "
+        "agreement, liking the opponent, would negotiate again).",
+        "Mell, Gratch, Baarslag, Aydoğan & Jonker (2018). Results of the first annual human-agent league of the "
+        "automated negotiating agents competition. IVA '18, 23–28.", "https://doi.org/10.1145/3267851.3267907", "",
+        "Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).", "ANAC 2017"),
     # the bundled named forms (``HANI2_PER_NEG_YAML=evaluation``, ``"pre_questionnaire": "expertise"``)
     "evaluation": QuestionnaireInfo(
         "The evaluation questionnaire after each negotiation: satisfaction, enjoyment, UEQ items, TAM usefulness, "

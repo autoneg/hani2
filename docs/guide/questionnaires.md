@@ -24,6 +24,8 @@ Pick them on the admin console's **Study forms** page (**Add predefined question
 | [HAN2025-PreStudy](#HAN2025-PreStudy) | `HAN2025-PreStudy` | 19 |  | [link](https://forms.gle/c4tNxYof1Gm7ezmC7) |
 | [HAN2025-PostSession](#HAN2025-PostSession) | `HAN2025-PostSession` | 13 |  | [link](https://forms.gle/qT8VtQYrV5RuodML6) |
 | [HAN2025-PostStudy](#HAN2025-PostStudy) | `HAN2025-PostStudy` | 17 |  | [link](https://forms.gle/HEmb2CpruFD8aUvt8) |
+| [ANAC-HAL2018-PostNegotiation](#ANAC-HAL2018-PostNegotiation) | `ANAC-HAL2018-PostNegotiation` | 3 |  | [link](https://doi.org/10.1109/ACII.2019.8925437) |
+| [ANAC-HAL2017-PostNegotiation](#ANAC-HAL2017-PostNegotiation) | `ANAC-HAL2017-PostNegotiation` | 3 |  | [link](https://doi.org/10.1145/3267851.3267907) |
 | [Experience with AI assistants](#ai-experience) | `ai_experience` | 4 |  | own items |
 | [Use of and reliance on the Assistant](#assistant-reliance) | `assistant_reliance` | 4 |  | own items |
 | [Attention check](#attention-check) | `attention_check` | 1 |  | own items |
@@ -418,6 +420,42 @@ Scales: none (single items).
 | 15 | `han2025_expect_natural_language` | How effective do you expect allowing natural language interaction in human-agent negotiation (5 = most effective)? | 1–5 |  |
 | 16 | `han2025_comments` | Please freely add any comments, challenges, suggestions, or thoughts about your experience in this competition. | free text |  |
 | 17 | `han2025_strategy` | Please describe your strategy for conducting negotiations. Any tips that can be helpful for negotiating with AI agents that you learned or tested in your negotiations with our systems are highly appreciated | free text |  |
+
+### ANAC-HAL2018-PostNegotiation {#ANAC-HAL2018-PostNegotiation}
+
+Id `ANAC-HAL2018-PostNegotiation` · 3 questions · for: `per_negotiation`
+
+**Measures:** ANAC 2018 Human-Agent League, after each negotiation: likeability of the agent (satisfaction with the agreement, liking the opponent, would negotiate again).
+
+**Source:** [Mell, Gratch, Aydoğan, Baarslag & Jonker (2019). The likeability-success tradeoff: results of the 2nd annual human-agent automated negotiating agents competition. ACII 2019.](https://doi.org/10.1109/ACII.2019.8925437)
+
+**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).
+
+Scales: `hal_likeability` (3 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `hal_satisfied_agreement` | How satisfied were you with the final agreement? | 1–7 | `hal_likeability` |
+| 2 | `hal_like_opponent` | How much do you like your opponent? | 1–7 | `hal_likeability` |
+| 3 | `hal_negotiate_again` | Would you negotiate with this opponent again? | 1–7 | `hal_likeability` |
+
+### ANAC-HAL2017-PostNegotiation {#ANAC-HAL2017-PostNegotiation}
+
+Id `ANAC-HAL2017-PostNegotiation` · 3 questions · for: `per_negotiation`
+
+**Measures:** ANAC 2017 Human-Agent League, after the negotiation: likeability of the agent (satisfaction with the agreement, liking the opponent, would negotiate again).
+
+**Source:** [Mell, Gratch, Baarslag, Aydoğan & Jonker (2018). Results of the first annual human-agent league of the automated negotiating agents competition. IVA '18, 23–28.](https://doi.org/10.1145/3267851.3267907)
+
+**Validation:** Not validated: the questions as reported in the competition's results paper, with its 7-point answers; the paper gives no anchor labels. The three items form the paper's likeability score (hal_likeability).
+
+Scales: `hal_likeability` (3 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `hal_satisfied_agreement` | How satisfied were you with the final agreement? | 1–7 | `hal_likeability` |
+| 2 | `hal_like_opponent` | How much do you like your opponent? | 1–7 | `hal_likeability` |
+| 3 | `hal_negotiate_again` | Would you negotiate with this opponent again? | 1–7 | `hal_likeability` |
 
 ## HANI2's own question sets
 

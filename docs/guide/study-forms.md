@@ -143,8 +143,10 @@ HANI2 comes with complete question sets for questionnaires commonly used in huma
 | `HAN2025-PreStudy` | 19 | pre-questionnaire | HAN 2025, as asked once before any negotiation: background, expertise, expectations about the system and AI negotiators |
 | `HAN2025-PostSession` | 13 | post-session | HAN 2025, as asked after every session: enjoyment, ease, the opponent, support, expectations |
 | `HAN2025-PostStudy` | 17 | post-session | HAN 2025, as asked after the whole competition: the post-session questions, understanding of the scenario, comments, strategy |
+| `ANAC-HAL2018-PostNegotiation` | 3 | after each negotiation | ANAC 2018 Human-Agent League, as reported: likeability of the agent (7-point) |
+| `ANAC-HAL2017-PostNegotiation` | 3 | after each negotiation | ANAC 2017 Human-Agent League, as reported: likeability of the agent (7-point) |
 
-The `HAN…` sets repeat the questionnaires of the HAN human-agent negotiation competitions exactly as asked (their typos included), so a study can compare its answers with the competition's; their question ids are kept, so `HAN2026-PostSession`'s `comments` is skipped in a form that already has `session_feedback`. The HAN 2025 forms were Google Forms: the sets leave out their identification items (user name, session, date, number of negotiations), keep a question asked twice once, and turn the expertise grid into one question per field.
+The `HAN…` and `ANAC-HAL…` sets repeat the questionnaires of human-agent negotiation competitions exactly as asked (the ANAC Human-Agent League ones as its results papers report them; the papers give no anchor labels) (their typos included), so a study can compare its answers with the competition's; their question ids are kept, so `HAN2026-PostSession`'s `comments` is skipped in a form that already has `session_feedback`. The HAN 2025 forms were Google Forms: the sets leave out their identification items (user name, session, date, number of negotiations), keep a question asked twice once, and turn the expertise grid into one question per field.
 
 Check the wording of a published instrument against its source before a study, and cite the source in your paper. Prolific already records most demographics and has its own rules for attention checks; ask only what you need.
 
