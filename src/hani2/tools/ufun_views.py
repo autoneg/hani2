@@ -94,6 +94,31 @@ Deal B is better for you: a low price matters enough that you would accept
 slow delivery to get it.
 """
 
+RAW_PREFERENCES_HELP_MD = """
+Your **preferences** say how good each possible agreement is *for you*: the
+higher a deal's value, the better. Your AI opponent has its own preferences,
+and you usually value things differently — that difference is what makes a
+deal worth doing.
+
+**How a deal's value is worked out**
+
+An agreement fixes one option for every *issue* (for example a price, a
+quantity or a delivery time). Each issue contributes in two steps:
+
+- **Issue value** — within one issue, each option has a value (the chart):
+  the higher, the better.
+- **Issue weight** — issues are not equally important. The weights chart shows
+  how much each issue *weighs*: a bigger weight is a more important issue.
+
+Your total for a deal is the **weighted sum** of the issue values:
+
+> total = weight₁ × value₁ + weight₂ × value₂ + …
+
+The **value on disagreement** is what you get if the negotiation ends with
+**no agreement**. A deal worth *more* than that beats walking away; a deal
+worth *less* is worse than no deal at all.
+"""
+
 
 # --------------------------------------------------------------------------- #
 # Context and registry                                                         #
@@ -188,6 +213,8 @@ class UfunViewContext:
     def explain(self, markdown: str) -> list[ui.Component]:
         if not self.help_card or self.nested:
             return []
+        if self.raw and markdown is PREFERENCES_HELP_MD:  # the percentages' example does not fit raw numbers
+            markdown = RAW_PREFERENCES_HELP_MD
         return [ui.card(ui.markdown(markdown, size="sm"), title="How your preferences work",
                         collapsible=True, collapsed=True)]
 

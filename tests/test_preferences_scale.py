@@ -77,6 +77,8 @@ def test_raw_shows_the_numbers(hani2_home):
                 and c["figure"]["layout"].get("barmode") != "stack")
     assert bars["figure"]["data"][0]["x"] == [2.0, 4.0, 6.0]  # Days' own values, not percentages
     assert "ticksuffix" not in (bars["figure"]["layout"].get("xaxis") or {})
+    help_ = next(c for c in comps if c.get("title") == "How your preferences work")
+    assert "%" not in help_["children"][0]["text"]
     summary = uv.preference_summary(u)
     assert "**Days** (3)" in summary and "%" not in summary
 
