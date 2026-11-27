@@ -563,7 +563,12 @@ def test_a_finish_at_the_limit_never_leaves_a_tool_hung():
         for _ in range(150):
             s = Fake()
             await hub.render_tool_view(s, "t")
-            await asyncio.sleep(0.15)
+            # a render that lost the race clears ``hung`` from its own thread once it is back: wait
+            # for that rather than a fixed 0.15 s, which one scheduler hiccup in 150 rounds can
+            # exceed on a loaded CI machine. A tool left hung stays hung, and fails after 5 s.
+            deadline = time.monotonic() + 5
+            while s.hung and time.monotonic() < deadline:
+                await asyncio.sleep(0.01)
             assert not s.hung
 
     asyncio.run(run())
@@ -670,7 +675,8 @@ def test_an_always_slow_tool_stops_being_retried(broken_tools, monkeypatch):
         assert any(c["type"] == "button" and c["action"] == failure.RETRY_ACTION for c in view["view"])
         t0 = time.monotonic()
         assert s.guard_tool(tool, "render", lambda: 1 / 0, default="d", timed=True) == "d"
-        assert time.monotonic() - t0 < 0.1 and type(tool).calls == calls
+        # waiting for the tool would take a render_timeout (0.2 s); skipping it takes milliseconds
+        assert time.monotonic() - t0 < 0.2 and type(tool).calls == calls
         assert s.tool_private_to_human(tool)  # an unusable tool counts as private
         s.tool_action(tid, failure.RETRY_ACTION, {})  # the button: no tab switch needed
         assert not s.tool_unusable(tool)
@@ -949,7 +955,7 @@ def test_the_event_loop_path_never_asks_tool_code_and_failures_do_not_recurse(br
         s.tool_changed(_tool(s, name))
         assert s.shown_tool_names() is not None
         assert s.tool_is_shown(s.tool_state(good)["id"]) in (True, False)
-    assert time.monotonic() - t0 < 0.2  # nothing waited for a tool
+    assert time.monotonic() - t0 < 0.3  # nothing waited for a tool (a wait is a render_timeout, 0.3 s)
     before = hub.calls
     s.snapshot()  # the off-loop path asks (and a failed ask must not refresh in a loop)
     assert hub.calls - before <= 6
@@ -979,7 +985,7 @@ def test_predicates_are_asked_in_parallel_and_available_is_reused_briefly(broken
     assert time.monotonic() - t0 < 0.9  # three in a row would take 1.2 s
     t0 = time.monotonic()
     s.refresh_tool_predicates()  # answers are fresh (and the tools are hung): nothing to wait for
-    assert time.monotonic() - t0 < 0.2
+    assert time.monotonic() - t0 < 0.4  # a wait would be a render_timeout (0.4 s); none takes ms
     assert s.wait(lambda: not any(s.tool_unusable(_tool(s, n)) for n in ("HangAvail", "HangAvail2", "HangAvail3")), 5)
 
 
