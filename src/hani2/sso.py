@@ -21,7 +21,7 @@ Token claims: ``iss`` (the issuer), ``aud`` (``hani2`` plus this server's root p
 
 API tokens (:func:`verify_api_token`): a website that reads the leaderboard API signs a short-lived
 HS256 JWT with the **same** secret, but for a different audience: ``aud`` is ``hani2-api`` plus the
-root path (``hani2-api/hiplay2``), ``scope`` holds ``leaderboard:read``, ``iss`` is the provider's
+root path (``hani2-api/hiplay2``), ``scope`` holds ``leaderboard:read`` (``leaderboard:admin`` to read ``visibility: admins`` boards too), ``iss`` is the provider's
 issuer and ``iat``/``exp`` are at most :data:`MAX_LIFETIME` seconds apart. It is not single use (no
 ``jti``). A sign-in token is never an API token and an API token never signs anyone in: each check
 refuses a token that also names the other audience.
@@ -202,8 +202,12 @@ def verify(name: str, token: str, *, root_path: str = "", now: float | None = No
 
 #: the audience of API tokens (plus the root path, as for sign-in tokens)
 API_AUDIENCE = "hani2-api"
-#: the scope that reads leaderboards
+#: the scope that reads leaderboards (those with ``visibility: public`` or ``participants``)
 SCOPE_LEADERBOARD = "leaderboard:read"
+#: the scope that also reads ``visibility: admins`` leaderboards (it includes :data:`SCOPE_LEADERBOARD`)
+SCOPE_LEADERBOARD_ADMIN = "leaderboard:admin"
+#: what each scope may also stand in for
+_IMPLIED = {SCOPE_LEADERBOARD: {SCOPE_LEADERBOARD_ADMIN}}
 
 
 class APITokenError(SSOError):
@@ -226,6 +230,12 @@ def _scopes(v: Any) -> set[str]:
     if isinstance(v, list):
         return {str(x) for x in v if isinstance(x, str)}
     return set()
+
+
+def token_has_scope(claims: dict[str, Any], scope: str) -> bool:
+    """Whether checked API-token claims hold ``scope`` (``leaderboard:admin`` also holds ``leaderboard:read``)."""
+    have = _scopes(claims.get("scope"))
+    return scope in have or bool(have & _IMPLIED.get(scope, set()))
 
 
 def verify_api_token(token: str, scope: str = SCOPE_LEADERBOARD, *, root_path: str = "",
@@ -268,7 +278,7 @@ def verify_api_token(token: str, scope: str = SCOPE_LEADERBOARD, *, root_path: s
         raise APITokenError("lifetime", f"exp - iat must be between 0 and {MAX_LIFETIME} seconds")
     if t > exp + LEEWAY or t < iat - LEEWAY:
         raise APITokenError("expired", "the token is expired (or not valid yet)")
-    if scope not in _scopes(claims.get("scope")):
+    if not token_has_scope(claims, scope):
         raise APITokenError("scope", f"the token's scope does not include {scope!r}", status=403)
     return claims
 

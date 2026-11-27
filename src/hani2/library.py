@@ -332,7 +332,7 @@ def prime_syspaths(ref: Any = None) -> None:
 
 def tool_classes() -> list[tuple[type, str]]:
     """Tool classes from the library entries the current study sees (for the registry)."""
-    from hani2.tools.registry import import_tool
+    from hani2.tools.registry import import_tool, load_failed, load_ok
 
     out: list[tuple[type, str]] = []
     for e in index_entries("tools", _current_layers()):
@@ -341,8 +341,10 @@ def tool_classes() -> list[tuple[type, str]]:
                 sys.path.append(d)
         try:
             out.append((import_tool(e["spec"]), f"library {e.get('source', 'uploaded')} ({e['layer']}: {e['name']})"))
+            load_ok(f"library ({e['layer']}: {e['name']})")
         except Exception as ex:  # noqa: BLE001 - one broken tool must not hide the others
             print(f"[hani2] library tool {e['name']!r} ({e['layer']}) cannot be loaded: {ex}")
+            load_failed(f"library ({e['layer']}: {e['name']})", ex)
     return out
 
 
@@ -1539,6 +1541,17 @@ def put_placement(placement: dict[str, Any], layer: "str | Layer | None" = None,
     except ValueError as e:
         raise LibraryError(str(e)) from None
     return get_placement(la)
+
+
+def tool_load_errors(layer: "str | Layer | None" = None) -> dict[str, Any]:
+    """The tools that could not be loaded, seen from ``layer`` (discovery runs again
+    first, so a fixed file disappears from the list): ``{"errors": [...]}``."""
+    from hani2.tools import registry
+
+    registry.LOAD_ERRORS.clear()  # only what fails now, seen from this layer
+    with layer_context(_layer(layer)):
+        registry.discover_tool_classes()
+    return {"errors": registry.load_errors()}
 
 
 def get_offer(layer: "str | Layer | None" = None) -> dict[str, Any]:

@@ -118,3 +118,50 @@ def test_k_of_n_and_repeats(new_page):
     with p.expect_response(lambda r: r.url.endswith(f"/api/admin/projects/{name}") and r.request.method == "PUT") as resp:
         save.click()
     assert resp.value.status == 200, resp.value.text()
+
+
+def test_a_paired_studys_pool_editor_offers_only_the_human_entry(new_page):
+    """Opponents → the pool picker of a study declared Paired in an HI project offers human+assistant
+    only (no human, no AI agent or group); a Solo study offers no human entry."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    for study, mode in (("pair", "paired"), ("alone", "solo")):
+        r = p.request.put(f"/api/admin/projects/{name}/studies/{study}", data={"data": {"type": "online", "overrides": {"study_mode": mode}}})
+        assert r.ok, r.text()
+    p.goto("/admin#opponents")
+    p.get_by_role("combobox", name="Layer to edit").first.select_option(f"study:{name}/pair")
+    picker = p.locator("#setting-opponent-pool")
+    expect(picker.locator("[data-pool-mode=paired]")).to_be_visible()
+    choices = picker.get_by_role("listbox", name="Pool choices").locator("label")
+    expect(choices).to_have_count(1)
+    expect(choices.first).to_contain_text("human+assistant")
+    p.get_by_role("combobox", name="Layer to edit").first.select_option(f"study:{name}/alone")
+    picker = p.locator("#setting-opponent-pool")
+    expect(picker.locator("[data-pool-mode=solo]")).to_be_visible()
+    box = picker.get_by_role("listbox", name="Pool choices")
+    expect(box.locator("label").first).to_be_visible()
+    expect(box.locator("label").filter(has_text="human")).to_have_count(0)
+
+
+def test_editing_a_score_keeps_zero_if_and_needs_assistant(new_page):
+    """A copy of a built-in keeps its rules (zero_if, needs_assistant); Edit, then Save score, keeps them."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    for key, src in (("my_han", "han_outcome"), ("my_team", "hi_team")):
+        r = p.request.post(f"/api/admin/projects/{name}/scores/{key}/duplicate", data={"from": src})
+        assert r.ok, r.text()
+    before = {s["key"]: s for s in p.request.get(f"/api/admin/scores?project={name}").json()["scores"]}
+    assert before["my_han"]["zero_if"] == ["opponent_failed"] and before["my_team"]["needs_assistant"] is True
+    _open_project(p, name)
+    for key in ("my_han", "my_team"):
+        p.locator("#setting-scores > div > div").filter(has_text=key).get_by_role("button", name="Edit").click()
+        builder = p.locator("[data-score-builder]")
+        expect(builder.get_by_role("button", name="About Zero if")).to_be_visible()
+        expect(builder.get_by_role("button", name="About Needs an Assistant")).to_be_visible()
+        builder.get_by_role("button", name="Save score").click()
+        expect(p.get_by_text(f"Saved score {key}")).to_be_visible()
+    after = {s["key"]: s for s in p.request.get(f"/api/admin/scores?project={name}").json()["scores"]}
+    assert after["my_han"]["zero_if"] == ["opponent_failed"]
+    assert after["my_team"]["needs_assistant"] is True

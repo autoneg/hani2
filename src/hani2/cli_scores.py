@@ -150,7 +150,12 @@ def scores_show(
     typer.echo(f"{key}: {s.title} ({s.origin}, track {s.track}, {'enabled' if key in ss.enabled else 'not enabled'})")
     if s.description:
         typer.echo(s.description)
-    typer.echo(f"missing: {s.missing}, min_coverage: {s.min_coverage:g}\n")
+    typer.echo(f"missing: {s.missing}, min_coverage: {s.min_coverage:g}")
+    rules = ([f"0 when {' or '.join(s.zero_if)} is 1"] if s.zero_if else []) + \
+        (["empty without an Assistant"] if s.needs_assistant else [])
+    if rules:
+        typer.echo("rules: " + "; ".join(rules))
+    typer.echo("")
     w = S.weights_in_effect(s)
     for c in s.components:
         cov = ""

@@ -30,6 +30,15 @@
   takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and
   the option values side by side; it has its own size (`layout.sizes.simple_tools`).
 
+- **A failing tool stays in its own tab.** A tool that raises (when created, in `init`, a hook,
+  its view, an input or a button) or takes longer than `tools.render_timeout` seconds to render
+  (20 by default) no longer breaks the session or leaves a blank pane: its tab shows that it is not
+  working right now, administrators also see the error and the traceback, and the negotiation,
+  the other tools and the page carry on. A tool whose constructor raises keeps its tab and shows
+  the failure instead of disappearing silently. Tool files that cannot be imported are listed at
+  the top of the library's **Tools** page. `tools.isolate_builtin: false` (*Catch built-in tool
+  failures*) lets built-in tool errors surface as before, for debugging. See [When a tool
+  fails](guide/tools.md#when-a-tool-fails).
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow

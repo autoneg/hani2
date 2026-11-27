@@ -54,8 +54,9 @@ def leaderboard_show(
         typer.echo(json.dumps(out, indent=1, default=str))
         return
     qq = out["query"]
-    typer.echo(f"{target}: {out['track']} board, sorted by {qq['sort']} (games {qq['games']}, stratum "
-               f"{qq['stratum']}, window {qq['window']}); visibility {out.get('visibility')}")
+    switches = ", ".join(f"{sw} {qq[sw]}" for sw in boards.SWITCHES if sw in qq)  # a simulated table has none
+    typer.echo(f"{target}: {out['track']} board, sorted by {qq['sort']}" + (f" ({switches})" if switches else "")
+               + f"; visibility {out.get('visibility')}")
     cols = [c for c in out["columns"] if c not in boards.COUNT_COLUMNS]
     typer.echo("  " + "  ".join(["rank", "entrant".ljust(28), *[c[:14].rjust(14) for c in cols], "games", "people"]))
     for e in out["entries"]:
@@ -63,7 +64,7 @@ def leaderboard_show(
                 .rjust(14) for c in cols]
         rank = f"={e['rank']}" if e["tied_with_leader"] else str(e["rank"])
         typer.echo("  " + "  ".join([rank.rjust(4), str(e["label"] or e["entrant"])[:28].ljust(28), *vals,
-                                     str(e["games"]["all"]).rjust(5), str(e["participants"]).rjust(6)]))
+                                     str(e["games"]["all"]).rjust(5), str(e.get("participants", "—")).rjust(6)]))
     for u in out["unranked"]:
         typer.echo(f"  not ranked yet: {u['label'] or u['entrant']} ({u['games']['all']} games; {u['reason']})")
     if out["excluded"]:
@@ -122,6 +123,7 @@ def leaderboard_token(
     provider: Annotated[str, typer.Argument(help="The sign-in provider whose secret signs the token (auth.sso in env.json).")],
     root_path: Annotated[Optional[str], typer.Option("--root-path", help="The server's root path (default: HANI2_ROOT_PATH).")] = None,
     lifetime: Annotated[int, typer.Option("--lifetime", help="Seconds the token is valid (at most 120).")] = 120,
+    admin: Annotated[bool, typer.Option("--admin", help="Scope leaderboard:admin: also reads boards with visibility: admins.")] = False,
 ):
     """Mint an API token for the leaderboard API (to try the API by hand; a website mints its own)."""
     import os
@@ -130,7 +132,8 @@ def leaderboard_token(
 
     try:
         tok = sso.mint_api_token(provider, root_path=root_path if root_path is not None else
-                                 os.environ.get("HANI2_ROOT_PATH", ""), lifetime=lifetime)
+                                 os.environ.get("HANI2_ROOT_PATH", ""), lifetime=lifetime,
+                                 scope=sso.SCOPE_LEADERBOARD_ADMIN if admin else sso.SCOPE_LEADERBOARD)
     except sso.SSOError as e:
         typer.secho(str(e), fg="red", err=True)
         raise typer.Exit(1) from None

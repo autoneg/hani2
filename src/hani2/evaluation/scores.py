@@ -26,6 +26,8 @@ key) under ``scores:``, in the same format as the built-ins (:func:`definition`)
              normaliser: {kind: reciprocal, scale: reference_median}}
         missing: renormalise            # renormalise | zero | skip_game
         min_coverage: 0.5
+        zero_if: [opponent_failed]      # 0 when one of these criteria is 1 (default: none)
+        needs_assistant: true           # empty for sessions without an Assistant (default: false)
 
 Weights are ≥ 0 and sum to 1 (:func:`parse_definition` refuses anything else when
 saving, and rescales a hand-edited file on load with a warning). Each component is
@@ -83,7 +85,8 @@ DEFAULT_MISSING = "renormalise"
 DEFAULT_MIN_COVERAGE = 0.5
 #: how far from 1 the weights of a score may sum
 WEIGHT_TOLERANCE = 1e-6
-SCORE_KEYS = ("title", "description", "track", "components", "missing", "min_coverage", "same_assistant")
+SCORE_KEYS = ("title", "description", "track", "components", "missing", "min_coverage", "same_assistant",
+              "zero_if", "needs_assistant")
 #: how a board counts a same-Assistant game (an inviter against their guest): ``once`` (the mean of its two
 #: rows) or ``skip`` (left out); ``utility`` always leaves them out
 SAME_ASSISTANT = ("once", "skip")
@@ -125,9 +128,9 @@ class Score:
     description: str
     components: list[Component]
     details: str = ""
-    #: columns that, when 1, force the score to 0 (e.g. the opponent failed)
+    #: criteria that, when 1, force the score to 0 (e.g. the opponent failed); ``zero_if:``
     zero_if: list[str] = field(default_factory=list)
-    #: only for sessions with an Assistant (empty otherwise)
+    #: only for sessions with an Assistant (empty otherwise); ``needs_assistant:``
     needs_assistant: bool = False
     missing: str = DEFAULT_MISSING
     min_coverage: float = DEFAULT_MIN_COVERAGE
@@ -228,6 +231,7 @@ worked as an Assistant (`hi_assistant`) and how well their teams worked (`hi_tea
     Score("utility", "Utility", "any", "outcome",
           "The Human side's advantage alone, for any session",
           [_c("human_advantage", 1, "advantage", "the Human side's advantage")],
+          same_assistant="skip",  # boards leave same-Assistant games out of it (a copy keeps that)
           details=r"""
 The simplest score: the share of the largest possible gain over no deal that the Human side obtained,
 with or without an Assistant. No deal scores 0. Every project and study has it.
@@ -385,14 +389,12 @@ def definition(score: Score, options: dict | None = None) -> dict[str, Any]:
                            "components": comps, "missing": score.missing, "min_coverage": score.min_coverage}
     if score.same_assistant != "once":
         out["same_assistant"] = score.same_assistant
+    out["zero_if"] = list(score.zero_if)
+    out["needs_assistant"] = bool(score.needs_assistant)
     if score.builtin:
         out["builtin"] = True
         if score.board:
             out["board"] = score.board
-        if score.zero_if:
-            out["zero_if"] = list(score.zero_if)
-        if score.needs_assistant:
-            out["needs_assistant"] = True
     return out
 
 
@@ -456,6 +458,19 @@ def parse_definition(key: str, data: Any, *, strict: bool = True,
     same = str(data.get("same_assistant") or "once")
     if same not in SAME_ASSISTANT:
         problems.append(f"{where}: same_assistant must be one of {', '.join(SAME_ASSISTANT)} (got {same!r})")
+    zero_if = data.get("zero_if")
+    if zero_if is None:
+        zero_if = []
+    if not isinstance(zero_if, list) or not all(isinstance(z, str) and z for z in zero_if):
+        problems.append(f"{where}: zero_if must be a list of criteria (got {zero_if!r})")
+        zero_if = []
+    zero_if = list(dict.fromkeys(zero_if))
+    needs = data.get("needs_assistant", False)
+    if needs is None:
+        needs = False
+    if not isinstance(needs, bool):
+        problems.append(f"{where}: needs_assistant must be true or false (got {needs!r})")
+        needs = False
     raw = data.get("components")
     comps: list[Component] = []
     if not isinstance(raw, list) or not raw:
@@ -513,7 +528,8 @@ def parse_definition(key: str, data: Any, *, strict: bool = True,
         return None, problems, warnings
     return Score(name=key, title=str(data.get("title") or key), track=track, board="",
                  description=str(data.get("description") or ""), components=comps, missing=missing,
-                 min_coverage=float(mc), origin=origin, same_assistant=same), problems, warnings
+                 min_coverage=float(mc), origin=origin, same_assistant=same, zero_if=zero_if,
+                 needs_assistant=needs), problems, warnings
 
 
 def file_problems(value: Any, where: str = "scores", *, strict: bool = True) -> tuple[list[str], list[str]]:
@@ -703,6 +719,11 @@ def resolve(project: str | None = None, study: str | None = None, *, strict: boo
     by = {k: v for k, v in C.by_id(cat).items() if not (v.source == "score" and not v.metric)}
     bad: set[str] = set()
     for k, s in parsed.items():
+        for z in s.zero_if:
+            if z not in by:
+                problems.append(f"score {k!r}, zero_if {z!r}: unknown criterion (not a metric column or a "
+                                "questionnaire answer of this project or study)")
+                bad.add(k)
         for c in s.components:
             where = f"score {k!r}, component {c.column!r}"
             if c.column in merged or c.column in BY_NAME:  # a score inside a score
@@ -872,14 +893,19 @@ def save_enabled(project: str, study: str | None, enabled: list[str] | None) -> 
 
 def duplicate(project: str, study: str | None, source: str, key: str) -> Score:
     """Copy a score (a built-in, or one the project or study can see) under a new key, where it can be
-    edited. A built-in's weights are copied rescaled to sum to 1; its rules for failed opponents and
-    sessions without an Assistant (``zero_if``, ``needs_assistant``) are not part of the format."""
+    edited. A built-in's weights are copied rescaled to sum to 1, and its rules (``zero_if``: 0 when
+    the opponent failed; ``needs_assistant``: empty without an Assistant) are kept, so the copy gives
+    the same values as the original."""
     ss = resolve(project, study)
     if source not in ss.scores:
         raise KeyError(source)
     d = definition(ss.scores[source])
-    for k in ("builtin", "board", "zero_if", "needs_assistant"):
+    for k in ("builtin", "board"):
         d.pop(k, None)
+    if not d.get("zero_if"):  # keep the file short: the defaults go without saying
+        d.pop("zero_if", None)
+    if not d.get("needs_assistant"):
+        d.pop("needs_assistant", None)
     w = [c["weight"] for c in d["components"]]
     if w and abs(sum(w) - 1) > 0:  # the rounding of definition(): make the copy sum to exactly 1
         d["components"][-1]["weight"] = 1 - sum(w[:-1])

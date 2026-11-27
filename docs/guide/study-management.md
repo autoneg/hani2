@@ -174,7 +174,23 @@ derived from `opponents`, and nothing changes for existing studies.
 ### Checks, and how to fix the errors
 
 The study's mode is checked against its pool after the project's defaults and the study's
-overrides are merged, so a study cannot contradict its project's mode silently:
+overrides are merged, so a study cannot contradict its project's mode silently. The pool checked
+is the one a session of the study would play, first match wins:
+
+1. `opponents` in `study.yaml`, else in `project.yaml`;
+2. what a Paired study fills in (`[human+assistant]` or `[human]`): it wins over `env.json`, as in a
+   session;
+3. `opponents` in `env.json`: the study folder's, else the project folder's, else the settings
+   folder's (see [Settings files per study](#settings-files-per-study));
+4. the built-in pool.
+
+So a Solo study is refused when its project folder's `env.json` names `human+assistant`, and a
+Mixed study may take its pool from `env.json`. When the pool comes from an `env.json`, the message
+ends with where, for example `(the opponents come from project env.json)`: fix that file, or name
+the pool in `study.yaml`. `hani2 --opponents` (`HANI2_OPPONENTS`) replaces the
+pool for every session of one server: it is not a setting of the study, so it is never a reason to
+refuse a file, but `hani2 study show` prints a `WARNING` when it contradicts the study's mode.
+`hani2 study show` also prints the pools in use and where each comes from (`pools (in use)`).
 
 | Message | Fix |
 |---|---|
@@ -197,6 +213,12 @@ empty field keeps the project's value:
 
 A hand-edited file is reported in the server log, by `hani2 study show` and in the study's
 `errors`, and `opponents` wins: the study runs with the derived mode.
+
+Saving the **project** re-checks its studies too: a project change that would make one of its
+studies contradict itself (for example new project `opponents: [":pan"]` that a Paired study would
+inherit) is refused with a message that names the study, such as `study HI2027/pairs: study_mode is
+'paired' but opponents is [:pan]; …`. Only problems the change would add count: a study whose own
+file is already wrong does not block an unrelated project edit (fix the study itself).
 
 ### Checks for each session
 
@@ -267,8 +289,25 @@ Which Assistant method to use depends on how K compares with N and on what you w
 
 **Each Assistant at most once.** `latin_square`, `cyclic`, `balanced_subset`, `random_subset`
 and `external` promise that a person never gets the same Assistant twice. That needs K ≤ N, so
-saving a study (with `hani2 study create`, the admin console or the admin API) where K > N is
-refused:
+saving a study or its project (with `hani2 study create`, `hani2 project create`, the admin console
+or the admin API) where K > N is refused. N is the size of the Assistant pool a session would use,
+after groups are expanded, first match wins:
+
+1. `assistants` in `study.yaml`, else in `project.yaml`;
+2. `[none]`, which a Paired HAN study fills in (a study without Assistants is never a repeat);
+3. `agent_class` in `assistant_settings.json`: the study folder's, else the project folder's, else
+   the settings folder's, else the built-in Assistant. This is one Assistant, so N = 1, and the
+   message ends with where it comes from, for example `(the Assistants come from built-in)`.
+
+A project that sets `scheduling.assistants: latin_square` and `n_required: 4` but names no Assistants
+is therefore refused. K is `n_required`, or `PROLIFIC_N_REQUIRED` when the server sets it.
+`hani2 --assistants` (`HANI2_ASSISTANTS`, or `--assistant`) replaces the pool for every session of
+one server and is not part of the study's files: it is never a reason to refuse a save, but
+`hani2 study show` prints a `WARNING` when K > N for that pool. A project save that would make
+K > N in one of its studies (fewer project Assistants, a larger `n_required`) is refused and names
+the study.
+
+The message:
 
 ```text
 scheduling.assistants is 'latin_square' with n_required = 6 negotiations but only 5 Assistants
@@ -280,7 +319,25 @@ Fix it by lowering `n_required`, adding Assistants, or allowing repeats with
 `scheduling.assistant_repeats: true` (the Assistants then wrap around). A study whose file already
 broke the rule before it was checked keeps running: it gets a warning in the server log, in
 `hani2 study show` and in `hani2 study balance`, and its Assistants wrap around. `random_each`
-repeats by nature and is allowed unless you set `assistant_repeats: false`. A `schedule.json` that
+repeats by nature and is allowed unless you set `assistant_repeats: false`.
+
+**When an Assistant leaves the pool during the study** (you remove it from `assistants`, or from an
+Assistant group the study names), the promise still holds. Each person's plan is made again around what
+they have already done:
+
+- the negotiations they already played stay as they were;
+- each open slot gets its planned Assistant while it is still in the pool and unused, else the next
+  Assistant they have **not** used yet (the Assistants of their counted results rows and, in a
+  Paired study, `used_assistants` in `assignments.json`);
+- if fewer unused Assistants are left than open slots, `assistant_repeats: true` wraps around, and
+  otherwise the person **finishes early** with the completion link. The server log says why, and a
+  `finished_early` event (`component = scheduling`) is recorded (once per person while the server runs).
+
+Only a pool that lost an Assistant ends a person's study early. A study whose pool was smaller than
+K from the start warns and wraps, as described above. The pool each person started with is kept as
+`assistant_pool` in `assignments.json`.
+
+A `schedule.json` that
 names one Assistant in two slots is used as written but flagged (`external:repeat` in the
 `assistant_scheduling` column and a `scheduling_repeat` error event).
 
@@ -412,7 +469,7 @@ Assistants they may still play, with a preferred order:
 | Method | The person's set |
 |---|---|
 | `balanced`, `random_fixed`, `round_robin` | Their one fixed Assistant, for every match (a person always plays their own Assistant, as in a game) |
-| `latin_square`, `cyclic`, `balanced_subset`, `random_subset` | The first K of their sequence, without the ones already used. The order is a preference, not a promise |
+| `latin_square`, `cyclic`, `balanced_subset`, `random_subset` | The first K of their sequence, without the ones already used. The order is a preference, not a promise. After an Assistant left the pool, the open slots are filled only from Assistants they have not used |
 | `random_each` | All N, with repeats |
 | `external` | The Assistants of their `schedule.json` slots (their order is a preference) |
 
@@ -480,13 +537,15 @@ Assistant left too. After `human_opponent_wait` seconds, `pairing.fallback` appl
   the completion link when none is left.
 
 A person who has used every Assistant planned for them also finishes, even with fewer than K
-counted negotiations (for example after abandoned matches).
+counted negotiations (for example after abandoned matches, or when Assistants left the pool and
+too few unused ones are left), with a `finished_early` event. Only a one-Assistant pool, or
+`assistant_repeats: true`, gives a person an Assistant again.
 
 ### What is guaranteed and what is only best effort
 
 | Guarantee | Paired | Why |
 |---|---|---|
-| Each Assistant at most once per person | **Hard** | The joiner chooses only from their own set, and the host commits only from theirs |
+| Each Assistant at most once per person | **Hard** | The joiner chooses only from their own set, and the host commits only from theirs; a pool that changes during the study refills a set only from Assistants the person has not used |
 | No same-Assistant match (when not allowed) | **Hard** | A filter at pairing |
 | A match fills at most one cell, and only when completed | **Hard** | See [Match cells](#match-cells) |
 | Totals per Assistant within ±1 | Best effort | Depends on who is waiting at the same moment |
@@ -1258,7 +1317,7 @@ These JSON endpoints are for admins only; the conventions (names, layers) are th
 
 | Endpoint | Does |
 |---|---|
-| `GET /api/admin/projects/{project}/studies/{study}` | A study: its settings, `study.yaml` as text, its links, `study_mode_effective` (the mode in use, the declared and derived ones, `mode_error`, the merged `pairing` keys, `pairing_effective` and what was `filled` in) and `errors`. |
+| `GET /api/admin/projects/{project}/studies/{study}` | A study: its settings, `study.yaml` as text, its links, `study_mode_effective` (the mode in use, the declared and derived ones, `mode_error`, the merged `pairing` keys, `pairing_effective` and what was `filled` in), `editor` (what the editor needs to check live; `editor.effective` is described with the [project endpoint](project-management.md#admin-api)) and `errors`. |
 | `PUT /api/admin/projects/{project}/studies/{study}` | Create or replace `study.yaml` (the project is created when missing). What the GET adds (`path`, `links`, `participants`, `results_rows`, `scheduling_effective`, `study_mode_effective`, `errors`, …) is dropped, so a client may send back what it read; a mode that disagrees with the pool is a 400; the top-level `scheduling` wins over the copy under `overrides`, and an empty `scheduling` (`{}`) inherits every dimension again (the same holds for a project). |
 | `PUT` / `DELETE /api/admin/projects/{project}/studies/{study}/scores/{key}` | Add, redefine or remove a score in `study.yaml` (the same checks as for a [project](project-management.md#admin-api)). |
 | `POST /api/admin/projects/{project}/studies/{study}/scores/{key}/duplicate` | `{"from": "..."}`: copy a score into the study. |

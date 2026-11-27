@@ -329,9 +329,12 @@ DEFAULT_ENV: dict[str, Any] = {
     "webmcp": {"enabled": True, "actions": True, "studies": False},
     # the Preferences tools: weights as a bar (``donut`` in the tool's window when
     # weights_chart_window says so), normalized percentages or raw numbers, a line
-    # instead of bars above values_line_above options
+    # instead of bars above values_line_above options;
+    # tools.isolate_builtin: built-in tools' failures are shown in their pane too (external tools' always are);
+    # tools.render_timeout: seconds a guarded tool may take to render (see hani2.tools.failure)
     "tools": {"maximize": "window", "weights_chart": "bar", "weights_chart_window": "same",
-              "preferences_scale": "normalized", "values_line_above": 12},
+              "preferences_scale": "normalized", "values_line_above": 12, "isolate_builtin": True,
+              "render_timeout": 20},
     # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),
     # every other year from the han-agents package; None: every year from the package
     "han": {"current_year": None, "submissions": {}},

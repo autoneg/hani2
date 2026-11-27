@@ -9,7 +9,7 @@ import { lq, type Layer } from "../layer";
 import { Select } from "../controls/Select";
 import { Stepper } from "../controls/Stepper";
 import { Toggle } from "../controls/Toggle";
-import { Spinner } from "../schema";
+import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
 import { SOURCE_LABEL } from "./library";
 import type { Adapter, ExGroup, ExItem } from "./types";
@@ -286,6 +286,31 @@ function ToolDetails({ item, layer }: { item: ExItem; layer: Layer }) {
   );
 }
 
+/** Tools that could not be loaded (a broken file, tools.extra entry, entry point or library entry). */
+function LoadErrors({ layer, items }: { layer: Layer; items: ExItem[] }) {
+  const [errors, setErrors] = useState<{ source: string; error: string }[]>([]);
+  useEffect(() => {
+    api<{ errors: { source: string; error: string }[] }>(`/api/admin/library/tools/load-errors${lq(layer)}`)
+      .then((r) => setErrors(r.errors ?? []))
+      .catch(() => setErrors([]));
+  }, [layer, items]);
+  if (!errors.length) return null;
+  return (
+    <Note tone="warn">
+      <div className="font-medium">
+        {errors.length === 1 ? "1 tool source" : `${errors.length} tool sources`} could not be loaded; sessions do not get their tools until this is fixed:
+      </div>
+      <ul className="mt-1 list-disc pl-5">
+        {errors.map((e) => (
+          <li key={e.source}>
+            <span className="font-mono text-xs">{e.source}</span>: {e.error}
+          </li>
+        ))}
+      </ul>
+    </Note>
+  );
+}
+
 export const toolsAdapter: Adapter = {
   kind: "tools",
   noun: "tool",
@@ -303,6 +328,7 @@ export const toolsAdapter: Adapter = {
   ItemExtra: ({ item, layer }) => <ToolDetails item={item} layer={layer} />,
   Extra: ({ layer, groups, items, reload }) => (
     <>
+      <LoadErrors layer={layer} items={items} />
       <Offer layer={layer} groups={groups} items={items} reload={reload} />
       <PlacementOverview layer={layer} items={items} reload={reload} />
     </>

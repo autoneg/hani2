@@ -446,6 +446,40 @@ def test_without_the_switch_a_people_group_still_falls_back_to_an_ai(hani2_home)
         s.close()
 
 
+def test_a_person_arriving_as_the_wait_ends_still_meets_the_waiting_one(hani2_home, monkeypatch):
+    """The wait timer leaves the host in the lobby until its session decides: a person arriving in
+    between is paired with them (and the host then neither falls back to an AI nor waits alone)."""
+    game_study(hani2_home)  # a long wait: the timer is fired by hand
+    a = play("alice")
+    m = a.match
+    held = []
+    monkeypatch.setattr(a, "submit", lambda fn, *args, **kw: held.append((fn, args, kw)))
+    m._no_partner()  # the wait is over; alice's session has not acted on it yet
+    assert matches.LOBBY.n_waiting() == 1
+    b = play("bob")
+    assert b.match is m and m.paired
+    for fn, args, kw in held:
+        fn(*args, **kw)
+    assert a.match is m and a.snapshot()["opponent_kind"] != "agent"
+    a.close()
+    b.close()
+
+
+def test_a_pair_from_before_the_lobby_was_cleared_never_comes_back(hani2_home, monkeypatch):
+    """Tests clear the lobby between them: a pair left over from an earlier test, where one side
+    pressed Start and the other did not, never kicks the other back into the cleared lobby."""
+    monkeypatch.setattr(matches, "TICK", 0.05)
+    game_study(hani2_home, human_opponent_wait=0.1)
+    a, b = play("alice"), play("bob")
+    assert a.match is not None and a.match is b.match
+    a.start()
+    matches.LOBBY.clear()
+    time.sleep(0.6)  # many watcher ticks past the wait for bob's Start
+    assert b.match is a.match and matches.LOBBY.n_waiting() == 0
+    a.close()
+    b.close()
+
+
 def test_a_people_only_group_has_no_choice_screen_and_refuses_an_ai(hani2_home):
     folder = game_study(hani2_home, human_opponent_choice=True)
     _group(folder, "inv_people", agents=PEOPLE, ai_fallback=False)
