@@ -257,13 +257,24 @@ def _lines(path: Path):
         yield from enumerate(path.read_text(errors="replace").splitlines(), 1)
 
 
+def _competition_items() -> list[str]:
+    """Question texts of the competition questionnaires: kept as the competitions asked them."""
+    from hani2 import questionnaires
+    from hani2.evaluation import catalog
+
+    return [str(q.get("text")) for sid, s in questionnaires.library().items()
+            if (catalog.questionnaire_info(sid) or catalog.QuestionnaireInfo("")).competition for q in s["questions"]]
+
+
 def test_no_old_wording_in_frontend_and_docs():
+    quoted = [t for t in _competition_items() if OLD_WORDING.search(t)]
     bad = []
     for base in (ROOT / "frontend" / "src", ROOT / "docs"):
         for p in sorted(base.rglob("*")):
             if not p.is_file() or p.suffix not in SUFFIXES:
                 continue
             for i, line in _lines(p):
-                if OLD_WORDING.search(line) and not any(m in line.lower() for m in LINE_MARKERS):
+                if OLD_WORDING.search(line) and not any(m in line.lower() for m in LINE_MARKERS) \
+                        and not any(t in line for t in quoted):
                     bad.append(f"{p.relative_to(ROOT)}:{i}: {line.strip()[:120]}")
     assert not bad, "old wording (say 'Assistant' / 'opponent', or mark the line as an old name):\n" + "\n".join(bad)
