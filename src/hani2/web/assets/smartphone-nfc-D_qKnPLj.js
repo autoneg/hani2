@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/smartphone-nfc-IEmXP_pr.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"smartphone-nfc",size:24,node:[["rect",{width:"7",height:"12",x:"2",y:"6",rx:"1",key:"5nje8w"}],["path",{d:"M13 8.32a7.43 7.43 0 0 1 0 7.36",key:"1g306n"}],["path",{d:"M16.46 6.21a11.76 11.76 0 0 1 0 11.58",key:"uqvjvo"}],["path",{d:"M19.91 4.1a15.91 15.91 0 0 1 .01 15.8",key:"ujntz3"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/smartphone-nfc-BTWAYK3U.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"smartphone-nfc",size:24,node:[["rect",{width:"7",height:"12",x:"2",y:"6",rx:"1",key:"5nje8w"}],["path",{d:"M13 8.32a7.43 7.43 0 0 1 0 7.36",key:"1g306n"}],["path",{d:"M16.46 6.21a11.76 11.76 0 0 1 0 11.58",key:"uqvjvo"}],["path",{d:"M19.91 4.1a15.91 15.91 0 0 1 .01 15.8",key:"ujntz3"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"smartphone-nfc",size:24,node:[["rect",{width:"7",height:"12",x:"2",y:"6",rx:"1",key:"5nje8w"}],["path",{d:"M13 8.32a7.43 7.43 0 0 1 0 7.36",key:"1g306n"}],["path",{d:"M16.46 6.21a11.76 11.76 0 0 1 0 11.58",key:"uqvjvo"}],["path",{d:"M19.91 4.1a15.91 15.91 0 0 1 .01 15.8",key:"ujntz3"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/smartphone-nfc-D_qKnPLj.js

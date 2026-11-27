@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/align-horizontal-space-between-CrncQUHB.js
 import{c as t}from"./index-C-yFU6-Y.js";const e={name:"align-horizontal-space-between",size:24,node:[["rect",{width:"6",height:"14",x:"3",y:"5",rx:"2",key:"j77dae"}],["rect",{width:"6",height:"10",x:"15",y:"7",rx:"2",key:"bq30hj"}],["path",{d:"M3 2v20",key:"1d2pfg"}],["path",{d:"M21 2v20",key:"p059bm"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-horizontal-space-between-BtzrcfW9.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"align-horizontal-space-between",size:24,node:[["rect",{width:"6",height:"14",x:"3",y:"5",rx:"2",key:"j77dae"}],["rect",{width:"6",height:"10",x:"15",y:"7",rx:"2",key:"bq30hj"}],["path",{d:"M3 2v20",key:"1d2pfg"}],["path",{d:"M21 2v20",key:"p059bm"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"align-horizontal-space-between",size:24,node:[["rect",{width:"6",height:"14",x:"3",y:"5",rx:"2",key:"j77dae"}],["rect",{width:"6",height:"10",x:"15",y:"7",rx:"2",key:"bq30hj"}],["path",{d:"M3 2v20",key:"1d2pfg"}],["path",{d:"M21 2v20",key:"p059bm"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-horizontal-space-between-CMvqB8R5.js

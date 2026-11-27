@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/panel-right-dashed-P3YV6EcI.js
+import{c as a}from"./index-C-yFU6-Y.js";const e={name:"panel-right-dashed",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M15 14v1",key:"ilsfch"}],["path",{d:"M15 19v2",key:"1fst2f"}],["path",{d:"M15 3v2",key:"z204g4"}],["path",{d:"M15 9v1",key:"z2a8b1"}]],aliases:["panel-right-inactive"]};e.node;const i=a(e);export{e as __iconData,i as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/panel-right-dashed-BhuEb-qW.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"panel-right-dashed",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M15 14v1",key:"ilsfch"}],["path",{d:"M15 19v2",key:"1fst2f"}],["path",{d:"M15 3v2",key:"z204g4"}],["path",{d:"M15 9v1",key:"z2a8b1"}]],aliases:["panel-right-inactive"]};e.node;const i=a(e);export{e as __iconData,i as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"panel-right-dashed",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M15 14v1",key:"ilsfch"}],["path",{d:"M15 19v2",key:"1fst2f"}],["path",{d:"M15 3v2",key:"z204g4"}],["path",{d:"M15 9v1",key:"z2a8b1"}]],aliases:["panel-right-inactive"]};e.node;const i=a(e);export{e as __iconData,i as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/panel-right-dashed-Bl21h_hi.js

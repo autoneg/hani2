@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-letter-m-B5BczHQ0.js
 import{c as a}from"./index-C-yFU6-Y.js";const e={name:"square-letter-m",size:24,node:[["path",{d:"M8 16.001v-7.5a.5.5 0 0 1 .9-.3l2.7 3.599a.5.5 0 0 0 .8 0l2.7-3.6a.5.5 0 0 1 .9.3v7.501",key:"1triz2"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["m-square","square-m"]};e.node;const r=a(e);export{e as __iconData,r as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-letter-m-DAx-5scJ.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"square-letter-m",size:24,node:[["path",{d:"M8 16.001v-7.5a.5.5 0 0 1 .9-.3l2.7 3.599a.5.5 0 0 0 .8 0l2.7-3.6a.5.5 0 0 1 .9.3v7.501",key:"1triz2"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["m-square","square-m"]};e.node;const r=a(e);export{e as __iconData,r as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"square-letter-m",size:24,node:[["path",{d:"M8 16.001v-7.5a.5.5 0 0 1 .9-.3l2.7 3.599a.5.5 0 0 0 .8 0l2.7-3.6a.5.5 0 0 1 .9.3v7.501",key:"1triz2"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]],aliases:["m-square","square-m"]};e.node;const r=a(e);export{e as __iconData,r as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-letter-m-B--XRhmb.js

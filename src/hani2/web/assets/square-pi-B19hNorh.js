@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-pi-B19hNorh.js
 import{c as a}from"./index-C-yFU6-Y.js";const e={name:"square-pi",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M7 7h10",key:"udp07y"}],["path",{d:"M10 7v10",key:"i1d9ee"}],["path",{d:"M16 17a2 2 0 0 1-2-2V7",key:"ftwdc7"}]],aliases:["pi-square"]};e.node;const i=a(e);export{e as __iconData,i as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-pi-DBiRI1E-.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"square-pi",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M7 7h10",key:"udp07y"}],["path",{d:"M10 7v10",key:"i1d9ee"}],["path",{d:"M16 17a2 2 0 0 1-2-2V7",key:"ftwdc7"}]],aliases:["pi-square"]};e.node;const i=a(e);export{e as __iconData,i as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"square-pi",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M7 7h10",key:"udp07y"}],["path",{d:"M10 7v10",key:"i1d9ee"}],["path",{d:"M16 17a2 2 0 0 1-2-2V7",key:"ftwdc7"}]],aliases:["pi-square"]};e.node;const i=a(e);export{e as __iconData,i as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-pi-Chn-he9C.js

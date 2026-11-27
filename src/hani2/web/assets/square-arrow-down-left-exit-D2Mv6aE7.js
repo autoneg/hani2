@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-arrow-down-left-exit-D2Mv6aE7.js
 import{c as e}from"./index-C-yFU6-Y.js";const a={name:"square-arrow-down-left-exit",size:24,node:[["path",{d:"M13 21h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6",key:"14qz4y"}],["path",{d:"m3 21 9-9",key:"1jfql5"}],["path",{d:"M9 21H3v-6",key:"wtvkvv"}]],aliases:["arrow-down-left-from-square","square-arrow-out-down-left"]};a.node;const t=e(a);export{a as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-arrow-down-left-exit-DGk3fPep.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"square-arrow-down-left-exit",size:24,node:[["path",{d:"M13 21h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6",key:"14qz4y"}],["path",{d:"m3 21 9-9",key:"1jfql5"}],["path",{d:"M9 21H3v-6",key:"wtvkvv"}]],aliases:["arrow-down-left-from-square","square-arrow-out-down-left"]};a.node;const t=e(a);export{a as __iconData,t as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"square-arrow-down-left-exit",size:24,node:[["path",{d:"M13 21h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6",key:"14qz4y"}],["path",{d:"m3 21 9-9",key:"1jfql5"}],["path",{d:"M9 21H3v-6",key:"wtvkvv"}]],aliases:["arrow-down-left-from-square","square-arrow-out-down-left"]};a.node;const t=e(a);export{a as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-arrow-down-left-exit-DIBPlcSL.js

@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/layout-grid-circles-BslA6Blc.js
+import{c as e}from"./index-C-yFU6-Y.js";const c={name:"layout-grid-circles",size:24,node:[["circle",{cx:"17.5",cy:"17.5",r:"3.5",key:"w3z12y"}],["circle",{cx:"17.5",cy:"6.5",r:"3.5",key:"1dwebm"}],["circle",{cx:"6.5",cy:"17.5",r:"3.5",key:"1sut0i"}],["circle",{cx:"6.5",cy:"6.5",r:"3.5",key:"hiq0pm"}]]};c.node;const i=e(c);export{c as __iconData,i as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/layout-grid-circles-BwNXKQqw.js
+import{c as e}from"./index-BeDEz9Xj.js";const c={name:"layout-grid-circles",size:24,node:[["circle",{cx:"17.5",cy:"17.5",r:"3.5",key:"w3z12y"}],["circle",{cx:"17.5",cy:"6.5",r:"3.5",key:"1dwebm"}],["circle",{cx:"6.5",cy:"17.5",r:"3.5",key:"1sut0i"}],["circle",{cx:"6.5",cy:"6.5",r:"3.5",key:"hiq0pm"}]]};c.node;const i=e(c);export{c as __iconData,i as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const c={name:"layout-grid-circles",size:24,node:[["circle",{cx:"17.5",cy:"17.5",r:"3.5",key:"w3z12y"}],["circle",{cx:"17.5",cy:"6.5",r:"3.5",key:"1dwebm"}],["circle",{cx:"6.5",cy:"17.5",r:"3.5",key:"1sut0i"}],["circle",{cx:"6.5",cy:"6.5",r:"3.5",key:"hiq0pm"}]]};c.node;const i=e(c);export{c as __iconData,i as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/layout-grid-circles-DHZqYi8X.js

@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-percent-Xti_E2Hy.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"square-percent",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"M9 9h.01",key:"1q5me6"}],["path",{d:"M15 15h.01",key:"lqbp3k"}]],aliases:["percent-square"]};e.node;const r=t(e);export{e as __iconData,r as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-percent-C8dN6Zoi.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"square-percent",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"M9 9h.01",key:"1q5me6"}],["path",{d:"M15 15h.01",key:"lqbp3k"}]],aliases:["percent-square"]};e.node;const r=t(e);export{e as __iconData,r as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"square-percent",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"m15 9-6 6",key:"1uzhvr"}],["path",{d:"M9 9h.01",key:"1q5me6"}],["path",{d:"M15 15h.01",key:"lqbp3k"}]],aliases:["percent-square"]};e.node;const r=t(e);export{e as __iconData,r as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-percent-DrfIk7H-.js

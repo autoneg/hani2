@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-chart-gantt-Bv1FzG15.js
+import{c as a}from"./index-C-yFU6-Y.js";const t={name:"square-chart-gantt",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 8h7",key:"kbo1nt"}],["path",{d:"M8 12h6",key:"ikassy"}],["path",{d:"M11 16h5",key:"oq65wt"}]],aliases:["gantt-chart-square","square-gantt-chart"]};t.node;const r=a(t);export{t as __iconData,r as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-chart-gantt-D_lQKKLn.js
+import{c as a}from"./index-BeDEz9Xj.js";const t={name:"square-chart-gantt",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 8h7",key:"kbo1nt"}],["path",{d:"M8 12h6",key:"ikassy"}],["path",{d:"M11 16h5",key:"oq65wt"}]],aliases:["gantt-chart-square","square-gantt-chart"]};t.node;const r=a(t);export{t as __iconData,r as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const t={name:"square-chart-gantt",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 8h7",key:"kbo1nt"}],["path",{d:"M8 12h6",key:"ikassy"}],["path",{d:"M11 16h5",key:"oq65wt"}]],aliases:["gantt-chart-square","square-gantt-chart"]};t.node;const r=a(t);export{t as __iconData,r as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-chart-gantt-JKcU9t7U.js

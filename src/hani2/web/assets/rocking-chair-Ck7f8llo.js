@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/rocking-chair-Cbp0HK54.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"rocking-chair",size:24,node:[["path",{d:"m15 13 3.708 7.416",key:"1edxn9"}],["path",{d:"M3 19a15 15 0 0 0 18 0",key:"d0d1c4"}],["path",{d:"m3 2 3.21 9.633A2 2 0 0 0 8.109 13H18",key:"tpa4et"}],["path",{d:"m9 13-3.708 7.416",key:"1oplxx"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/rocking-chair-C_MzFMZd.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"rocking-chair",size:24,node:[["path",{d:"m15 13 3.708 7.416",key:"1edxn9"}],["path",{d:"M3 19a15 15 0 0 0 18 0",key:"d0d1c4"}],["path",{d:"m3 2 3.21 9.633A2 2 0 0 0 8.109 13H18",key:"tpa4et"}],["path",{d:"m9 13-3.708 7.416",key:"1oplxx"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"rocking-chair",size:24,node:[["path",{d:"m15 13 3.708 7.416",key:"1edxn9"}],["path",{d:"M3 19a15 15 0 0 0 18 0",key:"d0d1c4"}],["path",{d:"m3 2 3.21 9.633A2 2 0 0 0 8.109 13H18",key:"tpa4et"}],["path",{d:"m9 13-3.708 7.416",key:"1oplxx"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/rocking-chair-Ck7f8llo.js

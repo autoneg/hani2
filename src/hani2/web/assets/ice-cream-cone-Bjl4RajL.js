@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/ice-cream-cone-B2SXGMq6.js
+import{c as a}from"./index-C-yFU6-Y.js";const e={name:"ice-cream-cone",size:24,node:[["path",{d:"m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11",key:"1v6356"}],["path",{d:"M17 7A5 5 0 0 0 7 7",key:"151p3v"}],["path",{d:"M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4",key:"1sdaij"}]],aliases:["ice-cream"]};e.node;const o=a(e);export{e as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/ice-cream-cone-XeY976Gt.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"ice-cream-cone",size:24,node:[["path",{d:"m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11",key:"1v6356"}],["path",{d:"M17 7A5 5 0 0 0 7 7",key:"151p3v"}],["path",{d:"M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4",key:"1sdaij"}]],aliases:["ice-cream"]};e.node;const o=a(e);export{e as __iconData,o as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"ice-cream-cone",size:24,node:[["path",{d:"m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11",key:"1v6356"}],["path",{d:"M17 7A5 5 0 0 0 7 7",key:"151p3v"}],["path",{d:"M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4",key:"1sdaij"}]],aliases:["ice-cream"]};e.node;const o=a(e);export{e as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/ice-cream-cone-Bjl4RajL.js

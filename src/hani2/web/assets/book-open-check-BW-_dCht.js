@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/book-open-check-BW-_dCht.js
 import{c as e}from"./index-C-yFU6-Y.js";const a={name:"book-open-check",size:24,node:[["path",{d:"M12 5v16",key:"1f6ucr"}],["path",{d:"m16 12 2 2 4-4",key:"mdajum"}],["path",{d:"M22 6V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2h4.001A2 2 0 0022 17v-1.344",key:"144kbk"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-open-check-BCv5LIjh.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"book-open-check",size:24,node:[["path",{d:"M12 5v16",key:"1f6ucr"}],["path",{d:"m16 12 2 2 4-4",key:"mdajum"}],["path",{d:"M22 6V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2h4.001A2 2 0 0022 17v-1.344",key:"144kbk"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"book-open-check",size:24,node:[["path",{d:"M12 5v16",key:"1f6ucr"}],["path",{d:"m16 12 2 2 4-4",key:"mdajum"}],["path",{d:"M22 6V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2h4.001A2 2 0 0022 17v-1.344",key:"144kbk"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-open-check-0utdAltY.js

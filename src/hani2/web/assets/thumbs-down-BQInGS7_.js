@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/thumbs-down-i_p24Gdj.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"thumbs-down",size:24,node:[["path",{d:"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z",key:"m61m77"}],["path",{d:"M17 14V2",key:"8ymqnk"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/thumbs-down-DzIRzlK3.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"thumbs-down",size:24,node:[["path",{d:"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z",key:"m61m77"}],["path",{d:"M17 14V2",key:"8ymqnk"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"thumbs-down",size:24,node:[["path",{d:"M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z",key:"m61m77"}],["path",{d:"M17 14V2",key:"8ymqnk"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/thumbs-down-BQInGS7_.js

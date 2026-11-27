@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/align-vertical-space-between-DtMdpj38.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"align-vertical-space-between",size:24,node:[["rect",{width:"14",height:"6",x:"5",y:"15",rx:"2",key:"1w91an"}],["rect",{width:"10",height:"6",x:"7",y:"3",rx:"2",key:"17wqzy"}],["path",{d:"M2 21h20",key:"1nyx9w"}],["path",{d:"M2 3h20",key:"91anmk"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-vertical-space-between-DoKiKFCw.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"align-vertical-space-between",size:24,node:[["rect",{width:"14",height:"6",x:"5",y:"15",rx:"2",key:"1w91an"}],["rect",{width:"10",height:"6",x:"7",y:"3",rx:"2",key:"17wqzy"}],["path",{d:"M2 21h20",key:"1nyx9w"}],["path",{d:"M2 3h20",key:"91anmk"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"align-vertical-space-between",size:24,node:[["rect",{width:"14",height:"6",x:"5",y:"15",rx:"2",key:"1w91an"}],["rect",{width:"10",height:"6",x:"7",y:"3",rx:"2",key:"17wqzy"}],["path",{d:"M2 21h20",key:"1nyx9w"}],["path",{d:"M2 3h20",key:"91anmk"}]]};e.node;const n=t(e);export{e as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-vertical-space-between-9v9kBBpY.js

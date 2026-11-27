@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/arrow-big-right-D2W1UBE3.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"arrow-big-right",size:24,node:[["path",{d:"M13.207 19.793a.707.707 0 0 1-1.207-.5V16a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h6a1 1 0 0 0 1-1V4.707a.707.707 0 0 1 1.207-.5l6.94 6.94a1.207 1.207 0 0 1 0 1.707z",key:"zee3eo"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/arrow-big-right-C1rLdm6E.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"arrow-big-right",size:24,node:[["path",{d:"M13.207 19.793a.707.707 0 0 1-1.207-.5V16a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h6a1 1 0 0 0 1-1V4.707a.707.707 0 0 1 1.207-.5l6.94 6.94a1.207 1.207 0 0 1 0 1.707z",key:"zee3eo"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"arrow-big-right",size:24,node:[["path",{d:"M13.207 19.793a.707.707 0 0 1-1.207-.5V16a1 1 0 0 0-1-1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h6a1 1 0 0 0 1-1V4.707a.707.707 0 0 1 1.207-.5l6.94 6.94a1.207 1.207 0 0 1 0 1.707z",key:"zee3eo"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/arrow-big-right-CKRm4i7_.js

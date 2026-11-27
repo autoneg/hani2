@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/arrow-big-left-dash-ZIQCeK1M.js
 import{c as e}from"./index-C-yFU6-Y.js";const a={name:"arrow-big-left-dash",size:24,node:[["path",{d:"M13 9a1 1 0 0 1-1-1V4.707a.707.707 0 0 0-1.207-.5l-6.94 6.94a1.207 1.207 0 0 0 0 1.707l6.94 6.94a.707.707 0 0 0 1.207-.5V16a1 1 0 0 1 1-1h2a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z",key:"17jy80"}],["path",{d:"M20 9v6",key:"14roy0"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/arrow-big-left-dash-6JupPGFP.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"arrow-big-left-dash",size:24,node:[["path",{d:"M13 9a1 1 0 0 1-1-1V4.707a.707.707 0 0 0-1.207-.5l-6.94 6.94a1.207 1.207 0 0 0 0 1.707l6.94 6.94a.707.707 0 0 0 1.207-.5V16a1 1 0 0 1 1-1h2a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z",key:"17jy80"}],["path",{d:"M20 9v6",key:"14roy0"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"arrow-big-left-dash",size:24,node:[["path",{d:"M13 9a1 1 0 0 1-1-1V4.707a.707.707 0 0 0-1.207-.5l-6.94 6.94a1.207 1.207 0 0 0 0 1.707l6.94 6.94a.707.707 0 0 0 1.207-.5V16a1 1 0 0 1 1-1h2a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z",key:"17jy80"}],["path",{d:"M20 9v6",key:"14roy0"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/arrow-big-left-dash-wZULE7SA.js

@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/align-horizontal-distribute-start-DTStz5X5.js
 import{c as e}from"./index-C-yFU6-Y.js";const t={name:"align-horizontal-distribute-start",size:24,node:[["rect",{width:"6",height:"14",x:"4",y:"5",rx:"2",key:"1wwnby"}],["rect",{width:"6",height:"10",x:"14",y:"7",rx:"2",key:"1fe6j6"}],["path",{d:"M4 2v20",key:"gtpd5x"}],["path",{d:"M14 2v20",key:"tg6bpw"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-horizontal-distribute-start-ELXhZSZY.js
+import{c as e}from"./index-BeDEz9Xj.js";const t={name:"align-horizontal-distribute-start",size:24,node:[["rect",{width:"6",height:"14",x:"4",y:"5",rx:"2",key:"1wwnby"}],["rect",{width:"6",height:"10",x:"14",y:"7",rx:"2",key:"1fe6j6"}],["path",{d:"M4 2v20",key:"gtpd5x"}],["path",{d:"M14 2v20",key:"tg6bpw"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const t={name:"align-horizontal-distribute-start",size:24,node:[["rect",{width:"6",height:"14",x:"4",y:"5",rx:"2",key:"1wwnby"}],["rect",{width:"6",height:"10",x:"14",y:"7",rx:"2",key:"1fe6j6"}],["path",{d:"M4 2v20",key:"gtpd5x"}],["path",{d:"M14 2v20",key:"tg6bpw"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-horizontal-distribute-start-CC2kO8oX.js

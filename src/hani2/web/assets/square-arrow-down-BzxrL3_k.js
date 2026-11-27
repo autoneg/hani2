@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-arrow-down-BzVihYE9.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"square-arrow-down",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 8v8",key:"napkw2"}],["path",{d:"m8 12 4 4 4-4",key:"k98ssh"}]],aliases:["arrow-down-square"]};a.node;const r=e(a);export{a as __iconData,r as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-arrow-down-DtATUuKT.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"square-arrow-down",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 8v8",key:"napkw2"}],["path",{d:"m8 12 4 4 4-4",key:"k98ssh"}]],aliases:["arrow-down-square"]};a.node;const r=e(a);export{a as __iconData,r as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"square-arrow-down",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 8v8",key:"napkw2"}],["path",{d:"m8 12 4 4 4-4",key:"k98ssh"}]],aliases:["arrow-down-square"]};a.node;const r=e(a);export{a as __iconData,r as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-arrow-down-BzxrL3_k.js

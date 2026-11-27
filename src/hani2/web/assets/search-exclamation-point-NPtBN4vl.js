@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/search-exclamation-point-CJEUe1_T.js
+import{c as a}from"./index-C-yFU6-Y.js";const e={name:"search-exclamation-point",size:24,node:[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["path",{d:"m21 21-4.3-4.3",key:"1qie3q"}],["path",{d:"M11 7v4",key:"m2edmq"}],["path",{d:"M11 15h.01",key:"k85uqc"}]],aliases:["search-alert"]};e.node;const t=a(e);export{e as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/search-exclamation-point-OPMn8Mjj.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"search-exclamation-point",size:24,node:[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["path",{d:"m21 21-4.3-4.3",key:"1qie3q"}],["path",{d:"M11 7v4",key:"m2edmq"}],["path",{d:"M11 15h.01",key:"k85uqc"}]],aliases:["search-alert"]};e.node;const t=a(e);export{e as __iconData,t as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"search-exclamation-point",size:24,node:[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["path",{d:"m21 21-4.3-4.3",key:"1qie3q"}],["path",{d:"M11 7v4",key:"m2edmq"}],["path",{d:"M11 15h.01",key:"k85uqc"}]],aliases:["search-alert"]};e.node;const t=a(e);export{e as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/search-exclamation-point-NPtBN4vl.js

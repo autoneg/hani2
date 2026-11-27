@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/user-round-plus-BrA_vczi.js
+import{c as s}from"./index-C-yFU6-Y.js";const e={name:"user-round-plus",size:24,node:[["path",{d:"M2 21a8 8 0 0 1 13.292-6",key:"bjp14o"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["path",{d:"M19 16v6",key:"tddt3s"}],["path",{d:"M22 19h-6",key:"vcuq98"}]],aliases:["user-plus-2"]};e.node;const o=s(e);export{e as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/user-round-plus-lVZgktce.js
+import{c as s}from"./index-BeDEz9Xj.js";const e={name:"user-round-plus",size:24,node:[["path",{d:"M2 21a8 8 0 0 1 13.292-6",key:"bjp14o"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["path",{d:"M19 16v6",key:"tddt3s"}],["path",{d:"M22 19h-6",key:"vcuq98"}]],aliases:["user-plus-2"]};e.node;const o=s(e);export{e as __iconData,o as default};
+========
+import{c as s}from"./index-Cjbv4bp8.js";const e={name:"user-round-plus",size:24,node:[["path",{d:"M2 21a8 8 0 0 1 13.292-6",key:"bjp14o"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["path",{d:"M19 16v6",key:"tddt3s"}],["path",{d:"M22 19h-6",key:"vcuq98"}]],aliases:["user-plus-2"]};e.node;const o=s(e);export{e as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/user-round-plus-CBHBK9za.js

@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/bring-to-front-DM-yNyvA.js
 import{c as a}from"./index-C-yFU6-Y.js";const t={name:"bring-to-front",size:24,node:[["rect",{x:"8",y:"8",width:"8",height:"8",rx:"2",key:"yj20xf"}],["path",{d:"M4 10a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2",key:"1ltk23"}],["path",{d:"M14 20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2",key:"1q24h9"}]]};t.node;const o=a(t);export{t as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/bring-to-front-_Dw3M2jR.js
+import{c as a}from"./index-BeDEz9Xj.js";const t={name:"bring-to-front",size:24,node:[["rect",{x:"8",y:"8",width:"8",height:"8",rx:"2",key:"yj20xf"}],["path",{d:"M4 10a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2",key:"1ltk23"}],["path",{d:"M14 20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2",key:"1q24h9"}]]};t.node;const o=a(t);export{t as __iconData,o as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const t={name:"bring-to-front",size:24,node:[["rect",{x:"8",y:"8",width:"8",height:"8",rx:"2",key:"yj20xf"}],["path",{d:"M4 10a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2",key:"1ltk23"}],["path",{d:"M14 20a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2",key:"1q24h9"}]]};t.node;const o=a(t);export{t as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/bring-to-front-C00VqSnA.js

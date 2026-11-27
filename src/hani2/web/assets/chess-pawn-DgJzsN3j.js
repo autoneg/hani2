@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/chess-pawn-DgJzsN3j.js
 import{c as e}from"./index-C-yFU6-Y.js";const a={name:"chess-pawn",size:24,node:[["path",{d:"M5 20a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z",key:"b89hwq"}],["path",{d:"m14.5 10 1.5 8",key:"cim3qy"}],["path",{d:"M7 10h10",key:"1101jm"}],["path",{d:"m8 18 1.5-8",key:"ja3yjd"}],["circle",{cx:"12",cy:"6",r:"4",key:"1frrej"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chess-pawn-B_uLIqI3.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"chess-pawn",size:24,node:[["path",{d:"M5 20a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z",key:"b89hwq"}],["path",{d:"m14.5 10 1.5 8",key:"cim3qy"}],["path",{d:"M7 10h10",key:"1101jm"}],["path",{d:"m8 18 1.5-8",key:"ja3yjd"}],["circle",{cx:"12",cy:"6",r:"4",key:"1frrej"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"chess-pawn",size:24,node:[["path",{d:"M5 20a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z",key:"b89hwq"}],["path",{d:"m14.5 10 1.5 8",key:"cim3qy"}],["path",{d:"M7 10h10",key:"1101jm"}],["path",{d:"m8 18 1.5-8",key:"ja3yjd"}],["circle",{cx:"12",cy:"6",r:"4",key:"1frrej"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chess-pawn-ksChKEST.js

@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/chart-column-big-BdUxxv_z.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"chart-column-big",size:24,node:[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["rect",{x:"15",y:"5",width:"4",height:"12",rx:"1",key:"q8uenq"}],["rect",{x:"7",y:"8",width:"4",height:"9",rx:"1",key:"sr5ea"}]],aliases:["bar-chart-big"]};e.node;const c=t(e);export{e as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chart-column-big-BjsXigOh.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"chart-column-big",size:24,node:[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["rect",{x:"15",y:"5",width:"4",height:"12",rx:"1",key:"q8uenq"}],["rect",{x:"7",y:"8",width:"4",height:"9",rx:"1",key:"sr5ea"}]],aliases:["bar-chart-big"]};e.node;const c=t(e);export{e as __iconData,c as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"chart-column-big",size:24,node:[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["rect",{x:"15",y:"5",width:"4",height:"12",rx:"1",key:"q8uenq"}],["rect",{x:"7",y:"8",width:"4",height:"9",rx:"1",key:"sr5ea"}]],aliases:["bar-chart-big"]};e.node;const c=t(e);export{e as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chart-column-big-BgfMkHv5.js

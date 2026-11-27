@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/message-circle-check-BWSqF6Lx.js
 import{c as a}from"./index-C-yFU6-Y.js";const e={name:"message-circle-check",size:24,node:[["path",{d:"M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",key:"1sd12s"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]]};e.node;const s=a(e);export{e as __iconData,s as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/message-circle-check-BL5IVm1H.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"message-circle-check",size:24,node:[["path",{d:"M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",key:"1sd12s"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]]};e.node;const s=a(e);export{e as __iconData,s as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"message-circle-check",size:24,node:[["path",{d:"M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719",key:"1sd12s"}],["path",{d:"m16 9-5.5 5.5L8 12",key:"xofnsj"}]]};e.node;const s=a(e);export{e as __iconData,s as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/message-circle-check-jBVreiRZ.js

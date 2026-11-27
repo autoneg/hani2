@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/cloud-backup-BCMKog5J.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"cloud-backup",size:24,node:[["path",{d:"M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607",key:"xpoh9y"}],["path",{d:"M7 11v4h4",key:"q9yh32"}],["path",{d:"M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15",key:"1xm8iu"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/cloud-backup-c2alPu1X.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"cloud-backup",size:24,node:[["path",{d:"M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607",key:"xpoh9y"}],["path",{d:"M7 11v4h4",key:"q9yh32"}],["path",{d:"M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15",key:"1xm8iu"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"cloud-backup",size:24,node:[["path",{d:"M21 15.251A4.5 4.5 0 0 0 17.5 8h-1.79A7 7 0 1 0 3 13.607",key:"xpoh9y"}],["path",{d:"M7 11v4h4",key:"q9yh32"}],["path",{d:"M8 19a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5 4.82 4.82 0 0 0-3.41 1.41L7 15",key:"1xm8iu"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/cloud-backup-DPfwVC7v.js

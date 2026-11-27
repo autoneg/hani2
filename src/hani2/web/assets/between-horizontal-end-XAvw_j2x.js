@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/between-horizontal-end-ExwCViwh.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"between-horizontal-end",size:24,node:[["rect",{width:"13",height:"7",x:"3",y:"3",rx:"1",key:"11xb64"}],["path",{d:"m22 15-3-3 3-3",key:"26chmm"}],["rect",{width:"13",height:"7",x:"3",y:"14",rx:"1",key:"k6ky7n"}]],aliases:["between-horizonal-end"]};e.node;const o=t(e);export{e as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/between-horizontal-end-By-LN1ji.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"between-horizontal-end",size:24,node:[["rect",{width:"13",height:"7",x:"3",y:"3",rx:"1",key:"11xb64"}],["path",{d:"m22 15-3-3 3-3",key:"26chmm"}],["rect",{width:"13",height:"7",x:"3",y:"14",rx:"1",key:"k6ky7n"}]],aliases:["between-horizonal-end"]};e.node;const o=t(e);export{e as __iconData,o as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"between-horizontal-end",size:24,node:[["rect",{width:"13",height:"7",x:"3",y:"3",rx:"1",key:"11xb64"}],["path",{d:"m22 15-3-3 3-3",key:"26chmm"}],["rect",{width:"13",height:"7",x:"3",y:"14",rx:"1",key:"k6ky7n"}]],aliases:["between-horizonal-end"]};e.node;const o=t(e);export{e as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/between-horizontal-end-XAvw_j2x.js

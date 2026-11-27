@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/book-check-C_xP77t6.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"book-check",size:24,node:[["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["path",{d:"m9 9.5 2 2 4-4",key:"1dth82"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-check-BRelg1OB.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"book-check",size:24,node:[["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["path",{d:"m9 9.5 2 2 4-4",key:"1dth82"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"book-check",size:24,node:[["path",{d:"M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20",key:"k3hazp"}],["path",{d:"m9 9.5 2 2 4-4",key:"1dth82"}]]};a.node;const c=e(a);export{a as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/book-check-Dy_BuECa.js

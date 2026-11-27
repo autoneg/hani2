@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/smartphone-user-round-DxCymoe3.js
+import{c as a}from"./index-C-yFU6-Y.js";const e={name:"smartphone-user-round",size:24,node:[["path",{d:"M10 22H6a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v4",key:"106ik5"}],["path",{d:"M11 18h.01",key:"qvdchl"}],["path",{d:"M22 22a4 4 0 00-8 0",key:"z7lshv"}],["circle",{cx:"18",cy:"15",r:"3",key:"gjjjvw"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/smartphone-user-round-LtB8DzM0.js
+import{c as a}from"./index-BeDEz9Xj.js";const e={name:"smartphone-user-round",size:24,node:[["path",{d:"M10 22H6a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v4",key:"106ik5"}],["path",{d:"M11 18h.01",key:"qvdchl"}],["path",{d:"M22 22a4 4 0 00-8 0",key:"z7lshv"}],["circle",{cx:"18",cy:"15",r:"3",key:"gjjjvw"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
+========
+import{c as a}from"./index-Cjbv4bp8.js";const e={name:"smartphone-user-round",size:24,node:[["path",{d:"M10 22H6a2 2 0 01-2-2V4a2 2 0 012-2h10a2 2 0 012 2v4",key:"106ik5"}],["path",{d:"M11 18h.01",key:"qvdchl"}],["path",{d:"M22 22a4 4 0 00-8 0",key:"z7lshv"}],["circle",{cx:"18",cy:"15",r:"3",key:"gjjjvw"}]]};e.node;const c=a(e);export{e as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/smartphone-user-round-5U-IlhYU.js

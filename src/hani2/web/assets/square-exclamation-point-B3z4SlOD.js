@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-exclamation-point-Nukzj7HT.js
+import{c as t}from"./index-C-yFU6-Y.js";const e={name:"square-exclamation-point",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]]};e.node;const i=t(e);export{e as __iconData,i as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-exclamation-point-DZmqLJKZ.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"square-exclamation-point",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]]};e.node;const i=t(e);export{e as __iconData,i as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"square-exclamation-point",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]]};e.node;const i=t(e);export{e as __iconData,i as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-exclamation-point-B3z4SlOD.js

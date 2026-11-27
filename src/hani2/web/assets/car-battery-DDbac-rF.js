@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/car-battery-BisYDRkJ.js
+import{c as e}from"./index-C-yFU6-Y.js";const t={name:"car-battery",size:24,node:[["path",{d:"M14 13h4",key:"xb9564"}],["path",{d:"M16 15v-4",key:"rpmtp7"}],["path",{d:"M18 5v2",key:"n2sebz"}],["path",{d:"M6 13h4",key:"vm80m7"}],["path",{d:"M6 5v2",key:"h3tt00"}],["rect",{x:"2",y:"7",width:"20",height:"12",rx:"2",key:"uzf593"}]]};t.node;const h=e(t);export{t as __iconData,h as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/car-battery-cuajRUsC.js
+import{c as e}from"./index-BeDEz9Xj.js";const t={name:"car-battery",size:24,node:[["path",{d:"M14 13h4",key:"xb9564"}],["path",{d:"M16 15v-4",key:"rpmtp7"}],["path",{d:"M18 5v2",key:"n2sebz"}],["path",{d:"M6 13h4",key:"vm80m7"}],["path",{d:"M6 5v2",key:"h3tt00"}],["rect",{x:"2",y:"7",width:"20",height:"12",rx:"2",key:"uzf593"}]]};t.node;const h=e(t);export{t as __iconData,h as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const t={name:"car-battery",size:24,node:[["path",{d:"M14 13h4",key:"xb9564"}],["path",{d:"M16 15v-4",key:"rpmtp7"}],["path",{d:"M18 5v2",key:"n2sebz"}],["path",{d:"M6 13h4",key:"vm80m7"}],["path",{d:"M6 5v2",key:"h3tt00"}],["rect",{x:"2",y:"7",width:"20",height:"12",rx:"2",key:"uzf593"}]]};t.node;const h=e(t);export{t as __iconData,h as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/car-battery-DDbac-rF.js

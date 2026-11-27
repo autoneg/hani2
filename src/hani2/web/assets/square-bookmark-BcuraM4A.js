@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/square-bookmark-D0gGefyU.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"square-bookmark",size:24,node:[["path",{d:"M11 3v7.751a.25.25 0 00.407.195l2.28-1.834a.5.5 0 01.627 0l2.28 1.834a.25.25 0 00.406-.195V3",key:"1rbn6x"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["album"]};a.node;const r=e(a);export{a as __iconData,r as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-bookmark-BZa7g7sf.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"square-bookmark",size:24,node:[["path",{d:"M11 3v7.751a.25.25 0 00.407.195l2.28-1.834a.5.5 0 01.627 0l2.28 1.834a.25.25 0 00.406-.195V3",key:"1rbn6x"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["album"]};a.node;const r=e(a);export{a as __iconData,r as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"square-bookmark",size:24,node:[["path",{d:"M11 3v7.751a.25.25 0 00.407.195l2.28-1.834a.5.5 0 01.627 0l2.28 1.834a.25.25 0 00.406-.195V3",key:"1rbn6x"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["album"]};a.node;const r=e(a);export{a as __iconData,r as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-bookmark-BcuraM4A.js

@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/heart-minus-aSGg-sU4.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"heart-minus",size:24,node:[["path",{d:"m14.876 18.99-1.368 1.323a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.244 1.572",key:"15yztm"}],["path",{d:"M15 15h6",key:"1u4692"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/heart-minus-BoBdIAsw.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"heart-minus",size:24,node:[["path",{d:"m14.876 18.99-1.368 1.323a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.244 1.572",key:"15yztm"}],["path",{d:"M15 15h6",key:"1u4692"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"heart-minus",size:24,node:[["path",{d:"m14.876 18.99-1.368 1.323a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.244 1.572",key:"15yztm"}],["path",{d:"M15 15h6",key:"1u4692"}]]};a.node;const n=e(a);export{a as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/heart-minus-CUj4VzGn.js

@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/monitor-x-X4bVyZ75.js
 import{c as t}from"./index-C-yFU6-Y.js";const e={name:"monitor-x",size:24,node:[["path",{d:"m14.5 12.5-5-5",key:"1jahn5"}],["path",{d:"m9.5 12.5 5-5",key:"1k2t7b"}],["rect",{width:"20",height:"14",x:"2",y:"3",rx:"2",key:"48i651"}],["path",{d:"M12 17v4",key:"1riwvh"}],["path",{d:"M8 21h8",key:"1ev6f3"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/monitor-x-Bg2pn81R.js
+import{c as t}from"./index-BeDEz9Xj.js";const e={name:"monitor-x",size:24,node:[["path",{d:"m14.5 12.5-5-5",key:"1jahn5"}],["path",{d:"m9.5 12.5 5-5",key:"1k2t7b"}],["rect",{width:"20",height:"14",x:"2",y:"3",rx:"2",key:"48i651"}],["path",{d:"M12 17v4",key:"1riwvh"}],["path",{d:"M8 21h8",key:"1ev6f3"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const e={name:"monitor-x",size:24,node:[["path",{d:"m14.5 12.5-5-5",key:"1jahn5"}],["path",{d:"m9.5 12.5 5-5",key:"1k2t7b"}],["rect",{width:"20",height:"14",x:"2",y:"3",rx:"2",key:"48i651"}],["path",{d:"M12 17v4",key:"1riwvh"}],["path",{d:"M8 21h8",key:"1ev6f3"}]]};e.node;const a=t(e);export{e as __iconData,a as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/monitor-x-EyPYkbIA.js

@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/user-round-key-BvPWb4Po.js
 import{c}from"./index-C-yFU6-Y.js";const e={name:"user-round-key",size:24,node:[["path",{d:"M19 11v6",key:"rcqigv"}],["path",{d:"M19 13h2",key:"1gch44"}],["path",{d:"M2 21a8 8 0 0 1 12.868-6.349",key:"1lryzn"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["circle",{cx:"19",cy:"19",r:"2",key:"17f5cg"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/user-round-key-CWwkBKzM.js
+import{c}from"./index-BeDEz9Xj.js";const e={name:"user-round-key",size:24,node:[["path",{d:"M19 11v6",key:"rcqigv"}],["path",{d:"M19 13h2",key:"1gch44"}],["path",{d:"M2 21a8 8 0 0 1 12.868-6.349",key:"1lryzn"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["circle",{cx:"19",cy:"19",r:"2",key:"17f5cg"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
+========
+import{c}from"./index-Cjbv4bp8.js";const e={name:"user-round-key",size:24,node:[["path",{d:"M19 11v6",key:"rcqigv"}],["path",{d:"M19 13h2",key:"1gch44"}],["path",{d:"M2 21a8 8 0 0 1 12.868-6.349",key:"1lryzn"}],["circle",{cx:"10",cy:"8",r:"5",key:"o932ke"}],["circle",{cx:"19",cy:"19",r:"2",key:"17f5cg"}]]};e.node;const o=c(e);export{e as __iconData,o as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/user-round-key-wMhFUTX2.js

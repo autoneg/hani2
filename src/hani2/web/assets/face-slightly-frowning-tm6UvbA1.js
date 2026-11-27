@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/face-slightly-frowning-BKtvBSPr.js
+import{c as e}from"./index-C-yFU6-Y.js";const a={name:"face-slightly-frowning",size:24,node:[["path",{d:"M15 10V9",key:"4dkmfx"}],["path",{d:"M9 10V9",key:"1lazqi"}],["path",{d:"M9 16a5 5 0 016 0",key:"34mdxb"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],aliases:["frown"]};a.node;const n=e(a);export{a as __iconData,n as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/face-slightly-frowning-BcUl9Ge4.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"face-slightly-frowning",size:24,node:[["path",{d:"M15 10V9",key:"4dkmfx"}],["path",{d:"M9 10V9",key:"1lazqi"}],["path",{d:"M9 16a5 5 0 016 0",key:"34mdxb"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],aliases:["frown"]};a.node;const n=e(a);export{a as __iconData,n as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"face-slightly-frowning",size:24,node:[["path",{d:"M15 10V9",key:"4dkmfx"}],["path",{d:"M9 10V9",key:"1lazqi"}],["path",{d:"M9 16a5 5 0 016 0",key:"34mdxb"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],aliases:["frown"]};a.node;const n=e(a);export{a as __iconData,n as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/face-slightly-frowning-tm6UvbA1.js

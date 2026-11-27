@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/mouse-pointer-2-BMHzlC0F.js
+import{c as o}from"./index-C-yFU6-Y.js";const e={name:"mouse-pointer-2",size:24,node:[["path",{d:"M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z",key:"edeuup"}]]};e.node;const t=o(e);export{e as __iconData,t as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/mouse-pointer-2-DrLH04Ow.js
+import{c as o}from"./index-BeDEz9Xj.js";const e={name:"mouse-pointer-2",size:24,node:[["path",{d:"M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z",key:"edeuup"}]]};e.node;const t=o(e);export{e as __iconData,t as default};
+========
+import{c as o}from"./index-Cjbv4bp8.js";const e={name:"mouse-pointer-2",size:24,node:[["path",{d:"M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z",key:"edeuup"}]]};e.node;const t=o(e);export{e as __iconData,t as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/mouse-pointer-2-CYaPsC-N.js

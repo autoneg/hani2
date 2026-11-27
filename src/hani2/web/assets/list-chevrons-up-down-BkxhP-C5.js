@@ -1,0 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/list-chevrons-up-down-BKbAVv_g.js
+import{c as o}from"./index-C-yFU6-Y.js";const e={name:"list-chevrons-up-down",size:24,node:[["path",{d:"M3 5h8",key:"18g2rq"}],["path",{d:"M3 12h8",key:"1xfjp6"}],["path",{d:"M3 19h8",key:"fpbke4"}],["path",{d:"m15 8 3-3 3 3",key:"bc4io6"}],["path",{d:"m15 16 3 3 3-3",key:"9wmg1l"}]]};e.node;const a=o(e);export{e as __iconData,a as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/list-chevrons-up-down-Ch8WufTv.js
+import{c as o}from"./index-BeDEz9Xj.js";const e={name:"list-chevrons-up-down",size:24,node:[["path",{d:"M3 5h8",key:"18g2rq"}],["path",{d:"M3 12h8",key:"1xfjp6"}],["path",{d:"M3 19h8",key:"fpbke4"}],["path",{d:"m15 8 3-3 3 3",key:"bc4io6"}],["path",{d:"m15 16 3 3 3-3",key:"9wmg1l"}]]};e.node;const a=o(e);export{e as __iconData,a as default};
+========
+import{c as o}from"./index-Cjbv4bp8.js";const e={name:"list-chevrons-up-down",size:24,node:[["path",{d:"M3 5h8",key:"18g2rq"}],["path",{d:"M3 12h8",key:"1xfjp6"}],["path",{d:"M3 19h8",key:"fpbke4"}],["path",{d:"m15 8 3-3 3 3",key:"bc4io6"}],["path",{d:"m15 16 3 3 3-3",key:"9wmg1l"}]]};e.node;const a=o(e);export{e as __iconData,a as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/list-chevrons-up-down-BkxhP-C5.js

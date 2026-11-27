@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/chart-column-increasing-DYXVpZ5A.js
 import{c as e}from"./index-C-yFU6-Y.js";const a={name:"chart-column-increasing",size:24,node:[["path",{d:"M13 17V9",key:"1fwyjl"}],["path",{d:"M18 17V5",key:"sfb6ij"}],["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"M8 17v-3",key:"17ska0"}]],aliases:["bar-chart-4"]};a.node;const c=e(a);export{a as __iconData,c as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chart-column-increasing-RS7EDqHQ.js
+import{c as e}from"./index-BeDEz9Xj.js";const a={name:"chart-column-increasing",size:24,node:[["path",{d:"M13 17V9",key:"1fwyjl"}],["path",{d:"M18 17V5",key:"sfb6ij"}],["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"M8 17v-3",key:"17ska0"}]],aliases:["bar-chart-4"]};a.node;const c=e(a);export{a as __iconData,c as default};
+========
+import{c as e}from"./index-Cjbv4bp8.js";const a={name:"chart-column-increasing",size:24,node:[["path",{d:"M13 17V9",key:"1fwyjl"}],["path",{d:"M18 17V5",key:"sfb6ij"}],["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"M8 17v-3",key:"17ska0"}]],aliases:["bar-chart-4"]};a.node;const c=e(a);export{a as __iconData,c as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/chart-column-increasing-BOdA5_lv.js

@@ -1,1 +1,7 @@
+<<<<<<<< HEAD:src/hani2/web/assets/saudi-riyal-DkvzjzN1.js
 import{c as t}from"./index-C-yFU6-Y.js";const a={name:"saudi-riyal",size:24,node:[["path",{d:"M10 2.977v13.19a2 2 0 01-1.23 1.846L4 19.999",key:"1v3jsl"}],["path",{d:"M14 4v9.523a1 1 0 001.371.928L19 13",key:"nugghf"}],["path",{d:"m19 18-5 2",key:"1vcw15"}],["path",{d:"M19 8 4 14",key:"t5tnti"}]]};a.node;const d=t(a);export{a as __iconData,d as default};
+|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/saudi-riyal-HLqpXs41.js
+import{c as t}from"./index-BeDEz9Xj.js";const a={name:"saudi-riyal",size:24,node:[["path",{d:"M10 2.977v13.19a2 2 0 01-1.23 1.846L4 19.999",key:"1v3jsl"}],["path",{d:"M14 4v9.523a1 1 0 001.371.928L19 13",key:"nugghf"}],["path",{d:"m19 18-5 2",key:"1vcw15"}],["path",{d:"M19 8 4 14",key:"t5tnti"}]]};a.node;const d=t(a);export{a as __iconData,d as default};
+========
+import{c as t}from"./index-Cjbv4bp8.js";const a={name:"saudi-riyal",size:24,node:[["path",{d:"M10 2.977v13.19a2 2 0 01-1.23 1.846L4 19.999",key:"1v3jsl"}],["path",{d:"M14 4v9.523a1 1 0 001.371.928L19 13",key:"nugghf"}],["path",{d:"m19 18-5 2",key:"1vcw15"}],["path",{d:"M19 8 4 14",key:"t5tnti"}]]};a.node;const d=t(a);export{a as __iconData,d as default};
+>>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/saudi-riyal-CSBoG3nM.js
