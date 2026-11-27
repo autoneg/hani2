@@ -4,12 +4,14 @@ pinning, the Assistant's ``model_choice`` and ``own_models`` abilities, tools, t
 API. No network: model calls are faked."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
+import hani2
 from hani2 import connections as conns
 from hani2 import model_chain as mc
 from hani2 import projects
@@ -159,9 +161,9 @@ def test_session_pins_each_sequence_and_records_it(hani2_home, calls, monkeypatc
     from hani2.testing import make_session
 
     monkeypatch.setenv("HANI2_MODELS", "ollama:asst-model")
-    s = make_session()
+    s = make_session(assistant_settings={"capabilities": {"model_choice": True}})
     sa = s.support_agent
-    assert sa.capabilities.has("model_choice") and not sa.capabilities.has("own_models")  # the defaults
+    assert sa.capabilities.has("model_choice") and not sa.capabilities.has("own_models")
     assert {d["name"] for d in sa.model_sequences()} >= {"default", "judge", "tiny", "offline", "small"}
     assert sa.use_model_sequence("tiny") == {"ok": True, "sequence": "tiny", "model": "ollama-local:qwen3:0.6b"}
     sa._complete([], False)
@@ -182,18 +184,55 @@ def test_session_pins_each_sequence_and_records_it(hani2_home, calls, monkeypatc
     assert s.models.peek("tools", "tiny") is not None
 
 
-def test_model_choice_can_be_withheld(hani2_home, calls):
+def test_model_choice_off_by_default(hani2_home, calls):
+    from hani2.support_agent.settings import DEFAULT_ASSISTANT_SETTINGS, DEFAULT_CAPABILITIES
     from hani2.testing import make_session
 
-    s = make_session(assistant_settings={"capabilities": {"model_choice": False}})
+    assert DEFAULT_CAPABILITIES["model_choice"] is False and DEFAULT_CAPABILITIES["own_models"] is False
+    assert DEFAULT_ASSISTANT_SETTINGS["capabilities"]["model_choice"] is False
+    bundled = json.loads((Path(hani2.__file__).parent / "default_settings" / "assistant_settings.json").read_text())
+    assert bundled["capabilities"]["model_choice"] is False and bundled["capabilities"]["own_models"] is False
+
+    s = make_session()
     sa = s.support_agent
+    assert not sa.capabilities.has("model_choice") and not sa.capabilities.has("own_models")
+    names = [f["function"]["name"] for f in sa.dispatcher.schemas()]
+    assert not {"list_model_sequences", "use_model_sequence", "define_model_sequence"} & set(names)
     assert not sa.use_model_sequence("tiny")["ok"]
-    sa.model_sequence = "tiny"  # set by a subclass: ignored without the capability
+    sa.model_sequence = "tiny"  # switched at run time: ignored without the capability
     assert sa._sequence() == ""
     with pytest.raises(PermissionError):
         sa.ask_llm("x", sequence="tiny")
-    names = [f["function"]["name"] for f in sa.dispatcher.schemas()]
-    assert "use_model_sequence" not in names and "define_model_sequence" not in names
+
+    s = make_session(assistant_settings={"capabilities": {"model_choice": True}})
+    names = [f["function"]["name"] for f in s.support_agent.dispatcher.schemas()]
+    assert {"list_model_sequences", "use_model_sequence"} <= set(names)
+    assert "define_model_sequence" not in names
+    assert s.support_agent.dispatcher.execute("use_model_sequence", {"name": "tiny"})["ok"]
+
+
+def test_class_model_sequence_works_without_model_choice(hani2_home, calls, monkeypatch, tmp_path):
+    from hani2.testing import make_session
+
+    # the author's choice in code (``tiny``: deterministic without keys; ``small`` works the same)
+    (tmp_path / "seq_author_agent.py").write_text(
+        "from hani2.assistant import Assistant\n\n\n"
+        "class TinyAssistant(Assistant):\n    model_sequence = 'tiny'\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv("HANI2_MODELS", "ollama:asst-model")
+    s = make_session(agent_class="seq_author_agent:TinyAssistant")
+    sa = s.support_agent
+    assert type(sa).__name__ == "TinyAssistant" and not sa.capabilities.has("model_choice")
+    assert sa._sequence() == "tiny"
+    sa._complete([], False)
+    assert calls[-1]["model"] == "ollama_chat/qwen3:0.6b"
+    assert s.models.peek("assistant", "tiny").sequence == "tiny"
+    assert sa.ask_llm("hi") == "ok" and calls[-1]["model"] == "ollama_chat/qwen3:0.6b"
+    # it still cannot switch to another sequence, nor can its language model
+    assert not sa.use_model_sequence("offline")["ok"] and sa.model_sequence == "tiny"
+    with pytest.raises(PermissionError):
+        sa.ask_llm("x", sequence="offline")
+    assert "use_model_sequence" not in [f["function"]["name"] for f in sa.dispatcher.schemas()]
 
 
 def test_own_models_off_by_default_and_secret_when_on(hani2_home, calls):

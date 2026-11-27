@@ -94,7 +94,7 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "private_info": True,
     "opponent_model": True,
     "opponent_utility": False,
-    "model_choice": True,
+    "model_choice": False,
     "own_models": False,
 }
 

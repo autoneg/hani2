@@ -125,7 +125,8 @@ class SupportAgent:
     #: The named model sequence this Assistant's replies use (``""``: the study's ``assistant``
     #: chain). Any sequence the study offers: ``default``, ``tiny``, ``offline``, ``small``,
     #: ``medium``, ``large`` or one the admin (or, with ``own_models``, this Assistant) defined.
-    #: Needs the ``model_choice`` capability; see :meth:`use_model_sequence`.
+    #: Set here by the Assistant's author, it applies without the ``model_choice`` capability
+    #: (which only lets the Assistant switch sequences at run time; see :meth:`use_model_sequence`).
     model_sequence: str = ""
 
     def __init__(self, session_state: dict[str, Any], settings: dict):
@@ -976,10 +977,14 @@ class SupportAgent:
         return self._resolve_model()
 
     def _sequence(self, sequence: str | None = None) -> str:
-        """The sequence a call uses: ``sequence``, else :attr:`model_sequence` (only with ``model_choice``)."""
+        """The sequence a call uses: ``sequence``, else :attr:`model_sequence`. Without ``model_choice``
+        only the class's own :attr:`model_sequence` (its author's choice) and, with ``own_models``,
+        its own sequences are used; any other name falls back to the ``assistant`` chain."""
         from hani2 import model_chain
 
         name = self.model_sequence if sequence is None else sequence
+        if name and name == type(self).model_sequence:
+            return name  # set in code by the Assistant's author: no capability needed
         if name and not self.capabilities.has(Capability.MODEL_CHOICE):
             # its own sequences need only own_models
             models = model_chain.models_of(self.session_state)

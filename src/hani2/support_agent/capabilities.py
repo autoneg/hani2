@@ -80,7 +80,7 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
                          "ablation (the information ceiling), off by default and never shown to the participant"),
     "model_choice": ("Choose its language models",
                      "Pick one of the study's named model sequences (default, tiny, offline, small, medium, large, "
-                     "…) for its replies and for any other task that uses a language model"),
+                     "…) for its replies and for any other task that uses a language model — off by default"),
     "own_models": ("Bring its own language models",
                    "Define its own model sequences for the session, signed in with its own keys or servers — "
                    "off by default"),

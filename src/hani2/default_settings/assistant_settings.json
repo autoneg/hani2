@@ -34,7 +34,7 @@
     "private_info": true,
     "opponent_model": true,
     "opponent_utility": false,
-    "model_choice": true,
+    "model_choice": false,
     "own_models": false
   },
   "proactive": {
