@@ -96,10 +96,12 @@ A **score** is a weighted mean of criteria:
 4. **Same parts for everyone.** On a board, a component present in fewer than `min_coverage` of
    some entrant's games is dropped for every entrant.
 
-A score is in $[0, 1]$, so it can be part of another score (no cycles). The built-in scores have two
-rules of their own that the file format does not have: `zero_if` (the score is 0 when a column is 1,
-e.g. the opponent failed) and `needs_assistant` (the score is empty for a game without an
-Assistant). How to write a score is in [Project management: scores](project-management.md#defining-a-score).
+5. **Rules.** `zero_if` gives the game 0 (with coverage 1) when one of the listed criteria is 1 (an
+   opponent that failed); `needs_assistant: true` leaves a game without an Assistant without a value
+   (see [Rules for failures and sessions without an Assistant](project-management.md#rules-for-failures-and-sessions-without-an-assistant)).
+
+A score is in $[0, 1]$, so it can be part of another score (no cycles). How to write a score is in
+[Project management: scores](project-management.md#defining-a-score).
 
 ### Built-in scores
 

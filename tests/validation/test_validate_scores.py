@@ -334,11 +334,26 @@ def test_defined_score_contains_a_score():
     check(out, {"mixed": 0.4, "mixed_coverage": 0.5, "hi_team": None})
 
 
-def test_defined_score_has_no_zero_if():
-    # zero_if is a built-in feature only: the definition format (SCORE_KEYS) refuses it
-    sc, problems, _ = S.parse_definition("zz", {"zero_if": ["opponent_failed"],
-                                                "components": [{"criterion": "human_advantage", "weight": 1}]})
-    assert sc is None and any("zero_if" in p for p in problems)
+def test_defined_score_zero_if_and_needs_assistant():
+    # The documented rules (project-management.md, "Rules for failures and sessions without an Assistant"):
+    # zero_if -> 0 with coverage 1 when a listed criterion is 1; needs_assistant -> no value, no coverage
+    # without an Assistant. Otherwise the usual weighted mean: human_advantage .6 (w .5) and
+    # irrational_accept 0 (lower, bounded [0, 1] -> 1 - 0 = 1; w .5) -> .5 * .6 + .5 * 1 = .8.
+    ss = defined("rules", {"zero_if": ["opponent_failed"], "needs_assistant": True, "components": [
+        {"criterion": "human_advantage", "weight": 0.5}, {"criterion": "irrational_accept", "weight": 0.5}]})
+    sc = ss.scores["rules"]
+    base = {"human_advantage": 0.6, "irrational_accept": 0, "support_agent": "A"}
+    cases = {
+        "usual": (base, (0.8, 1.0)),
+        "failed": ({**base, "opponent_failed": 1}, (0.0, 1.0)),
+        "not_failed": ({**base, "opponent_failed": 0}, (0.8, 1.0)),
+        "no_assistant": ({**base, "support_agent": "none"}, (None, None)),
+        "no_assistant_and_failed": ({**base, "support_agent": "none", "opponent_failed": 1}, (None, None)),
+    }
+    for name, (row, (value, cov)) in cases.items():
+        v, c = S.compute(sc, row)
+        expected = {"rules": value, "rules_coverage": cov}
+        check({"rules": v, "rules_coverage": c}, expected)
 
 
 # --------------------------------------------------------------------------- #
