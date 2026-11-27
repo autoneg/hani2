@@ -1,0 +1,88 @@
+# Per-negotiation questionnaire.
+#
+# Shown by HANI immediately after each finished negotiation, before
+# the next one can start. Applies in Prolific mode only (regular
+# /hanplay guest users see no questionnaires).
+#
+# Storage: appended to
+#   ~/negmas/hani/db/prolific_<PID>/negotiation_questionnaires.csv
+# with one row per negotiation, joinable to results.csv via the
+# mechanism_id column.
+#
+# Same schema as pre_session.yaml; see that file for the full schema
+# reference. Keep this list short -- 6 questions x 5 negotiations is
+# already 30 inputs per session.
+version: "2026-05-19"
+title: "About the negotiation you just finished"
+intro: >
+  Quick check before the next round.
+
+questions:
+  - id: agent_strategy
+    text: "How would you describe the agent's strategy this round?"
+    type: select
+    options: [Cooperative, Competitive, Random, "Couldn't tell"]
+    required: true
+
+  - id: agent_employability
+    text: "How likely is it for you to employ your opponent agent to negotiate in your behalf?"
+    type: select
+    options: [Very Unlikely, Unlikely, "Couldn't tell", Likely, Very Likely]
+    required: true
+
+  - id: agent_intelligenct
+    text: "How intelligent was your opponent in this negotiation?"
+    type: select
+    options:
+      ["Very Stupid", "Stupid", "Neither", "Intelligent", "Very Intelligent"]
+    required: true
+
+  - id: agent_skill
+    text: "How skilled was your opponent in this negotiation?"
+    type: select
+    options:
+      ["Very Unskilled", "Unskilled", "Neither", "Skilled", "Very Skilled"]
+    required: true
+
+  - id: agent_engagement
+    text: "How engaging was this negotiation?"
+    type: select
+    options: ["Not at all", "A little", "Neutral", "Engaging", "Very Engaging"]
+    required: true
+
+  - id: agent_text_useful
+    text: "Did the agent's text messages (if any) influence your decisions?"
+    type: select
+    options: ["No text", "Yes, helpful", "Yes, misleading", "Ignored them"]
+    required: true
+
+  - id: agent_time
+    text: "To what extend did you consider the time-limit during the negotiation?"
+    type: likert5
+    labels:
+      1: "Not At All"
+      3: "Moderate"
+      5: "Very Much"
+    required: true
+
+  - id: agent_opponent_behavior
+    text: "To what extend did you consider the opponent offers during the negotiation"
+    type: likert5
+    labels:
+      1: "Not At All"
+      3: "Moderate"
+      5: "Very Much"
+    required: true
+
+  - id: satisfaction_with_outcome
+    text: "How satisfied are you with the outcome of this negotiation?"
+    type: likert5
+    labels:
+      1: "Very dissatisfied"
+      5: "Very satisfied"
+    required: true
+
+  - id: comment
+    text: "Anything specific about this negotiation? (Optional, one line.)"
+    type: text
+    required: false

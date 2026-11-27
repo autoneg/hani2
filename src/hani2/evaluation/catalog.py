@@ -292,6 +292,7 @@ class QuestionnaireInfo:
     url: str = ""  #: a link to the source (only where certain)
     validated_by: str = ""  #: the test that checks it against the source instrument
     note: str = ""  #: adaptations, what was checked, or why it is not validated
+    competition: str = ""  #: the competition that asked these questions (its own section in the docs)
 
 
 _Q = _T + "test_validate_questionnaires.py::"
@@ -396,6 +397,33 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
     "session_feedback": QuestionnaireInfo(
         "The whole session: how the Assistants differed and helped, the interface, technical problems, comments.", "",
         "", "", "Own items; there is no source instrument."),
+    # the questionnaires of human-agent negotiation competitions, as asked
+    "HAN2026-PreSession": QuestionnaireInfo(
+        "HAN 2026, once before the first session: negotiation experience, familiarity with AI, own skill and the "
+        "skill expected of the opponents.",
+        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+    "HAN2026-PostNegotiation": QuestionnaireInfo(
+        "HAN 2026, after each negotiation: the opponent's strategy, intelligence and skill, employability, "
+        "engagement, its messages, time pressure and satisfaction with the outcome.",
+        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+    "HAN2026-PostSession": QuestionnaireInfo(
+        "HAN 2026, after each session: ease of use, engagement and the usefulness of each interface tool.",
+        "Questionnaires of the HAN 2026 human-agent negotiation competition.", "", "", "Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.", "HAN 2026"),
+    "HAN2025-PreStudy": QuestionnaireInfo(
+        "HAN 2025, once before any negotiation: background, expertise and expectations about the system and AI "
+        "negotiators.",
+        "Human-Agent Negotiation League Pre-study Questionnaire (HAN 2025).", "https://forms.gle/c4tNxYof1Gm7ezmC7", "",
+        "Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).", "HAN 2025"),
+    "HAN2025-PostSession": QuestionnaireInfo(
+        "HAN 2025, after every session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and "
+        "predictability, support and expectations about AI negotiators.",
+        "Human-Agent Negotiation League Post-session Questionnaire (HAN 2025).", "https://forms.gle/qT8VtQYrV5RuodML6",
+        "", "Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).", "HAN 2025"),
+    "HAN2025-PostStudy": QuestionnaireInfo(
+        "HAN 2025, once after the whole competition: the post-session questions, understanding of the scenario, "
+        "comments and strategy.",
+        "Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).", "https://forms.gle/HEmb2CpruFD8aUvt8",
+        "", "Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).", "HAN 2025"),
     # the bundled named forms (``HANI2_PER_NEG_YAML=evaluation``, ``"pre_questionnaire": "expertise"``)
     "evaluation": QuestionnaireInfo(
         "The evaluation questionnaire after each negotiation: satisfaction, enjoyment, UEQ items, TAM usefulness, "

@@ -1,0 +1,16 @@
+id: HAN2026-PostNegotiation
+title: HAN2026-PostNegotiation
+description: 'The questions HAN 2026 asked after each negotiation: the opponent''s strategy, intelligence and skill, whether the participant would employ it, engagement, the influence of its messages, the time limit and the opponent''s offers, satisfaction with the outcome, and a comment.'
+reference: "Questionnaires of the HAN 2026 human-agent negotiation competition"
+forms: [per_negotiation]
+questions:
+  - {id: agent_strategy, text: 'How would you describe the agent''s strategy this round?', type: select, options: [Cooperative, Competitive, Random, Couldn't tell], required: true}
+  - {id: agent_employability, text: 'How likely is it for you to employ your opponent agent to negotiate in your behalf?', type: select, options: [Very Unlikely, Unlikely, Couldn't tell, Likely, Very Likely], required: true}
+  - {id: agent_intelligenct, text: 'How intelligent was your opponent in this negotiation?', type: select, options: [Very Stupid, Stupid, Neither, Intelligent, Very Intelligent], required: true}
+  - {id: agent_skill, text: 'How skilled was your opponent in this negotiation?', type: select, options: [Very Unskilled, Unskilled, Neither, Skilled, Very Skilled], required: true}
+  - {id: agent_engagement, text: 'How engaging was this negotiation?', type: select, options: [Not at all, A little, Neutral, Engaging, Very Engaging], required: true}
+  - {id: agent_text_useful, text: 'Did the agent''s text messages (if any) influence your decisions?', type: select, options: [No text, 'Yes, helpful', 'Yes, misleading', Ignored them], required: true}
+  - {id: agent_time, text: 'To what extend did you consider the time-limit during the negotiation?', type: likert5, labels: {1: Not At All, 3: Moderate, 5: Very Much}, required: true}
+  - {id: agent_opponent_behavior, text: To what extend did you consider the opponent offers during the negotiation, type: likert5, labels: {1: Not At All, 3: Moderate, 5: Very Much}, required: true}
+  - {id: satisfaction_with_outcome, text: 'How satisfied are you with the outcome of this negotiation?', type: likert5, labels: {1: Very dissatisfied, 5: Very satisfied}, required: true}
+  - {id: comment, text: 'Anything specific about this negotiation? (Optional, one line.)', type: text, required: false}

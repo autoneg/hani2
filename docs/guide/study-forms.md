@@ -137,6 +137,14 @@ HANI2 comes with complete question sets for questionnaires commonly used in huma
 | `ai_experience` | 4 | pre-questionnaire | Use of and experience with AI assistants, expected reliance, general trust in AI |
 | `demographics` | 4 | pre-questionnaire, post-session | Age range, gender, education, English level |
 | `attention_check` | 1 | after each negotiation, post-session | One instructed-response item |
+| `HAN2026-PreSession` | 4 | pre-questionnaire | HAN 2026, as asked: negotiation experience, familiarity with AI, own skill, expected skill of the opponents |
+| `HAN2026-PostNegotiation` | 10 | after each negotiation | HAN 2026, as asked: the opponent's strategy, intelligence and skill, would employ it, engagement, its messages, time limit, its offers, satisfaction, comment |
+| `HAN2026-PostSession` | 8 | post-session | HAN 2026, as asked: ease of use, engagement, usefulness of each interface tool, comments |
+| `HAN2025-PreStudy` | 19 | pre-questionnaire | HAN 2025, as asked once before any negotiation: background, expertise, expectations about the system and AI negotiators |
+| `HAN2025-PostSession` | 13 | post-session | HAN 2025, as asked after every session: enjoyment, ease, the opponent, support, expectations |
+| `HAN2025-PostStudy` | 17 | post-session | HAN 2025, as asked after the whole competition: the post-session questions, understanding of the scenario, comments, strategy |
+
+The `HAN…` sets repeat the questionnaires of the HAN human-agent negotiation competitions exactly as asked (their typos included), so a study can compare its answers with the competition's; their question ids are kept, so `HAN2026-PostSession`'s `comments` is skipped in a form that already has `session_feedback`. The HAN 2025 forms were Google Forms: the sets leave out their identification items (user name, session, date, number of negotiations), keep a question asked twice once, and turn the expertise grid into one question per field.
 
 Check the wording of a published instrument against its source before a study, and cite the source in your paper. Prolific already records most demographics and has its own rules for attention checks; ask only what you need.
 

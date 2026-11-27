@@ -1,0 +1,103 @@
+# Post-session questionnaire.
+#
+# Shown after EVERY session ends, before the participant can return
+# to Prolific. Three sessions -> three saved rows.
+#
+# Same schema as pre_session.yaml; see that file for the full schema
+# reference.
+version: "2026-05-19"
+title: "After the session"
+intro: >
+  Short questions about the session you just finished (all negotiations). Your
+  answers are saved with this session only and do not affect your
+  bonus.
+
+questions:
+  - id: ease_of_use
+    text: "How easy was the negotiation interface to use?"
+    type: likert5
+    labels:
+      1: "Very difficult"
+      5: "Very easy"
+    required: true
+
+  - id: engagement
+    text: "How engaging did you find the negotiation task?"
+    type: likert5
+    labels:
+      1: "Not at all engaging"
+      5: "Very engaging"
+    required: true
+
+  # --- Usefulness ratings for the on-screen support tools ------------
+  # The first five questions cover the tabs in the bottom-left support
+  # panel (Preferences, Scenario Info, Utility Plot, Outcome Plot, Value
+  # Histogram, Trace). The last one covers the outcome-sampling helper
+  # on the right side beside the action panel ("Utility-based Selector").
+  # Every question offers "I did not use this tool" as an explicit
+  # option so non-use is recorded separately from low usefulness.
+
+  - id: tool_preferences
+    text: "How useful was the Preferences tab (your utility weights / preferences) during the session?"
+    type: select
+    options:
+      - "I did not use this tool"
+      - "Not useful at all"
+      - "Slightly useful"
+      - "Moderately useful"
+      - "Very useful"
+      - "Extremely useful"
+    required: true
+
+  - id: tool_scenario_info
+    text: "How useful was the Scenario Info tab (description of the scenario you were bargaining over)?"
+    type: select
+    options:
+      - "I did not use this tool"
+      - "Not useful at all"
+      - "Slightly useful"
+      - "Moderately useful"
+      - "Very useful"
+      - "Extremely useful"
+    required: true
+
+  - id: tool_value_histogram
+    text: "How useful was the Value Histogram tab (distribution of issue values you've offered/received)?"
+    type: select
+    options:
+      - "I did not use this tool"
+      - "Not useful at all"
+      - "Slightly useful"
+      - "Moderately useful"
+      - "Very useful"
+      - "Extremely useful"
+    required: true
+
+  - id: tool_trace
+    text: "How useful was the Trace tab (full history of offers and messages)?"
+    type: select
+    options:
+      - "I did not use this tool"
+      - "Not useful at all"
+      - "Slightly useful"
+      - "Moderately useful"
+      - "Very useful"
+      - "Extremely useful"
+    required: true
+
+  - id: tool_utility_selector
+    text: "How useful was the outcome-sampling helper on the right side (the Utility-based Selector that lets you generate offers at a target utility)?"
+    type: select
+    options:
+      - "I did not use this tool"
+      - "Not useful at all"
+      - "Slightly useful"
+      - "Moderately useful"
+      - "Very useful"
+      - "Extremely useful"
+    required: true
+
+  - id: comments
+    text: "Anything else you would like to tell us about this session? (Optional.)"
+    type: text
+    required: false

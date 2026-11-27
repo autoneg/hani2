@@ -18,6 +18,12 @@ Pick them on the admin console's **Study forms** page (**Add predefined question
 | [Trust in automation (Jian et al.), 12 items](#trust-in-automation) | `trust_in_automation` | 12 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_trust_in_automation_matches_source">✓</abbr> | [link](https://doi.org/10.1207/S15327566IJCE0401_04) |
 | [UEQ, 8 items (the evaluation selection)](#ueq-eval) | `ueq_eval` | 8 |  | [link](https://www.ueq-online.org/) |
 | [UEQ-S (short User Experience Questionnaire)](#ueq-s) | `ueq_s` | 8 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_ueq_s_matches_source">✓</abbr> | [link](https://doi.org/10.9781/ijimai.2017.09.001) |
+| [HAN2026-PreSession](#HAN2026-PreSession) | `HAN2026-PreSession` | 4 |  | yes |
+| [HAN2026-PostNegotiation](#HAN2026-PostNegotiation) | `HAN2026-PostNegotiation` | 10 |  | yes |
+| [HAN2026-PostSession](#HAN2026-PostSession) | `HAN2026-PostSession` | 8 |  | yes |
+| [HAN2025-PreStudy](#HAN2025-PreStudy) | `HAN2025-PreStudy` | 19 |  | [link](https://forms.gle/c4tNxYof1Gm7ezmC7) |
+| [HAN2025-PostSession](#HAN2025-PostSession) | `HAN2025-PostSession` | 13 |  | [link](https://forms.gle/qT8VtQYrV5RuodML6) |
+| [HAN2025-PostStudy](#HAN2025-PostStudy) | `HAN2025-PostStudy` | 17 |  | [link](https://forms.gle/HEmb2CpruFD8aUvt8) |
 | [Experience with AI assistants](#ai-experience) | `ai_experience` | 4 |  | own items |
 | [Use of and reliance on the Assistant](#assistant-reliance) | `assistant_reliance` | 4 |  | own items |
 | [Attention check](#attention-check) | `attention_check` | 1 |  | own items |
@@ -247,6 +253,171 @@ Scales: `ueqs_pragmatic` (4 items), `ueqs_hedonic` (4 items) — each the mean o
 | 6 | `ueqs_interesting` | The assistant was … *(only with an Assistant)* | 1–7 (1 = not interesting, 7 = interesting) | `ueqs_hedonic` |
 | 7 | `ueqs_inventive` | The assistant was … *(only with an Assistant)* | 1–7 (1 = conventional, 7 = inventive) | `ueqs_hedonic` |
 | 8 | `ueqs_leading_edge` | The assistant was … *(only with an Assistant)* | 1–7 (1 = usual, 7 = leading edge) | `ueqs_hedonic` |
+
+## Questionnaires of negotiation competitions
+
+The questions that human-agent negotiation competitions asked their participants, as asked (typos included), so that a study can repeat them and compare with the competition's results. They are not validated instruments.
+
+### HAN2026-PreSession {#HAN2026-PreSession}
+
+Id `HAN2026-PreSession` · 4 questions · for: `pre_questionnaire`
+
+**Measures:** HAN 2026, once before the first session: negotiation experience, familiarity with AI, own skill and the skill expected of the opponents.
+
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+
+**Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `experience_negotiation` | How much prior experience do you have negotiating in everyday life (e.g. salary, prices, agreements)? | 1–5 (1 = None, 5 = A great deal) |  |
+| 2 | `experience_ai` | How familiar are you with AI / chatbot systems? | 1–5 (1 = Not at all familiar, 5 = Very familiar) |  |
+| 3 | `self_skill` | How skilled are you as a negotiator? | Very Unskilled · Unskilled · Neither · Skilled · Very Skilled |  |
+| 4 | `session_expectation` | How skilled do you expect your opponent agents as negotiators? | Very Unskilled · Unskilled · Neither · Skilled · Very Skilled |  |
+
+### HAN2026-PostNegotiation {#HAN2026-PostNegotiation}
+
+Id `HAN2026-PostNegotiation` · 10 questions · for: `per_negotiation`
+
+**Measures:** HAN 2026, after each negotiation: the opponent's strategy, intelligence and skill, employability, engagement, its messages, time pressure and satisfaction with the outcome.
+
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+
+**Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `agent_strategy` | How would you describe the agent's strategy this round? | Cooperative · Competitive · Random · Couldn't tell |  |
+| 2 | `agent_employability` | How likely is it for you to employ your opponent agent to negotiate in your behalf? | Very Unlikely · Unlikely · Couldn't tell · Likely · Very Likely |  |
+| 3 | `agent_intelligenct` | How intelligent was your opponent in this negotiation? | Very Stupid · Stupid · Neither · Intelligent · Very Intelligent |  |
+| 4 | `agent_skill` | How skilled was your opponent in this negotiation? | Very Unskilled · Unskilled · Neither · Skilled · Very Skilled |  |
+| 5 | `agent_engagement` | How engaging was this negotiation? | Not at all · A little · Neutral · Engaging · Very Engaging |  |
+| 6 | `agent_text_useful` | Did the agent's text messages (if any) influence your decisions? | No text · Yes, helpful · Yes, misleading · Ignored them |  |
+| 7 | `agent_time` | To what extend did you consider the time-limit during the negotiation? | 1–5 (1 = Not At All, 3 = Moderate, 5 = Very Much) |  |
+| 8 | `agent_opponent_behavior` | To what extend did you consider the opponent offers during the negotiation | 1–5 (1 = Not At All, 3 = Moderate, 5 = Very Much) |  |
+| 9 | `satisfaction_with_outcome` | How satisfied are you with the outcome of this negotiation? | 1–5 (1 = Very dissatisfied, 5 = Very satisfied) |  |
+| 10 | `comment` | Anything specific about this negotiation? (Optional, one line.) | free text |  |
+
+### HAN2026-PostSession {#HAN2026-PostSession}
+
+Id `HAN2026-PostSession` · 8 questions · for: `post_session`
+
+**Measures:** HAN 2026, after each session: ease of use, engagement and the usefulness of each interface tool.
+
+**Source:** Questionnaires of the HAN 2026 human-agent negotiation competition.
+
+**Validation:** Not validated: the questions as asked in HAN 2026 (from the competition's form files), not a validated instrument; typos are kept as asked.
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `ease_of_use` | How easy was the negotiation interface to use? | 1–5 (1 = Very difficult, 5 = Very easy) |  |
+| 2 | `engagement` | How engaging did you find the negotiation task? | 1–5 (1 = Not at all engaging, 5 = Very engaging) |  |
+| 3 | `tool_preferences` | How useful was the Preferences tab (your utility weights / preferences) during the session? | I did not use this tool · Not useful at all · Slightly useful · Moderately useful · Very useful · Extremely useful |  |
+| 4 | `tool_scenario_info` | How useful was the Scenario Info tab (description of the scenario you were bargaining over)? | I did not use this tool · Not useful at all · Slightly useful · Moderately useful · Very useful · Extremely useful |  |
+| 5 | `tool_value_histogram` | How useful was the Value Histogram tab (distribution of issue values you've offered/received)? | I did not use this tool · Not useful at all · Slightly useful · Moderately useful · Very useful · Extremely useful |  |
+| 6 | `tool_trace` | How useful was the Trace tab (full history of offers and messages)? | I did not use this tool · Not useful at all · Slightly useful · Moderately useful · Very useful · Extremely useful |  |
+| 7 | `tool_utility_selector` | How useful was the outcome-sampling helper on the right side (the Utility-based Selector that lets you generate offers at a target utility)? | I did not use this tool · Not useful at all · Slightly useful · Moderately useful · Very useful · Extremely useful |  |
+| 8 | `comments` | Anything else you would like to tell us about this session? (Optional.) | free text |  |
+
+### HAN2025-PreStudy {#HAN2025-PreStudy}
+
+Id `HAN2025-PreStudy` · 19 questions · for: `pre_questionnaire`
+
+**Measures:** HAN 2025, once before any negotiation: background, expertise and expectations about the system and AI negotiators.
+
+**Source:** [Human-Agent Negotiation League Pre-study Questionnaire (HAN 2025).](https://forms.gle/c4tNxYof1Gm7ezmC7)
+
+**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `han2025_age` | What is your age? | 18-25 · 25-30 · 30-35 · 40+ |  |
+| 2 | `han2025_country` | What is your country of residence? | free text |  |
+| 3 | `han2025_degree` | What is your latest degree? | free text |  |
+| 4 | `han2025_prior_study` | Did you participate in any study in which you negotiated with a human or machine? If yes, explain briefly. | free text |  |
+| 5 | `han2025_expertise_ai` | Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Artificial Intelligence | Expert · Beginner · Layman |  |
+| 6 | `han2025_expertise_game_theory` | Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Game Theory | Expert · Beginner · Layman |  |
+| 7 | `han2025_expertise_economics` | Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Economics | Expert · Beginner · Layman |  |
+| 8 | `han2025_expertise_business` | Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Business | Expert · Beginner · Layman |  |
+| 9 | `han2025_expertise_automated_negotiation` | Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Automated Negotiation | Expert · Beginner · Layman |  |
+| 10 | `han2025_expect_enjoyable` | (7) How enjoyable do you expect the negotiation with our system (5 = most enjoyable)? | 1–5 |  |
+| 11 | `han2025_expect_easy` | How easy do you expect the negotiation with our system (5 = easiest)? | 1–5 |  |
+| 12 | `han2025_expect_usable` | How usable do you expect our system to be (5 = most usable)? | 1–5 |  |
+| 13 | `han2025_expect_humanlike` | How human-like do you expect your AI negotiation partner to b (5 = most human-like)? | 1–5 |  |
+| 14 | `han2025_expect_ai_negotiating` | How effective do you expect an AI negotiation system in negotiating with human partners (5 = most effective)? | 1–5 |  |
+| 15 | `han2025_expect_ai_supporting` | How effective do you expect an AI negotiation system in supporting its own human user (5 = most effective)? | 1–5 |  |
+| 16 | `han2025_expect_high_utility` | How confident are you in achieving high utilities (scores) when negotiating with our system (5 = most confident)? | 1–5 |  |
+| 17 | `han2025_expect_structured_offers` | How effective do you expect structured offers in human-agent negotiation (5 = most effective)? | 1–5 |  |
+| 18 | `han2025_expect_natural_language` | How effective do you expect allowing natural language interaction in human-agent negotiation (5 = most effective)? | 1–5 |  |
+| 19 | `han2025_expect_fairness` | How fair do you expect the results of negotiations with an AI be? (0 = fair)? | (-2) highly biased towards the AI · (-1) slightly biased towards the AI · (0) fair · (1) slightly biased towards the human · (2) highly biased towards the human |  |
+
+### HAN2025-PostSession {#HAN2025-PostSession}
+
+Id `HAN2025-PostSession` · 13 questions · for: `post_session`
+
+**Measures:** HAN 2025, after every session: enjoyment, ease, the opponent's human-likeness, intelligence, speed and predictability, support and expectations about AI negotiators.
+
+**Source:** [Human-Agent Negotiation League Post-session Questionnaire (HAN 2025).](https://forms.gle/qT8VtQYrV5RuodML6)
+
+**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `han2025_enjoyable` | How enjoyable was the negotiation with our system (5 = most enjoyable)? | 1–5 |  |
+| 2 | `han2025_easy` | How easy was the negotiation with our system (5 = easiest)? | 1–5 |  |
+| 3 | `han2025_humanlike` | How human-like was your AI negotiation partner to b (5 = most human-like)? | 1–5 |  |
+| 4 | `han2025_helpful_support` | How helpful is our system as a negotiation support system (5 = most helpful)? | 1–5 |  |
+| 5 | `han2025_useful_tools` | Which tools were most useful for you in supporting your negotiation? | free text |  |
+| 6 | `han2025_opponent_intelligent` | How intelligent was our system as a negotiator against you (5 = most intelligent)? | 1–5 |  |
+| 7 | `han2025_opponent_fast` | How fast was our system as a negotiator against you (5 = fastest)? | 1–5 |  |
+| 8 | `han2025_opponent_predictable` | How predictable was the performance of our system as a negotiator against you (5 = most predictable)? | 1–5 |  |
+| 9 | `han2025_expect_ai_negotiating` | How effective do you expect an AI negotiation system in negotiating with human partners (5 = most effective)? | 1–5 |  |
+| 10 | `han2025_expect_ai_supporting` | How effective do you expect an AI negotiation system in supporting its own human user (5 = most effective)? | 1–5 |  |
+| 11 | `han2025_expect_high_utility` | How confident are you in achieving high utilities (scores) when negotiating with our system (5 = most confident)? | 1–5 |  |
+| 12 | `han2025_expect_structured_offers` | How effective do you expect structured offers in human-agent negotiation (5 = most effective)? | 1–5 |  |
+| 13 | `han2025_expect_natural_language` | How effective do you expect allowing natural language interaction in human-agent negotiation (5 = most effective)? | 1–5 |  |
+
+### HAN2025-PostStudy {#HAN2025-PostStudy}
+
+Id `HAN2025-PostStudy` · 17 questions · for: `post_session`
+
+**Measures:** HAN 2025, once after the whole competition: the post-session questions, understanding of the scenario, comments and strategy.
+
+**Source:** [Human-Agent Negotiation League Post-study Questionnaire (HAN 2025).](https://forms.gle/HEmb2CpruFD8aUvt8)
+
+**Validation:** Not validated: the questions of the competition's Google Form as asked, not a validated instrument; converted to HANI2 question types (see the description).
+
+Scales: none (single items).
+
+| # | Id | Question | Answer | Scale |
+| --- | --- | --- | --- | --- |
+| 1 | `han2025_enjoyable` | How enjoyable was the negotiation with our system (5 = most enjoyable)? | 1–5 |  |
+| 2 | `han2025_easy_understanding` | How easy was understanding the negotiation scenario and your preferences (5 = easiest)? | 1–5 |  |
+| 3 | `han2025_easy` | How easy was the negotiation with our system (5 = easiest)? | 1–5 |  |
+| 4 | `han2025_humanlike` | How human-like was your AI negotiation partner to b (5 = most human-like)? | 1–5 |  |
+| 5 | `han2025_understood_confident` | How confident are you that you fully understood the description of the negotiation scenario and your preferences (5 = most confident)? | 1–5 |  |
+| 6 | `han2025_helpful_support` | How helpful is our system as a negotiation support system (5 = most helpful)? | 1–5 |  |
+| 7 | `han2025_useful_tools` | Which tools were most useful for you in supporting your negotiation? | free text |  |
+| 8 | `han2025_opponent_intelligent` | How intelligent was our system as a negotiator against you (5 = most intelligent)? | 1–5 |  |
+| 9 | `han2025_opponent_fast` | How fast was our system as a negotiator against you (5 = fastest)? | 1–5 |  |
+| 10 | `han2025_opponent_predictable` | How predictable was the performance of our system as a negotiator against you (5 = most predictable)? | 1–5 |  |
+| 11 | `han2025_expect_ai_negotiating` | How effective do you expect an AI negotiation system in negotiating with human partners (5 = most effective)? | 1–5 |  |
+| 12 | `han2025_expect_ai_supporting` | How effective do you expect an AI negotiation system in supporting its own human user (5 = most effective)? | 1–5 |  |
+| 13 | `han2025_expect_high_utility` | How confident are you in achieving high utilities (scores) when negotiating with our system (5 = most confident)? | 1–5 |  |
+| 14 | `han2025_expect_structured_offers` | How effective do you expect structured offers in human-agent negotiation (5 = most effective)? | 1–5 |  |
+| 15 | `han2025_expect_natural_language` | How effective do you expect allowing natural language interaction in human-agent negotiation (5 = most effective)? | 1–5 |  |
+| 16 | `han2025_comments` | Please freely add any comments, challenges, suggestions, or thoughts about your experience in this competition. | free text |  |
+| 17 | `han2025_strategy` | Please describe your strategy for conducting negotiations. Any tips that can be helpful for negotiating with AI agents that you learned or tested in your negotiations with our systems are highly appreciated | free text |  |
 
 ## HANI2's own question sets
 

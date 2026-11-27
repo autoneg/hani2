@@ -262,8 +262,14 @@ def questionnaires_markdown() -> str:
     for p in sorted((DEFAULT_SETTINGS_DIR / Q.LIBRARY_DIR).glob("*.y*ml")):
         d = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
         lib[str(d.get("id") or p.stem)] = d
-    sourced = [k for k in lib if (C.questionnaire_info(k) and C.questionnaire_info(k).citation)]
-    own = [k for k in lib if k not in sourced]
+    def info(k):
+        return C.questionnaire_info(k)
+
+    competition = sorted((k for k in lib if info(k) and info(k).competition),
+                         key=lambda k: (-int("".join(filter(str.isdigit, info(k).competition)) or 0),
+                                        [list(Q.FORMS).index(f) for f in lib[k].get("forms") or [] if f in Q.FORMS], k))
+    sourced = [k for k in lib if k not in competition and info(k) and info(k).citation]
+    own = [k for k in lib if k not in sourced and k not in competition]
     out = [HEADER, "# Questionnaires\n",
            "Every predefined questionnaire a project or study can use: what it measures, its source, its "
            f"scales and every question with its answer scale. A {MARK} marks a questionnaire validated against "
@@ -274,14 +280,21 @@ def questionnaires_markdown() -> str:
            "Their scales and items become measures of the [Questionnaires (subjective)](metric-catalog.md#group-subjective) "
            "group, usable in scores and on leaderboards.\n",
            "| Questionnaire | Id | Questions | Validated | Source |\n| --- | --- | --- | --- | --- |"]
-    for k in sourced + own:
-        d, info = lib[k], C.questionnaire_info(k)
-        v = _mark(info.validated_by, C.VALIDATED_SOURCE_TOOLTIP) if info and info.validated_by else ""
-        src = (f"[link]({info.url})" if info and info.url else ("yes" if info and info.citation else "own items"))
+    for k in sourced + competition + own:
+        d, qi = lib[k], info(k)
+        v = _mark(qi.validated_by, C.VALIDATED_SOURCE_TOOLTIP) if qi and qi.validated_by else ""
+        src = (f"[link]({qi.url})" if qi and qi.url else ("yes" if qi and qi.citation else "own items"))
         out.append(f"| [{_cell(d.get('title', k))}](#{k.replace('_', '-')}) | `{k}` | {len(d['questions'])} | {v} | {src} |")
     out.append("")
     out.append("## Standard instruments\n")
     for k in sourced:
+        d = lib[k]
+        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"])
+    out.append("## Questionnaires of negotiation competitions\n")
+    out.append("The questions that human-agent negotiation competitions asked their participants, as asked (typos "
+               "included), so that a study can repeat them and compare with the competition's results. They are not "
+               "validated instruments.\n")
+    for k in competition:
         d = lib[k]
         out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"])
     out.append("## HANI2's own question sets\n")

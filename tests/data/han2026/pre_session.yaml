@@ -1,0 +1,52 @@
+# Pre-session questionnaire.
+#
+# Shown ONCE per participant on their first session only. The flow
+# checks for an existing prolific_questionnaires row with type='pre'
+# for this PID and skips this step if one exists.
+#
+# Schema:
+#   version: free-form string, recorded with each saved row.
+#   title / intro: rendered above the form.
+#   questions: ordered list. Each entry has:
+#     id        - stable identifier; becomes the answer-dict key
+#     text      - question text
+#     type      - one of: likert5 | likert7 | yes_no | select | text
+#     required  - true / false (default: false)
+#     labels    - (likert only) endpoint labels, keyed by number
+#     options   - (select only) list of choice strings
+version: "2026-05-19"
+title: "Before you begin"
+intro: >
+  These four short questions help us interpret your negotiation
+  results. They are asked once and will not repeat in future sessions.
+
+questions:
+  - id: experience_negotiation
+    text: "How much prior experience do you have negotiating in everyday life (e.g. salary, prices, agreements)?"
+    type: likert5
+    labels:
+      1: "None"
+      5: "A great deal"
+    required: true
+
+  - id: experience_ai
+    text: "How familiar are you with AI / chatbot systems?"
+    type: likert5
+    labels:
+      1: "Not at all familiar"
+      5: "Very familiar"
+    required: true
+
+  - id: self_skill
+    text: "How skilled are you as a negotiator?"
+    type: select
+    options:
+      ["Very Unskilled", "Unskilled", "Neither", "Skilled", "Very Skilled"]
+    required: true
+
+  - id: session_expectation
+    text: "How skilled do you expect your opponent agents as negotiators?"
+    type: select
+    options:
+      ["Very Unskilled", "Unskilled", "Neither", "Skilled", "Very Skilled"]
+    required: true

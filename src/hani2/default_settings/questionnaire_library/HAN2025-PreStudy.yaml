@@ -1,0 +1,25 @@
+id: HAN2025-PreStudy
+title: HAN2025-PreStudy
+description: "The pre-study questionnaire HAN 2025 asked each participant once, before any negotiation: age, country, degree, earlier negotiation studies, expertise in five fields, and expectations about the system and AI negotiators. Converted from the Google Form: the identification items (registered user name) are left out, since HANI2 records them; a question the form asks twice is kept once; the expertise grid is one question per field, with the field after a dash. The 1\u20135 scales had no endpoint labels."
+reference: 'Human-Agent Negotiation League Pre-study Questionnaire, HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025): https://forms.gle/c4tNxYof1Gm7ezmC7'
+forms: [pre_questionnaire]
+questions:
+  - {id: han2025_age, text: 'What is your age?', type: select, options: [18-25, 25-30, 30-35, 40+], required: true}
+  - {id: han2025_country, text: 'What is your country of residence?', type: text, required: true}
+  - {id: han2025_degree, text: 'What is your latest degree?', type: text, required: true}
+  - {id: han2025_prior_study, text: 'Did you participate in any study in which you negotiated with a human or machine? If yes, explain briefly.', type: text, required: true}
+  - {id: han2025_expertise_ai, text: 'Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Artificial Intelligence', type: select, options: [Expert, Beginner, Layman], required: true}
+  - {id: han2025_expertise_game_theory, text: 'Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Game Theory', type: select, options: [Expert, Beginner, Layman], required: true}
+  - {id: han2025_expertise_economics, text: 'Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Economics', type: select, options: [Expert, Beginner, Layman], required: true}
+  - {id: han2025_expertise_business, text: 'Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Business', type: select, options: [Expert, Beginner, Layman], required: true}
+  - {id: han2025_expertise_automated_negotiation, text: 'Did you study or conduct your own research in the following area? Please indicate your level of expertise in each. — Automated Negotiation', type: select, options: [Expert, Beginner, Layman], required: true}
+  - {id: han2025_expect_enjoyable, text: '(7) How enjoyable do you expect the negotiation with our system (5 = most enjoyable)?', type: likert5, required: true}
+  - {id: han2025_expect_easy, text: 'How easy do you expect the negotiation with our system (5 = easiest)?', type: likert5, required: true}
+  - {id: han2025_expect_usable, text: 'How usable do you expect our system to be (5 = most usable)?', type: likert5, required: true}
+  - {id: han2025_expect_humanlike, text: 'How human-like do you expect your AI negotiation partner to b (5 = most human-like)?', type: likert5, required: true}
+  - {id: han2025_expect_ai_negotiating, text: 'How effective do you expect an AI negotiation system in negotiating with human partners (5 = most effective)?', type: likert5, required: true}
+  - {id: han2025_expect_ai_supporting, text: 'How effective do you expect an AI negotiation system in supporting its own human user (5 = most effective)?', type: likert5, required: true}
+  - {id: han2025_expect_high_utility, text: 'How confident are you in achieving high utilities (scores) when negotiating with our system (5 = most confident)?', type: likert5, required: true}
+  - {id: han2025_expect_structured_offers, text: 'How effective do you expect structured offers in human-agent negotiation (5 = most effective)?', type: likert5, required: true}
+  - {id: han2025_expect_natural_language, text: 'How effective do you expect allowing natural language interaction in human-agent negotiation (5 = most effective)?', type: likert5, required: true}
+  - {id: han2025_expect_fairness, text: 'How fair do you expect the results of negotiations with an AI be? (0 = fair)?', type: select, options: [(-2) highly biased towards the AI, (-1) slightly biased towards the AI, (0) fair, (1) slightly biased towards the human, (2) highly biased towards the human], required: true}

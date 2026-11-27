@@ -1,0 +1,277 @@
+{
+ "title": "Human-Agent Negotiation League Post-study Questionnaire",
+ "url": "https://forms.gle/HEmb2CpruFD8aUvt8",
+ "fetched": "2026-11-27",
+ "items": [
+  {
+   "title": "Registered user-name:",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "Date and Time:",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "Number of negotiations:",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "How enjoyable was the negotiation with our system (5 = most enjoyable)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How easy was understanding the negotiation scenario and your\npreferences (5 = easiest)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How easy was the negotiation with our system (5 = easiest)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How human-like was your AI negotiation partner to b (5 = most human-like)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How human-like was your AI negotiation partner to b (5 = most human-like)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How confident are you that you fully understood the description of the\nnegotiation scenario and your preferences (5 = most confident)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How helpful is our system as a negotiation support system (5 =\nmost helpful)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "Which tools were most useful for you in supporting your negotiation?",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "How intelligent was our system as a negotiator against you (5 = most\nintelligent)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How fast was our system as a negotiator against you (5 = fastest)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How predictable was the performance of our system as a negotiator\nagainst you (5 = most predictable)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect an AI negotiation system in negotiating with\nhuman partners (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect an AI negotiation system in supporting its\nown human user (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How confident are you in achieving high utilities (scores) when negotiating\nwith our system (5 = most confident)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect structured offers in human-agent negotiation\n(5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect allowing natural language interaction in\nhuman-agent negotiation (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "Please freely add any comments, challenges, suggestions, or thoughts\nabout your experience in this competition.",
+   "type": "paragraph",
+   "required": false
+  },
+  {
+   "title": "Please describe your strategy for conducting negotiations. Any tips that can be helpful for negotiating with AI agents that you learned or tested in your negotiations with our systems are highly appreciated",
+   "type": "paragraph",
+   "required": false
+  }
+ ]
+}

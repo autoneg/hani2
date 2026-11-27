@@ -1,0 +1,211 @@
+{
+ "title": "Human-Agent Negotiation League Pre-study Questionnaire",
+ "url": "https://forms.gle/c4tNxYof1Gm7ezmC7",
+ "fetched": "2026-11-27",
+ "items": [
+  {
+   "title": "Registered user-name:",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "What is your age?",
+   "type": "multiple_choice",
+   "required": true,
+   "options": [
+    "18-25",
+    "25-30",
+    "30-35",
+    "40+"
+   ]
+  },
+  {
+   "title": "What is your country of residence?",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "What is your latest degree?",
+   "type": "short_answer",
+   "required": true
+  },
+  {
+   "title": "Did you participate in any study in which you negotiated with a human or\nmachine? If yes, explain briefly.",
+   "type": "paragraph",
+   "required": true
+  },
+  {
+   "title": "Did you study or conduct your own research in the following area? Please indicate your level of expertise in each.",
+   "type": "grid",
+   "required": true,
+   "columns": [
+    "Expert",
+    "Beginner",
+    "Layman"
+   ],
+   "rows": [
+    "Artificial Intelligence:",
+    "Game Theory",
+    "Economics",
+    "Business",
+    "Automated Negotiation"
+   ]
+  },
+  {
+   "title": "(7) How enjoyable do you expect the negotiation with our system (5 = most\nenjoyable)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How easy do you expect the negotiation with our system (5 = easiest)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How usable do you expect our system to be (5 = most usable)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How human-like do you expect your AI negotiation partner to b (5 = most\nhuman-like)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect an AI negotiation system in negotiating with\nhuman partners (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect an AI negotiation system in supporting its\nown human user (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How confident are you in achieving high utilities (scores) when negotiating\nwith our system (5 = most confident)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect structured offers in human-agent negotiation\n(5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How effective do you expect allowing natural language interaction in\nhuman-agent negotiation (5 = most effective)?",
+   "type": "linear_scale",
+   "required": true,
+   "options": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "endpoint_labels": [
+    "",
+    ""
+   ]
+  },
+  {
+   "title": "How fair do you expect the results of negotiations with an AI be? (0 = fair)?",
+   "type": "multiple_choice",
+   "required": true,
+   "options": [
+    "(-2) highly biased towards the AI",
+    "(-1) slightly biased towards the AI",
+    "(0) fair",
+    "(1) slightly biased towards the human",
+    "(2) highly biased towards the human"
+   ]
+  }
+ ]
+}
