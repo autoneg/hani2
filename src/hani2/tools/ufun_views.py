@@ -298,7 +298,7 @@ def render_ufun_view(tool: Any, ufun: Any, *, title_prefix: str = "", help_card:
         ufun = ctx.ufun
     view = generic_view if ctx.depth >= MAX_DEPTH else find_ufun_view(ufun)
     try:
-        comps = list(view(ctx))
+        comps = [c for c in view(ctx) if c]  # a plugin view may append reserved_stat()'s None
     except Exception:  # noqa: BLE001
         traceback.print_exc()
         ctx.rv_shown = False

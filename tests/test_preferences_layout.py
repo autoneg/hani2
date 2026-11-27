@@ -225,3 +225,46 @@ def test_reserved_out_takes_the_sentence_of_any_view():
     comps = uv.render_ufun_view(_Tool(), u, reserved_out=out)
     assert len(out) == 1 and out[0]["text"].startswith(LEAD) and not _sentences(comps, LEAD)
     assert len(_sentences(uv.render_ufun_view(_Tool(), u), LEAD)) == 1  # without it: in the view, as before
+
+
+def test_reserved_out_without_a_value_on_disagreement_keeps_the_fallback():
+    from negmas import LinearAdditiveUtilityFunction as LAU
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+
+    class _Tool:
+        values: dict = {}
+
+    os_ = make_os([make_issue([1, 2], "A")])
+    u = LAU(values=[TableFun({1: 0.0, 2: 1.0})], weights=[1.0], outcome_space=os_, reserved_value=float("-inf"))
+    out: list = []
+    comps = uv.render_ufun_view(_Tool(), u, reserved_out=out)
+    assert len(out) == 1 and out[0]["text"] == f"{LEAD} nothing set by these preferences."
+    assert None not in comps
+
+
+def test_a_plugin_view_appending_reserved_stat_with_a_sink_leaves_no_gap():
+    from negmas import make_issue
+    from negmas.outcomes import make_os
+    from negmas.preferences import MappingUtilityFunction
+
+    class _Tool:
+        values: dict = {}
+
+    class _U(MappingUtilityFunction):
+        pass
+
+    uv.register_ufun_view(_U, lambda ctx: [ui_text("x"), ctx.reserved_stat()])
+    try:
+        u = _U({(1,): 0.0, (2,): 1.0}, outcome_space=make_os([make_issue([1, 2], "A")]), reserved_value=0.5)
+        out: list = []
+        comps = uv.render_ufun_view(_Tool(), u, reserved_out=out)
+        assert None not in comps and len(out) == 1
+    finally:
+        uv.unregister_ufun_view(_U)
+
+
+def ui_text(t):
+    from hani2.tools import ui
+
+    return ui.text_block(t)
