@@ -1,1 +1,0 @@
-import{c as e}from"./index-CbiIeKqN.js";const a={name:"swiss-franc",size:24,node:[["path",{d:"M10 10h7",key:"jlzm20"}],["path",{d:"M10 20V5a1 1 0 011-1h7",key:"1ru8sx"}],["path",{d:"M6 16h9",key:"2py0wn"}]]};a.node;const n=e(a);export{a as __iconData,n as default};

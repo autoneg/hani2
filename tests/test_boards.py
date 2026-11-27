@@ -388,7 +388,11 @@ def test_visibility_and_tokens(api, hi):
     assert api.get(URL).status_code == 200
     set_board({"sort_options": ["utility"], "visibility": "admins", "rules": RULES0})
     assert api.get(URL).status_code == 403
-    assert api.get(URL, headers=bearer()).status_code == 200
+    # an admins board needs the scope leaderboard:admin; leaderboard:read is not enough
+    r = api.get(URL, headers=bearer())
+    assert r.status_code == 403 and "leaderboard:admin" in r.text
+    assert api.get(URL, headers=bearer(scope="leaderboard:admin")).status_code == 200
+    assert api.get(URL, headers=bearer(scope=["leaderboard:read", "leaderboard:admin"])).status_code == 200
     api.post("/api/auth/login", json={"username": "admin", "password": "adminpass"})
     assert api.get(URL).status_code == 200
     assert api.get("/api/v1/projects/nope/leaderboard").status_code == 404
@@ -462,7 +466,75 @@ def test_the_list_of_boards(api, hi):
     assert [b["project"] for b in d["boards"]] == ["HI"]
     b = d["boards"][0]
     assert b["track"] == "hi" and b["year"] == 2027 and b["visibility"] == "public"
-    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"]} == {"HI", "PRIV"}
+    # a token with leaderboard:read does not list the admins boards; one with leaderboard:admin does
+    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"]} == {"HI"}
+    assert {x["project"] for x in api.get("/api/v1/leaderboards", headers=bearer(scope="leaderboard:admin")).json()[
+        "boards"]} == {"HI", "PRIV"}
+    assert api.get("/api/v1/leaderboards", headers=bearer(scope="other")).status_code == 403
+    # an admins study under a listed project is left out of the token's list too
+    projects.create_study("HI/secret", type="online")
+    set_board({"visibility": "admins"}, study="secret")
+    studies = {x["study"] for x in api.get("/api/v1/leaderboards", headers=bearer()).json()["boards"][0]["studies"]}
+    assert "secret" not in studies and "play" in studies
+    hi_admin = [b for b in api.get("/api/v1/leaderboards", headers=bearer(scope="leaderboard:admin")).json()["boards"]
+                if b["project"] == "HI"][0]
+    assert "secret" in {x["study"] for x in hi_admin["studies"]}
+
+
+def test_a_tournament_board_offers_only_what_it_honours(api, hi):
+    """A simulated (tournament) board ranks by goal rate only: its options name only that, and a request
+    for another sort key or any switch gets a 400 that says why (it was silently ignored before)."""
+    set_board({"source": "tournament", "sort_options": ["utility"],
+               "user_options": {"games": ["all", "people"], "window": ["all", "last_7_days"]},
+               "visibility": "public", "rules": RULES0})
+    for admin in (False, True):
+        out = boards.board("HI", None, {}, admin=admin)
+        assert out["source"] == "tournament"
+        assert out["options"] == boards.tournament_options()
+        assert [o["key"] for o in out["options"]["sort"]] == ["goal_rate"]
+        assert not set(out["options"]) & set(boards.SWITCHES)
+        assert out["query"] == {"sort": "goal_rate"}
+    r = api.get(URL)
+    assert r.status_code == 200 and r.json()["options"] == boards.tournament_options()
+    assert api.get(URL, params={"sort": "goal_rate"}).status_code == 200
+    for bad, why in (({"sort": "utility"}, "goal_rate only"), ({"games": "people"}, "games cannot be used"),
+                     ({"stratum": "all"}, "stratum cannot be used"), ({"window": "last_7_days"}, "window cannot be used"),
+                     ({"x": "1"}, "unknown parameter")):
+        r = api.get(URL, params=bad)
+        assert r.status_code == 400 and why in r.json()["detail"] and "tournament" in r.json()["detail"], (bad, r.text)
+        with pytest.raises(boards.BoardError):
+            boards.board("HI", None, bad, admin=True)
+
+
+def test_a_tournament_board_ranks_simulated_trials_by_goal_rate(hi):
+    """With real simulated rows: entries ranked by goal rate, with the tournament's columns and values."""
+    set_board({"source": "tournament", "visibility": "public", "rules": RULES0})
+    d = eval_cache.results_dir(StudyRef("HI", "play")) / "sim_run"
+    d.mkdir(parents=True, exist_ok=True)
+    goals = {A: [True, False, False, False], B: [True, True, True, False]}
+    with open(d / "results.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, ["user", "mode", "assistant", "persona", "scenario", "goal_met", "human_utility", "status"])
+        w.writeheader()
+        for spec, gs in goals.items():
+            for i, g in enumerate(gs):
+                w.writerow({"user": f"sim_p{i % 2}", "mode": "simulated", "assistant": spec, "persona": f"p{i % 2}",
+                            "scenario": "s1", "goal_met": g, "human_utility": 0.8 if g else 0.2, "status": "success"})
+    out = boards.board("HI", "play", {})
+    assert out["source"] == "tournament" and out["columns"] == ["goal_rate", "mean_utility", "games"]
+    assert [e["entrant"] for e in out["entries"]] == [B, A] and [e["rank"] for e in out["entries"]] == [1, 2]
+    assert out["entries"][0]["values"]["goal_rate"]["mean"] == pytest.approx(0.75)
+    assert out["entries"][1]["values"]["mean_utility"]["mean"] == pytest.approx(0.35)
+    assert out["entries"][0]["games"] == {"all": 4} and out["entries"][0]["personas"] == 2
+    assert out["query"] == {"sort": "goal_rate"} and out["options"] == boards.tournament_options()
+    # the command line shows it (no switches to print, no player counts)
+    from typer.testing import CliRunner
+
+    from hani2.cli import app
+
+    r = CliRunner().invoke(app, ["leaderboard", "show", "HI/play"])
+    assert r.exit_code == 0, r.output
+    assert "sorted by goal_rate;" in r.output and "games all" not in r.output
+    assert CliRunner().invoke(app, ["leaderboard", "show", "HI/play", "--games", "people"]).exit_code == 1
 
 
 # --------------------------------------------------------------------------- #

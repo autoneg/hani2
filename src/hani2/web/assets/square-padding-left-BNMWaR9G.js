@@ -1,1 +1,0 @@
-import{c as t}from"./index-CbiIeKqN.js";const e={name:"square-padding-left",size:24,node:[["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}],["path",{d:"M7 16V8",key:"meid6x"}]]};e.node;const d=t(e);export{e as __iconData,d as default};

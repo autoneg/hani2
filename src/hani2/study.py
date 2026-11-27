@@ -325,8 +325,10 @@ class Study:
         pass
 
     def finished(self) -> bool:
-        # a Paired study: every Assistant planned for this person was used or skipped (hani2.pairing)
-        return bool(self.session.__dict__.get("_paired_exhausted"))
+        # a Paired study: every Assistant planned for this person was used or skipped (hani2.pairing);
+        # any study: the pool shrank and every Assistant left in it was used (hani2.assignment)
+        d = self.session.__dict__
+        return bool(d.get("_paired_exhausted") or d.get("_assistants_exhausted"))
 
     def finish(self) -> None:
         """Show the end page: the completion link or the end text."""
@@ -638,21 +640,24 @@ class ProlificStudy(Study):
         return any(self._truthy(r.get("practice")) and int(float(r.get("n_human_actions") or 0)) > 0
                    for r in self._this_session())
 
-    def counted(self) -> int:
-        n = 0
+    def counted_rows(self) -> list[dict]:
+        """The rows of this session that count towards ``n_required`` (no practice, no negotiation
+        the participant did not act in, except when the opponent failed), in order."""
+        out = []
         for r in self._this_session():
             if self._truthy(r.get("practice")):
                 continue
-            if r.get("status") == "agent_failed":
-                n += 1
-                continue
-            try:
-                if int(float(r.get("n_human_actions") or 0)) <= 0:
-                    continue
-            except ValueError:
-                pass
-            n += 1
-        return n
+            if r.get("status") != "agent_failed":
+                try:
+                    if int(float(r.get("n_human_actions") or 0)) <= 0:
+                        continue
+                except ValueError:
+                    pass
+            out.append(r)
+        return out
+
+    def counted(self) -> int:
+        return len(self.counted_rows())
 
     def schedule_data(self) -> Any:
         """The participant's ``schedule.json`` as written (``None`` when missing or broken)."""
@@ -851,7 +856,9 @@ class ProlificStudy(Study):
         return None
 
     def finished(self) -> bool:
-        return self.counted() >= self.n_required or bool(self.session.__dict__.get("_paired_exhausted"))
+        d = self.session.__dict__
+        return (self.counted() >= self.n_required or bool(d.get("_paired_exhausted"))
+                or bool(d.get("_assistants_exhausted")))
 
     def wants_consent(self) -> bool:
         from hani2.config import get_env

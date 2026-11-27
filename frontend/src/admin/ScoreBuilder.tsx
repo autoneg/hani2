@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Pencil, Plus, Save, Scale, Trash2, X } from "lucide-react";
 import { api } from "../api";
 import { NumberInput } from "../ui/NumberInput";
@@ -7,6 +7,7 @@ import { Row } from "./Row";
 import { HelpFor } from "./help";
 import { Select } from "./controls/Select";
 import { TextField } from "./controls/TextField";
+import { Tags } from "./controls/Tags";
 import { Note, Spinner } from "./schema";
 import { toast } from "./toast";
 import { atHundred, normalise, sumText, toFractions } from "./weights";
@@ -158,6 +159,114 @@ function presetNormaliser(info: any, direction: string): string {
   return t;
 }
 
+/** ``POST /api/admin/scores/preview`` for a draft, again a moment after each change (stale answers
+ *  are dropped). ``body`` null: nothing to preview yet. */
+function usePreview(project: string, study: string | undefined, body: any | null, delay = 450) {
+  const [p, setP] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const seq = useRef(0);
+  const text = body ? JSON.stringify(body) : "";
+  useEffect(() => {
+    const n = ++seq.current;
+    if (!text) {
+      setP(null);
+      setBusy(false);
+      return;
+    }
+    setBusy(true);
+    const t = setTimeout(() => {
+      api(`/api/admin/scores/preview?${query(project, study)}`, { method: "POST", body: JSON.parse(text) })
+        .then((r) => n === seq.current && setP(r))
+        .catch((e) => n === seq.current && setP({ problems: [e.message] }))
+        .finally(() => n === seq.current && setBusy(false));
+    }, delay);
+    return () => clearTimeout(t);
+  }, [project, study, text, delay]);
+  return { preview: p, busy };
+}
+
+const pct = (x: number) => `${Math.round(x * 1000) / 10} %`;
+const fmt = (x: any) => (typeof x === "number" && Number.isFinite(x) ? x.toFixed(3) : "—");
+
+/** The draft on the current games: the weights in effect after coverage, the dropped parts, a small
+ *  histogram of the per-game values and the top entrants. */
+function ScorePreview({ preview, busy, sum }: { preview: any; busy: boolean; sum: string }) {
+  const p = preview;
+  const hist: any[] = p?.histogram ?? [];
+  const max = Math.max(1, ...hist.map((b) => b.count));
+  return (
+    <Group
+      title={<span className="inline-flex items-center gap-1">Preview <HelpFor id="scores.preview" /></span>}
+      actions={<span className="text-xs text-muted" data-preview-state={busy ? "busy" : "ready"}>{busy ? "Updating…" : p?.games != null ? `${p.games} game${p.games === 1 ? "" : "s"}` : ""}</span>}
+      footer="On the games the board of this project (or study) reads, ranked as the board would rank them; nothing is saved."
+    >
+      <div className="px-4 py-3 text-sm" data-score-preview>
+        {!p && <div className="text-muted">{busy ? "Computing…" : "Add a criterion with a weight above 0 to see the score on the current games."}</div>}
+        {p?.problems?.length > 0 && <div className="text-bad" role="alert" data-preview-problems>{p.problems.join(" · ")}</div>}
+        {p && !p.problems?.length && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <div className="mb-1 text-xs font-semibold text-muted">Weights in effect{sum !== "100 %" ? ` (the weights sum to ${sum}: previewed rescaled)` : ""}</div>
+              <div className="flex flex-wrap gap-1.5" data-preview-weights>
+                {Object.entries(p.weights_in_effect ?? {}).map(([c, w]: any) => (
+                  <span key={c} className="chip py-0.5 text-[0.78rem]" data-weight-in-effect={c}>{c} <span className="tnum text-muted">{pct(w)}</span></span>
+                ))}
+                {!Object.keys(p.weights_in_effect ?? {}).length && <span className="text-muted">none: no component has values</span>}
+              </div>
+              {p.dropped?.length > 0 && (
+                <div className="mt-1.5 text-xs text-warn" data-preview-dropped>
+                  Dropped for everyone (below the minimum coverage of some entrant's games): {p.dropped.join(", ")}
+                </div>
+              )}
+              <div className="mb-1 mt-3 text-xs font-semibold text-muted">Distribution over the games</div>
+              {p.games ? (
+                <>
+                  <div className="flex h-20 items-end gap-0.5" data-preview-histogram aria-label="Distribution of the score over the games" role="img">
+                    {hist.map((b) => (
+                      <div key={b.lo} className="flex-1 rounded-t bg-you/70" style={{ height: `${Math.max(b.count ? 4 : 0, (100 * b.count) / max)}%` }} title={`${b.lo.toFixed(1)}–${b.hi.toFixed(1)}: ${b.count}`} />
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[0.68rem] text-muted"><span>0</span><span>0.5</span><span>1</span></div>
+                  <div className="mt-1 text-xs text-muted">
+                    mean {fmt(p.stats?.mean)} · median {fmt(p.stats?.median)}{p.stats?.coverage != null ? ` · coverage ${pct(p.stats.coverage)}` : ""}{p.without_value ? ` · ${p.without_value} without a value` : ""}
+                  </div>
+                </>
+              ) : (
+                <div className="text-muted">No games yet: the preview fills in once games are played.</div>
+              )}
+            </div>
+            <div>
+              <div className="mb-1 text-xs font-semibold text-muted">Top entrants{p.n_entrants > (p.entries?.length ?? 0) ? ` (of ${p.n_entrants})` : ""}</div>
+              {p.entries?.length ? (
+                <table className="w-full text-sm" data-preview-top>
+                  <tbody>
+                    {p.entries.map((e: any) => (
+                      <tr key={e.entrant} className="border-b border-line/40 last:border-0" data-preview-entrant={e.label}>
+                        <td className="tnum w-6 py-1 text-muted">{e.rank}</td>
+                        <td className="py-1">{e.label}</td>
+                        <td className="tnum py-1 text-right font-medium">{fmt(e.mean)}</td>
+                        <td className="tnum py-1 pl-2 text-right text-xs text-muted">[{fmt(e.ci?.[0])}, {fmt(e.ci?.[1])}]</td>
+                        <td className="tnum py-1 pl-2 text-right text-xs text-muted">{e.games} games</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-muted">{p.unranked?.length ? `${p.unranked.length} entrant(s) not ranked yet (minimum games or participants)` : "No entrant yet."}</div>
+              )}
+            </div>
+          </div>
+        )}
+        {p && !p.problems?.length && [...(p.warnings ?? []), ...(p.notes ?? [])].length > 0 && (
+          <ul className="mt-3 list-disc pl-5 text-xs text-muted">
+            {[...(p.warnings ?? []), ...(p.notes ?? [])].map((n: string) => <li key={n}>{n}</li>)}
+          </ul>
+        )}
+      </div>
+    </Group>
+  );
+}
+
 function fromDefinition(d: any): Comp[] {
   const comps = d?.components ?? [];
   // stored fractions sum to 1; rounding each to 0.01 % could show 99.99 % (thirds), so rescale exactly
@@ -177,30 +286,28 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
   const [missing, setMissing] = useState(initial?.missing ?? "renormalise");
   const [minCov, setMinCov] = useState<number>(initial?.min_coverage ?? 0.5);
   const [same, setSame] = useState<string>(initial?.same_assistant ?? "once");
+  // the rules for failed opponents and sessions without an Assistant: kept on Edit, never dropped
+  const [zeroIf, setZeroIf] = useState<string[]>(Array.isArray(initial?.zero_if) ? initial.zero_if : []);
+  const [needsAssistant, setNeedsAssistant] = useState<boolean>(initial?.needs_assistant === true);
   const [comps, setComps] = useState<Comp[]>(() => fromDefinition(initial));
   const [coverage, setCoverage] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const cat = useCriteria(project, study, coverage);
   const byId = useMemo(() => Object.fromEntries((cat?.criteria ?? []).map((c: any) => [c.id, c])), [cat]);
-  if (cat === undefined) return <Spinner />;
-  if (cat === null) return <Note tone="warn">The criteria could not be loaded.</Note>;
-  const kinds: string[] = (cat.normalisers ?? []).map((n: any) => n.kind);
   const weights = comps.map((c) => c.weight);
-  const ok100 = atHundred(weights);
-  const needDirection = comps.filter((c) => !c.direction && (byId[c.criterion]?.direction ?? "none") === "none").map((c) => c.criterion);
-  const keyOk = KEY_RE.test(key);
-  const canSave = keyOk && comps.length > 0 && ok100 && !needDirection.length && !saving;
-  const patch = (i: number, p: Partial<Comp>) => setComps(comps.map((c, j) => (j === i ? { ...c, ...p } : c)));
-  const save = async () => {
+  /** The definition as saved (and previewed): weights as fractions summing to 1. */
+  const bodyOf = () => {
     const fr = toFractions(weights);
-    const body = {
+    return {
       title: title || undefined,
       description: description || undefined,
       track,
       missing,
       min_coverage: minCov,
       ...(same !== "once" ? { same_assistant: same } : {}),
+      ...(zeroIf.length ? { zero_if: zeroIf } : {}),
+      ...(needsAssistant ? { needs_assistant: true } : {}),
       components: comps.map((c, i) => ({
         criterion: c.criterion,
         weight: fr[i],
@@ -209,6 +316,24 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
         ...(c.label ? { label: c.label } : {}),
       })),
     };
+  };
+  const previewable = comps.length > 0 && weights.some((w) => Number(w) > 0);
+  // the title and description do not change the numbers: left out, so typing them recomputes nothing
+  const previewBody = () => {
+    const { title: _t, description: _d, ...rest } = bodyOf();
+    return rest;
+  };
+  const { preview, busy } = usePreview(project, study, previewable ? { key: scoreKey ?? key, score: previewBody() } : null);
+  if (cat === undefined) return <Spinner />;
+  if (cat === null) return <Note tone="warn">The criteria could not be loaded.</Note>;
+  const kinds: string[] = (cat.normalisers ?? []).map((n: any) => n.kind);
+  const ok100 = atHundred(weights);
+  const needDirection = comps.filter((c) => !c.direction && (byId[c.criterion]?.direction ?? "none") === "none").map((c) => c.criterion);
+  const keyOk = KEY_RE.test(key);
+  const canSave = keyOk && comps.length > 0 && ok100 && !needDirection.length && !saving;
+  const patch = (i: number, p: Partial<Comp>) => setComps(comps.map((c, j) => (j === i ? { ...c, ...p } : c)));
+  const save = async () => {
+    const body = bodyOf();
     setSaving(true);
     try {
       await api(`${base(project, study)}/scores/${encodeURIComponent(key)}`, { method: "PUT", body });
@@ -236,6 +361,12 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
         </Row>
         <Row label="Same-Assistant games" help="scores.same_assistant">
           <Select label="Same-Assistant games" value={same} onChange={setSame} options={[{ value: "once", label: "Count once (the mean of the two rows)" }, { value: "skip", label: "Leave out" }]} />
+        </Row>
+        <Row label="Zero if" help="scores.zero_if">
+          <Tags label="Zero if" value={zeroIf} onChange={(x: string[] | undefined) => setZeroIf(x ?? [])} placeholder="opponent_failed" suggestions={(cat.criteria ?? []).filter((c: any) => c.source !== "score").map((c: any) => c.id)} />
+        </Row>
+        <Row label="Needs an Assistant" help="scores.needs_assistant">
+          <Select label="Needs an Assistant" value={needsAssistant ? "yes" : "no"} onChange={(x) => setNeedsAssistant(x === "yes")} options={[{ value: "no", label: "No: every session" }, { value: "yes", label: "Yes: empty without an Assistant" }]} />
         </Row>
       </Group>
       <Group
@@ -290,6 +421,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
           );
         })}
       </Group>
+      <ScorePreview preview={preview} busy={busy} sum={sumText(weights)} />
       <Group
         title={<span className="inline-flex items-center gap-1">Add criteria <HelpFor id="scores.criteria" /></span>}
         actions={

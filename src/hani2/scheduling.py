@@ -33,7 +33,7 @@ from collections import Counter
 from itertools import combinations, permutations
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 DIMENSIONS = ("opponents", "assistants", "scenarios")
 #: what a study uses when neither it nor its project chooses a method
@@ -313,76 +313,35 @@ def _merged_scheduling(*layers: Any) -> dict[str, Any]:
     return out
 
 
-def _file_repeat_problems(project_defaults: dict, overrides: dict | None, ref: Any) -> list[str]:
-    from hani2 import groups
-
-    def pick(key: str, default: Any = None) -> Any:
-        if overrides is not None and overrides.get(key) is not None:
-            return overrides[key]
-        v = project_defaults.get(key)
-        return default if v is None else v
-
-    sched = _merged_scheduling(project_defaults.get("scheduling"), (overrides or {}).get("scheduling"))
-    method = str(sched.get("assistants") or DEFAULTS["assistants"])
-    if method not in AT_MOST_ONCE_ASSISTANTS and method != "random_each":
-        return []
-    opts = {k: check_option(k, sched[k]) for k in OPTIONS if k in sched}
-    raw = pick("assistants")
-    if raw is None and method != "random_each":
-        return []  # the pool comes from the server's settings: unknown here
-    import os
-
-    try:  # PROLIFIC_N_REQUIRED wins, as it does when the study runs
-        k = int((os.environ.get("PROLIFIC_N_REQUIRED") or "").strip() or pick("n_required", 5))
-    except (TypeError, ValueError):
-        return []
-    errors: list[str] = []
-    try:
-        pool = groups.expand_assistants(raw, ref, errors=errors) if raw is not None else []
-    except Exception:  # noqa: BLE001 - a broken group is reported elsewhere
-        return []
-    if raw is not None and (errors or not pool):
-        return []
-    return repeat_problems(method, k, pool, opts)
-
-
-def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None) -> list[str]:
+def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None,
+                  project_data: dict | None = None) -> list[str]:
     """What a project.yaml (``nested="defaults"``) or study.yaml (``nested="overrides"``) about to be
     saved breaks about Assistant repeats (``n_required`` > the Assistants for a method that uses each
     at most once, unless ``assistant_repeats: true``). The study's settings are merged with its
-    project's; a pool that cannot be expanded here is not checked."""
-    from hani2 import projects
+    project's (``project_data``: a project.yaml about to be saved), and N is the Assistant pool a
+    session would use: the files, else what the mode fills in, else assistant_settings.json (see
+    :func:`hani2.study_modes.effective_pools`). ``hani2 --assistants`` is a process setting: it is a
+    warning in ``hani2 study show``, not a refusal."""
+    from hani2 import study_modes
 
-    _, settings, _ = projects._split(data, (), nested)
     try:
-        if nested == "overrides":
-            r = projects.parse_ref(ref) if ref is not None else None
-            pname = r.project if r is not None else (project or projects.DEFAULT_PROJECT)
-            try:
-                pr = projects.load_project(pname)
-            except ValueError:
-                pr = projects.Project(name=pname)
-            with projects.use_study(r):
-                return _file_repeat_problems(dict(pr.defaults), settings, r)
-        return _file_repeat_problems(settings, None, None)
+        return study_modes.file_pools(data, nested, ref=ref, project=project,
+                                      project_data=project_data).repeat_problems()
     except ValueError:
         return []  # bad option values are reported by check_scheduling
 
 
 def study_repeat_problems(ref: Any) -> list[str]:
     """:func:`save_problems` for a study as it is on disk (a running study only gets a warning)."""
-    from hani2 import projects
+    from hani2 import study_modes
 
     if ref is None:
         return []
-    r = projects.parse_ref(ref) if isinstance(ref, str) else ref
-    pr = projects.get_project(r)
-    st = projects.get_study(r)
     try:
-        with projects.use_study(r):
-            return _file_repeat_problems(dict(pr.defaults), dict(st.overrides) if st is not None else {}, r)
+        pools = study_modes.study_pools(ref)
     except ValueError:
         return []
+    return pools.repeat_problems() if pools is not None else []
 
 
 # --------------------------------------------------------------------------- #
@@ -489,6 +448,44 @@ def pick_assistant_slot(method: str, pool: Sequence[str], index: int, slot: int,
     if method == "balanced_subset":
         raise ValueError("balanced_subset depends on the humans planned before; use balanced_subset()")
     return pick_assistant_each(pool, slot, seed)
+
+
+def next_unused(seq: Sequence[str], slot: int, taken: Iterable[str], pool: Sequence[str],
+                wrap: bool = False) -> str | None:
+    """The Assistant of counted negotiation ``slot`` when the human has already used ``taken``:
+    the planned one (``seq[slot]``) while it is still in ``pool`` and not used, else the next
+    unused member of the plan after it (then before it), then of the pool. With nothing unused
+    left: ``seq[slot mod len(seq)]`` (the plan wraps around) when ``wrap``, else ``None`` (the
+    human has no Assistant left)."""
+    used = set(taken)
+    members = set(pool)
+    seq = list(seq)
+    if 0 <= slot < len(seq) and seq[slot] in members and seq[slot] not in used:
+        return seq[slot]
+    for a in [*seq[slot + 1:], *seq[:max(0, slot)], *pool]:
+        if a in members and a not in used:
+            return a
+    if not wrap or not pool:
+        return None
+    if seq and seq[slot % len(seq)] in members:
+        return seq[slot % len(seq)]
+    return list(pool)[slot % len(pool)]
+
+
+def fill_open_slots(seq: Sequence[str], taken: Iterable[str], pool: Sequence[str], k: int, start: int,
+                    wrap: bool = False) -> list[str]:
+    """The Assistants of the open slots ``start..k-1`` (see :func:`next_unused`), none of them in
+    ``taken`` or twice; shorter than ``k - start`` when the pool has too few unused Assistants
+    left and ``wrap`` is off."""
+    used = set(taken)
+    out: list[str] = []
+    for j in range(max(0, start), k):
+        a = next_unused(seq, j, used, pool, wrap)
+        if a is None:
+            break
+        out.append(a)
+        used.add(a)
+    return out
 
 
 def random_subset(pool: Sequence[str], k: int, seed: str = "") -> list[str]:
@@ -1395,12 +1392,23 @@ Example: 3 Assistants A, B, C and 3 opponents a, b, c, both on `latin_square`
 `latin_square`, `cyclic`, `balanced_subset`, `random_subset` and `external`
 promise that a human gets **each Assistant at most once**. That is possible only
 when the counted negotiations per person ($K$, `n_required`) are at most the
-Assistants of the pool ($N$). With `assistant_repeats` unset (or `false`), a
-study file where $K > N$ is **refused on save** ("n_required = 6 negotiations but
-only 5 Assistants"); a study already running with such a file only gets a
+Assistants of the pool ($N$): the pool a session would use (`assistants` of the
+study, else of the project, else the one Assistant of `assistant_settings.json`).
+With `assistant_repeats` unset (or `false`), a study or project file where
+$K > N$ is **refused on save** ("n_required = 6 negotiations but only 5
+Assistants"), and so is a project change that would give one of its studies
+$K > N$; a study already running with such a file only gets a
 warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
 Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
 on purpose.
+
+The promise also holds when an Assistant leaves the pool during the study: the
+human's plan is made again, the negotiations they already played stay as they
+were, and each open slot gets its planned Assistant while it is still in the pool
+and unused, else the next Assistant they have not used yet. If fewer unused
+Assistants are left than open slots, `assistant_repeats: true` wraps around;
+otherwise the human finishes early, with the completion link, a log line and a
+`finished_early` event.
 
 `random_each` can repeat an Assistant by nature: it is allowed unless
 `assistant_repeats: false` is set explicitly, which refuses it. For `external`,

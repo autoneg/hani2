@@ -2,6 +2,7 @@
 
 import csv
 import json
+import sqlite3
 import threading
 import time
 from types import SimpleNamespace
@@ -559,3 +560,60 @@ def test_evaluation_rows_from_recordings_carry_the_paired_fields(hani2_home):
     lb = leaderboard(ev["rows"], "hi", "outcome", n_boot=0)
     assert lb["strata"] == {"solo": 0, "paired": 2} and lb["totals"]["sessions"] == 1
     assert lb["totals"]["matches"] == 1 and lb["cells"][-2:] == ["side", "opponent_assistant"]
+
+
+# --------------------------------------------------------------------------- #
+# A shrunk pool never gives a person an Assistant they used                     #
+# --------------------------------------------------------------------------- #
+def _set_pool(ref, assistants, **scheduling):
+    f = projects.study_dir(ref) / projects.STUDY_FILE
+    data = projects.read_yaml(f)
+    data["assistants"] = assistants
+    if scheduling:
+        data["scheduling"] = {**(data.get("scheduling") or {}), **scheduling}
+    projects.write_yaml(f, data)
+
+
+@pytest.mark.parametrize("method", ["latin_square", "balanced_subset"])
+def test_paired_shrunk_pool_does_not_repeat_and_finishes_early(hani2_home, method):
+    ref = paired_study(assistants=[HELLO, RULES], scheduling={"assistants": method}, n_required=2)
+    a = person("alice", ref, load=False)
+    rest, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    assert sorted(rest) == sorted([HELLO, RULES])
+    assignment.mark_used(a, rest[0], "m1")
+    _set_pool(ref, [rest[0]])  # the Assistant alice has not used left the pool
+    assert assignment.remaining_assistants(a, a.assistant_settings, {})[0] == []  # not the used one again
+    a.load()
+    assert a.phase == "finished" and matches.LOBBY.n_waiting() == 0
+    db = sqlite3.connect(projects.study_dir(ref) / "results" / "events.db")
+    assert db.execute("SELECT COUNT(*) FROM events WHERE action='finished_early'").fetchone()[0] == 1
+    _set_pool(ref, [rest[0]], assistant_repeats=True)
+    assert assignment.remaining_assistants(a, a.assistant_settings, {})[0] == [rest[0]]  # repeats: wraps
+
+
+def test_paired_replan_fills_open_slots_from_unused(hani2_home):
+    ref = paired_study(assistants=[HELLO, RULES, COACH], scheduling={"assistants": "balanced_subset"},
+                       n_required=2)
+    a = person("bob", ref, load=False)
+    rest, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    assignment.mark_used(a, rest[0], "m1")
+    _set_pool(ref, [x for x in (HELLO, RULES, COACH) if x != rest[1]])
+    new, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    assert new == [x for x in (HELLO, RULES, COACH) if x not in rest[:2]]
+    assert assignment.read_assignments(ref)["humans"]["bob"]["assistant_plan"][0] == rest[0]
+
+
+def test_paired_replan_with_a_skipped_assistant_is_stable(hani2_home):
+    ref = paired_study(assistants=[HELLO, RULES, COACH, "level6_guided:GuidedAgent"],
+                       scheduling={"assistants": "balanced_subset"}, n_required=3)
+    a = person("carol", ref, load=False)
+    rest, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    assignment.mark_used(a, rest[0], "m1")
+    assignment.skip_assistant(a, rest[1])
+    _set_pool(ref, [x for x in (HELLO, RULES, COACH, "level6_guided:GuidedAgent") if x != rest[2]])
+    first, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    for _ in range(2):
+        assert assignment.remaining_assistants(a, a.assistant_settings, {})[0] == first
+    h = assignment.read_assignments(ref)["humans"]["carol"]
+    assert len(h["previous_assistant_plans"]) == 1
+    assert len(first) == 1 and first[0] not in rest[:3]  # one open slot (the skip used one), unused

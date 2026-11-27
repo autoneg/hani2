@@ -183,12 +183,17 @@ scmlweb already uses for the sign-in hand-off, but for a different audience:
 |---|---|
 | `iss` | the provider's issuer (default: the provider's name in hani2's `auth.sso`, e.g. `scmlweb`) |
 | `aud` | `hani2-api`, plus the instance's root path when hani2 runs under one (`hani2-api/hiplay2`) |
-| `scope` | `leaderboard:read` (a space-separated string or a list) |
+| `scope` | `leaderboard:read` (a space-separated string or a list); `leaderboard:admin` to also read boards with `visibility: admins` |
 | `iat`, `exp` | Unix seconds, at most 120 s apart (30 s clock skew allowed) |
 
 No `sub`, no `jti`: an API token may be reused while it is valid, so mint one per request or once
 a minute. A sign-in token (`aud: hani2…`) is refused by the API, and an API token is refused by the
 sign-in hand-off; a token naming both audiences is refused by both.
+
+Scopes: `leaderboard:read` reads boards with `visibility: public` or `participants`.
+Boards with `visibility: admins` need `leaderboard:admin` (which includes `leaderboard:read`): a
+token without it gets **403** for them, and `GET /api/v1/leaderboards` does not list them. Mint
+`leaderboard:admin` only for organiser-facing pages, never for the public site.
 
 ```python
 import base64, hashlib, hmac, json, time
@@ -200,11 +205,12 @@ def b64(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
 
-def hani2_api_token(secret: str, issuer: str = "scmlweb", root_path: str = "") -> str:
+def hani2_api_token(secret: str, issuer: str = "scmlweb", root_path: str = "",
+                    scope: str = "leaderboard:read") -> str:  # "leaderboard:admin" for admins boards
     now = int(time.time())
     aud = "hani2-api" + (f"/{root_path.strip('/')}" if root_path.strip("/") else "")
     head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
-    body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": "leaderboard:read",
+    body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": scope,
                            "iat": now, "exp": now + 60}).encode())
     sig = b64(hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest())
     return f"{head}.{body}.{sig}"
@@ -224,7 +230,8 @@ def project_board(base: str, project: str, secret: str, root_path: str = "", **q
 With PyJWT: `jwt.encode({"iss": "scmlweb", "aud": "hani2-api", "scope": "leaderboard:read",
 "iat": now, "exp": now + 60}, secret, algorithm="HS256")`. hani2's test suite runs this exact
 minting function against its verifier (`tests/test_sso.py`). On the hani2 host,
-`hani2 leaderboard token scmlweb` prints a token to try the API with `curl`.
+`hani2 leaderboard token scmlweb` prints a token to try the API with `curl` (`--admin` for one with
+`leaderboard:admin`).
 
 ## 7. Checklist
 

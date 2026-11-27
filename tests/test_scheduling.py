@@ -751,7 +751,8 @@ def test_options_are_validated_and_merged(study):
         scheduling.check_scheduling({"cross": "diagonal"})
     with pytest.raises(ValueError, match="assistant_repeats must be true or false"):
         scheduling.check_scheduling({"assistant_repeats": "maybe"})
-    projects.create_project("HI", kind="assistant", scheduling={"cross": "none", "assistants": "cyclic"})
+    # (n_required = 1: the pool is the one Assistant of assistant_settings.json, and K ≤ N is checked)
+    projects.create_project("HI", kind="assistant", n_required=1, scheduling={"cross": "none", "assistants": "cyclic"})
     projects.create_study(study, scheduling={"assistant_repeats": True})
     assert scheduling.options_for(study) == {"cross": "none", "assistant_repeats": True}
     assert scheduling.methods_for(study)["assistants"] == "cyclic"  # the options are not dimensions
@@ -966,3 +967,113 @@ def test_balance_report_leaves_out_people_who_are_not_counted(study, monkeypatch
                     "status": "success"})
     rep = balance.study_balance(study)
     assert rep["participants"] == 1 and COACH not in rep["totals"]
+
+
+# --------------------------------------------------------------------------- #
+# A re-plan after an Assistant left the pool never repeats one already used    #
+# --------------------------------------------------------------------------- #
+GUIDED = "level6_guided:GuidedAgent"
+FOUR = [HELLO, RULES, COACH, GUIDED]
+
+
+def _finished_early(study) -> int:
+    db = sqlite3.connect(projects.study_dir(study) / "results" / "events.db")
+    return db.execute("SELECT COUNT(*) FROM events WHERE action='finished_early'").fetchone()[0]
+
+
+def test_next_unused_keeps_the_plan_and_fills_open_slots():
+    seq = ["A", "B", "C"]
+    assert [scheduling.next_unused(seq, j, seq[:j], seq) for j in range(3)] == seq  # nothing changed
+    assert scheduling.next_unused(seq, 2, ["A", "B"], ["A", "B", "D"]) == "D"  # C left: the unused one
+    assert scheduling.next_unused(seq, 1, ["C"], seq) == "B"  # an off-plan first slot: the plan still holds
+    assert scheduling.next_unused(seq, 2, ["A", "B"], ["A", "B"]) is None  # nothing unused left
+    assert scheduling.next_unused(seq, 2, ["A", "B"], ["A", "B"], wrap=True) in ("A", "B")
+    assert scheduling.fill_open_slots(["A", "B", "C"], {"B"}, ["A", "B", "D"], 3, 1) == ["A", "D"]
+
+
+@pytest.mark.parametrize("method", ["latin_square", "cyclic", "balanced_subset", "random_subset"])
+def test_a_replan_keeps_the_played_slots_and_never_repeats(study, monkeypatch, method):
+    """An Assistant planned for a person's last slot leaves the pool after their second
+    negotiation: the last slot gets the one Assistant they have not used, never a used one."""
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=FOUR, opponents=POOL, practice=False, n_required=3,
+               scheduling={"assistants": method})
+    for pid in ("RP0", "RP1", "RP2", "RP3"):
+        _set_study(study, assistants=FOUR)
+        s = prolific(pid, study)
+        seen = []
+        for _ in range(2):
+            seen.append(s.assistant_choice.spec)
+            _play(s)
+            s.load()
+        gone = s.assistant_choice.spec
+        assert gone not in seen
+        _set_study(study, assistants=[a for a in FOUR if a != gone])
+        for _ in range(2):  # refreshing again changes nothing (no second re-plan)
+            s.refresh_assistant(s.round_plan)
+            assert s.assistant_choice.spec == next(a for a in FOUR if a not in (*seen, gone))
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        assert [r["assistant"] for r in _rows(s)] == seen and len(set(seen)) == 3
+        h = assignment.read_assignments(study)["humans"][f"prolific_{pid}"]
+        if method in scheduling.SUBSET_ASSISTANTS:
+            assert h["assistant_plan"] == seen and len(h["previous_assistant_plans"]) == 1
+        s.close()
+    assert _finished_early(study) == 0
+
+
+@pytest.mark.parametrize("method", ["latin_square", "balanced_subset"])
+def test_too_few_unused_assistants_left_finishes_early(study, monkeypatch, capsys, method):
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=FOUR, opponents=POOL, practice=False, n_required=3,
+               scheduling={"assistants": method})
+    s = prolific("EARLY", study)
+    seen = []
+    for i in range(2):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        if i == 0:
+            s.load()
+    _set_study(study, assistants=seen)  # only the two used Assistants are left
+    s.load()
+    assert s.phase == "finished" and len(_rows(s)) == 2
+    assert _finished_early(study) == 1
+    assert "has used every Assistant left in the study's pool" in capsys.readouterr().out
+    s.close()
+    s = prolific("EARLY", study)  # a reconnect: still finished, logged once
+    assert s.phase == "finished" and _finished_early(study) == 1
+    s.close()
+
+
+def test_too_few_unused_assistants_left_wraps_with_repeats(study, monkeypatch):
+    monkeypatch.setenv("PROLIFIC_N_REQUIRED", "3")
+    _set_study(study, assistants=FOUR, opponents=POOL, practice=False, n_required=3,
+               scheduling={"assistants": "latin_square", "assistant_repeats": True})
+    s = prolific("WRAP", study)
+    seen = []
+    for i in range(2):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        if i == 0:
+            s.load()
+    _set_study(study, assistants=seen)
+    s.load()
+    assert s.phase != "finished" and s.assistant_choice.spec in seen  # wraps around
+    _play(s)
+    assert len(_rows(s)) == 3 and _finished_early(study) == 0
+
+
+def test_an_unchanged_pool_wraps_past_n_outside_a_counted_study(hani2_home):
+    """A study without a count of negotiations (no n_required end): with the pool untouched, slot
+    N+1 still gets an Assistant (it wraps), it does not finish early."""
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/open", type="online", assistants=[HELLO, RULES], n_required=2,
+                          scheduling={"assistants": "latin_square"})
+    s = make_session(user="opener", partner=None, study=StudyRef("HI", "open"), query={"noautostart": "1"})
+    seen = []
+    for _ in range(3):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        s.load()
+    assert s.phase != "finished" and sorted(seen[:2]) == sorted([HELLO, RULES]) and seen[2] in seen[:2]
+    assert _finished_early(StudyRef("HI", "open")) == 0

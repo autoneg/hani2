@@ -1834,6 +1834,8 @@ class NegotiationSession:
             if user_pick:  # the human chose it (see hani2.choices); a study's own schedule may not take it
                 plan["type"], plan["name"] = scenario_type, name
                 plan["scenario_scheduling"] = "user"
+            if self._out_of_assistants(plan):
+                return
             idx = plan.get("index")
             if idx is None and self.ss.get("fixed_scenario_index") is not None:
                 idx = int(self.ss["fixed_scenario_index"])  # simulated trials replay the same task
@@ -1866,6 +1868,13 @@ class NegotiationSession:
                 pctx = pairing.context(self, plan, stype, eff) if eff is not None else None
                 if pctx is not None and pctx["late"]:
                     if not pctx["remaining"]:  # every Assistant planned for this person was used
+                        from hani2 import assignment
+
+                        assignment.log_finished_early(
+                            self, f"{self.user} has no Assistant left to play (used: "
+                                  f"{', '.join(assignment.played_assistants(self)) or 'none'}; skipped: "
+                                  f"{', '.join(assignment.skipped_assistants(self)) or 'none'}), so they "
+                                  "finish early", {"study_mode": "paired"})
                         self._paired_exhausted = True
                         self.study.finish()
                         self.push_state()
@@ -2050,6 +2059,32 @@ class NegotiationSession:
     # ------------------------------------------------------------------ #
     # The Assistant: which one, attribution                               #
     # ------------------------------------------------------------------ #
+    def _out_of_assistants(self, plan: dict) -> bool:
+        """Solo (and not-declared Paired) studies: the pool shrank during the study and this person
+        has used every Assistant left in it, which the study does not repeat
+        (``scheduling.assistant_repeats``): they finish early, with a ``finished_early`` event."""
+        from hani2 import assignment, pairing
+        from hani2.support_agent.settings import support_agent_enabled
+
+        if self.study_ref is None or self.phase in ("running", "starting"):
+            return False
+        eff = pairing.settings(self)
+        if eff is not None and eff.get("declared"):
+            return False  # Paired: the remaining set decides (see the pairing below)
+        st = self.assistant_settings
+        if st is None or not (support_agent_enabled(st, is_admin=self.is_admin) or assignment.group_assistant(self)):
+            return False
+        reason = assignment.assistants_used_up(self, st, plan)
+        if not reason:
+            return False
+        assignment.log_finished_early(self, reason, {"study_mode": "solo"})
+        self._assistants_exhausted = True
+        self.toast("You have used every Assistant this study has left for you: the study ends here.",
+                   "info", duration=10000)
+        self.study.finish()
+        self.push_state()
+        return True
+
     @_in_own_study
     def refresh_assistant(self, plan: dict | None = None) -> None:
         """Re-resolve the Assistant this session should run (the URL's group, a
@@ -2779,6 +2814,8 @@ class NegotiationSession:
         if fb == "wait" or not self.admin_prefs.get("human_opponent_fallback", True) or self.people_only():
             matches.LOBBY.requeue(match)
             return
+        if not matches.LOBBY.claim(match):
+            return  # someone joined just now
         if fb == "end":
             self._paired_end(match)
             return

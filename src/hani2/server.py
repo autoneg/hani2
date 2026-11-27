@@ -935,23 +935,33 @@ def _count_rows(files: list[Path]) -> int:
 def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
     """What the project and study editor needs besides the file: the project's kind and year (the
     "this year" / "last year" labels of the HAN picker), the years each HAN source covers (read in
-    the file's own layer, as the save checks do), and what a study inherits from its project."""
+    the file's own layer, as the save checks do), what a study inherits from its project, and
+    ``effective``: the Assistant and opponent pools a session would play (with their sources), K,
+    the mode in use and the derived one (:meth:`hani2.study_modes.Pools.to_dict`)."""
     from hani2 import han_submissions, study_modes
 
     pr = projects.load_project(project)
     with study_modes._layer(ref, None if ref is not None else project):
         current = han_submissions.current_year()
         years = han_submissions.package_years()
-    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "pairing": {},
-                                 "scheduling": {}}
+    inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "assistants": None,
+                                 "pairing": {}, "scheduling": {}}
     if ref is not None:
         d = pr.defaults
         inherited = {"n_required": d.get("n_required") if d.get("n_required") is not None else 5,
                      "study_mode": d.get("study_mode"), "opponents": d.get("opponents"),
+                     "assistants": d.get("assistants"),
                      "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {},
                      "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {}}
+    try:  # the pools a session would play, K and the mode, for the editor's live checks
+        st = projects.get_study(ref) if ref is not None else None
+        p = study_modes.effective_pools(pr, st.overrides if st is not None else ({} if ref else None), ref)
+        effective, pools = p.to_dict(), p.editor_pools(p.env_opponents)
+    except Exception as e:  # noqa: BLE001 — a broken file is reported by the page's errors
+        effective, pools = {"error": str(e)}, None
     return {"kind": pr.kind, "project_year": pr.year, "han": {"package_years": years, "current_year": current},
-            "inherited": inherited, "leaderboard": _board_editor_info(project, ref)}
+            "inherited": inherited, "pools": pools, "leaderboard": _board_editor_info(project, ref),
+            "effective": effective}
 
 
 def _board_editor_info(project: str, ref: "projects.StudyRef | None") -> dict | None:
@@ -1071,6 +1081,35 @@ def admin_scores(project: str | None = None, study: str | None = None, _: str = 
         raise HTTPException(400, "give a project or a study (project/study)")
     project, name = _score_target(ref.project if ref is not None else str(project), ref.study if ref else None)
     return jsonable(S.resolve(project, name).to_dict())
+
+
+@app.post("/api/admin/scores/preview")
+def admin_score_preview(project: str | None = None, study: str | None = None, body: Any = Body(...),
+                        _: str = Depends(require_admin)):
+    """A score that is not saved (``{"key": …, "score": {definition}}``, or the definition itself) on the
+    current data of the board of ``project`` (or of ``study`` = ``project/study``): the weights in effect
+    after coverage, the dropped parts, the distribution of the score over the counted games and the top
+    entrants. Nothing is written; a definition that cannot be computed gives its ``problems``."""
+    from hani2.evaluation import boards
+
+    try:
+        ref = projects.parse_ref(study) if study else None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if ref is not None and project and ref.project != project:
+        raise HTTPException(400, f"study {ref} is not in project {project!r}")
+    if ref is None and not project:
+        raise HTTPException(400, "give a project or a study (project/study)")
+    project, name = _score_target(ref.project if ref is not None else str(project), ref.study if ref else None)
+    if not isinstance(body, dict):
+        raise HTTPException(400, "send the score's definition as a JSON object")
+    key = body.get("key") if isinstance(body.get("key"), str) else None
+    definition = body.get("score") if isinstance(body.get("score"), dict) else \
+        {k: v for k, v in body.items() if k not in ("key", "origin", "enabled", "flattened")}
+    try:
+        return jsonable(boards.preview(project, name, definition, key))
+    except boards.BoardNotFound as e:
+        raise HTTPException(404, str(e)) from None
 
 
 def _save_score(project: str, study: str | None, key: str, body: Any) -> dict:
@@ -1676,10 +1715,13 @@ def _board_viewer(request: Request, project: str, study: str | None) -> bool:
         return True
     tok = _bearer(request)
     if tok is not None:
+        # an ``admins`` board needs the scope leaderboard:admin; the others leaderboard:read (or admin)
+        scope = sso.SCOPE_LEADERBOARD_ADMIN if vis == "admins" else sso.SCOPE_LEADERBOARD
         try:
-            sso.verify_api_token(tok, root_path=root_path())
+            sso.verify_api_token(tok, scope, root_path=root_path())
         except sso.APITokenError as e:
-            raise HTTPException(e.status, f"API token refused ({e.code}): {e}",
+            raise HTTPException(e.status, f"API token refused ({e.code}): {e}"
+                                + (" (this board has visibility: admins)" if e.code == "scope" and vis == "admins" else ""),
                                 headers={"WWW-Authenticate": "Bearer"} if e.status == 401 else None) from None
         return False
     if vis == "public":
@@ -1737,25 +1779,28 @@ def api_study_leaderboard(project: str, study: str, request: Request):
 @app.get("/api/v1/leaderboards")
 def api_leaderboards(request: Request):
     """Every project that has a board, with its track, year and visibility. Without a signed-in user or
-    an API token, only the public boards are listed."""
+    an API token, only the public boards are listed; ``admins`` boards only to an admin or to an API
+    token with the scope ``leaderboard:admin``."""
     from hani2.evaluation import boards
 
     user = current_user(request)
     full = bool(user) and sso.guest_study(user) is None  # a guest sees the public boards only
+    admins = bool(user) and auth.is_admin_user(user)
     tok = _bearer(request)
     if tok is not None:
         try:
-            sso.verify_api_token(tok, root_path=root_path())
-            full = True
+            claims = sso.verify_api_token(tok, root_path=root_path())
         except sso.APITokenError as e:
             raise HTTPException(e.status, f"API token refused ({e.code}): {e}") from None
+        full = True
+        admins = admins or sso.token_has_scope(claims, sso.SCOPE_LEADERBOARD_ADMIN)
     items = boards.list_boards()
-    if not full:
-        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] == "public"])
-                 for b in items if b["visibility"] == "public" or any(x["visibility"] == "public" for x in b["studies"])]
-    elif not (user and auth.is_admin_user(user)) and tok is None:
-        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] != "admins"])
-                 for b in items if b["visibility"] != "admins" or any(x["visibility"] != "admins" for x in b["studies"])]
+    if not (full and admins):
+        def shown(v: str) -> bool:
+            return v == "public" if not full else v != "admins"
+
+        items = [dict(b, studies=[x for x in b["studies"] if shown(x["visibility"])])
+                 for b in items if shown(b["visibility"]) or any(shown(x["visibility"]) for x in b["studies"])]
     return {"schema": "hani2.leaderboards/1", "boards": items}
 
 
