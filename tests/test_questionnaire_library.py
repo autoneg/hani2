@@ -170,11 +170,16 @@ def test_invalid_sets_are_refused(admin, lib_dir, text, needle):
 
 
 @pytest.mark.parametrize("sid", ["..", "..%2F..%2Fetc", "a.b", "%2Fetc%2Fpasswd", "x" * 81])
-def test_path_traversal_is_refused(admin, sid):
+def test_path_traversal_is_refused(admin, lib_dir, sid):
     for r in (admin.get(f"{API}/{sid}"), admin.put(f"{API}/{sid}", json={"text": _text(OWN)}),
               admin.get(f"{API}/{sid}/copy")):
         assert r.status_code in (400, 404, 405), (sid, r.status_code)
     assert admin.get(f"{API}/sus/copy?new_id=..%2Fx").status_code == 400
+    # the id in the body is the one that names the file
+    for bad in ("../evil", "/tmp/evil", "a/b", ".hidden"):
+        r = admin.post(API, json={"text": _text({**OWN, "id": bad})})
+        assert r.status_code == 422 and "invalid id" in r.json()["detail"], bad
+    assert not (lib_dir.parent / "evil.yaml").exists() and not lib_dir.exists()
     with pytest.raises(ql.LibraryError):
         ql.check_id("../x")
 

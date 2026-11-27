@@ -72,6 +72,7 @@ def test_reorder_remove_edit_and_add_form_items(new_page):
     items.get_by_role("button", name="Remove sus_2").click()
     expect(items.locator("[data-item]")).to_have_count(11)
     expect(items.locator('[data-scale-notice="sus"]')).to_contain_text("may no longer match")
+    expect(items.locator("[data-scale-notice]")).to_have_count(1)
     # edit an item's text, type and required flag; the title
     items.locator('[data-item="a"]').get_by_role("button", name="Alpha?").click()
     items.get_by_label("Text of a").fill("Alpha, edited?")
@@ -85,6 +86,13 @@ def test_reorder_remove_edit_and_add_form_items(new_page):
     items.get_by_label("Item to add").select_option(index=1)
     items.get_by_role("button", name="Add item").click()
     expect(items.locator("[data-item]")).to_have_count(13)
+    # a complete published set added through the picker raises no notice for the sets it overlaps with
+    p.get_by_role("button", name="Add predefined questionnaires").click()
+    p.locator("#setting-form-library label").filter(has_text="TAM perceived usefulness, 2 items").locator("input").check()
+    p.locator("#setting-form-library").get_by_role("button", name="Add 1 set to the form").click()
+    expect(items.locator("[data-item]")).to_have_count(15)
+    expect(items.locator("[data-scale-notice]")).to_have_count(1)  # only SUS (sus_2 removed)
+    expect(items.locator('[data-scale-notice="sus"]')).to_have_count(1)
     # the YAML view shows the same form
     p.get_by_role("tab", name="YAML").click()
     expect(p.get_by_role("textbox", name="Form", exact=True)).to_have_value(re.compile("Alpha, edited"))
@@ -93,9 +101,9 @@ def test_reorder_remove_edit_and_add_form_items(new_page):
     expect(p.get_by_text(f"Saved to Project {name}")).to_be_visible()
     saved = yaml.safe_load(p.request.get(f"/api/admin/settings/per_negotiation?layer={layer}").json()["text"])
     ids = [q["id"] for q in saved["questions"]]
-    assert ids[:3] == ["b", "a", "sus_1"] and "sus_2" not in ids and len(ids) == 13, ids
+    assert ids[:3] == ["b", "a", "sus_1"] and "sus_2" not in ids and len(ids) == 15, ids
     a = saved["questions"][1]
     assert a["text"] == "Alpha, edited?" and a["type"] == "likert7" and a["required"] is False and a["labels"] == {7: "Very"}
     assert saved["title"] == "After, edited"
-    assert ids[-2] == "q12" and ids[-1] in {q["id"] for q in next(
+    assert sorted(ids[-2:]) == ["tam_effectiveness", "tam_useful"] and ids[-4] == "q12" and ids[-3] in {q["id"] for q in next(
         s for s in p.request.get("/api/admin/questionnaire-library").json()["sets"] if s["id"] == "attention_check")["questions"]}

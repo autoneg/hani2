@@ -82,16 +82,24 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
     if (qs.some((x) => x.id === q.id)) return toast(`${q.id} is already in the form`, "error");
     setQs([...qs, JSON.parse(JSON.stringify(q))]);
   };
-  // published instruments whose scored items were edited or removed: their scale may no longer match the source
+  // published instruments whose scored items were edited, removed or left out: their scale may no longer
+  // match the source. A set whose items in the form all belong to another published set that is complete
+  // and unchanged (TAM usefulness, short and full, share two items) is not flagged.
   const notices = useMemo(() => {
     const byId = new Map(qs.map((q) => [String(q.id), q]));
+    const sourced = lib.filter((s) => s.read_only);
+    const scoredOf = (s: QSet) => s.questions.filter((q) => q.scale || q.reverse);
+    const changedOf = (s: QSet) => scoredOf(s).filter((q) => !byId.has(String(q.id)) || stable(byId.get(String(q.id))) !== stable(q));
+    const intact = sourced.filter((s) => scoredOf(s).length > 0 && changedOf(s).length === 0);
+    const coveredIds = new Set(intact.flatMap((s) => s.questions.map((q) => String(q.id))));
     const out: { set: QSet; scales: string[] }[] = [];
-    for (const s of lib) {
-      if (!s.read_only) continue;
-      const scored = s.questions.filter((q) => q.scale || q.reverse);
-      if (!scored.some((q) => byId.has(String(q.id)))) continue;
-      const changed = scored.filter((q) => !byId.has(String(q.id)) || stable(byId.get(String(q.id))) !== stable(q));
-      if (changed.length) out.push({ set: s, scales: [...new Set(changed.map((q) => String(q.scale || "")).filter(Boolean))] });
+    for (const s of sourced) {
+      const present = scoredOf(s).filter((q) => byId.has(String(q.id)));
+      if (!present.length) continue;
+      const changed = changedOf(s);
+      if (!changed.length) continue;
+      if (!intact.includes(s) && present.every((q) => coveredIds.has(String(q.id))) && present.every((q) => stable(byId.get(String(q.id))) === stable(q))) continue;
+      out.push({ set: s, scales: [...new Set(changed.map((q) => String(q.scale || "")).filter(Boolean))] });
     }
     return out;
   }, [qs, lib]);
@@ -115,7 +123,7 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
         <div key={set.id} className="flex items-start gap-2 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn" data-scale-notice={set.id}>
           <TriangleAlert size={14} className="mt-0.5 shrink-0" />
           <span>
-            Items of {set.title} were edited or removed{scales.length ? ` (${scales.map((x) => `scale_${x}`).join(", ")})` : ""}: the scale score may no longer match the published instrument.
+            Scored items of {set.title} were edited, removed or left out{scales.length ? ` (${scales.map((x) => `scale_${x}`).join(", ")})` : ""}: the scale score may no longer match the published instrument.
           </span>
         </div>
       ))}
