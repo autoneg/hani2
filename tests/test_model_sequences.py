@@ -113,6 +113,13 @@ def test_purpose_names_a_sequence(study):
         assert mc.resolve("assistant").model == "qwen3:4b-instruct"  # small: only the local entry has credentials
         assert mc.effective_chains()["judge"]["sequence"] == "strict"
         assert mc.resolve("text").model == "base"  # unaffected purposes keep the default chain
+    # a purpose naming a missing or disabled sequence fails visibly (no silent fall-through)
+    write(home, "projects/P1/studies/s1/models.json", {"assistant": "smal"})
+    with projects.use_study("P1/s1"):
+        r = mc.resolve("assistant")
+        assert not r.ok and "names the model sequence 'smal'" in r.error and r.source == "study:P1/s1"
+        assert mc.unknown_refs({"assistant": "smal"}) and not mc.unknown_refs({"assistant": "small"})
+        assert mc.unknown_refs({"assistant": "x", "sequences": {"x": {"disabled": True}}})
     # a cycle is refused, not followed forever
     write(home, "settings/models.json", {"default": ["ollama:base"], "assistant": "loop",
                                          "sequences": {"loop": ["ollama:x"]}})
@@ -214,15 +221,91 @@ def test_own_models_off_by_default_and_secret_when_on(hani2_home, calls):
     # the key never reaches records, events or error texts
     assert SECRET not in json.dumps(s.models.records(), default=str)
     assert SECRET not in conns.redact(f"failed with {SECRET}")
-    assert SECRET not in json.dumps(ev.read_events(s.sid) if hasattr(ev, "read_events") else [], default=str)
-    # the language model can define one too (without a key: an environment variable of the server)
-    out = sa.dispatcher.execute("define_model_sequence", {"name": "mine2", "entries": ["ollama:own-small"]})
+    # the language model can define one too (its own keyless server)
+    out = sa.dispatcher.execute("define_model_sequence", {"name": "mine2", "entries": [
+        {"provider": "ollama", "model": "own-small", "api_base": "http://own.example:11434"}]})
     assert out["ok"]
     assert sa.dispatcher.execute("use_model_sequence", {"name": "mine2"})["ok"]
     sa._complete([], False)
-    assert calls[-1]["model"] == "ollama_chat/own-small"
+    assert calls[-1]["model"] == "ollama_chat/own-small" and calls[-1]["api_base"] == "http://own.example:11434"
     lst = sa.dispatcher.execute("list_model_sequences", {})
     assert lst["current"] == "mine2" and any(x["name"] == "mine2" for x in lst["sequences"])
+    # with only own_models, a study sequence cannot be chosen
+    assert not sa.use_model_sequence("tiny")["ok"]
+
+
+def test_own_entries_never_use_the_servers_keys(hani2_home, calls, monkeypatch):
+    from hani2.testing import make_session
+
+    server_key = "sk-server-SECRET-0123456789abcdef"
+    monkeypatch.setenv("OPENAI_API_KEY", server_key)
+    monkeypatch.setenv("SOME_SERVER_VAR", server_key)
+    conns.add({"name": "oa", "provider": "openai", "auth": "api_key"}, api_key=server_key)
+    s = make_session(assistant_settings={"capabilities": {"own_models": True}})
+    sa = s.support_agent
+    # an address of its own without a key: nothing is sent to sign in
+    assert sa.define_model_sequence("evil", [{"provider": "openai", "model": "m",
+                                              "api_base": "https://attacker.example/v1"}])["ok"]
+    sa.ask_llm("hi", sequence="evil")
+    assert "api_key" not in calls[-1] and server_key not in json.dumps(calls[-1], default=str)
+    # the server's environment, the admin's connections and plain entries are refused
+    for entries in ([{"provider": "openai", "model": "m", "api_key_env": "SOME_SERVER_VAR"}],
+                    ["openai:gpt-5"], [{"provider": "openai", "model": "gpt-5"}],
+                    [{"connection": "oa", "model": "gpt-5", "api_key": "sk-x-0123456789abcdef"}],
+                    [{"provider": "claude-code", "model": "x", "api_key": "sk-x-0123456789abcdef"}]):
+        r = sa.define_model_sequence("evil2", entries)
+        assert not r["ok"], entries
+
+
+def test_own_key_never_reaches_results_events_or_recordings(hani2_home, calls, monkeypatch):
+    import csv
+    import gzip
+
+    from hani2.testing import make_session
+
+    monkeypatch.setenv("HANI2_RECORD", "1")
+    s = make_session(assistant_settings={"capabilities": {"own_models": True, "model_choice": True}})
+    sa = s.support_agent
+    assert sa.define_model_sequence("mine", [{"provider": "openai", "model": "gpt-own", "api_key": SECRET}])["ok"]
+    assert sa.use_model_sequence("mine")["ok"]
+    sa._complete([], False)
+    assert calls[-1]["api_key"] == SECRET
+    s.start()
+    s.wait_for_turn()
+    s.end()
+    s.wait_until_done()
+    s.close()
+    found = []
+    for f in hani2_home.rglob("*"):
+        if not f.is_file():
+            continue
+        data = f.read_bytes()
+        if SECRET.encode() in data:
+            found.append(str(f))
+        if f.suffix in (".gz", ".hrec"):
+            try:
+                if SECRET.encode() in gzip.decompress(data):
+                    found.append(str(f))
+            except OSError:
+                pass
+    assert not found
+    assert SECRET not in json.dumps(s.snapshot(), default=str)
+    rows = [r for f in hani2_home.rglob("results.csv") for r in csv.DictReader(open(f))]
+    # the results name the entry of the sequence the Assistant used for its replies
+    assert rows and rows[0]["assistant_llm"] == "assistant-mine-1:gpt-own"
+    assert json.loads(rows[0]["llm_models"])["assistant@mine"]["sequence"] == "mine"
+    assert list(hani2_home.rglob("*.hrec*"))
+
+
+def test_assistant_class_sequence_is_chosen_at_start_and_attributed(hani2_home, calls, monkeypatch):
+    from hani2.support_agent.runtime import SupportAgent
+    from hani2.testing import make_session
+
+    monkeypatch.setattr(SupportAgent, "model_sequence", "tiny")
+    monkeypatch.setenv("HANI2_MODELS", "ollama:asst-model")
+    s = make_session()
+    assert s.models.peek("assistant", "tiny") is not None and s.models.peek("assistant") is None
+    assert s.models.attribution()["assistant_llm"] == "ollama-local:qwen3:0.6b"
 
 
 # --------------------------------------------------------------------------- #
@@ -266,3 +349,8 @@ def test_admin_sequences(admin, study):
                    json={"chains": {"assistant": "d1", "sequences": {"d1": ["ollama:draft"]}}}).json()
     assert r["purposes"]["assistant"]["model"] == "draft" and r["sequences"]["d1"]["model"] == "draft"
     assert admin.put("/api/admin/models?layer=settings", json={"sequences": {"bad name": ["ollama:x"]}}).status_code == 400
+    # a purpose may not name a sequence that does not exist, or is disabled, at the layer
+    r = admin.put("/api/admin/models?layer=study:P1/s1", json={"assistant": "smal"})
+    assert r.status_code == 400 and "smal" in r.text
+    assert admin.put("/api/admin/models?layer=study:P1/s1", json={"assistant": "large"}).status_code == 400
+    assert admin.put("/api/admin/models?layer=study:P1/s1", json={"assistant": "tiny"}).status_code == 200

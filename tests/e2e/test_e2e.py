@@ -682,3 +682,27 @@ def test_simple_view_preferences_summary_folds_and_shows_issue_arrows(new_page):
     issue.select_option(options[-1])
     p.wait_for_timeout(800)  # the tool re-renders with the other issue
     expect(summary).to_have_attribute("aria-expanded", "false")
+
+
+def test_models_page_edits_named_sequences(new_page):
+    """The Models page lists the named sequences, overrides one, disables one and saves both."""
+    p = new_page(viewport={"width": 1400, "height": 900})
+    assert p.request.post("/api/auth/login", data={"username": "admin", "password": "adminpass"}).ok
+    p.goto("/admin#models")
+    p.reload()
+    group = p.locator("#setting-models-sequences")
+    expect(group.get_by_text("Named model sequences")).to_be_visible()
+    for name in ("tiny", "offline", "small", "medium", "large"):
+        expect(group.locator(f'[data-setting="sequence-{name}"]')).to_be_visible()
+    group.locator('[data-setting="sequence-tiny"]').get_by_role("button", name="Override here").click()
+    expect(group.locator('[data-setting="sequence-tiny"]').get_by_text("defined here")).to_be_visible()
+    group.locator('[data-setting="sequence-large"]').get_by_role("button", name="Disable here").click()
+    with p.expect_response(lambda r: "/api/admin/models" in r.url and r.request.method == "PUT") as resp:
+        p.locator("button.btn-primary", has_text="Save").click()
+    assert resp.value.ok, resp.value.text()
+    own = p.request.get("/api/admin/models?layer=settings").json()["own"]
+    assert own["sequences"]["large"] == {"disabled": True}
+    assert own["sequences"]["tiny"]["entries"][0]["model"] == "qwen3:0.6b"
+    assert not p.errors, p.errors
+    # leave the shared server as it was
+    assert p.request.put("/api/admin/models?layer=settings", data={}).ok

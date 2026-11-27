@@ -255,8 +255,11 @@ one.
 
 A session chooses each sequence's entry the first time it uses it and keeps it, as with a purpose.
 The record says which sequence it came from (`sequence`). In `llm_models` it is stored under
-`purpose@sequence`, for example `assistant@small`. The `assistant_llm` column keeps the purpose's
-own choice. Asking for a disabled or unknown sequence fails with an error that says why.
+`purpose@sequence`, for example `assistant@small`. When the Assistant replies through a sequence,
+`assistant_llm` and `assistant_llm_entry` name that sequence's entry. Asking for a disabled or
+unknown sequence fails with an error that says why. A purpose that names a missing or disabled
+sequence also fails visibly: it does not quietly use another layer's chain. The Models page and
+`PUT /api/admin/models` refuse to save one, and `hani2` reports one in the settings folder at start.
 
 ### Thinking and effort
 
@@ -300,30 +303,36 @@ class MyAssistant(Assistant):
 | `model_sequences()` | The sequences it may use: name, description, source and entries (never a key). |
 | `use_model_sequence(name)` | Switch its replies to `name` (`""` goes back to the `assistant` chain). |
 | `ask_llm(prompt, sequence=..., system=..., **params)` | One prompt, one reply, through any sequence. |
-| `define_model_sequence(name, entries, description="")` | With `own_models`: define its own sequence. |
+| `define_model_sequence(name, entries, description="")` | With `own_models`: define its own sequence (each entry signs in by itself). |
 
 The language model behind the Assistant gets the functions `list_model_sequences` and
 `use_model_sequence` (with `model_choice` or `own_models`), and `define_model_sequence` (with
 `own_models`). It can, for example, switch to `small` for small talk and to `large` for a hard
 analysis.
 
-**Its own sequences.** With `own_models`, an entry may sign in by itself, so an Assistant can use
-its own models:
+**Its own sequences.** With `own_models`, an Assistant can use its own models. Every entry of its
+own sequence signs in by itself, with `api_key`, `api_base` or both:
 
 ```python
 self.define_model_sequence("mine", [
     {"provider": "openai", "model": "my-model", "api_base": "https://models.example.org/v1",
      "api_key": "sk-...", "params": {"temperature": 0.2}},
-    {"provider": "anthropic", "model": "claude-haiku-5-5", "api_key_env": "TEAM_ANTHROPIC_KEY"},
+    {"provider": "anthropic", "model": "claude-haiku-5-5", "api_key": "sk-ant-..."},
+    {"provider": "ollama", "model": "my-finetune", "api_base": "http://my-gpu-box:11434"},
 ])
 self.use_model_sequence("mine")
 ```
 
+An own entry never uses the server's connections, keys or environment variables. An entry without
+`api_key` sends no key, even to the provider's own address, so an address the Assistant chooses
+never receives one of the server's keys. Plain `provider:model` entries, `connection` and
+`api_key_env` are refused. The study's models are used only through its named sequences (with
+`model_choice`), and a sequence the admin disabled stays disabled.
+
 `api_key` is used only for the session's calls. It is masked in every log and error, and it is
-never stored or written to results, events or recordings. `api_key_env` names an environment
-variable of the server. A sequence lives as long as the session. Its name must not be one the
-study already uses, so an Assistant cannot replace the admin's `judge` or `small`. Harness
-providers cannot be used.
+never stored or written to results, events or recordings. A sequence lives as long as the
+session. Its name must not be one the study already uses, so an Assistant cannot replace the
+admin's `judge` or `small`. Harness providers cannot be used.
 
 ## Choosing an entry
 
