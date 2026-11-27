@@ -248,3 +248,24 @@ def test_zero_if_offers_grouped_criteria(new_page):
     chips = builder.locator("[data-key-list='Zero if'] .chip")
     expect(chips).to_have_count(1)
     expect(chips.first.locator("[data-validated]")).to_have_count(1)
+
+
+def test_study_forms_warn_when_the_form_in_effect_uses_tam(new_page):
+    """A saved post-session form with TAM items: 'In effect here' carries the source warning."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    url = "/api/admin/settings/post_session?layer=settings"
+    before = p.request.get(url).json()
+    text = p.request.post("/api/admin/questionnaires/compose", data={"sets": ["tam_ease"], "form": "post_session"}).json()["text"]
+    assert p.request.put(url, data={"text": text}).ok
+    try:
+        p.goto("/admin#forms")
+        p.get_by_role("tab", name="Post-session").click()
+        warn = p.locator("#setting-form-effective-warning")
+        expect(warn).to_contain_text("TAM perceived ease of use")
+        expect(warn).to_contain_text("Davis, 1989")
+    finally:
+        if before.get("exists"):
+            p.request.put(url, data={"text": before["text"]})
+        else:
+            p.request.delete(url)
