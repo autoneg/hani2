@@ -1,1 +1,0 @@
-import{c as e}from"./index-DnOFi0UQ.js";const a={name:"move-diagonal",size:24,node:[["path",{d:"M11 19H5v-6",key:"8awifj"}],["path",{d:"M13 5h6v6",key:"7voy1q"}],["path",{d:"M19 5 5 19",key:"wwaj1z"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
