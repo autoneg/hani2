@@ -6,6 +6,7 @@ and the Leaderboard settings of the project editor."""
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import uuid
@@ -128,11 +129,29 @@ def test_a_hidden_switch_is_not_shown(page):
     strata.get_by_role("button", name="Paired").click()
     expect(strata.get_by_role("button", name="Paired")).to_have_attribute("aria-pressed", "true")
     expect(a.locator("[data-board] table tbody tr").first).to_be_visible()
-    assert a.get_by_label("Ranked by").locator("optgroup").count() >= 2  # the board's keys, then criteria
+    expect(a.get_by_label("Ranked by").locator("optgroup").nth(1)).to_be_attached()  # the board's keys, then criteria
     a.get_by_label("Ranked by").select_option("welfare_optimality")
     expect(board).to_have_attribute("data-sort", "welfare_optimality")
     expect(a.locator("[data-score-weights]").first).to_be_visible()  # the weights in effect
     expect(a.locator("#setting-boards-excluded")).to_be_visible()
+    # the editor links open the project at its Leaderboard group
+    a.locator("#setting-boards-pick").get_by_role("button", name="Board settings").click()
+    expect(a.locator("#setting-board-settings")).to_be_in_viewport()
+
+
+def test_a_han_board_has_the_han_strata(page):
+    a = page(viewport={"width": 1400, "height": 1000})
+    _admin(a)
+    name = "E2EH" + uuid.uuid4().hex[:5]
+    r = a.request.put(f"/api/admin/projects/{name}", data={"data": {"kind": "opponent", "year": 2027,
+                                                                     "defaults": {"leaderboard": {}}}})
+    assert r.ok, r.text()
+    a.goto("/admin#leaderboards")
+    a.get_by_label("Project", exact=True).select_option(name)
+    strata = a.locator("[data-board]").get_by_role("group", name="Group")
+    expect(strata.get_by_role("button")).to_have_text(["Alone", "With an Assistant", "Both (pooled)"])
+    strata.get_by_role("button", name="With an Assistant").click()
+    expect(strata.get_by_role("button", name="With an Assistant")).to_have_attribute("aria-pressed", "true")
 
 
 def test_visibility(page):
@@ -142,6 +161,21 @@ def test_visibility(page):
     expect(out.locator("[data-board]")).to_have_count(0)
     out.goto("/s/LB/leaderboard")  # public
     expect(out.locator("[data-board]")).to_be_visible()
+
+    # the sign-in round trip: the login page inside the study comes back to the study's board
+    out.goto("/s/LB/play/leaderboard?sort=hi_team")
+    out.get_by_role("button", name="Sign in").click()
+    expect(out.page).to_have_url(re.compile(r"/s/LB/play/login\?next="))
+    name = "lb" + uuid.uuid4().hex[:8]
+    assert out.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                        "consent": True}).ok
+    out.request.post("/api/auth/logout")
+    out.get_by_label("Username").fill(name)
+    out.get_by_label("Password").fill("secret1")
+    out.get_by_role("button", name="Log in").click()
+    expect(out.locator("[data-board]")).to_be_visible()
+    assert "/s/LB/play/leaderboard" in out.url
+    expect(out.locator("[data-board]")).to_have_attribute("data-sort", "hi_team")
 
     p = page(viewport={"width": 1280, "height": 900})
     _participant(p)

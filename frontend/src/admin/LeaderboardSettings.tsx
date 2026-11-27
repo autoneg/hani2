@@ -103,6 +103,26 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
   const defaults: Record<string, string> = { ...(inh.defaults ?? {}), ...(v.defaults ?? {}) };
   const rules: Record<string, any> = { ...(inh.rules ?? {}), ...(v.rules ?? {}) };
   const ownRule = (k: string) => v.rules?.[k] !== undefined;
+  /** A new track: strata of the other track (switch values, the default, included studies) are dropped,
+   *  since saving refuses them. */
+  const setTrack = (x: string) => {
+    const n: any = { ...v };
+    if (x) n.track = x;
+    else delete n.track;
+    const ok = STRATA[x || inh.track || (kind === "opponent" ? "han" : "hi")] ?? STRATA.hi;
+    if (n.user_options?.stratum && !n.user_options.stratum.every((y: string) => ok.includes(y))) {
+      const { stratum: _s, ...rest } = n.user_options;
+      if (Object.keys(rest).length) n.user_options = rest;
+      else delete n.user_options;
+    }
+    if (n.defaults?.stratum && !ok.includes(n.defaults.stratum)) {
+      const { stratum: _d, ...rest } = n.defaults;
+      if (Object.keys(rest).length) n.defaults = rest;
+      else delete n.defaults;
+    }
+    if (Array.isArray(n.include)) n.include = n.include.map((e: any) => (e.stratum && !ok.includes(e.stratum) ? { study: e.study } : e));
+    onChange(isStudy && !Object.keys(n).length ? null : n);
+  };
   const setSortOptions = (xs: string[]) => {
     const n = { ...v, sort_options: xs };
     if (!xs.length) delete n.sort_options;
@@ -134,7 +154,7 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
       {(listed || isStudy) && (
         <>
           <Row id="board-track" help="leaderboard.track" label="Track" overridden={v.track !== undefined} onReset={() => put("track", null)}>
-            <Select label="Track" value={v.track ?? ""} onChange={(x) => put("track", x)} options={[{ value: "", label: shown("track") }, { value: "hi", label: "hi: rank Assistants" }, { value: "han", label: "han: rank opponents" }]} />
+            <Select label="Track" value={v.track ?? ""} onChange={setTrack} options={[{ value: "", label: shown("track") }, { value: "hi", label: "hi: rank Assistants" }, { value: "han", label: "han: rank opponents" }]} />
           </Row>
           <Row id="board-source" help="leaderboard.source" label="Source" overridden={v.source !== undefined} onReset={() => put("source", null)}>
             <Select label="Source" value={v.source ?? ""} onChange={(x) => put("source", x)} options={[{ value: "", label: shown("source") }, { value: "game", label: "game: the games people played" }, { value: "tournament", label: "tournament: the simulated table" }]} />
