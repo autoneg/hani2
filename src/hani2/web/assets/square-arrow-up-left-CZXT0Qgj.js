@@ -1,0 +1,1 @@
+import{c as a}from"./index-giIIwGLq.js";const e={name:"square-arrow-up-left",size:24,node:[["path",{d:"M15 15 9 9",key:"qb9ybb"}],["path",{d:"M9 15V9h6",key:"1pdr5l"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]],aliases:["arrow-up-left-square"]};e.node;const t=a(e);export{e as __iconData,t as default};

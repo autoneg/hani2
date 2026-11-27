@@ -1,1 +1,0 @@
-import{c as a}from"./index-BO4lvf4Q.js";const e={name:"square-radical",size:24,node:[["path",{d:"M7 12h2l2 5 2-10h4",key:"1fxv6h"}],["rect",{x:"3",y:"3",width:"18",height:"18",rx:"2",key:"h1oib"}]]};e.node;const c=a(e);export{e as __iconData,c as default};

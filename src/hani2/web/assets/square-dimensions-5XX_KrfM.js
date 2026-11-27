@@ -1,1 +1,0 @@
-import{c as i}from"./index-BO4lvf4Q.js";const e={name:"square-dimensions",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 7H7v5",key:"ow32kf"}],["path",{d:"M12 17h5v-5",key:"1biuiz"}]]};e.node;const a=i(e);export{e as __iconData,a as default};
