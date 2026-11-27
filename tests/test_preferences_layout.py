@@ -355,3 +355,14 @@ def test_weights_chart_switch_changes_the_chart_and_is_remembered(hani2_home, mo
     assert not any((f.get("layout") or {}).get("barmode") == "stack" for f in figs)
     s.tool_input(s.tool_state(t)["id"], uv.WEIGHTS_CHART_INPUT, "bar")
     assert [c["value"] for c in _switches(s)] == ["bar"]
+
+
+def test_weights_chart_choice_survives_the_next_scenario(hani2_home):
+    projects.create_project("P")
+    projects.create_study("P/next")
+    _write(projects.study_dir(projects.StudyRef("P", "next")) / "env.json", {"tools": {"weights_chart_switch": True}})
+    s = make_session(study="P/next")
+    t = next(t for t in s.tools if t.name == "Preferences")
+    s.tool_input(s.tool_state(t)["id"], uv.WEIGHTS_CHART_INPUT, "donut")
+    s.load()  # the next scenario of the session: the same tool, the same choice
+    assert [c["value"] for c in _switches(s)] == ["donut"]
