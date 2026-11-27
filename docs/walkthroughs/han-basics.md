@@ -49,8 +49,8 @@ much you like each possible deal.
 - **Issue weights**: some issues matter more to you than others. A bigger slice of the ring is a
   more important issue, and the slices add up to 100%.
 - **Value of each option**: for one issue at a time, what each of its options is worth to you.
-- The **value on disagreement** is what you get if there is no deal at all, written under the
-  charts ("If you do not reach agreement you get ..."). A deal worth less than that is worse than
+- The **value on disagreement** is what you get if there is no deal at all, written right under
+  *In short* ("If you do not reach agreement you get ..."). A deal worth less than that is worse than
   no deal.
 
 The numbers are round on purpose (steps of 5% and 10%), so you can add them up in your head.

@@ -6,10 +6,12 @@ preferences in many ways, so HANI2 picks a *view* that fits the type of the
 utility function and falls back to a general view for anything it does not
 know.
 
-Every view shows the **value on disagreement** as one sentence under the
-charts ("If you do not reach agreement you get 10% (your best option gives you
-100%)."), and a short, plain-language explanation of how the total is worked
-out (collapsed at the bottom). The charts carry a one-line caption saying what
+Every view shows the **value on disagreement** as one sentence ("If you do
+not reach agreement you get 10% (your best option gives you 100%)."): in the
+participant's Preferences tool right under the *In short* card (so it stays in
+sight when the card is folded), elsewhere under the charts. Every view also has
+a short, plain-language explanation of how the total is worked out (collapsed at
+the bottom). The charts carry a one-line caption saying what
 they mean.
 
 The Preferences tool also shows, for every scenario:
@@ -17,7 +19,7 @@ The Preferences tool also shows, for every scenario:
 - **In short** (at the top; clicking its title folds it away, and it stays
   folded while the tool updates): the preferences in two or three sentences,
   such as the issues that matter most and least and their weights, followed by
-  the hints below.
+  the hints below. The value on disagreement follows directly under the card.
 - **Hints** (inside *In short*): the hints of the participant's role and, for
   every issue, what the participant wants in plain words. After each sentence
   an icon, as tall as the text, shows the direction at a glance: a green arrow
