@@ -1,1 +1,0 @@
-import{c as t}from"./index-3Nc-BSFf.js";const e={name:"square-letter-c",size:24,node:[["path",{d:"M15 9.354a4 4 0 1 0 0 5.292",key:"8xfhbo"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

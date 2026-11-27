@@ -335,6 +335,8 @@ DEFAULT_ENV: dict[str, Any] = {
     "tools": {"maximize": "window", "weights_chart": "bar", "weights_chart_window": "same",
               "preferences_scale": "normalized", "values_line_above": 12, "isolate_builtin": True,
               "render_timeout": 20},
+    # negmas statistics of each scenario, computed in the background (see hani2.scenario_stats)
+    "scenario_stats": {"enabled": True, "pareto_max_outcomes": 1_000_000, "timeout": 300},
     # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),
     # every other year from the han-agents package; None: every year from the package
     "han": {"current_year": None, "submissions": {}},

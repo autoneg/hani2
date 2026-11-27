@@ -1981,6 +1981,11 @@ class NegotiationSession:
             self.ss["scenario"] = scenario
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir
+            if sdir and joined is None:
+                # the scenario's statistics, cached next to it, in the background (hani2.scenario_stats)
+                from hani2 import scenario_stats
+
+                scenario_stats.request(folder=sdir, with_stats=False)
             self.ss["outcome_display"] = store.display_for(scenario, sdir)
             self.display_overrides = {}  # overrides name the previous scenario's issues
             if joined is not None:

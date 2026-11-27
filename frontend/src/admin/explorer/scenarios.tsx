@@ -162,6 +162,7 @@ function ScenarioBody({ d }: { d: any }) {
         )}
       </Fold>
       <Fold id="outcome-space" title="Outcome space" hint="2D utility plot">{() => <UtilityPlots d={d} />}</Fold>
+      <Fold id="statistics" title="Statistics" hint="negmas: opposition, Pareto frontier, bargaining solutions" defaultOpen={false}>{() => <ScenarioStats key={d.plot_token} token={d.plot_token} />}</Fold>
       <Fold id="preferences" title="Preferences tool" hint="As each role sees it" defaultOpen={false}>{() => <RolePreferences d={d} />}</Fold>
       {d.sample?.length > 0 && (
         <Fold id="sample" title="Sample utilities" hint="Best outcome per role, then a few others" defaultOpen={false}>
@@ -195,6 +196,104 @@ function ScenarioBody({ d }: { d: any }) {
 }
 
 const ParticipantTag = () => <span className="ml-1.5 rounded bg-you/10 px-1.5 text-[0.68rem] font-normal text-you">participant</span>;
+
+/** Every negmas statistic of the scenario (``GET /api/admin/scenarios/stats/{token}``): computed in
+ *  the background and cached next to it, so this polls while they are ``pending``. A scenario too
+ *  large or too slow to compute says why instead. */
+function ScenarioStats({ token }: { token: string }) {
+  const [v, setV] = useState<any>(null);
+  const [force, setForce] = useState(0);
+  useEffect(() => {
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let first = force > 0;
+    setV(null);
+    const load = () =>
+      api<any>(`/api/admin/scenarios/stats/${enc(token)}${first ? "?force=true" : ""}`)
+        .then((x) => {
+          first = false;
+          if (!live) return;
+          setV(x);
+          if (x.status === "pending") timer = setTimeout(load, 2000);
+        })
+        .catch((e) => live && setV({ status: "error", message: e.message }));
+    load();
+    return () => {
+      live = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [token, force]);
+  if (!v) return <Group><div className="px-4"><Spinner /></div></Group>;
+  const again = (
+    <button type="button" className="btn-ghost px-2 text-xs" onClick={() => setForce((k) => k + 1)}>
+      Compute again
+    </button>
+  );
+  if (v.status === "pending") return <Group><div className="flex items-center gap-2 px-4 py-3 text-sm text-muted"><Spinner /> Computing in the background…</div></Group>;
+  if (v.status !== "ok") {
+    const title: Record<string, string> = { timeout: "Too slow to compute", too_large: "Too large to compute", disabled: "Switched off", failed: "Could not compute" };
+    return (
+      <Group actions={v.status !== "disabled" ? again : undefined}>
+        <div className="px-4 py-3 text-sm"><span className="font-semibold">{title[v.status] ?? "Not available"}.</span> <span className="text-muted">{v.message}</span></div>
+      </Group>
+    );
+  }
+  const roles: { name: string; human: boolean; reserved_value: number | null }[] = v.roles ?? [];
+  const reserved = Object.fromEntries(roles.map((r) => [r.name, r.reserved_value]));
+  const RoleHead = ({ name }: { name: string }) => <>{name}{roles.find((r) => r.name === name)?.human && <ParticipantTag />}</>;
+  const outcomeText = (o: any) => (o ? Object.entries(o).map(([k, x]) => `${k}: ${x}`).join(", ") : "—");
+  const points = (rows: { label?: string; p: any }[], withLabel: boolean) => (
+    <div className="scroll-thin max-h-[420px] overflow-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-muted">
+            {withLabel && <th className="px-3 py-2 font-medium">Solution</th>}
+            {roles.map((r) => <th key={r.name} className="px-3 py-2 text-right font-medium"><RoleHead name={r.name} /></th>)}
+            <th className="px-3 py-2 text-right font-medium">Welfare</th>
+            <th className="px-3 py-2 font-medium">Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ label, p }, k) => (
+            <tr key={k} className="border-t border-line/70">
+              {withLabel && <td className="px-3 py-1.5">{label}</td>}
+              {roles.map((r) => <td key={r.name} className="tnum px-3 py-1.5 text-right">{fmt3(p.utilities?.[r.name])}</td>)}
+              <td className="tnum px-3 py-1.5 text-right">{fmt3(p.welfare)}</td>
+              <td className="px-3 py-1.5">{outcomeText(p.outcome)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  const solRows = (v.solutions ?? []).flatMap((s: any) => s.points.map((p: any, k: number) => ({ label: s.label + (s.points.length > 1 ? ` #${k + 1}` : ""), p })));
+  const meta = [v.computed_at && `Computed ${v.computed_at}`, typeof v.seconds === "number" && `in ${v.seconds.toFixed(2)} s`, v.cache === "disk" ? "cached with the scenario" : v.cache === "memory" ? "cached in memory (not a saved scenario folder)" : null].filter(Boolean).join(", ");
+  return (
+    <>
+      <Group footer={meta ? `${meta}.` : undefined} actions={again}>
+        <InfoRow label="Outcomes" value={typeof v.n_outcomes === "number" ? v.n_outcomes.toLocaleString() : "—"} />
+        <InfoRow label="Issues" value={v.n_issues ?? "—"} />
+        <InfoRow label="Opposition" hint="0: no conflict, 1: fully opposed" value={fmt3(v.opposition)} />
+        <InfoRow label="Rational fraction" hint="Outcomes better than no deal for every role" value={typeof v.rational_fraction === "number" ? `${(v.rational_fraction * 100).toFixed(1)} %` : "—"} />
+        <InfoRow label="Pareto frontier" hint={v.pareto_cached === false ? `Not kept with the scenario: more than ${Number(v.pareto_max_outcomes).toLocaleString()} outcomes` : undefined} value={`${v.pareto_size ?? 0} outcomes`} />
+      </Group>
+      <div className="mt-3" />
+      <Group title="Utility ranges">
+        {(v.utility_ranges ?? []).map((r: any) => (
+          <InfoRow key={r.role} label={<RoleHead name={r.role} />} value={`${fmt3(r.min)} – ${fmt3(r.max)} · no deal ${fmt3(reserved[r.role])}`} />
+        ))}
+      </Group>
+      <div className="mt-3" />
+      <Group title="Bargaining solutions">{solRows.length ? points(solRows, true) : <div className="px-4 py-3 text-sm text-muted">None.</div>}</Group>
+      <div className="mt-3" />
+      <Group title={`Pareto frontier (${v.pareto_size ?? 0})`} footer={v.pareto_truncated ? `The first ${v.pareto.length} of ${v.pareto_size} points.` : undefined}>
+        {v.pareto?.length ? points(v.pareto.map((p: any) => ({ p })), false) : <div className="px-4 py-3 text-sm text-muted">Empty.</div>}
+      </Group>
+    </>
+  );
+}
+
+const fmt3 = (x: any) => (typeof x === "number" ? x.toFixed(3) : x == null ? "—" : String(x));
 
 /** The scenario's picture (light and dark), fetched apart: it can be a large data URL. */
 function Picture({ token }: { token: string }) {

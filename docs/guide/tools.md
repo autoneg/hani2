@@ -50,6 +50,7 @@ A tool is created once per session and stays for the rest of it; later scenarios
 | Random | side | start | yes | admins only | **Generate** fills the counter-offer with a random outcome; **Send offer** sends it. |
 | All Results | upper | always | yes | admins only | Every participant's results, a leaderboard and the full results table (practice rounds are not scored or ranked). |
 | Opponent Preferences | upper | load | yes | admins only | The opponent's private preferences, in the same layout as Preferences. |
+| Scenario Stats | lower | load | yes | admins only | Every negmas statistic of the scenario: its size, the opposition, each role's utility range, the rational fraction, the bargaining solutions (Nash, Kalai, KS, maximum welfare, ...) and the Pareto frontier, computed in the background. See [Scenario statistics](scenarios.md#scenario-statistics). |
 
 Every tool has a help text that says what it does and how it works. Participants read it from the **?** button next to the tool's tabs, and an Assistant with **Use tools** gets it at the top of what `read_tool` returns.
 
@@ -249,6 +250,18 @@ side uses its **real** preferences or an **estimate**.
 weights, option values and the opponent's value on disagreement.
 
 ![The Opponent Preferences tool](../assets/screens/tool-opponent-preferences.png)
+
+### Scenario Stats
+
+**Admins only** (open it to participants under *Tools offered*). Every statistic negmas computes
+for the scenario being negotiated: the number of outcomes and issues, the opposition, the rational
+fraction and the size of the Pareto frontier on top, then foldable tables of each role's utility
+range and value on disagreement, the bargaining solutions (Nash, Kalai, modified Kalai, KS,
+modified KS, maximum welfare, maximum relative welfare: each role's utility, the welfare and the
+outcome) and the Pareto frontier. The statistics are computed in the background (the tool says so
+while it waits) and cached next to the scenario; a scenario too large or too slow to compute is
+skipped and the tool says why. **Compute again** recomputes them. See [Scenario
+statistics](scenarios.md#scenario-statistics).
 
 ### All Results
 

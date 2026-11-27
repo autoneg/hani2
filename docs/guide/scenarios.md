@@ -352,6 +352,45 @@ evaluated with the criteria it was played with. Criteria for every scenario with
 
 `hani2 scenario check` reports unknown parts, rules and components and conditions it cannot read.
 
+## Scenario statistics
+
+Every scenario gets the statistics negmas computes for it (`Scenario.calc_stats`): the number of
+outcomes and issues, the **opposition** (0: the roles want the same, 1: fully opposed), each role's
+**utility range**, the **rational fraction** (the share of outcomes better than no deal for every
+role), the **Pareto frontier**, and the bargaining solutions: the **Nash** point, the **Kalai**
+and **modified Kalai** points, the **KS** and **modified KS** points, **maximum welfare** and
+**maximum relative welfare**, each with its utilities and its outcome.
+
+**When.** They are computed in the background when a negotiation starts on a saved scenario, and
+when an administrator opens them; nothing waits for them. Each computation runs in its own process,
+one scenario at a time, with a time limit (`scenario_stats.timeout`, 300 seconds by default). A
+scenario that takes longer is stopped and skipped, one that cannot be computed is skipped too, and
+so is an outcome space larger than `scenario_stats.max_outcomes` (negmas's `STATS_MAX_CARDINALITY`
+by default) or a continuous one. Pages and tools show why instead of the numbers. A skipped
+scenario is not tried again until its files change or an administrator clicks **Compute again**.
+
+**Where they are kept.** Next to the scenario's `_info.yaml`, in negmas's own stats file
+`_stats.yaml` (which `negmas.Scenario.load` reads back), and `_stats_meta.json` (what HANI2 needs
+on top: a fingerprint of the scenario files, when and how fast it was computed, or why it was
+skipped). The Pareto frontier is written into `_stats.yaml` only when the scenario has at most
+`scenario_stats.pareto_max_outcomes` outcomes (a million by default; negmas has no default for
+this); larger scenarios keep every other statistic. Editing or saving the scenario's files makes
+the cache stale: it is ignored and computed again. Scenarios that are not a folder (generated ones,
+or a saved one changed for a session, for example by a [forced value on
+disagreement](project-management.md#forcing-the-value-on-disagreement)) and the bundled samples
+are kept in memory only. `hani2` never writes into its own package.
+
+**Where to see them.** On the **Scenarios** page of the console, under **Statistics** (folded
+away by default), and in the [Scenario Stats](tools.md#scenario-stats) tool during a negotiation
+(admins only by default).
+
+| Setting (`env.json`) | Default | Meaning |
+| --- | --- | --- |
+| `scenario_stats.enabled` | `true` | Compute and show scenario statistics. |
+| `scenario_stats.pareto_max_outcomes` | `1000000` | Keep the Pareto frontier in `_stats.yaml` up to this many outcomes. |
+| `scenario_stats.timeout` | `300` | Seconds a computation may take before it is stopped and skipped. |
+| `scenario_stats.max_outcomes` | negmas's `STATS_MAX_CARDINALITY` | Larger outcome spaces are skipped without trying. |
+
 ## Scenario pictures
 
 A scenario can have one picture that sets the scene. It is shown under the title of the

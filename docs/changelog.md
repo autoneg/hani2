@@ -29,6 +29,13 @@
 - **A wider tools column in the simple view.** On a desktop the simple view's tools column now
   takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and
   the option values side by side; it has its own size (`layout.sizes.simple_tools`).
+- **Scenario statistics.** Every scenario gets negmas's statistics (opposition, utility ranges,
+  rational fraction, the Pareto frontier and the Nash, Kalai, KS and welfare solutions), computed
+  in the background when a negotiation starts, in a separate process with a time limit, and cached
+  next to the scenario in negmas's `_stats.yaml` (the Pareto frontier only up to
+  `scenario_stats.pareto_max_outcomes`, a million by default). Too slow or failing scenarios are
+  skipped and say why. They show under **Statistics** on the console's Scenarios page and in the
+  new admin-only **Scenario Stats** tool. See [Scenario statistics](guide/scenarios.md#scenario-statistics).
 
 - **A failing tool stays in its own tab.** A tool that raises (when created, in `init`, a hook,
   its view, an input or a button) or takes longer than `tools.render_timeout` seconds to render
