@@ -346,7 +346,9 @@ def test_a_demoted_account_loses_admin_on_its_next_request_and_page_load(client,
     old = hub.get(sid)
     assert old.is_admin
     with client.websocket_connect(f"/api/ws/{sid}") as ws:
-        assert ws.receive_json()["type"] == "state"
+        # the state comes first from the socket, but a tool view queued when the session was made can
+        # overtake it while it is still being computed (the browser keeps either)
+        assert any(ws.receive_json()["type"] == "state" for _ in range(50))
         go(client, sso.sign(claims(), SECRET))  # demoted by the next hand-off
         assert client.get("/api/admin/users").status_code == 403  # the next REST request
         ws.send_json({"type": "noop"})  # the next message on the open socket closes it
