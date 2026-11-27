@@ -1,1 +1,0 @@
-import{c as t}from"./index-0iomOp52.js";const e={name:"panels-top-left",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"M9 21V9",key:"1oto5p"}]],aliases:["layout"]};e.node;const o=t(e);export{e as __iconData,o as default};

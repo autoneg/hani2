@@ -1,1 +1,0 @@
-import{c as o}from"./index-0iomOp52.js";const e={name:"move-down",size:24,node:[["path",{d:"M8 18L12 22L16 18",key:"cskvfv"}],["path",{d:"M12 2V22",key:"r89rzk"}]]};e.node;const n=o(e);export{e as __iconData,n as default};

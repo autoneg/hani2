@@ -1,1 +1,0 @@
-import{c}from"./index-0iomOp52.js";const e={name:"circle-chevrons-left",size:24,node:[["path",{d:"M10 9L7 12L10 15",key:"yiqvdq"}],["path",{d:"M16 9L13 12L16 15",key:"1czhyg"}],["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]]};e.node;const t=c(e);export{e as __iconData,t as default};
