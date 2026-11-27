@@ -133,8 +133,9 @@ With **Yes** (the default), every generated scenario is normalized the way negma
 side every deal is worth 0 to 1 and, for linear-additive preferences, the issue weights add up to 1 and every
 issue's value function ranges from 0 to 1; the value on disagreement goes through the same map. With **No**,
 generated scenarios are kept as their generators draw them without normalizing (any values, negative
-included; Grocery and Island use the items' points, the other generators only draw normalized ones). Simple
-scenarios are always normalized. Saved scenarios are served as they were saved.
+included; of the built-in generators only Grocery draws such preferences, its items' points). Simple scenarios
+are always normalized, so switch **Simple scenarios** off too for this to have an effect. Saved scenarios are
+served as they were saved.
 
 More: [Scenarios](scenarios.md#normalized-scenarios).
 

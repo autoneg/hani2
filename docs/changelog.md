@@ -18,8 +18,9 @@
   `negotiation.normalized_scenarios`, project and study; on by default) keeps every generated
   scenario normalized as negmas normalizes: every deal worth 0 to 1, weights adding up to 1, every
   value function from 0 to 1 (a Trade scenario whose worst deal was above 0 is now stretched to 0).
-  Off, generated scenarios are kept as their generators draw them (Grocery and Island: the items'
-  points). `hani2 generate --no-normalized` does the same for a pool. See
+  Off, generated scenarios are kept as their generators draw them (of the built-in ones only
+  Grocery draws preferences that are not normalized, its items' points; simple scenarios, on by
+  default, stay normalized). `hani2 generate --no-normalized` does the same for a pool. See
   [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
 - **A wider tools column in the simple view.** On a desktop the simple view's tools column now
   takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and

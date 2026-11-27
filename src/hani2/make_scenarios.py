@@ -297,7 +297,8 @@ def generate(
         help="Normalized scenarios, as negmas normalizes: every deal worth 0 to 1, weights adding up to 1, every "
         "value function from 0 to 1 (default: the normalized_scenarios setting of the current project/study, else "
         "of env.json; on unless switched off). --no-normalized keeps what the generator draws without normalizing "
-        "(Grocery and Island: the items' points; simple scenarios stay normalized). Existing slots are kept "
+        "(only Grocery draws such preferences, its items' points; simple scenarios stay normalized, so this "
+        "needs --no-simple). Existing slots are kept "
         "unless --force.")] = None,
 ):
     """Generate a pool of scenarios, optionally with cached utility inverses."""
@@ -351,7 +352,8 @@ def generate(
         from hani2.scenario_store import normalized_scenarios
 
         normalized = normalized_scenarios()
-    print(f"Normalized    : {normalized}")
+    print(f"Normalized    : {normalized}" + (" (ignored: simple scenarios are always normalized; add --no-simple)"
+                                                if simple and not normalized else ""))
     print(f"Force rewrite : {force}")
     print("-" * 60)
 

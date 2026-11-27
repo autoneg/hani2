@@ -78,7 +78,7 @@ def test_a_ufun_without_constraints_is_shown_both_ways(hani2_home):
     _env(hani2_home, {"preferences_scale": "raw"})
     comps = uv.render_ufun_view(_Tool(), u)
     texts = " ".join(_texts(comps))
-    assert "you get -4 (your best option gives you 105)" in texts and "%" not in texts.replace("100%", "")
+    assert "you get -4 (your best option gives you 105)" in texts and "%" not in texts
     weights = next(c for c in _walk(comps) if c.get("type") == "plot")
     assert weights["figure"]["data"][0]["x"] == [2.5, -0.7, 1.3]
     assert any("negative weight" in t for t in _texts(comps))
@@ -128,3 +128,10 @@ def test_continuous_issue_is_a_line_with_values_across():
     tr = uv._fun_plot(issue, AffineFun(0.1, 0))["figure"]["data"][0]
     assert tr["type"] == "scatter" and len(tr["y"]) == uv.LINE_POINTS and tr["y"][0] == 0.0
     assert max(tr["x"]) == 100.0  # the value across, in percent
+
+
+def test_a_negative_line_in_raw_numbers():
+    tr = uv._fun_plot(make_issue((0.0, 10.0), "C"), AffineFun(-2, 3), raw=True)
+    fig = tr["figure"]
+    assert fig["data"][0]["type"] == "scatter" and min(fig["data"][0]["x"]) == -17.0 and max(fig["data"][0]["x"]) == 3.0
+    assert "ticksuffix" not in (fig["layout"].get("xaxis") or {})

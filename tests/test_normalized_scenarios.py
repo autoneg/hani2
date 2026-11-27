@@ -44,9 +44,10 @@ def test_not_normalized_keeps_what_the_maker_draws():
         assert lo <= u.reserved_value <= hi  # the drawn fraction, put on this scale
     n = store.normalize_scenario(r)
     assert all(is_normalized(u) for u in n.ufuns)
-    # a maker that only draws normalized scenarios gives the same ones, marked not normalized
-    t = _gen(False, type_="Lease")
-    assert t.info[store.NORMALIZED_KEY] is False
+    # a maker that only draws normalized scenarios gives normalized ones, not marked
+    for t in ("Lease", "Island"):
+        x = _gen(False, type_=t)
+        assert all(is_normalized(u) for u in x.ufuns) and store.NORMALIZED_KEY not in (x.info or {})
     # simple scenarios stay normalized: their round numbers are percentages
     s = _gen(False, simple=True, type_="Grocery")
     assert all(is_normalized(u) for u in s.ufuns) and store.NORMALIZED_KEY not in (s.info or {})

@@ -326,11 +326,12 @@ def normalize_scenario(scenario: Scenario) -> Scenario:
 
 
 def _make_raw(type_: str, index: int) -> Scenario:
-    """Slot ``index`` of ``type_`` as its maker draws it without normalizing (Grocery and
-    Island take ``normalize=False``: their utilities are the items' points, and the value
-    on disagreement they draw as a fraction is put at that place between the worst and
-    best deals); a maker without that option gives its scenario as it is. Marks the info
-    ``normalized: false``."""
+    """Slot ``index`` of ``type_`` as its maker draws it without normalizing: a maker with a
+    ``normalize`` option is called with ``normalize=False`` (Grocery: its utilities are the
+    items' points, and the value on disagreement it draws as a fraction is put at that
+    place between the worst and best deals); any other maker gives its scenario as it is.
+    Marks the info ``normalized: false`` when the result is not normalized (Island's
+    ``normalize=False`` and the story generators still give normalized preferences)."""
     import inspect
 
     maker = MAKER_MAP[type_]
@@ -347,8 +348,11 @@ def _make_raw(type_: str, index: int) -> Scenario:
                 u.reserved_value = on_range(u, float(u.reserved_value))
             except Exception:  # noqa: BLE001
                 pass
-    s.info = dict(s.info or {})
-    s.info[NORMALIZED_KEY] = False
+    from hani2.ufun_scale import is_normalized
+
+    if not all(is_normalized(u) for u in s.ufuns):
+        s.info = dict(s.info or {})
+        s.info[NORMALIZED_KEY] = False
     return s
 
 
