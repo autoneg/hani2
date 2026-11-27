@@ -280,7 +280,25 @@ Fix it by lowering `n_required`, adding Assistants, or allowing repeats with
 `scheduling.assistant_repeats: true` (the Assistants then wrap around). A study whose file already
 broke the rule before it was checked keeps running: it gets a warning in the server log, in
 `hani2 study show` and in `hani2 study balance`, and its Assistants wrap around. `random_each`
-repeats by nature and is allowed unless you set `assistant_repeats: false`. A `schedule.json` that
+repeats by nature and is allowed unless you set `assistant_repeats: false`.
+
+**When an Assistant leaves the pool during the study** (you remove it from `assistants`, or from an
+Assistant group the study names), the promise still holds. Each person's plan is made again around what
+they have already done:
+
+- the negotiations they already played stay as they were;
+- each open slot gets its planned Assistant while it is still in the pool and unused, else the next
+  Assistant they have **not** used yet (the Assistants of their counted results rows and, in a
+  Paired study, `used_assistants` in `assignments.json`);
+- if fewer unused Assistants are left than open slots, `assistant_repeats: true` wraps around, and
+  otherwise the person **finishes early** with the completion link. The server log says why, and a
+  `finished_early` event (`component = scheduling`) is recorded (once per person while the server runs).
+
+A study whose pool was smaller than K from a person's first negotiation does not finish early: it
+warns and wraps, as described above. The pool each person started with is kept as `assistant_pool` in
+`assignments.json`.
+
+A `schedule.json` that
 names one Assistant in two slots is used as written but flagged (`external:repeat` in the
 `assistant_scheduling` column and a `scheduling_repeat` error event).
 
@@ -412,7 +430,7 @@ Assistants they may still play, with a preferred order:
 | Method | The person's set |
 |---|---|
 | `balanced`, `random_fixed`, `round_robin` | Their one fixed Assistant, for every match (a person always plays their own Assistant, as in a game) |
-| `latin_square`, `cyclic`, `balanced_subset`, `random_subset` | The first K of their sequence, without the ones already used. The order is a preference, not a promise |
+| `latin_square`, `cyclic`, `balanced_subset`, `random_subset` | The first K of their sequence, without the ones already used. The order is a preference, not a promise. After an Assistant left the pool, the open slots are filled only from Assistants they have not used |
 | `random_each` | All N, with repeats |
 | `external` | The Assistants of their `schedule.json` slots (their order is a preference) |
 
@@ -480,13 +498,15 @@ Assistant left too. After `human_opponent_wait` seconds, `pairing.fallback` appl
   the completion link when none is left.
 
 A person who has used every Assistant planned for them also finishes, even with fewer than K
-counted negotiations (for example after abandoned matches).
+counted negotiations (for example after abandoned matches, or when Assistants left the pool and
+too few unused ones are left), with a `finished_early` event. Only a one-Assistant pool, or
+`assistant_repeats: true`, gives a person an Assistant again.
 
 ### What is guaranteed and what is only best effort
 
 | Guarantee | Paired | Why |
 |---|---|---|
-| Each Assistant at most once per person | **Hard** | The joiner chooses only from their own set, and the host commits only from theirs |
+| Each Assistant at most once per person | **Hard** | The joiner chooses only from their own set, and the host commits only from theirs; a pool that changes during the study refills a set only from Assistants the person has not used |
 | No same-Assistant match (when not allowed) | **Hard** | A filter at pairing |
 | A match fills at most one cell, and only when completed | **Hard** | See [Match cells](#match-cells) |
 | Totals per Assistant within ±1 | Best effort | Depends on who is waiting at the same moment |

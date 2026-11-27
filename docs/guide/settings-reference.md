@@ -367,6 +367,10 @@ most the Assistants of the pool).
 
 A study already running with $K > N$ only gets a warning, and the Assistants wrap around.
 
+When an Assistant leaves the pool during a study, each person keeps the Assistants they already
+played and gets only Assistants they have not used for the rest. If too few are left, **Yes** wraps
+around; otherwise the person finishes early (a `finished_early` event).
+
 More: [Scheduling](scheduling.md#assistant-repeats).
 
 ### Crossing {#setting-scheduling-cross}

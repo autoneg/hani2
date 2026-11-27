@@ -284,7 +284,11 @@ most the Assistants of the pool).
 | unset or **No** | a file with $K > N$ is refused on save ("n_required = 6 negotiations but only 5 Assistants"); `random_each` is allowed unless **No** is set explicitly |
 | **Yes** | the Assistants wrap around on purpose, so a person meets some of them twice |
 
-A study already running with $K > N$ only gets a warning, and the Assistants wrap around.""",
+A study already running with $K > N$ only gets a warning, and the Assistants wrap around.
+
+When an Assistant leaves the pool during a study, each person keeps the Assistants they already
+played and gets only Assistants they have not used for the rest. If too few are left, **Yes** wraps
+around; otherwise the person finishes early (a `finished_early` event).""",
         section="Assignment", key="scheduling.assistant_repeats", docs="scheduling.md#assistant-repeats"),
     "scheduling.cross": Help(
         "Crossing", "shift: cross the Assistant with the opponent so every pair meets equally often; none: no crossing",

@@ -984,6 +984,14 @@ warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
 Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
 on purpose.
 
+The promise also holds when an Assistant leaves the pool during the study: the
+human's plan is made again, the negotiations they already played stay as they
+were, and each open slot gets its planned Assistant while it is still in the pool
+and unused, else the next Assistant they have not used yet. If fewer unused
+Assistants are left than open slots, `assistant_repeats: true` wraps around;
+otherwise the human finishes early, with the completion link, a log line and a
+`finished_early` event.
+
 `random_each` can repeat an Assistant by nature: it is allowed unless
 `assistant_repeats: false` is set explicitly, which refuses it. For `external`,
 a `schedule.json` that names one Assistant in two slots is used as written, and
