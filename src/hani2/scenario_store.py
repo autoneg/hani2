@@ -291,12 +291,13 @@ def simple_scenarios(ref: Any = None, default: Any = None) -> bool:
 
 
 def normalized_scenarios(ref: Any = None, default: Any = None) -> bool:
-    """Whether the current (or ``ref``'s) study generates *normalized* scenarios (every
-    utility function's best deal worth 1, the weights adding up to 1): the ``normalized_scenarios`` setting of its ``study.yaml``, else of its
-    project's ``project.yaml``, else ``default`` (the global setting
-    ``negotiation.normalized_scenarios`` in ``env.json``); **on** by default. Off, every
-    generated scenario is scaled to points (see :func:`denormalize_scenario`). Saved
-    scenarios are served as they were saved."""
+    """Whether the current (or ``ref``'s) study generates *normalized* scenarios (as negmas
+    normalizes: every deal worth 0 to 1, the weights adding up to 1, every value function
+    from 0 to 1; see :mod:`hani2.ufun_scale`): the ``normalized_scenarios`` setting of its
+    ``study.yaml``, else of its project's ``project.yaml``, else ``default`` (the global
+    setting ``negotiation.normalized_scenarios`` in ``env.json``); **on** by default. Off,
+    a generated scenario is kept as its maker draws it without normalizing (see
+    :func:`make_scenario`). Saved scenarios are served as they were saved."""
     from hani2 import projects
 
     if default is None:
@@ -312,45 +313,43 @@ def normalized_scenarios(ref: Any = None, default: Any = None) -> bool:
 
 #: the key of a scenario's info that marks it as generated not normalized
 NORMALIZED_KEY = "normalized"
-#: what the best deal is worth in a scenario generated not normalized
-RAW_SCALE = 100.0
 
 
 def normalize_scenario(scenario: Scenario) -> Scenario:
-    """Every utility function of ``scenario`` scaled so that its best deal is worth 1, the
-    weights adding up to 1 (see :mod:`hani2.ufun_scale`; scaled, never shifted). The
-    utility functions of the built-in generators are like that already and are kept as
-    they are, so a normalized scenario does not change."""
-    from hani2.ufun_scale import scale_to_best
+    """Every utility function of ``scenario`` normalized on its own, as negmas does it:
+    deals from 0 to 1 and, for a linear-additive one, weights adding up to 1 and every
+    value function from 0 to 1 (see :mod:`hani2.ufun_scale`). A scenario normalized
+    already (most built-in ones) is kept as it is."""
+    from hani2.ufun_scale import normalize_scenario as _normalize
 
-    ufuns = list(scenario.ufuns)
-    scaled = [scale_to_best(u) for u in ufuns]
-    if any(a is not b for a, b in zip(scaled, ufuns)):
-        scenario.ufuns = tuple(scaled)
-    return scenario
+    return _normalize(scenario)
 
 
-def denormalize_scenario(scenario: Scenario, scale: float = RAW_SCALE) -> Scenario:
-    """``scenario`` in points: every utility function multiplied by ``scale`` (the best deal is
-    worth ``scale`` points, the value on disagreement follows). An additive utility function
-    keeps its option values and scales its weights, so the weights read as points. Marks the
-    scenario's info ``normalized: false``."""
-    from hani2.ufun_scale import scale_by
+def _make_raw(type_: str, index: int) -> Scenario:
+    """Slot ``index`` of ``type_`` as its maker draws it without normalizing (Grocery and
+    Island take ``normalize=False``: their utilities are the items' points, and the value
+    on disagreement they draw as a fraction is put at that place between the worst and
+    best deals); a maker without that option gives its scenario as it is. Marks the info
+    ``normalized: false``."""
+    import inspect
 
-    ufuns = list(scenario.ufuns)
-    for i, u in enumerate(ufuns):
-        try:
-            ufuns[i] = scale_by(u, scale)
-        except Exception:  # noqa: BLE001 - left as it is
-            continue
-    scenario.ufuns = tuple(ufuns)
-    scenario.info = dict(scenario.info or {})
-    scenario.info[NORMALIZED_KEY] = False
-    return scenario
+    maker = MAKER_MAP[type_]
+    try:
+        raw = "normalize" in inspect.signature(maker).parameters
+    except (TypeError, ValueError):
+        raw = False
+    s = maker(index, normalize=False) if raw else maker(index)
+    if raw:  # the maker draws the value on disagreement on the 0..1 scale: the same place on this one
+        from hani2.ufun_scale import on_range
 
-
-def _scaled(scenario: Scenario, normalized: bool) -> Scenario:
-    return normalize_scenario(scenario) if normalized else denormalize_scenario(scenario)
+        for u in s.ufuns:
+            try:
+                u.reserved_value = on_range(u, float(u.reserved_value))
+            except Exception:  # noqa: BLE001
+                pass
+    s.info = dict(s.info or {})
+    s.info[NORMALIZED_KEY] = False
+    return s
 
 
 def _simple_dir(path: Path) -> bool:
@@ -360,14 +359,14 @@ def _simple_dir(path: Path) -> bool:
 def make_scenario(type_: str, index: int, simple_mode: bool = False, normalized: bool = True) -> Scenario:
     """Generate slot ``index`` of ``type_``; ``simple_mode`` makes it a simple scenario
     (a maker that knows nothing about the mode is simplified afterwards). ``normalized``
-    (the default) scales every utility function to [0, 1]; ``False`` gives it in points
-    (:func:`denormalize_scenario`; a simple scenario is simplified first, on the [0, 1]
-    scale, and then scaled)."""
+    (the default) normalizes every utility function (:func:`normalize_scenario`);
+    ``False`` keeps what the maker draws without normalizing (:func:`_make_raw`). A simple
+    scenario is always normalized: its round numbers are percentages."""
     if not simple_mode:
-        return _scaled(MAKER_MAP[type_](index), normalized)
+        return normalize_scenario(MAKER_MAP[type_](index)) if normalized else _make_raw(type_, index)
     with simple.simple_mode():
         s = MAKER_MAP[type_](index)
-        return _scaled(s if simple.is_simple(s) else simple.simplify_scenario(s), normalized)
+        return normalize_scenario(s if simple.is_simple(s) else simple.simplify_scenario(s))
 
 
 GENERATION_RULES: dict[str, dict[str, str]] = {
@@ -475,7 +474,8 @@ def load_scenario(
     never changed when they are served.
 
     ``normalized`` (the setting ``normalized_scenarios``, on by default): a scenario
-    generated on the fly is normalized, else in points (saved scenarios are served as saved).
+    generated on the fly is normalized, else kept as its maker draws it without
+    normalizing (saved scenarios are served as saved).
     """
     if strict:
         load_existing, generate_on_failure = True, False
@@ -518,7 +518,8 @@ def load_scenario(
     s = make_scenario(type_, index, simple_mode, normalized)
     info = dict(index=index, load_index=None, load_path=None,
                 scenario_name=s.outcome_space.name, generated=True, scenario_type=type_,
-                **({"simple": True} if simple_mode else {}), **({} if normalized else {NORMALIZED_KEY: False}))
+                **({"simple": True} if simple_mode else {}),
+                **({NORMALIZED_KEY: False} if (s.info or {}).get(NORMALIZED_KEY) is False else {}))
     return s, info, None
 
 

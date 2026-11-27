@@ -1,11 +1,19 @@
-"""Utility functions scaled so that the best deal is worth 1 (100%).
+"""Normalized utility functions, as negmas (and negobench) define them.
 
-Normalized here means *scaled*, never shifted: the best deal is worth 1, a deal worth 0
-stays at 0 and the value on disagreement keeps its sign. An additive utility function
-keeps its shape: each issue's values are divided by that issue's best value (so its
-favourite option is worth 1) and the weights take the difference (so they add up to 1).
-Utility functions whose best deal is worth 1 already are returned as they are, so the
-scenarios the built-in generators make are never changed.
+A utility function is *normalized* when every deal is worth 0 to 1 (the worst deal 0,
+the best 1). A linear-additive one is normalized in negmas's canonical form
+("Normalization Method 3", see negmas's ``docs/normalization.rst``): the weights are
+non-negative and add up to 1, there is no bias, and every issue's value function ranges
+from 0 to 1. The value on disagreement goes through the same map as the deals, so it
+keeps its place among them (it can fall below 0 if it was below the worst deal).
+
+*Not normalized* means none of that: a deal can be worth anything, negative included,
+value functions have any range and weights any size.
+
+The work is negmas's (``ufun.normalize()``, ``Scenario.normalize`` and
+``Scenario.is_normalized``); this module only adds the checks hani2 needs: a utility
+function that is normalized already is returned as it is (so the built-in scenarios
+never change), and one whose outcome space is too large to search is left alone.
 
 Used by the Preferences tools (the normalized display) and by scenario generation (the
 setting ``normalized_scenarios``).
@@ -16,21 +24,17 @@ from __future__ import annotations
 import math
 from typing import Any
 
-__all__ = ["best_value", "is_scaled", "scale_to_best", "scale_by", "keep_names"]
+__all__ = ["is_normalized", "normalize", "normalize_scenario", "keep_names", "searchable", "on_range"]
 
-#: spaces larger than this are not searched for their best deal (unless the ufun is additive)
+#: spaces larger than this are not searched for their best and worst deals (unless the
+#: utility function is linear-additive: negmas finds those issue by issue)
 MAX_SEARCH = 5000
 _TOL = 1e-6
 
 
-def _additive(ufun: Any) -> bool:
-    from negmas.preferences import LinearAdditiveUtilityFunction
-
-    return type(ufun) is LinearAdditiveUtilityFunction
-
-
-def _cheap(ufun: Any) -> bool:
-    """Whether the best deal can be found quickly: additive (issue by issue) or a small space."""
+def searchable(ufun: Any) -> bool:
+    """Whether the best and worst deals can be found quickly: linear-additive (issue by
+    issue) or a small outcome space."""
     from negmas.preferences import LinearAdditiveUtilityFunction
 
     if isinstance(ufun, LinearAdditiveUtilityFunction):
@@ -42,25 +46,52 @@ def _cheap(ufun: Any) -> bool:
         return False
 
 
-def best_value(ufun: Any) -> float | None:
-    """The value of the best deal; ``None`` when it cannot be found (quickly)."""
-    if ufun is None or not _cheap(ufun):
-        return None
+def _close(a: float, b: float) -> bool:
+    return math.isfinite(a) and abs(a - b) < _TOL
+
+
+def is_normalized(ufun: Any) -> bool:
+    """Whether ``ufun`` is normalized (see the module): its deals range from 0 to 1 and, if
+    it is linear-additive, its weights add up to 1 and every value function ranges from 0
+    to 1. ``False`` when that cannot be told quickly."""
+    from negmas.preferences import LinearAdditiveUtilityFunction
+
+    if ufun is None or not searchable(ufun):
+        return False
     try:
-        hi = float(ufun.minmax()[1])
+        lo, hi = (float(x) for x in ufun.minmax())
+        if not (_close(lo, 0.0) and _close(hi, 1.0)):
+            return False
+        if isinstance(ufun, LinearAdditiveUtilityFunction):
+            if abs(float(getattr(ufun, "_bias", 0.0) or 0.0)) > _TOL:
+                return False
+            ws = [float(w) for w in ufun.weights]
+            if any(w < -_TOL for w in ws) or not _close(sum(ws), 1.0):
+                return False
+            for fn, issue in zip(ufun.values, ufun.outcome_space.issues):
+                a, b = (float(x) for x in fn.minmax(issue))
+                if a < -_TOL or b > 1 + _TOL:
+                    return False
+        return True
     except Exception:  # noqa: BLE001
-        return None
-    return hi if math.isfinite(hi) else None
+        return False
 
 
-def is_scaled(ufun: Any) -> bool:
-    """Whether the best deal is worth 1 (or that cannot be told, or scaling cannot help)."""
-    hi = best_value(ufun)
-    return hi is None or hi <= 0 or abs(hi - 1.0) < _TOL
+def on_range(ufun: Any, r: float) -> float:
+    """The value ``r`` of the way from ``ufun``'s worst deal to its best: ``r`` itself for a
+    normalized utility function (or one too large to search), the same place on the scale
+    of one that is not."""
+    if not searchable(ufun) or is_normalized(ufun):
+        return r
+    try:
+        lo, hi = (float(x) for x in ufun.minmax())
+    except Exception:  # noqa: BLE001
+        return r
+    return round(lo + r * (hi - lo), 4) if math.isfinite(lo) and math.isfinite(hi) else r
 
 
 def keep_names(new: Any, old: Any) -> Any:
-    """``new`` with ``old``'s name and id (negmas gives a scaled copy a fresh id)."""
+    """``new`` with ``old``'s name and id (negmas gives a normalized copy a fresh id)."""
     for attr in ("name", "id"):
         try:
             if getattr(new, attr, None) != getattr(old, attr, None):
@@ -70,59 +101,30 @@ def keep_names(new: Any, old: Any) -> Any:
     return new
 
 
-def _scaled_rv(rv: Any, k: float) -> Any:
-    try:
-        return float(rv) * k if rv is not None and math.isfinite(float(rv)) else rv
-    except Exception:  # noqa: BLE001
-        return rv
-
-
-def scale_by(ufun: Any, k: float, *, weights: bool = True) -> Any:
-    """``ufun`` multiplied by ``k`` (the value on disagreement too). An additive utility
-    function scales its weights (``weights``) and keeps its option values."""
-    from negmas.preferences import LinearAdditiveUtilityFunction as LAU
-
-    if weights and _additive(ufun):
-        bias = float(getattr(ufun, "_bias", 0.0) or 0.0)
-        return keep_names(LAU(values=ufun.values, weights=[float(w) * k for w in ufun.weights], bias=bias * k,
-                              outcome_space=ufun.outcome_space, name=ufun.name,
-                              reserved_value=_scaled_rv(ufun.reserved_value, k)), ufun)
-    return keep_names(ufun.scale_by(k), ufun)
-
-
-def _additive_to_best(ufun: Any, hi: float) -> Any | None:
-    """An additive ``ufun`` with every issue's best option worth 1 and weights adding up to
-    1 (``None`` when that does not give the same preferences, e.g. with a bias)."""
-    from negmas.preferences import LinearAdditiveUtilityFunction as LAU
-
-    if float(getattr(ufun, "_bias", 0.0) or 0.0) != 0.0:
-        return None
-    issues = list(ufun.outcome_space.issues)
-    values, weights = [], []
-    for fn, w, issue in zip(ufun.values, ufun.weights, issues):
-        m = float(fn.minmax(issue)[1])
-        if not math.isfinite(m) or m <= 0 or float(w) < 0:
-            return None
-        values.append(fn.scale_by(1.0 / m) if abs(m - 1.0) > _TOL else fn)
-        weights.append(float(w) * m / hi)
-    if abs(sum(weights) - 1.0) > 1e-6:  # the issues' best options are not reached together
-        return None
-    return keep_names(LAU(values=values, weights=weights, outcome_space=ufun.outcome_space, name=ufun.name,
-                          reserved_value=_scaled_rv(ufun.reserved_value, 1.0 / hi)), ufun)
-
-
-def scale_to_best(ufun: Any) -> Any:
-    """``ufun`` scaled so that its best deal is worth 1 (see the module). Returned as it is
-    when that is so already, or when it cannot be scaled."""
-    if is_scaled(ufun):
+def normalize(ufun: Any) -> Any:
+    """``ufun`` normalized by negmas (``ufun.normalize()``: deals from 0 to 1, the canonical
+    form for a linear-additive one). Returned as it is when it is normalized already,
+    when its outcome space is too large to search, or when negmas cannot normalize it."""
+    if ufun is None or not searchable(ufun) or is_normalized(ufun):
         return ufun
-    hi = best_value(ufun)
-    assert hi is not None
     try:
-        if _additive(ufun):
-            out = _additive_to_best(ufun, hi)
-            if out is not None:
-                return out
-        return scale_by(ufun, 1.0 / hi, weights=False)
+        return keep_names(ufun.normalize(), ufun)
     except Exception:  # noqa: BLE001
         return ufun
+
+
+def normalize_scenario(scenario: Any) -> Any:
+    """``scenario`` with every utility function normalized on its own (negmas's
+    ``Scenario.normalize`` with ``common_range=False``, both ends guaranteed). A scenario
+    normalized already is returned as it is, so the built-in generators' scenarios do not
+    change."""
+    ufuns = list(scenario.ufuns)
+    if all(is_normalized(u) for u in ufuns) or not all(searchable(u) for u in ufuns):
+        return scenario
+    try:
+        scenario.normalize(to=(0.0, 1.0), common_range=False, guarantee_min=True, guarantee_max=True)
+    except Exception:  # noqa: BLE001 - one by one, leaving any negmas cannot normalize
+        scenario.ufuns = tuple(normalize(u) for u in ufuns)
+        return scenario
+    scenario.ufuns = tuple(keep_names(n, o) for n, o in zip(scenario.ufuns, ufuns))
+    return scenario

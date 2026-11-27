@@ -59,11 +59,14 @@ def inverter_filename(human_index: int) -> str:
 
 
 def scenario_opposition(scenario: Scenario) -> float:
-    """opposition_level of a scenario's (normalized) ufuns."""
+    """opposition_level of a scenario's ufuns, normalized first (negmas; a scenario that is
+    not normalized is measured on a normalized copy, so the band means the same)."""
+    from hani2.ufun_scale import normalize
+
     n = len(scenario.ufuns)
     return float(
         opposition_level(
-            scenario.ufuns,
+            [normalize(u) for u in scenario.ufuns],
             outcome_space=scenario.outcome_space,
             max_utils=tuple(1.0 for _ in range(n)),
         )
@@ -74,7 +77,11 @@ def set_reservation_values(scenario: Scenario, human_index: int, rng: random.Ran
                            user_max: float, agent_max: float, simple: bool = False) -> tuple[float, float]:
     """Set small disagreement values on the ufuns' [0,1] scale: the human at or
     below ``user_max``, every other (agent) negotiator at or below ``agent_max``
-    (``simple``: rounded to 5%). Returns (human_reserved, agent_reserved)."""
+    (``simple``: rounded to 5%). A utility function that is not normalized gets the
+    same place between its worst and best deals. Returns (human_reserved,
+    agent_reserved), as fractions of that range."""
+    from hani2.ufun_scale import on_range
+
     human_r = round(rng.uniform(0.0, user_max), 4)
     agent_r = round(rng.uniform(0.0, agent_max), 4)
     if simple:
@@ -83,7 +90,7 @@ def set_reservation_values(scenario: Scenario, human_index: int, rng: random.Ran
         human_r, agent_r = snap_reserved(human_r), snap_reserved(agent_r)
     for i, uf in enumerate(scenario.ufuns):
         try:
-            uf.reserved_value = human_r if i == human_index else agent_r
+            uf.reserved_value = on_range(uf, human_r if i == human_index else agent_r)
         except Exception:
             pass
     return human_r, agent_r
@@ -97,31 +104,32 @@ def slot_seed(seed: int | str, scenario_type: str, slot: int) -> str:
 
 def make_in_band(scenario_type: str, slot: int,
                  min_opp: float, max_opp: float, max_tries: int, seed: int | str | None = None,
-                 simple: bool = False):
+                 simple: bool = False, normalized: bool = True):
     """Draw scenarios from the (random) maker until opposition_level falls in
     [min_opp, max_opp]. Returns (scenario, opposition, tries). Raises after
     max_tries with the closest-to-band attempt so we never write nothing.
 
     With ``seed`` the draws are reproducible: Python's random generator (which
     every built-in maker uses) is seeded from :func:`slot_seed` first. ``simple``
-    generates simple scenarios (see :mod:`hani2.scenarios.simple`)."""
+    generates simple scenarios (see :mod:`hani2.scenarios.simple`); ``normalized=False``
+    keeps them as the maker draws them without normalizing."""
     if seed is None:
-        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple)
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple, normalized)
     state = random.getstate()
     random.seed(slot_seed(seed, scenario_type, slot))
     try:
-        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple)
+        return _make_in_band(scenario_type, slot, min_opp, max_opp, max_tries, simple, normalized)
     finally:
         random.setstate(state)
 
 
 def _make_in_band(scenario_type: str, slot: int, min_opp: float, max_opp: float, max_tries: int,
-                  simple: bool = False):
+                  simple: bool = False, normalized: bool = True):
     from hani2.scenario_store import make_scenario
 
     best = None  # (distance_outside_band, scenario, opp)
     for attempt in range(1, max_tries + 1):
-        scenario = make_scenario(scenario_type, slot, simple)
+        scenario = make_scenario(scenario_type, slot, simple, normalized)
         opp = scenario_opposition(scenario)
         if min_opp <= opp <= max_opp:
             return scenario, opp, attempt
@@ -171,9 +179,9 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
                  seed: int | str | None = None, simple: bool = False,
                  normalized: bool = True) -> tuple[bool, str]:
     """Generate (or skip) one scenario directory, optionally caching its inverse.
-    ``normalized=False``: the opposition band and the reservation values are worked out
-    on the normalized scale, then the scenario is saved in points
-    (:func:`hani2.scenario_store.denormalize_scenario`).
+    ``normalized=False``: the scenario is kept as its maker draws it without normalizing
+    (:func:`hani2.scenario_store.make_scenario`); the opposition band is measured on a
+    normalized copy and the reservation values take the same place on its scale.
 
     Returns (wrote, message)."""
     out_dir = type_dir / f"{index:04d}{scenario_type}"
@@ -187,7 +195,7 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
         return False, f"skip {out_dir.name} (exists)"
 
     scenario, opp, tries = make_in_band(
-        scenario_type, index, min_opp, max_opp, max_tries, seed, simple
+        scenario_type, index, min_opp, max_opp, max_tries, seed, simple, normalized
     )
     if seed is not None:
         rng = random.Random(slot_seed(seed, scenario_type, index) + ":reserved")
@@ -201,11 +209,8 @@ def generate_one(scenario_type: str, index: int, type_dir: Path, human_index: in
             scenario, assign_human(scenario, "auto", human_index), rng, user_max, agent_max, simple
         )
         res_note = f" res h={human_r}/a={agent_r}"
-    if not normalized:
-        from hani2.scenario_store import denormalize_scenario
-
-        denormalize_scenario(scenario)
-        res_note += " (in points)"
+    if (scenario.info or {}).get("normalized") is False:
+        res_note += " (not normalized)"
     # <Type>.yml / per-role ufuns / _info.yml, including the reservation values we just set
     from hani2.scenario_store import save_scenario
 
@@ -289,10 +294,11 @@ def generate(
         "kept unless --force.")] = None,
     normalized: Annotated[Optional[bool], typer.Option(
         "--normalized/--no-normalized",
-        help="Normalized scenarios: the best deal worth 1, the weights adding up to 1 (default: the "
-        "normalized_scenarios setting of the current project/study, else of env.json; on unless switched off). "
-        "--no-normalized saves them in points (the best deal is worth 100). Existing slots are kept unless "
-        "--force.")] = None,
+        help="Normalized scenarios, as negmas normalizes: every deal worth 0 to 1, weights adding up to 1, every "
+        "value function from 0 to 1 (default: the normalized_scenarios setting of the current project/study, else "
+        "of env.json; on unless switched off). --no-normalized keeps what the generator draws without normalizing "
+        "(Grocery and Island: the items' points; simple scenarios stay normalized). Existing slots are kept "
+        "unless --force.")] = None,
 ):
     """Generate a pool of scenarios, optionally with cached utility inverses."""
     from hani2 import scenario_sets

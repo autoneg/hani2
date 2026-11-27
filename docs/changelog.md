@@ -9,16 +9,21 @@
   `tools.weights_chart_window: donut` (or `bar`) draws the weights its own way there, independently
   of the pane (`same`, the default, keeps the pane's chart). `tools.preferences_scale: raw` shows the
   utility function's own numbers instead of normalized percentages (`normalized`, the default;
-  preferences whose best deal is not worth 1 are scaled for display). An issue with more than
+  preferences that are not normalized are normalized for display with negmas). An issue with more than
   `tools.values_line_above` options (12 by default), or a continuous one, shows its values as a line
   drawn the same way round as the bars. For tool authors: `ui.placed(pane, window)` shows one
   component in a pane and another in the tool's window, and `ui.grid(..., narrow_min=...)` keeps the
   columns side by side in a narrow pinned pane. See [Showing preferences](guide/preferences.md#weights-as-a-bar-or-a-donut).
 - **Normalized or raw generated scenarios.** The setting `normalized_scenarios` (global
   `negotiation.normalized_scenarios`, project and study; on by default) keeps every generated
-  scenario normalized: the best deal is worth 1 and the weights add up to 1. Off, generated
-  scenarios are in points (the best deal is worth 100). `hani2 generate --no-normalized` does the
-  same for a pool. See [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
+  scenario normalized as negmas normalizes: every deal worth 0 to 1, weights adding up to 1, every
+  value function from 0 to 1 (a Trade scenario whose worst deal was above 0 is now stretched to 0).
+  Off, generated scenarios are kept as their generators draw them (Grocery and Island: the items'
+  points). `hani2 generate --no-normalized` does the same for a pool. See
+  [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
+- **A wider tools column in the simple view.** On a desktop the simple view's tools column now
+  takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and
+  the option values side by side; it has its own size (`layout.sizes.simple_tools`).
 
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded

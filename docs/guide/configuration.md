@@ -325,7 +325,7 @@ or the assistant write to the opponent are sent as written.
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
 | `tools.weights_chart` | How the Preferences tools draw issue weights: `bar` (default, one thin horizontal bar, saves space) or `donut`. See [Weights as a bar or a donut](preferences.md#weights-as-a-bar-or-a-donut). |
 | `tools.weights_chart_window` | The issue weights when the tool is enlarged or popped out: `same` (default, as `tools.weights_chart`), `donut` or `bar`. |
-| `tools.preferences_scale` | `normalized` (default: percentages, scaled so the best deal is 100%) or `raw` (the utility function's own numbers). See [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers). |
+| `tools.preferences_scale` | `normalized` (default: percentages, normalized as negmas does it: every deal 0–100%, weights adding up to 100%) or `raw` (the utility function's own numbers). See [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers). |
 | `tools.values_line_above` | An issue with more options than this (default 12), or a continuous one, shows its values as a line instead of bars. |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
 | `tools.overrides` | Per-tool changes keyed by tool name (case-insensitive): `pane`, `timing`, `enabled`, `admin_only`, `guest`, `order`, `at_front`, and `placement` (per view, see [Placement per view](tools.md#placement-per-view)). |

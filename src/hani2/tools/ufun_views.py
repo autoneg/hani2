@@ -336,19 +336,20 @@ def values_line_above() -> int:
 def _cheap_minmax(ufun: Any) -> bool:
     """Whether the best and worst deals can be found quickly: an additive utility function
     (issue by issue) or a small outcome space."""
-    from hani2.ufun_scale import _cheap
+    from hani2.ufun_scale import searchable
 
-    return _cheap(ufun)
+    return searchable(ufun)
 
 
 def display_ufun(ufun: Any) -> Any:
-    """``ufun`` as the normalized scale shows it: itself when its best deal is worth 1
-    already (the scenarios hani2 generates), else a copy scaled so that it is (each
-    issue's favourite option worth 100%, the weights adding up to 100%, the value on
-    disagreement following; see :mod:`hani2.ufun_scale`). Unchanged when it cannot be scaled."""
-    from hani2.ufun_scale import scale_to_best
+    """``ufun`` as the normalized scale shows it: itself when it is normalized already (the
+    scenarios hani2 generates), else negmas's normalized copy (every deal worth 0% to 100%,
+    the weights adding up to 100%, every issue's options worth 0% to 100%, the value on
+    disagreement following; see :mod:`hani2.ufun_scale`). Unchanged when it cannot be
+    normalized (an outcome space too large to search)."""
+    from hani2.ufun_scale import normalize
 
-    return ufun if ufun is None else scale_to_best(ufun)
+    return normalize(ufun)
 
 
 def _section(fn: Callable[[], ui.Component | list | None], what: str = "") -> list[ui.Component]:
@@ -413,7 +414,7 @@ def reserved_sentence(ufun: Any, *, hidden: bool = False, hidden_hint: str = "",
     lead = "If you do not reach agreement you" if not opponent else "If no agreement is reached the opponent"
     if rv is None:
         return f"{lead} {gets} nothing set by these preferences."
-    if not raw and _unit_scale(ufun) and -1e-9 <= rv <= 1 + 1e-9:
+    if not raw and _unit_scale(ufun):
         return f"{lead} {gets} {_pct(rv)} ({its} 100%)."
     try:
         hi = float(ufun.minmax()[1]) if _cheap_minmax(ufun) else float("nan")
@@ -653,13 +654,21 @@ WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal: a bigge
 SIGNED_WEIGHTS_CAPTION = ("How much your total changes for every extra unit of each issue (red: it goes down).",
                           "How much the opponent's total changes for every extra unit of each issue (red: it "
                           "goes down).")
+SIGNED_ADDITIVE_CAPTION = ("How much each issue counts in your total for a deal (its weight). Red: a negative "
+                           "weight, so the issue's options count the other way round.",
+                           "How much each issue counts in the opponent's total for a deal (its weight). Red: a "
+                           "negative weight, so the issue's options count the other way round.")
 PARTS_CAPTION = ("How much each set of preferences counts in your total. The shares add up to 100%.",
                  "How much each set of preferences counts in the opponent's total. The shares add up to 100%.")
 RAW_WEIGHTS_CAPTION = ("How much each issue counts in your total for a deal (its weight): a bigger weight is a more "
                        "important issue.",
                        "How much each issue counts in the opponent's total for a deal (its weight): a bigger weight "
                        "is a more important issue.")
-RAW_PARTS_CAPTION = ("How much each set of preferences counts in your total (its weight).",
+RAW_SIGNED_ADDITIVE_CAPTION = ("How much each issue counts in your total for a deal (its weight). Red: a negative "
+                           "weight, so the issue's options count the other way round.",
+                           "How much each issue counts in the opponent's total for a deal (its weight). Red: a "
+                           "negative weight, so the issue's options count the other way round.")
+PARTS_CAPTION = ("How much each set of preferences counts in your total (its weight).",
                      "How much each set of preferences counts in the opponent's total (its weight).")
 RAW_VALUES_CAPTION = ("Pick an issue to see what each of its options is worth to you: the higher, the better.",
                       "Pick an issue to see what each of its options is worth to the opponent: the higher, the "
@@ -688,10 +697,13 @@ def _per_issue_card(ctx: UfunViewContext, funs: list, *, title: str | None = Non
 
 
 def _weights_card(ctx: UfunViewContext, names: list[str], weights: list[float],
-                  title: str = "Issue weights", caption: tuple[str, str] | None = None) -> ui.Component:
+                  title: str = "Issue weights", caption: tuple[str, str] | None = None,
+                  per_unit: bool = False) -> ui.Component:
+    """``per_unit``: the weights multiply the issues' own numbers (a linear utility function)."""
     signed = not _positive(weights)
     if caption is None:
-        caption = SIGNED_WEIGHTS_CAPTION if signed else RAW_WEIGHTS_CAPTION if ctx.raw else WEIGHTS_CAPTION
+        caption = (SIGNED_WEIGHTS_CAPTION if per_unit else SIGNED_ADDITIVE_CAPTION) if signed else \
+            RAW_WEIGHTS_CAPTION if ctx.raw else WEIGHTS_CAPTION
     elif caption is PARTS_CAPTION and ctx.raw:
         caption = RAW_PARTS_CAPTION
     pane, window = weights_chart(), weights_chart("window")
@@ -822,7 +834,7 @@ def linear_view(ctx: UfunViewContext) -> list[ui.Component]:
     right = ui.card(ui.text_block(f"Total = {terms}"), ui.table(
         [{"Issue": n, "Weight": w} for n, w in zip(names, weights)], formats={"Weight": "float"}, sortable=False),
         title=f"{ctx.title_prefix}How the total is worked out")
-    left = [_weights_card(ctx, names, weights), bias]
+    left = [_weights_card(ctx, names, weights, per_unit=True), bias]
     comps = [ctx.layout(*left, right=right)]
     comps += _section(lambda: ranking_components(ctx, top=5))
     return comps + ctx.explain(LINEAR_HELP_MD)

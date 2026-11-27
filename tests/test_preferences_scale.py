@@ -43,20 +43,46 @@ def _texts(comps):
     return out
 
 
-def test_normalized_by_default_scales_a_raw_ufun(hani2_home):
-    u = _raw_ufun()  # deals worth 7..23: scaled by 1/23, never shifted
+def test_normalized_by_default_is_negmas_normalization(hani2_home):
+    u = _raw_ufun()  # deals worth 7..23, value on disagreement 11
     shown = uv.display_ufun(u)
     assert shown is not u and shown.name == "human" and shown.id == u.id
-    assert tuple(round(x, 6) for x in shown.minmax()) == (round(7 / 23, 6), 1.0)
-    # each issue's favourite option is worth 100%; the weights take the rest and add up to 1
-    assert [round(w, 4) for w in shown.weights] == [round(18 / 23, 4), round(5 / 23, 4)]
+    # negmas: deals from 0 to 1, every value function from 0 to 1, weights adding up to 1
+    assert tuple(round(x, 6) for x in shown.minmax()) == (0.0, 1.0)
+    assert [round(w, 4) for w in shown.weights] == [0.75, 0.25]
+    issues = list(u.outcome_space.issues)
+    assert [[round(f(v), 4) for v in i.all] for f, i in zip(shown.values, issues)] == [[0.0, 0.5, 1.0], [1.0, 0.0]]
+    assert abs(shown.reserved_value - (11 - 7) / 16) < 1e-9  # the same map as the deals
     o = (2, "y")
-    assert abs(shown(o) - u(o) / 23) < 1e-9
+    assert abs(shown(o) - (u(o) - 7) / 16) < 1e-9
     comps = uv.render_ufun_view(_Tool(), u)
     texts = " ".join(_texts(comps))
-    assert "47.8%" in texts and "(your best option gives you 100%)" in texts  # 11 / 23
+    assert "25%" in texts and "(your best option gives you 100%)" in texts
     legend = next(c for c in _walk(comps) if c.get("type") == "legend")
-    assert [i["value"] for i in legend["items"]] == ["78%", "22%"]
+    assert [i["value"] for i in legend["items"]] == ["75%", "25%"]
+
+
+def _unconstrained():
+    os_ = make_os([make_issue([1, 2, 3, 4, 5], "A"), make_issue(["p", "q", "r"], "B"), make_issue((0.0, 10.0), "C")])
+    return LAU(values=[TableFun({1: -5, 2: 40, 3: 10, 4: 0, 5: -2}), TableFun({"p": 3, "q": -1, "r": 7}),
+                       AffineFun(-2, 3)], weights=[2.5, -0.7, 1.3], outcome_space=os_, reserved_value=-4, name="w")
+
+
+def test_a_ufun_without_constraints_is_shown_both_ways(hani2_home):
+    u = _unconstrained()  # a negative weight, values below 0, weights not adding up to 1
+    shown = uv.display_ufun(u)
+    assert tuple(round(x, 6) for x in shown.minmax()) == (0.0, 1.0)
+    assert all(w >= 0 for w in shown.weights) and abs(sum(shown.weights) - 1) < 1e-9
+    texts = " ".join(_texts(uv.render_ufun_view(_Tool(), u)))
+    assert "your best option gives you 100%" in texts
+    _env(hani2_home, {"preferences_scale": "raw"})
+    comps = uv.render_ufun_view(_Tool(), u)
+    texts = " ".join(_texts(comps))
+    assert "you get -4 (your best option gives you 105)" in texts and "%" not in texts.replace("100%", "")
+    weights = next(c for c in _walk(comps) if c.get("type") == "plot")
+    assert weights["figure"]["data"][0]["x"] == [2.5, -0.7, 1.3]
+    assert any("negative weight" in t for t in _texts(comps))
+    assert "%" not in uv.preference_summary(u)
 
 
 def test_a_normalized_ufun_is_shown_as_it_is():

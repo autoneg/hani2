@@ -59,7 +59,8 @@ survive a page reload and an Assistant can set them through its layout control:
 
 | Key | What it sizes |
 | --- | --- |
-| `tools` | Width of the tools column (full and simple views). |
+| `tools` | Width of the tools column in the full view. |
+| `simple_tools` | Width of the tools column in the simple view on a desktop (42% by default, as on a tablet, so a pinned tool can show two columns side by side). |
 | `upper` | The upper tools' share of the tools column. |
 | `dock` | The offer area's share of the height (the history gets the rest). |
 | `side` | The offer generators' share of the row beside the offer area. |

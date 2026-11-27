@@ -136,6 +136,10 @@ function ToolColumn() {
   );
 }
 
+/** The tools column's default share of the width on a tablet in landscape, and in the
+ *  desktop's simple view (the same proportions, so two columns fit side by side). */
+const SIMPLE_TOOLS = 0.42;
+
 function Desktop() {
   const st = useStore((s) => s.state)!;
   // an open tool popup is the tool in front: with place = tools the Assistant takes its window
@@ -145,6 +149,9 @@ function Desktop() {
   const wide = useMedia("(min-width: 1600px)");
   const rowRef = useRef<HTMLDivElement>(null);
   const [tools, setTools, commitTools] = useLayoutSize("tools");
+  // the simple view's tool column has its own size: wider by default (a tablet's
+  // proportions), so a pinned tool has room for two columns side by side
+  const [simpleW, setSimpleW, commitSimpleW] = useLayoutSize("simple_tools");
   const [asst, setAsst, commitAsst] = useLayoutSize("assistant");
   const view = st.layout.view;
   const collapsed = st.layout.collapsed ?? [];
@@ -176,8 +183,23 @@ function Desktop() {
   );
   // the simple view's one tool column: right of the negotiation, or left (interface.simple_tools_side)
   const simpleLeft = st.layout.tools_side === "left";
+  const simpleShare = Math.max(0.25, Math.min(0.65, simpleW ?? SIMPLE_TOOLS));
+  const simpleSplitter = (after: boolean) => (
+    <Splitter
+      dir="col"
+      after={after}
+      container={rowRef}
+      value={simpleW}
+      fallback={() => simpleShare}
+      onChange={setSimpleW}
+      onCommit={commitSimpleW}
+      min={0.25}
+      max={0.65}
+      label="Resize the tools"
+    />
+  );
   const simpleTools = (
-    <div data-region="tools" data-side={simpleLeft ? "left" : "right"} className="flex min-h-0 flex-col bg-surface" style={{ width: `${share * 100}%`, minWidth: 240 }}>
+    <div data-region="tools" data-side={simpleLeft ? "left" : "right"} className="flex min-h-0 flex-col bg-surface" style={{ width: `${simpleShare * 100}%`, minWidth: 280 }}>
       {overTools && <Assistant fill />}
       <ToolPane panes={["upper", "lower", "side"]} className={`flex-1 ${overTools ? "hidden" : ""}`} label="Tools" />
     </div>
@@ -198,13 +220,13 @@ function Desktop() {
       {simpleCol && simpleLeft && (
         <>
           {simpleTools}
-          {toolsSplitter(false)}
+          {simpleSplitter(false)}
         </>
       )}
       <Center withSide={sideCol} />
       {simpleCol && !simpleLeft && (
         <>
-          {toolsSplitter(true)}
+          {simpleSplitter(true)}
           {simpleTools}
         </>
       )}
@@ -304,7 +326,7 @@ function Tablet({ landscape }: { landscape: boolean }) {
   });
   useUncoverForHighlights(overTools, () => setAssistant(false));
   if (landscape) {
-    const w = tools ?? 0.42;
+    const w = tools ?? SIMPLE_TOOLS;
     return (
       <div ref={rowRef} className="flex min-h-0 flex-1">
         <Center prefix="tablet_" />

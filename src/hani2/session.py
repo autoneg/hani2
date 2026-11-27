@@ -3769,7 +3769,8 @@ class NegotiationSession:
         """Change the interface layout: ``view`` (full | simple | focus | bare; bare shows no
         tools; refused when the study locks the view),
         ``sizes`` (region → fraction of its container, as set by dragging the
-        dividers: ``tools`` (tool column width), ``upper`` (upper tools' share of
+        dividers: ``tools`` (tool column width in the full view), ``simple_tools``
+        (in the simple view), ``upper`` (upper tools' share of
         the column), ``dock`` (offer area's share of the height), ``side``
         (offer generators' share of the offer row), ``assistant``; tablets use
         ``tablet_tools``, ``tablet_dock`` and ``tray``; a missing key means the

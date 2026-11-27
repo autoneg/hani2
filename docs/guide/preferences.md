@@ -61,17 +61,22 @@ stacks below about 520 px).
 
 ## Normalized percentages or raw numbers
 
-By default (`tools.preferences_scale: normalized`) everything is a percentage:
-the best deal is worth 100%, the weights are shares adding up to 100% and each
-issue's favourite option is worth 100%. Preferences whose best deal is not
-worth 1 are **scaled for display** (never shifted: a deal worth 0 stays at 0%,
-the value on disagreement keeps its sign); the scenarios HANI2 generates are
-normalized already and are shown as they are.
+By default (`tools.preferences_scale: normalized`) everything is a percentage,
+normalized the way negmas normalizes: every deal is worth 0% (the worst) to
+100% (the best), the weights are shares adding up to 100% and every issue's
+options are worth 0% to 100%. Preferences that are not normalized are
+**normalized for display** by negmas (`ufun.normalize()`); the value on
+disagreement goes through the same map, so it keeps its place among the deals
+(below 0% if it is worse than the worst deal). The scenarios HANI2 generates
+are normalized already and are shown as they are. Preferences on an outcome
+space too large to search (and not linear-additive) are shown as they are.
 
 With `tools.preferences_scale: raw` (*Preferences shown as* on the **Tools**
 page) the tools show the utility function's own numbers: the weights as they
 are, the value of every option and the value on disagreement (with what the
-best deal is worth), without percentages.
+best deal is worth), without percentages. Not normalized, a deal can be worth anything (negative
+included), an issue's options any amount and the weights any size; a negative
+weight is drawn in red.
 
 ## Many options: a line instead of bars
 

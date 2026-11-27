@@ -134,12 +134,14 @@ same way are served. With **No**, any saved scenario may be served and generated
 shape.""",
         section="Defaults", docs="scenarios.md#simple-scenarios"),
     "normalized_scenarios": Help(
-        "Normalized scenarios", "Generate scenarios whose best deal is worth 1 (100%), with weights adding up to 1",
+        "Normalized scenarios", "Generate scenarios normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1",
         """\
-With **Yes** (the default), every generated scenario is normalized: for each side the best deal is
-worth 1 (scaled, never shifted), the issue weights add up to 1 and the values on disagreement are on the same
-scale. With **No**, generated scenarios are saved in points: the best deal is worth 100 and the weights
-add up to 100 (the shape of the preferences is the same). Saved scenarios are served as they were saved.""",
+With **Yes** (the default), every generated scenario is normalized the way negmas normalizes: for each
+side every deal is worth 0 to 1 and, for linear-additive preferences, the issue weights add up to 1 and every
+issue's value function ranges from 0 to 1; the value on disagreement goes through the same map. With **No**,
+generated scenarios are kept as their generators draw them without normalizing (any values, negative
+included; Grocery and Island use the items' points, the other generators only draw normalized ones). Simple
+scenarios are always normalized. Saved scenarios are served as they were saved.""",
         section="Defaults", docs="scenarios.md#normalized-scenarios"),
     "force_reserved_value": Help(
         "Forced value on disagreement", "The participant's value on disagreement in every negotiation, whatever the scenario says",
