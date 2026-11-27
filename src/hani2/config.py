@@ -327,7 +327,9 @@ DEFAULT_ENV: dict[str, Any] = {
     "playground": {"enabled": True},
     # WebMCP: expose the negotiation to AI agents running in the browser.
     "webmcp": {"enabled": True, "actions": True, "studies": False},
-    "tools": {"maximize": "window", "weights_chart": "donut"},
+    # tools.isolate_builtin: built-in tools' failures are shown in their pane too (external tools' always are);
+    # tools.render_timeout: seconds a guarded tool may take to render (see hani2.tools.failure)
+    "tools": {"maximize": "window", "weights_chart": "donut", "isolate_builtin": True, "render_timeout": 20},
     # HAN league agents: the current year comes from its submitted zips (see hani2.han_submissions),
     # every other year from the han-agents package; None: every year from the package
     "han": {"current_year": None, "submissions": {}},

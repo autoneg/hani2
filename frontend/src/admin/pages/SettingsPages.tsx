@@ -228,6 +228,8 @@ export const TOOLS_BASE: FieldGroup[] = [
     fields: [
       { id: "tools-maximize", path: "tools.maximize", label: "Enlarged tools open as", hint: "Each tool has an enlarge button; Put back returns it to its pane", type: "select", options: [{ value: "window", label: "A large window" }, { value: "fullscreen", label: "The full screen" }, { value: "off", label: "Not allowed" }] },
       { id: "weights-chart", path: "tools.weights_chart", label: "Issue weights shown as", hint: "In the Preferences tool. A thin bar takes much less room than the donut.", type: "select", options: [{ value: "donut", label: "A donut" }, { value: "bar", label: "A horizontal bar" }], keywords: "weights donut pie bar stacked preferences space compact" },
+      { id: "isolate-builtin", path: "tools.isolate_builtin", label: "Catch built-in tool failures", hint: "On: a failing built-in tool shows the failure in its own pane, like external tools always do. Off: built-in errors surface as before (for debugging HANI2).", type: "toggle", keywords: "error failure crash isolate guard exception debug broken tool" },
+      { id: "render-timeout", path: "tools.render_timeout", label: "Tool render time limit (seconds)", hint: "A tool that takes longer to draw shows that it is not working; 0: no limit", type: "stepper", min: 0, step: 5, keywords: "timeout slow hang stuck tool render" },
       { id: "show-opponent-utility", path: "tools.show_opponent_utility", label: "Participants see opponent utilities", hint: "Lets everyone switch on the opponent's utility in the Utility Plot and Trace", type: "toggle" },
       { id: "tools-extra", path: "tools.extra", label: "Extra tools", hint: "Python classes, e.g. my_pkg.tools:MyTool", type: "tags", placeholder: "pkg.mod:Tool" },
     ],

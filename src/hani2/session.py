@@ -48,6 +48,7 @@ from hani2.recording import recorder as rec
 from hani2.agents import DEFAULT_POOL, expand_agents, make_agent, session_agent_override, short_name
 from hani2.config import get_env, results_root
 from hani2.tool_controller import PANES, ToolController
+from hani2.tools import failure as tool_failure
 from hani2.tools import ui
 
 EXECUTOR = ThreadPoolExecutor(max_workers=int(os.environ.get("HANI2_WORKERS", "32")), thread_name_prefix="hani2")
@@ -205,6 +206,9 @@ def _in_own_study(fn: Callable) -> Callable:
             return fn(self, *a, **kw)
 
     return _run
+
+#: what :meth:`NegotiationSession.guard_tool` returns when a render failed
+_FAILED = object()
 
 # old names of admin preferences, still accepted
 PREF_ALIASES = {"partner_types": "opponent_types", "show_partner_type": "show_opponent_type"}
@@ -1503,9 +1507,12 @@ class NegotiationSession:
                     enabled=bool(tool.enabled),
                     # only a tool placed differently per view moves when the view changes
                     views=views if len({tuple(sorted(p.items())) for p in views.values()}) > 1 else None,
+                    builtin=bool(spec.builtin),
                 )
+                if isinstance(tool, tool_failure.FailedTool):  # its constructor raised (hani2.tools.registry)
+                    self.tool_failed(tool, "create", failure=tool.failure)
                 try:
-                    tool.init(self.ss)
+                    self.guard_tool(tool, "init", tool.init, self.ss)
                 except Exception:
                     traceback.print_exc()
                 # an at-front tool opens its pane; of several added together, the first by order
@@ -1516,7 +1523,7 @@ class NegotiationSession:
                         front[pane] = here["order"]
                 if timing in ("load", "start", "end") and self.scenario is not None:
                     try:
-                        tool.scenario_loaded(self.ss, self.scenario)
+                        self.guard_tool(tool, "scenario_loaded", tool.scenario_loaded, self.ss, self.scenario)
                     except Exception:
                         traceback.print_exc()
         self.push_state()
@@ -1533,15 +1540,15 @@ class NegotiationSession:
         for t in list(self.tools):
             try:
                 if hook == "scenario_loaded":
-                    t.scenario_loaded(self.ss, *args)
+                    self.guard_tool(t, hook, t.scenario_loaded, self.ss, *args)
                 elif hook in ("action_to_execute", "action_executed"):
-                    getattr(t, hook)(self.ss, nmi, *args)
+                    self.guard_tool(t, hook, getattr(t, hook), self.ss, nmi, *args)
                 elif hook == "draft_changed":
                     fn = getattr(t, "draft_changed", None)
                     if fn:
-                        fn(self.ss, *args)
+                        self.guard_tool(t, hook, fn, self.ss, *args)
                 else:
-                    getattr(t, hook)(self.ss, nmi)
+                    self.guard_tool(t, hook, getattr(t, hook), self.ss, nmi)
             except Exception:
                 traceback.print_exc()
 
@@ -1581,7 +1588,152 @@ class NegotiationSession:
         st = self.tool_state(t)
         if not st["enabled"] and not t.permanent and self.admin_prefs.get("allow_tool_switch", True):
             return {"id": tid, "view": None}
-        return {"id": tid, "view": self.relabel(t.render())}
+        if not self.isolates_tool(t):  # a built-in tool with tools.isolate_builtin off: as it always was
+            return {"id": tid, "view": self.relabel(t.render())}
+        if self.tool_unusable(t):  # failed to start, or an earlier render still has not returned
+            t._dirty = False
+            return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+        view = self.guard_tool(t, "render", self._render_strict, t, default=_FAILED)
+        if view is _FAILED:
+            return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+        f = st.get("failure")
+        if f is not None:  # a hook, input or button failed: say so above the view
+            view = tool_failure.failure_banner(t.name, f, self.is_admin) + list(view)
+        return {"id": tid, "view": view}
+
+    def _render_strict(self, t) -> list:
+        """``t``'s view, relabelled, letting its errors through to :meth:`guard_tool`
+        (:meth:`Tool.render` would turn them into an alert that shows the error to everyone)."""
+        from hani2.tools.base import Tool
+
+        if type(t).render is not Tool.render:  # the tool renders itself
+            comps = list(t.render() or [])
+        else:
+            t._dirty = False
+            with t.view_lock:
+                comps = list(t.view() or [])
+        return self.relabel(comps)
+
+    # -- failing tools (hani2.tools.failure) ------------------------------- #
+    def isolates_tool(self, tool) -> bool:
+        """Whether ``tool``'s failures are caught and shown in its pane: always for
+        external tools, for built-in ones when ``tools.isolate_builtin`` is on."""
+        st = self._tool_states.get(id(tool))
+        builtin = st.get("builtin") if st is not None and "builtin" in st else tool_failure.is_builtin(type(tool))
+        return not builtin or self._tool_setting("isolate_builtin", tool_failure.isolate_builtin)
+
+    def _tool_setting(self, key: str, read: Callable[[], Any]) -> Any:
+        """A ``tools.*`` setting of this session's study, read at most every few seconds: it is
+        needed for every tool call and render, and the layered settings are too slow to read that
+        often (a changed setting applies within seconds)."""
+        now = time.monotonic()
+        cache = self.__dict__.setdefault("_tool_settings", {})
+        hit = cache.get(key)
+        if hit is None or now - hit[1] > 5.0:
+            with projects.use_study(self.study_ref):
+                hit = cache[key] = (read(), now)
+        return hit[0]
+
+    def guard_tool(self, tool, where: str, fn: Callable, *args, default: Any = None, reraise: bool = False, **kw):
+        """Call ``fn`` (a method of ``tool``) so that its failure cannot break the
+        session: the error is recorded on the tool (shown in its pane, logged once)
+        and ``default`` returned (``reraise`` raises it again after recording).
+        Built-in tools with ``tools.isolate_builtin`` off are called unguarded. A tool
+        that failed to start is not called again."""
+        if not self.isolates_tool(tool):
+            return fn(*args, **kw)
+        st = self._tool_states.get(id(tool))
+        f = st.get("failure") if st is not None else None
+        if f is not None and f["where"] in tool_failure.START:
+            return default
+        try:
+            result = fn(*args, **kw)
+        except Exception as e:  # noqa: BLE001 - a broken tool must not break the session
+            self.tool_failed(tool, where, e)
+            if reraise:
+                raise
+            return default
+        if f is not None and (f["where"] == where or (where == "render" and f["where"] in tool_failure.RENDER)):
+            st.pop("failure", None)  # the call that failed works again
+            if where not in tool_failure.RENDER:
+                tool.refresh()
+        return result
+
+    def tool_failed(self, tool, where: str, exc: BaseException | None = None, *, failure: dict | None = None) -> None:
+        """Record that ``tool`` failed in ``where`` (shown in its pane; logged and
+        recorded as an ``error`` event once per kind of failure)."""
+        f = failure or tool_failure.make_failure(where, exc)
+        st = self._tool_states.get(id(tool))
+        name = getattr(tool, "name", None) or type(tool).__name__
+        seen = st.setdefault("failures_logged", set()) if st is not None else set()
+        key = (f["where"], f["error_type"])
+        if key not in seen:
+            seen.add(key)
+            print(f"[hani2] tool {name!r} failed in {f['where']}: {f['error_type']}: {f['message']}\n"
+                  + (f.get("traceback") or ""), flush=True)
+            try:
+                ev.log_event(self.sid, ev.EventType.ERROR, user=self.user, component=name,
+                             action=f"tool_failed:{f['where']}",
+                             value={"error_type": f["error_type"], "message": f["message"],
+                                    "builtin": bool(st.get("builtin")) if st is not None else None})
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+        if st is None:
+            return
+        old = st.get("failure")
+        if old is None or old["where"] not in tool_failure.START:  # a failed start stays the reason
+            st["failure"] = f
+        if f["where"] not in tool_failure.RENDER:
+            tool.refresh()  # show it (a failed render already shows it, and must not loop)
+
+    def tool_failure(self, tool) -> dict | None:
+        """``tool``'s current failure (``{where, error_type, message, traceback, at}``) or ``None``."""
+        st = self._tool_states.get(id(tool))
+        return None if st is None else st.get("failure")
+
+    def tool_unusable(self, tool) -> bool:
+        """Whether ``tool`` must not be called now: it failed to start, or a render of it
+        that took too long has not returned yet (it still holds the tool)."""
+        if not self.isolates_tool(tool):
+            return False
+        st = self._tool_states.get(id(tool)) or {}
+        f = st.get("failure")
+        return bool(st.get("hung")) or (f is not None and f["where"] in tool_failure.START)
+
+    def tool_render_timeout(self, tid: str) -> float | None:
+        """Seconds the hub waits for ``tid`` to render (``tools.render_timeout``), ``None``: no limit."""
+        t = self.tool_by_id(tid)
+        if t is None or not self.isolates_tool(t):
+            return None
+        return self._tool_setting("render_timeout", tool_failure.render_timeout)
+
+    @_in_own_study
+    def tool_render_timed_out(self, tid: str, seconds: float) -> dict[str, Any] | None:
+        """A render of ``tid`` took longer than ``seconds``: mark the tool hung (not
+        rendered again until that render returns) and return the failure view."""
+        t = self.tool_by_id(tid)
+        if t is None:
+            return None
+        st = self.tool_state(t)
+        st["hung"] = True
+        t._dirty = False
+        self.tool_failed(t, "timeout", failure=tool_failure.make_failure(
+            "timeout", error_type="TimeoutError", message=f"it took longer than {seconds:g} s to render"))
+        return {"id": tid, "view": tool_failure.failure_view(t.name, st.get("failure"), self.is_admin)}
+
+    def tool_view_unsendable(self, tid: str, exc: BaseException) -> dict[str, Any] | None:
+        """``tid``'s view could not be turned into JSON: a render failure of the tool."""
+        t = self.tool_by_id(tid)
+        if t is None or not self.isolates_tool(t):
+            return None
+        self.tool_failed(t, "render", exc)
+        return {"id": tid, "view": tool_failure.failure_view(t.name, self.tool_state(t).get("failure"), self.is_admin)}
+
+    def tool_render_returned(self, tid: str) -> None:
+        """The render that took too long has returned: the tool may be rendered again."""
+        t = self.tool_by_id(tid)
+        if t is not None:
+            self.tool_state(t).pop("hung", None)
 
     @_in_own_study
     def tool_input(self, tid: str, name: str, value: Any) -> None:
@@ -1589,7 +1741,7 @@ class NegotiationSession:
         if t is None:
             return
         try:
-            t.on_input(name, value)
+            self.guard_tool(t, "on_input", t.on_input, name, value)
         except Exception:
             traceback.print_exc()
         ev.log_event(self.sid, ev.EventType.TOOL_INTERACTION, user=self.user, component=t.name, action=f"input:{name}")
@@ -1600,9 +1752,10 @@ class NegotiationSession:
         if t is None:
             return
         try:
-            t.on_action(action, payload or {})
+            self.guard_tool(t, "on_action", t.on_action, action, payload or {}, reraise=True)
         except Exception as e:  # noqa: BLE001
-            traceback.print_exc()
+            if not self.isolates_tool(t):  # a guarded failure is logged already
+                traceback.print_exc()
             from hani2.connections import llm_error
 
             self.toast(f"{t.name}: {llm_error(e, admin=self.is_admin, generic='something went wrong.')}", "error")
@@ -3683,21 +3836,22 @@ class NegotiationSession:
                 order = (min(in_pane, default=0) - 1) if at_front else (max(in_pane, default=0) + 1)
                 self.tools.append(inst)
                 self._tool_states[id(inst)] = dict(id=uuid.uuid4().hex[:10], pane=pane, order=order, visible=True,
-                                                   enabled=bool(inst.enabled), added_by=by)
+                                                   enabled=bool(inst.enabled), added_by=by,
+                                                   builtin=tool_failure.is_builtin(type(inst)))
         if inst is None:
             self.push_state()
             existing.refresh()
             return {"ok": True, "tool": existing.name, "pane": self.tool_state(existing)["pane"], "already_present": True}
         try:
-            inst.init(self.ss)
+            self.guard_tool(inst, "init", inst.init, self.ss)
             if self.scenario is not None:
-                inst.scenario_loaded(self.ss, self.scenario)
+                self.guard_tool(inst, "scenario_loaded", inst.scenario_loaded, self.ss, self.scenario)
             if self.phase == "running" and self.mechanism is not None:
                 try:
                     nmi = self.mechanism.negotiators[self.human_index].nmi
                 except Exception:
                     nmi = self.mechanism.nmi
-                inst.negotiation_started(self.ss, nmi)
+                self.guard_tool(inst, "negotiation_started", inst.negotiation_started, self.ss, nmi)
         except Exception:
             traceback.print_exc()
         if focus:
@@ -3957,9 +4111,10 @@ class NegotiationSession:
                     continue
                 s = self.tool_state(t)
                 tools.append(
-                    dict(id=s["id"], name=t.name, icon=t.icon, description=t.description, help=t.help_text(), pane=s["pane"],
+                    dict(id=s["id"], name=t.name, icon=t.icon, description=t.description,
+                         help=self.guard_tool(t, "help_text", t.help_text, default=""), pane=s["pane"],
                          order=s["order"], visible=s["visible"], enabled=s["enabled"], permanent=t.permanent,
-                         added_by=s.get("added_by"), generator=_is_generator(t))
+                         added_by=s.get("added_by"), generator=_is_generator(t), failed="failure" in s)
                 )
             sa = self.support_agent
             snap = {

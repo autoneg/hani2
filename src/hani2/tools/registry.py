@@ -41,6 +41,7 @@ import inspect
 import os
 import sys
 import threading
+import time
 import traceback
 from dataclasses import dataclass
 from importlib.metadata import entry_points
@@ -69,6 +70,9 @@ class ToolSpec:
     groups: tuple[str, ...] = ()
     #: ``{view: {pane, visible, order}}`` for the views full, simple and focus
     placement: dict[str, dict[str, Any]] | None = None
+    #: HANI2's own tool (defined in the ``hani2`` package, see :func:`hani2.tools.failure.is_builtin`);
+    #: guarded only when ``tools.isolate_builtin`` is on, external tools always are
+    builtin: bool = False
 
 
 def builtin_tool_classes() -> list[type[Tool]]:
@@ -233,12 +237,33 @@ def import_tool(spec: str) -> type[Tool]:
 
 
 _REPORTED: set[str] = set()
+#: Tools that could not be loaded the last time they were tried, by where they come
+#: from (a file, a ``tools.extra`` entry, an entry point, a library entry):
+#: ``{source: {"source", "error", "at"}}``. Shown in the admin Tools explorer.
+LOAD_ERRORS: dict[str, dict[str, Any]] = {}
 
 
 def _report(key: str, msg: str) -> None:
     if key not in _REPORTED:  # discovery runs per session: say it once
         _REPORTED.add(key)
         print(msg)
+
+
+def load_failed(source: str, error: BaseException | str) -> None:
+    """Remember that the tools of ``source`` could not be loaded (see :data:`LOAD_ERRORS`)."""
+    msg = f"{type(error).__name__}: {error}" if isinstance(error, BaseException) else str(error)
+    LOAD_ERRORS[source] = {"source": source, "error": msg, "at": time.time()}
+
+
+def load_ok(source: str) -> None:
+    LOAD_ERRORS.pop(source, None)
+
+
+def load_errors() -> list[dict[str, Any]]:
+    """The tools that could not be loaded, for the admin Tools explorer."""
+    for src in [s for s in LOAD_ERRORS if s.endswith(".py") and not Path(s).exists()]:
+        LOAD_ERRORS.pop(src, None)  # the broken file was removed
+    return sorted(LOAD_ERRORS.values(), key=lambda e: e["source"])
 
 
 def discover_tool_classes() -> list[type[Tool]]:
@@ -265,8 +290,10 @@ def discover_tool_classes() -> list[type[Tool]]:
                 obj = ep.load()
                 if isinstance(obj, type) and issubclass(obj, Tool):
                     add(obj, f"entry point {ep.name}")
-            except Exception:
-                traceback.print_exc()
+                load_ok(f"entry point {ep.name}")
+            except Exception as e:  # noqa: BLE001
+                _report(f"ep:{ep.name}:{e}", f"[hani2] could not load tool entry point {ep.name!r}: {e}")
+                load_failed(f"entry point {ep.name}", e)
     except Exception:  # pragma: no cover
         pass
     for c in list(_REGISTERED):
@@ -276,15 +303,19 @@ def discover_tool_classes() -> list[type[Tool]]:
             try:
                 for c in load_tool_file(f):
                     add(c, str(f))
+                load_ok(str(f))
             except Exception as e:  # noqa: BLE001 - a broken file must not break the server
                 _report(f"file:{f}:{f.stat().st_mtime}", f"[hani2] could not load tools from {f}: {e}")
+                load_failed(str(f), e)
     for spec in _extra_entries():
         if is_tool_path(spec):
             continue  # loaded with the tool folders above
         try:
             add(import_tool(spec), f"tools.extra / --tools ({spec})")
+            load_ok(f"tools.extra / --tools ({spec})")
         except Exception as e:  # noqa: BLE001
             _report(f"extra:{spec}", f"[hani2] could not load tool {spec!r}: {e}")
+            load_failed(f"tools.extra / --tools ({spec})", e)
     try:  # tools uploaded or linked in the library (settings, project and study layers)
         from hani2 import library
 
@@ -292,6 +323,7 @@ def discover_tool_classes() -> list[type[Tool]]:
             add(cls, source)
     except Exception as e:  # noqa: BLE001 - a broken library must not break the server
         _report(f"library:{e}", f"[hani2] could not load library tools: {e}")
+        load_failed("library", e)
     return classes
 
 
@@ -300,6 +332,7 @@ def tool_specs(offered_only: bool = True) -> list[ToolSpec]:
     the layers' ``tools.yaml`` applied). With ``offered_only`` (the default), only
     the tools ``tools.yaml`` → ``offer`` selects (all of them when not set)."""
     from hani2 import tool_groups
+    from hani2.tools.failure import is_builtin
 
     cfg = get_env("tools", {}) or {}
     disabled = {str(x).lower() for x in cfg.get("disabled", []) or []}
@@ -335,6 +368,7 @@ def tool_specs(offered_only: bool = True) -> list[ToolSpec]:
                 at_front=bool(o.get("at_front", cls.order <= 1)),
                 groups=tuple(tool_groups.tool_groups_of(cls, admin_only=admin_only, timing=timing)),
                 placement=placement,
+                builtin=is_builtin(cls),
             )
         )
     if offered_only:
@@ -345,6 +379,12 @@ def tool_specs(offered_only: bool = True) -> list[ToolSpec]:
 
 
 def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSpec, Tool]]:
+    """The tools of ``timing`` for ``session``. A tool whose constructor raises is
+    replaced by a :class:`~hani2.tools.failure.FailedTool` that shows the failure in
+    its pane (unless it is built-in and ``tools.isolate_builtin`` is off: then it is
+    left out, as it always was)."""
+    from hani2.tools.failure import FailedTool, isolate_builtin, make_failure
+
     out = []
     for spec in tool_specs():
         if spec.timing != timing:
@@ -356,9 +396,12 @@ def build_tools(session: "NegotiationSession", timing: str) -> list[tuple[ToolSp
         try:
             tool = spec.cls(session.ss, enabled=spec.enabled)
             tool.name = spec.name
-        except Exception:
+        except Exception as e:  # noqa: BLE001 - a broken tool must not break the session
             traceback.print_exc()
-            continue
+            if spec.builtin and not isolate_builtin():
+                continue
+            tool = FailedTool(session.ss, name=spec.name, cls=spec.cls, failure=make_failure("create", e),
+                              enabled=spec.enabled)
         out.append((spec, tool))
     return out
 
