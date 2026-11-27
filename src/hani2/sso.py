@@ -19,6 +19,13 @@ Token claims: ``iss`` (the issuer), ``aud`` (``hani2`` plus this server's root p
 ``_`` and ``-``), ``iat`` and ``exp`` (at most :data:`MAX_LIFETIME` seconds apart), ``jti``
 (single use), and optionally ``email``, ``name`` and ``leagues`` (a list such as ``["han", "hi"]``).
 
+API tokens (:func:`verify_api_token`): a website that reads the leaderboard API signs a short-lived
+HS256 JWT with the **same** secret, but for a different audience: ``aud`` is ``hani2-api`` plus the
+root path (``hani2-api/hiplay2``), ``scope`` holds ``leaderboard:read``, ``iss`` is the provider's
+issuer and ``iat``/``exp`` are at most :data:`MAX_LIFETIME` seconds apart. It is not single use (no
+``jti``). A sign-in token is never an API token and an API token never signs anyone in: each check
+refuses a token that also names the other audience.
+
 Emails from the website are not verified by HANI2, so these accounts never become admins
 through ``admin.emails``.
 
@@ -169,8 +176,11 @@ def verify(name: str, token: str, *, root_path: str = "", now: float | None = No
     if claims.get("iss") != cfg["issuer"]:
         raise SSOError("issuer", f"iss must be {cfg['issuer']!r}")
     aud = claims.get("aud")
-    if (aud if isinstance(aud, list) else [aud]).count(audience(root_path)) == 0:
+    auds = aud if isinstance(aud, list) else [aud]
+    if auds.count(audience(root_path)) == 0:
         raise SSOError("audience", f"aud must be {audience(root_path)!r}")
+    if any(isinstance(a, str) and a.startswith(API_AUDIENCE) for a in auds):
+        raise SSOError("audience", "an API token cannot sign anyone in")
     t = time.time() if now is None else now
     try:
         iat, exp = float(claims["iat"]), float(claims["exp"])
@@ -188,6 +198,90 @@ def verify(name: str, token: str, *, root_path: str = "", now: float | None = No
         raise SSOError("token", "jti (8-128 characters) is required")
     _use_once(name, jti, exp + LEEWAY, t)
     return claims
+
+
+#: the audience of API tokens (plus the root path, as for sign-in tokens)
+API_AUDIENCE = "hani2-api"
+#: the scope that reads leaderboards
+SCOPE_LEADERBOARD = "leaderboard:read"
+
+
+class APITokenError(SSOError):
+    """A refused API token: ``status`` 401 (no valid token) or 403 (a valid token without the scope)."""
+
+    def __init__(self, code: str, message: str = "", status: int = 401):
+        super().__init__(code, message)
+        self.status = status
+
+
+def api_audience(root_path: str = "") -> str:
+    """The ``aud`` of API tokens for this server: ``hani2-api`` plus its root path (``hani2-api/hiplay2``)."""
+    root = (root_path or "").strip("/")
+    return f"{API_AUDIENCE}/{root}" if root else API_AUDIENCE
+
+
+def _scopes(v: Any) -> set[str]:
+    if isinstance(v, str):
+        return {x for x in v.split() if x}
+    if isinstance(v, list):
+        return {str(x) for x in v if isinstance(x, str)}
+    return set()
+
+
+def verify_api_token(token: str, scope: str = SCOPE_LEADERBOARD, *, root_path: str = "",
+                     now: float | None = None) -> dict[str, Any]:
+    """The checked claims of an API token (``Authorization: Bearer <token>``), or :class:`APITokenError`.
+
+    The token is an HS256 JWT signed with a configured provider's secret, found by its ``iss``;
+    ``aud`` must be :func:`api_audience` (and must not also name a sign-in audience), ``scope`` must
+    hold ``scope`` (403 otherwise), and ``iat``/``exp`` must be at most :data:`MAX_LIFETIME` seconds
+    apart. It may be used more than once while it is valid."""
+    parts = (token or "").split(".")
+    if len(parts) != 3:
+        raise APITokenError("token", "not a JWT")
+    try:
+        head = json.loads(_b64d(parts[0]))
+        claims = json.loads(_b64d(parts[1]))
+        mac = _b64d(parts[2])
+    except (ValueError, json.JSONDecodeError):
+        raise APITokenError("token", "unreadable token") from None
+    if not isinstance(head, dict) or head.get("alg") != "HS256" or not isinstance(claims, dict):
+        raise APITokenError("token", "only HS256 tokens with a claims object are accepted")
+    cfg = next((c for c in providers().values() if c["issuer"] == claims.get("iss")), None)
+    if cfg is None:
+        raise APITokenError("issuer", "unknown issuer")
+    want = hmac.new(cfg["secret"].encode(), f"{parts[0]}.{parts[1]}".encode(), hashlib.sha256).digest()
+    if not hmac.compare_digest(mac, want):
+        raise APITokenError("signature", "bad signature")
+    aud = claims.get("aud")
+    auds = aud if isinstance(aud, list) else [aud]
+    if api_audience(root_path) not in auds:
+        raise APITokenError("audience", f"aud must be {api_audience(root_path)!r}")
+    if any(isinstance(a, str) and a.startswith("hani2") and not a.startswith(API_AUDIENCE) for a in auds):
+        raise APITokenError("audience", "a sign-in token cannot read the API")
+    t = time.time() if now is None else now
+    try:
+        iat, exp = float(claims["iat"]), float(claims["exp"])
+    except (KeyError, TypeError, ValueError):
+        raise APITokenError("token", "iat and exp are required") from None
+    if exp - iat > MAX_LIFETIME or exp < iat:
+        raise APITokenError("lifetime", f"exp - iat must be between 0 and {MAX_LIFETIME} seconds")
+    if t > exp + LEEWAY or t < iat - LEEWAY:
+        raise APITokenError("expired", "the token is expired (or not valid yet)")
+    if scope not in _scopes(claims.get("scope")):
+        raise APITokenError("scope", f"the token's scope does not include {scope!r}", status=403)
+    return claims
+
+
+def mint_api_token(provider: str, *, scope: str = SCOPE_LEADERBOARD, root_path: str = "",
+                   lifetime: int = MAX_LIFETIME, now: float | None = None) -> str:
+    """An API token signed with a configured provider's secret (``hani2 leaderboard token``; tests)."""
+    cfg = providers().get(provider)
+    if cfg is None:
+        raise SSOError("unknown", f"no hand-off sign-in named {provider!r} is configured (with a secret)")
+    t = int(time.time() if now is None else now)
+    return sign({"iss": cfg["issuer"], "aud": api_audience(root_path), "scope": scope, "iat": t,
+                 "exp": t + min(int(lifetime), MAX_LIFETIME)}, cfg["secret"])
 
 
 def _use_once(name: str, jti: str, until: float, now: float) -> None:

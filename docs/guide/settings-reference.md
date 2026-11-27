@@ -559,6 +559,7 @@ More: [Project management](project-management.md#pairing-defaults).
 | [Missing values](#setting-scores-missing) | `scores.missing` | renormalise: rescale the parts present; zero: a missing value is 0; skip_game: the game does not count |
 | [Minimum coverage](#setting-scores-min-coverage) | `scores.min_coverage` | A part present in fewer than this share of some entrant's games is dropped for everyone |
 | [Scores enabled](#setting-scores-enabled) | `scores_enabled` | Which scores this project's (or study's) boards, results and exports compute and show |
+| [Same-Assistant games](#setting-scores-same-assistant) | `scores.<key>.same_assistant` | How boards count a game where both people used the same Assistant: once, or not at all |
 
 ### Scores {#setting-scores}
 
@@ -691,5 +692,227 @@ project sets the default and a study can override it. An enabled score is comput
 scores inside it.
 
 More: [Project management](project-management.md#which-scores-a-study-uses).
+
+### Same-Assistant games {#setting-scores-same-assistant}
+
+`scores.<key>.same_assistant`: *How boards count a game where both people used the same Assistant: once, or not at all*
+
+In a game where both sides used the **same Assistant** (for example a participant against the guest
+they invited, who plays with their Assistant), the two utilities split one deal between copies of one
+Assistant, so the game says little about it compared with the others.
+
+| Value | Boards |
+|---|---|
+| `once` (default) | the game counts **once**, as the mean of its two rows |
+| `skip` | the game is left out of this score |
+
+The built-in `utility` always leaves these games out.
+
+More: [Project management](project-management.md#which-games-count).
+
+## Leaderboard
+
+| Setting | Key | Summary |
+|---|---|---|
+| [Leaderboard](#setting-leaderboard) | `leaderboard` | The board of this project (all its chosen studies) or of this study |
+| [Track](#setting-leaderboard-track) | `leaderboard.track` | Who is ranked: Assistants (hi) or opponent agents (han) |
+| [Source](#setting-leaderboard-source) | `leaderboard.source` | game: the games people played (default); tournament: the simulated table |
+| [Studies](#setting-leaderboard-studies) | `leaderboard.studies` | Which studies of this project feed the project board (default: all) |
+| [Rows from other projects](#setting-leaderboard-include) | `leaderboard.include` | Studies of other projects whose games of one stratum join this board |
+| [Sort options](#setting-leaderboard-sort-options) | `leaderboard.sort_options` | What end users may rank by: enabled scores or criteria with a direction |
+| [Default sort](#setting-leaderboard-default-sort) | `leaderboard.default_sort` | The key a board is ranked by when the viewer does not choose; one of the sort options |
+| [Columns](#setting-leaderboard-columns) | `leaderboard.columns` | The values each entry shows: scores, criteria, and counts (games, participants, …) |
+| [Switches for end users](#setting-leaderboard-user-options) | `leaderboard.user_options` | The switches end users get, each with its allowed values |
+| [Switch defaults](#setting-leaderboard-defaults) | `leaderboard.defaults` | The value of each switch when the viewer does not choose |
+| [Visibility](#setting-leaderboard-visibility) | `leaderboard.visibility` | Who may see the board: public, participants (signed-in users) or admins |
+| [Minimum games](#setting-leaderboard-rules-min-games) | `leaderboard.rules.min_games` | Counted games an entrant needs before it is ranked (below: "not ranked yet") |
+| [Minimum players](#setting-leaderboard-rules-min-participants) | `leaderboard.rules.min_participants` | Distinct players, not counting the Assistant's own team, an entrant needs to be ranked |
+| [Cap per pair](#setting-leaderboard-rules-max-games-per-pair) | `leaderboard.rules.max_games_per_pair` | At most this many games of one entrant between the same two people (empty: no cap) |
+| [Cap per player](#setting-leaderboard-rules-max-games-per-participant) | `leaderboard.rules.max_games_per_participant` | At most this many games of one entrant by the same person (empty: no cap) |
+| [Leave out own-team games](#setting-leaderboard-rules-exclude-own) | `leaderboard.rules.exclude_own` | Leave out games where a team plays its own Assistant (default: count them) |
+| [Adjustment](#setting-leaderboard-rules-adjust) | `leaderboard.rules.adjust` | relative: cell-adjusted means (default); balanced: the mean of the cell means |
+| [Confidence level](#setting-leaderboard-rules-ci) | `leaderboard.rules.ci` | The level of the bootstrap confidence intervals (default 0.95) |
+
+### Leaderboard {#setting-leaderboard}
+
+`leaderboard`: *The board of this project (all its chosen studies) or of this study*
+
+A **project board** pools the studies it names (and rows taken in from other projects); a **study
+board** shows one study. The project sets the `leaderboard` block, and a study overrides it key by
+key for its own board. One set of rules serves every view: the pages, the admin console and the
+leaderboard API that a trusted website reads.
+
+More: [Project management](project-management.md#leaderboards).
+
+### Track {#setting-leaderboard-track}
+
+`leaderboard.track`: *Who is ranked: Assistants (hi) or opponent agents (han)*
+
+| Value | Entrants | Strata |
+|---|---|---|
+| `hi` | the Assistants (their entrant id from the group file, else their spec) | `combined`, `solo`, `paired` |
+| `han` | the opponent agents | `alone` (no Assistant), `vs_team` (people with an Assistant), `both` (pooled) |
+
+Unset: `han` for a project of kind `opponent`, else `hi`.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Source {#setting-leaderboard-source}
+
+`leaderboard.source`: *game: the games people played (default); tournament: the simulated table*
+
+- `game` (default): every counted game of the board's studies, ranked with the rules below.
+- `tournament`: the table of simulated participants (the goal rate of each Assistant, per persona),
+  which the sort and the switches do not apply to.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Studies {#setting-leaderboard-studies}
+
+`leaderboard.studies`: *Which studies of this project feed the project board (default: all)*
+
+A list of study names, for example `[play, prolific-03]`. Add new studies as they start. A study board
+always shows its own study only.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Rows from other projects {#setting-leaderboard-include}
+
+`leaderboard.include`: *Studies of other projects whose games of one stratum join this board*
+
+Each entry names a study of another project and the stratum its games join, for example
+`{study: HI2027/play, stratum: vs_team}` on a HAN board: the HI games played against this year's HAN
+agents count for those agents in the `vs_team` stratum, apart from the official `alone` stratum.
+
+More: [Project management](project-management.md#rows-from-other-projects).
+
+### Sort options {#setting-leaderboard-sort-options}
+
+`leaderboard.sort_options`: *What end users may rank by: enabled scores or criteria with a direction*
+
+End users may sort only by these keys; admins may sort by any enabled score or criterion. Each key
+must be enabled (`scores_enabled`) in every study the board reads; a criterion needs a direction
+(higher or lower is better). A score is ranked by its entrant-level mean (cell-adjusted or
+cell-balanced, see *Adjustment*); a criterion by its mean in its own direction.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Default sort {#setting-leaderboard-default-sort}
+
+`leaderboard.default_sort`: *The key a board is ranked by when the viewer does not choose; one of the sort options*
+
+Must be one of `sort_options`. Unset: the first sort option.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Columns {#setting-leaderboard-columns}
+
+`leaderboard.columns`: *The values each entry shows: scores, criteria, and counts (games, participants, …)*
+
+Scores and criteria (each with its mean and confidence interval), and the counts `games`,
+`participants`, `guests`, `abandon_rate` and `cost_usd`. Unset: the sort options, then games and
+participants.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Switches for end users {#setting-leaderboard-user-options}
+
+`leaderboard.user_options`: *The switches end users get, each with its allowed values*
+
+| Switch | Values |
+|---|---|
+| `games` | `all`, `people` (games against a person), `ai` (games against an AI opponent) |
+| `stratum` | HI: `combined`, `solo`, `paired`; HAN: `alone`, `vs_team`, `both` |
+| `window` | `all`, `last_<n>_days` (for example `last_30_days`) |
+
+A switch that is not listed is not shown, and its default applies. A request for a value that is
+not allowed is refused (HTTP 400), so a website can only show the views the project allows.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Switch defaults {#setting-leaderboard-defaults}
+
+`leaderboard.defaults`: *The value of each switch when the viewer does not choose*
+
+Unset: `games: all`, the track's first stratum (`combined` or `alone`) and `window: all`. A default must be one of the switch's allowed values.
+
+More: [Project management](project-management.md#configuring-a-board).
+
+### Visibility {#setting-leaderboard-visibility}
+
+`leaderboard.visibility`: *Who may see the board: public, participants (signed-in users) or admins*
+
+| Value | Who |
+|---|---|
+| `public` | anyone, no sign-in or token needed |
+| `participants` (default) | signed-in users, and a website with an API token |
+| `admins` | admins, and a website with an API token |
+
+No board ever shows a user name or a participant index.
+
+More: [Project management](project-management.md#visibility).
+
+### Minimum games {#setting-leaderboard-rules-min-games}
+
+`leaderboard.rules.min_games`: *Counted games an entrant needs before it is ranked (below: "not ranked yet")*
+
+Counted over every counted game of the board, whatever the switches show, so an entrant does not move in and out of the ranking when a viewer changes a switch. Default 10.
+
+More: [Project management](project-management.md#which-games-count).
+
+### Minimum players {#setting-leaderboard-rules-min-participants}
+
+`leaderboard.rules.min_participants`: *Distinct players, not counting the Assistant's own team, an entrant needs to be ranked*
+
+Players marked as the Assistant's own team (`own` in their group file) do not count towards this minimum. Default 3.
+
+More: [Project management](project-management.md#which-games-count).
+
+### Cap per pair {#setting-leaderboard-rules-max-games-per-pair}
+
+`leaderboard.rules.max_games_per_pair`: *At most this many games of one entrant between the same two people (empty: no cap)*
+
+Games over the cap are left out, the latest first, and counted under `excluded: cap`.
+
+More: [Project management](project-management.md#which-games-count).
+
+### Cap per player {#setting-leaderboard-rules-max-games-per-participant}
+
+`leaderboard.rules.max_games_per_participant`: *At most this many games of one entrant by the same person (empty: no cap)*
+
+Games over the cap are left out, the latest first, and counted under `excluded: cap`.
+
+More: [Project management](project-management.md#which-games-count).
+
+### Leave out own-team games {#setting-leaderboard-rules-exclude-own}
+
+`leaderboard.rules.exclude_own`: *Leave out games where a team plays its own Assistant (default: count them)*
+
+Own-team games count by default; the *Minimum players* rule keeps a team from ranking its Assistant alone. With this on, they are left out and counted under `excluded: own team`.
+
+More: [Project management](project-management.md#which-games-count).
+
+### Adjustment {#setting-leaderboard-rules-adjust}
+
+`leaderboard.rules.adjust`: *relative: cell-adjusted means (default); balanced: the mean of the cell means*
+
+A cell is a scenario with an opponent (Solo), or a scenario, a side and an opposing Assistant
+(Paired).
+
+- `relative` (default): each game's value minus its cell's mean over all entrants, plus the overall
+  mean, so the numbers stay on the values' scale. Best when entrants played different, uneven cells
+  (a game).
+- `balanced`: the mean of the entrant's cell means. Best for planned studies where every entrant
+  plays every cell.
+
+More: [Project management](project-management.md#confidence-intervals-and-ties).
+
+### Confidence level {#setting-leaderboard-rules-ci}
+
+`leaderboard.rules.ci`: *The level of the bootstrap confidence intervals (default 0.95)*
+
+A percentile bootstrap that resamples participants. Two entrants whose intervals overlap the leader's are shown as tied with it ("=2").
+
+More: [Project management](project-management.md#confidence-intervals-and-ties).
 
 <!-- settings-reference:end -->

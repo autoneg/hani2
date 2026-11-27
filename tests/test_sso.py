@@ -399,3 +399,77 @@ def test_remove_admin_on_the_users_page_ends_a_claim_grant(client, hani2_home):
     go(client, sso.sign(claims(), SECRET))
     assert client.post("/api/session", json={"mode": "main"}).json()["sid"] == sid
     assert not hub.get(sid).is_admin  # the page load after the demotion
+
+
+# --------------------------------------------------------------------------- #
+# API tokens (the leaderboard API): same secret, separate audience             #
+# --------------------------------------------------------------------------- #
+def api_claims(**kw):
+    now = int(time.time())
+    return {"iss": "scmlweb", "aud": "hani2-api", "scope": "leaderboard:read", "iat": now, "exp": now + 60, **kw}
+
+
+def test_an_api_token_is_accepted_and_may_be_used_again(client):
+    tok = _independent_hs256(api_claims(), SECRET)
+    for _ in range(2):  # not single use
+        assert sso.verify_api_token(tok)["scope"] == "leaderboard:read"
+    assert sso.verify_api_token(sso.mint_api_token("scmlweb"))["aud"] == "hani2-api"
+    # the root path is part of the audience, as for sign-in tokens
+    assert sso.api_audience("/hiplay2") == "hani2-api/hiplay2"
+    with pytest.raises(sso.APITokenError):
+        sso.verify_api_token(tok, root_path="/hiplay2")
+
+
+def test_a_signin_token_cannot_read_the_api_and_an_api_token_cannot_sign_in(client):
+    signin = _independent_hs256(claims(), SECRET)
+    with pytest.raises(sso.APITokenError) as e:
+        sso.verify_api_token(signin)
+    assert e.value.code == "audience" and e.value.status == 401
+    api = _independent_hs256(api_claims(sub="789", jti=uuid.uuid4().hex), SECRET)
+    r = go(client, api)
+    assert r.status_code == 303 and "error=sso_audience" in r.headers["location"]
+    # a token naming both audiences is refused by both checks
+    both = api_claims(aud=["hani2", "hani2-api"], sub="789", jti=uuid.uuid4().hex)
+    with pytest.raises(sso.APITokenError):
+        sso.verify_api_token(_independent_hs256(both, SECRET))
+    r = go(client, _independent_hs256(both, SECRET))
+    assert "error=sso_audience" in r.headers["location"]
+
+
+@pytest.mark.parametrize("bad, code, status", [
+    ({"scope": "results:read"}, "scope", 403),
+    ({"scope": None}, "scope", 403),
+    ({"iss": "elsewhere"}, "issuer", 401),
+    ({"exp": int(time.time()) + 3600}, "lifetime", 401),
+    ({"iat": int(time.time()) - 600, "exp": int(time.time()) - 500}, "expired", 401),
+])
+def test_bad_api_tokens_are_refused(client, bad, code, status):
+    with pytest.raises(sso.APITokenError) as e:
+        sso.verify_api_token(_independent_hs256({**api_claims(), **bad}, SECRET))
+    assert (e.value.code, e.value.status) == (code, status)
+    with pytest.raises(sso.APITokenError) as e:
+        sso.verify_api_token(_independent_hs256(api_claims(), "another-secret-0123456789"))
+    assert e.value.code == "signature"
+
+
+def test_the_python_minting_example_of_the_handoff_note(client):
+    """The example a website copies (PyJWT-free, standard library only) gives a token this server takes."""
+    import base64
+    import hashlib
+    import hmac
+    import json
+
+    def mint(secret: str, issuer: str = "scmlweb", root_path: str = "") -> str:
+        def b64(b: bytes) -> str:
+            return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+        now = int(time.time())
+        aud = "hani2-api" + (f"/{root_path.strip('/')}" if root_path.strip("/") else "")
+        head = b64(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+        body = b64(json.dumps({"iss": issuer, "aud": aud, "scope": "leaderboard:read",
+                               "iat": now, "exp": now + 60}).encode())
+        sig = b64(hmac.new(secret.encode(), f"{head}.{body}".encode(), hashlib.sha256).digest())
+        return f"{head}.{body}.{sig}"
+
+    assert sso.verify_api_token(mint(SECRET))["iss"] == "scmlweb"
+    assert sso.verify_api_token(mint(SECRET, root_path="/hiplay2"), root_path="/hiplay2")

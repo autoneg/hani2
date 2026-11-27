@@ -641,7 +641,7 @@ def test_help_texts_name_no_later_settings():
 
     for k, h in help_texts.HELP.items():
         text = " ".join([k, h.summary, h.details])
-        for word in ("leaderboard", "HANI ", "scmlweb"):
+        for word in ("HANI ", "scmlweb"):
             assert word not in text, (k, word)
 
 

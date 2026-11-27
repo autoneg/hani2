@@ -508,7 +508,160 @@ Unset, every built-in score and every score defined in the project and the study
 project sets the default and a study can override it. An enabled score is computed together with the
 scores inside it.""",
         section="Scores", docs="project-management.md#which-scores-a-study-uses"),
+    "scores.same_assistant": Help(
+        "Same-Assistant games", "How boards count a game where both people used the same Assistant: once, or not at all",
+        """In a game where both sides used the **same Assistant** (for example a participant against the guest
+they invited, who plays with their Assistant), the two utilities split one deal between copies of one
+Assistant, so the game says little about it compared with the others.
+
+| Value | Boards |
+|---|---|
+| `once` (default) | the game counts **once**, as the mean of its two rows |
+| `skip` | the game is left out of this score |
+
+The built-in `utility` always leaves these games out.""",
+        section="Scores", key="scores.<key>.same_assistant", docs="project-management.md#which-games-count"),
+    # ------------------------------------------------------------------ leaderboard
+    "leaderboard": Help(
+        "Leaderboard", "The board of this project (all its chosen studies) or of this study",
+        """A **project board** pools the studies it names (and rows taken in from other projects); a **study
+board** shows one study. The project sets the `leaderboard` block, and a study overrides it key by
+key for its own board. One set of rules serves every view: the pages, the admin console and the
+leaderboard API that a trusted website reads.""",
+        section="Leaderboard", docs="project-management.md#leaderboards"),
+    "leaderboard.track": Help(
+        "Track", "Who is ranked: Assistants (hi) or opponent agents (han)",
+        """| Value | Entrants | Strata |
+|---|---|---|
+| `hi` | the Assistants (their entrant id from the group file, else their spec) | `combined`, `solo`, `paired` |
+| `han` | the opponent agents | `alone` (no Assistant), `vs_team` (people with an Assistant), `both` (pooled) |
+
+Unset: `han` for a project of kind `opponent`, else `hi`.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.source": Help(
+        "Source", "game: the games people played (default); tournament: the simulated table",
+        """- `game` (default): every counted game of the board's studies, ranked with the rules below.
+- `tournament`: the table of simulated participants (the goal rate of each Assistant, per persona),
+  which the sort and the switches do not apply to.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.studies": Help(
+        "Studies", "Which studies of this project feed the project board (default: all)",
+        """A list of study names, for example `[play, prolific-03]`. Add new studies as they start. A study board
+always shows its own study only.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.include": Help(
+        "Rows from other projects", "Studies of other projects whose games of one stratum join this board",
+        """Each entry names a study of another project and the stratum its games join, for example
+`{study: HI2027/play, stratum: vs_team}` on a HAN board: the HI games played against this year's HAN
+agents count for those agents in the `vs_team` stratum, apart from the official `alone` stratum.""",
+        section="Leaderboard", docs="project-management.md#rows-from-other-projects"),
+    "leaderboard.sort_options": Help(
+        "Sort options", "What end users may rank by: enabled scores or criteria with a direction",
+        """End users may sort only by these keys; admins may sort by any enabled score or criterion. Each key
+must be enabled (`scores_enabled`) in every study the board reads; a criterion needs a direction
+(higher or lower is better). A score is ranked by its entrant-level mean (cell-adjusted or
+cell-balanced, see *Adjustment*); a criterion by its mean in its own direction.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.default_sort": Help(
+        "Default sort", "The key a board is ranked by when the viewer does not choose; one of the sort options",
+        "Must be one of `sort_options`. Unset: the first sort option.",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.columns": Help(
+        "Columns", "The values each entry shows: scores, criteria, and counts (games, participants, …)",
+        """Scores and criteria (each with its mean and confidence interval), and the counts `games`,
+`participants`, `guests`, `abandon_rate` and `cost_usd`. Unset: the sort options, then games and
+participants.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.user_options": Help(
+        "Switches for end users", "The switches end users get, each with its allowed values",
+        """| Switch | Values |
+|---|---|
+| `games` | `all`, `people` (games against a person), `ai` (games against an AI opponent) |
+| `stratum` | HI: `combined`, `solo`, `paired`; HAN: `alone`, `vs_team`, `both` |
+| `window` | `all`, `last_<n>_days` (for example `last_30_days`) |
+
+A switch that is not listed is not shown, and its default applies. A request for a value that is
+not allowed is refused (HTTP 400), so a website can only show the views the project allows.""",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.defaults": Help(
+        "Switch defaults", "The value of each switch when the viewer does not choose",
+        "Unset: `games: all`, the track's first stratum (`combined` or `alone`) and `window: all`. "
+        "A default must be one of the switch's allowed values.",
+        section="Leaderboard", docs="project-management.md#configuring-a-board"),
+    "leaderboard.visibility": Help(
+        "Visibility", "Who may see the board: public, participants (signed-in users) or admins",
+        """| Value | Who |
+|---|---|
+| `public` | anyone, no sign-in or token needed |
+| `participants` (default) | signed-in users, and a website with an API token |
+| `admins` | admins, and a website with an API token |
+
+No board ever shows a user name or a participant index.""",
+        section="Leaderboard", docs="project-management.md#visibility"),
+    "leaderboard.rules.min_games": Help(
+        "Minimum games", "Counted games an entrant needs before it is ranked (below: \"not ranked yet\")",
+        "Counted over every counted game of the board, whatever the switches show, so an entrant does not "
+        "move in and out of the ranking when a viewer changes a switch. Default 10.",
+        section="Leaderboard", docs="project-management.md#which-games-count"),
+    "leaderboard.rules.min_participants": Help(
+        "Minimum players", "Distinct players, not counting the Assistant's own team, an entrant needs to be ranked",
+        "Players marked as the Assistant's own team (`own` in their group file) do not count towards this "
+        "minimum. Default 3.",
+        section="Leaderboard", docs="project-management.md#which-games-count"),
+    "leaderboard.rules.max_games_per_pair": Help(
+        "Cap per pair", "At most this many games of one entrant between the same two people (empty: no cap)",
+        "Games over the cap are left out, the latest first, and counted under `excluded: cap`.",
+        section="Leaderboard", docs="project-management.md#which-games-count"),
+    "leaderboard.rules.max_games_per_participant": Help(
+        "Cap per player", "At most this many games of one entrant by the same person (empty: no cap)",
+        "Games over the cap are left out, the latest first, and counted under `excluded: cap`.",
+        section="Leaderboard", docs="project-management.md#which-games-count"),
+    "leaderboard.rules.exclude_own": Help(
+        "Leave out own-team games", "Leave out games where a team plays its own Assistant (default: count them)",
+        "Own-team games count by default; the *Minimum players* rule keeps a team from ranking its Assistant "
+        "alone. With this on, they are left out and counted under `excluded: own team`.",
+        section="Leaderboard", docs="project-management.md#which-games-count"),
+    "leaderboard.rules.adjust": Help(
+        "Adjustment", "relative: cell-adjusted means (default); balanced: the mean of the cell means",
+        """A cell is a scenario with an opponent (Solo), or a scenario, a side and an opposing Assistant
+(Paired).
+
+- `relative` (default): each game's value minus its cell's mean over all entrants, plus the overall
+  mean, so the numbers stay on the values' scale. Best when entrants played different, uneven cells
+  (a game).
+- `balanced`: the mean of the entrant's cell means. Best for planned studies where every entrant
+  plays every cell.""",
+        section="Leaderboard", docs="project-management.md#confidence-intervals-and-ties"),
+    "leaderboard.rules.ci": Help(
+        "Confidence level", "The level of the bootstrap confidence intervals (default 0.95)",
+        "A percentile bootstrap that resamples participants. Two entrants whose intervals overlap the "
+        "leader's are shown as tied with it (\"=2\").",
+        section="Leaderboard", docs="project-management.md#confidence-intervals-and-ties"),
 }
+
+#: the ``leaderboard`` choices of the editor: they need rows in the editor (and then belong in
+#: :data:`REQUIRED`), which come with the editor's Leaderboard settings
+REQUIRED_LEADERBOARD = (
+    "scores.same_assistant",
+    "leaderboard",
+    "leaderboard.track",
+    "leaderboard.source",
+    "leaderboard.studies",
+    "leaderboard.include",
+    "leaderboard.sort_options",
+    "leaderboard.default_sort",
+    "leaderboard.columns",
+    "leaderboard.user_options",
+    "leaderboard.defaults",
+    "leaderboard.visibility",
+    "leaderboard.rules.min_games",
+    "leaderboard.rules.min_participants",
+    "leaderboard.rules.max_games_per_pair",
+    "leaderboard.rules.max_games_per_participant",
+    "leaderboard.rules.exclude_own",
+    "leaderboard.rules.adjust",
+    "leaderboard.rules.ci",
+)
 
 #: every editor choice that is not self-explanatory: each must have an entry in :data:`HELP` and
 #: occur in the editor's sources (``frontend/src/admin``). Keep this a plain tuple of strings.
@@ -556,12 +709,12 @@ REQUIRED = (
     "scores_enabled",
 )
 
-SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignment", "Pairing", "Scores")
+SECTIONS = ("Project", "Study", "Defaults", "Information", "Opponents", "Assignment", "Pairing", "Scores", "Leaderboard")
 
 
 def problems() -> list[str]:
     """What is wrong with the registry: required ids without an entry, summaries longer than a line."""
-    out = [f"{k}: required but has no help text" for k in REQUIRED if k not in HELP]
+    out = [f"{k}: required but has no help text" for k in (*REQUIRED, *REQUIRED_LEADERBOARD) if k not in HELP]
     for k, h in HELP.items():
         if not h.title or not h.summary:
             out.append(f"{k}: needs a title and a summary")

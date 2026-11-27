@@ -777,11 +777,12 @@ def _game_board(cfg: Settings, q: dict, rows: list[dict], ss: Any, crit: dict, v
     # abandon rate per entrant: abandoned games among the counted and abandoned ones
     gone = {T._match_of(r) for r in in_track if T._abandoned(r) and T._match_of(r)}
     ab: dict[str, list[int]] = {}
+    counted_ids = {id(r) for r in counted}
     for r in in_track:
         if r.get("practice") or r.get("mode") == "simulated" or not _truthy(r.get("counted", True)):
             continue
         a = T._abandoned(r) or (T._match_of(r) in gone and T._match_of(r) is not None)
-        if a or not r.get("_exclude"):
+        if a or id(r) in counted_ids:
             x = ab.setdefault(r["_entrant"], [0, 0])
             x[0] += int(a)
             x[1] += 1
@@ -931,6 +932,11 @@ def _tournament(cfg: Settings, q: dict, refs: list, ss: Any, crit: dict, admin: 
                      "reservation value"], "visibility": cfg.visibility}
     out["data_version"] = "sha1:" + hashlib.sha1(json.dumps(entries, sort_keys=True, default=str).encode()).hexdigest()
     return _order(out)
+
+
+def query_key(q: dict, admin: bool) -> str:
+    """A short key of a view (for an ETag)."""
+    return hashlib.sha1(json.dumps([q, admin], sort_keys=True).encode()).hexdigest()[:12]
 
 
 def paths_of(project: str, study: str | None = None) -> Iterable[str]:

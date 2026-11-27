@@ -1641,6 +1641,99 @@ def replay_leaderboard(body: dict = Body(...), _: str = Depends(require_admin)):
     return jsonable({"track": track, "boards": out, "errors": ev["errors"]})
 
 
+# -- leaderboards of projects and studies (hani2.evaluation.boards): the pages, the admin and a website --------
+def _bearer(request: Request) -> str | None:
+    h = request.headers.get("authorization") or ""
+    return h[7:].strip() if h[:7].lower() == "bearer " else None
+
+
+def _board_viewer(request: Request, project: str, study: str | None) -> bool:
+    """Who reads a board: ``True`` for an admin (every enabled score and switch value), ``False`` for an
+    end user or a website with an API token; 401/403/404 when the board's ``visibility`` refuses."""
+    from hani2.evaluation import boards
+
+    try:
+        vis = boards.visibility(project, study)
+    except boards.BoardNotFound as e:
+        raise HTTPException(404, str(e)) from None
+    user = current_user(request)
+    if user and auth.is_admin_user(user):
+        return True
+    tok = _bearer(request)
+    if tok is not None:
+        try:
+            sso.verify_api_token(tok, root_path=root_path())
+        except sso.APITokenError as e:
+            raise HTTPException(e.status, f"API token refused ({e.code}): {e}",
+                                headers={"WWW-Authenticate": "Bearer"} if e.status == 401 else None) from None
+        return False
+    if vis == "public":
+        return False
+    if not user:
+        raise HTTPException(401, "Sign in, or send an API token (Authorization: Bearer …)",
+                            headers={"WWW-Authenticate": "Bearer"})
+    if vis == "admins":
+        raise HTTPException(403, "This board is for admins only")
+    return False
+
+
+def _board_response(request: Request, project: str, study: str | None) -> Response:
+    from hani2.evaluation import boards
+
+    admin = _board_viewer(request, project, study)
+    q = dict(request.query_params)
+    try:
+        out = boards.board(project, study, q, admin=admin)
+    except boards.BoardError as e:
+        raise HTTPException(400, str(e)) from None
+    except boards.BoardNotFound as e:
+        raise HTTPException(404, str(e)) from None
+    etag = f'"{out["data_version"]}|{boards.query_key(out["query"], admin)}"'
+    headers = {"Cache-Control": "no-cache", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(jsonable(out), headers=headers)
+
+
+@app.get("/api/v1/projects/{project}/leaderboard")
+def api_project_leaderboard(project: str, request: Request):
+    """The project board (schema ``hani2.leaderboard/2``): ``?sort=&games=&stratum=&window=``, within the
+    options the project allows (else 400). Public boards need nothing; others a signed-in user or an
+    API token (``Authorization: Bearer <JWT>``, see :func:`hani2.sso.verify_api_token`)."""
+    return _board_response(request, project, None)
+
+
+@app.get("/api/v1/projects/{project}/studies/{study}/leaderboard")
+def api_study_leaderboard(project: str, study: str, request: Request):
+    """One study's board (the study's ``leaderboard`` overrides the project's, key by key)."""
+    return _board_response(request, project, study)
+
+
+@app.get("/api/v1/leaderboards")
+def api_leaderboards(request: Request):
+    """Every project that has a board, with its track, year and visibility. Without a signed-in user or
+    an API token, only the public boards are listed."""
+    from hani2.evaluation import boards
+
+    user = current_user(request)
+    full = bool(user)
+    tok = _bearer(request)
+    if tok is not None:
+        try:
+            sso.verify_api_token(tok, root_path=root_path())
+            full = True
+        except sso.APITokenError as e:
+            raise HTTPException(e.status, f"API token refused ({e.code}): {e}") from None
+    items = boards.list_boards()
+    if not full:
+        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] == "public"])
+                 for b in items if b["visibility"] == "public" or any(x["visibility"] == "public" for x in b["studies"])]
+    elif not (user and auth.is_admin_user(user)) and tok is None:
+        items = [dict(b, studies=[x for x in b["studies"] if x["visibility"] != "admins"])
+                 for b in items if b["visibility"] != "admins" or any(x["visibility"] != "admins" for x in b["studies"])]
+    return {"schema": "hani2.leaderboards/1", "boards": items}
+
+
 @app.get("/api/admin/users")
 def admin_users(_: str = Depends(require_admin)):
     meta = auth.load_users_meta()

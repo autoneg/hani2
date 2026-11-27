@@ -38,6 +38,7 @@ app.add_typer(__import__("hani2.cli_models", fromlist=["x"]).models_app, name="m
 app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_app, name="compose")
 app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
 app.add_typer(__import__("hani2.cli_scores", fromlist=["x"]).scores_app, name="scores")
+app.add_typer(__import__("hani2.cli_leaderboard", fromlist=["x"]).leaderboard_app, name="leaderboard")
 
 
 def _open_when_ready(url: str) -> None:
@@ -1333,6 +1334,30 @@ def project_list():
         studies = projects.list_studies(name)
         typer.echo(f"{name:24s} {pr.kind:9s} {len(studies)} stud{'y' if len(studies) == 1 else 'ies'}"
                    + (f"  {pr.full_name}" if pr.full_name else ""))
+
+
+@project_app.command("export")
+def project_export(
+    name: str,
+    out: Annotated[str, typer.Option("--out", help="The folder to write <out>/<project>/ into (for example a website's resources/hani2/projects).")],
+    with_settings: Annotated[bool, typer.Option("--with-settings", help="Also copy settings files that may hold keys (env.json, llm_settings.json, models.json).")] = False,
+    overwrite: Annotated[bool, typer.Option("--overwrite", help="Replace files that are already there.")] = False,
+):
+    """Write a project's files (project.yaml, study.yaml of each study, group files, questionnaires, texts)
+    to a folder, so they can be committed elsewhere. Results, recordings and caches are never copied."""
+    from hani2 import projects
+
+    try:
+        res = projects.export_project(name, out, with_settings=with_settings, overwrite=overwrite)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    for f in res["copied"]:
+        typer.echo(f"  wrote {f}")
+    for f in res["kept"]:
+        typer.echo(f"  kept {f} (already there; --overwrite replaces it)")
+    for f in res["skipped"]:
+        typer.secho(f"  skipped {f} (may hold keys; --with-settings copies it)", fg="yellow")
+    typer.echo(f"{len(res['copied'])} file(s) written to {out}/{name}")
 
 
 @project_app.command("show")

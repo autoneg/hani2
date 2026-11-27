@@ -656,3 +656,47 @@ def public_base_url() -> str:
         root = (os.environ.get("HANI2_ROOT_PATH") or "").strip().strip("/")
         v = f"http://localhost:{DEFAULT_PORT}" + (f"/{root}" if root else "")
     return v.rstrip("/")
+
+
+# --------------------------------------------------------------------------- #
+# Export: a project's files, to commit them elsewhere                          #
+# --------------------------------------------------------------------------- #
+#: folders never exported (results, recordings, caches)
+EXPORT_SKIP_DIRS = {"results", "recordings", "eval_cache", "__pycache__", ".git"}
+#: settings files that may hold keys or passwords: exported only with ``with_settings``
+EXPORT_SECRET_FILES = {"env.json", "llm_settings.json", "models.json", "connections.json", ".env"}
+
+
+def export_project(name: str, out_dir: "str | Path", *, with_settings: bool = False,
+                   overwrite: bool = False) -> dict[str, list[str]]:
+    """Copy a project's configuration (``project.yaml``, its studies' ``study.yaml``, group files,
+    questionnaires, texts, scenarios …) to ``out_dir/<name>/``, so it can be committed elsewhere (for
+    example to the repository of a website that seeds the project). Results, recordings and caches are
+    never copied; settings files that may hold keys (:data:`EXPORT_SECRET_FILES`) only with
+    ``with_settings``. An existing file is replaced only with ``overwrite``. Returns the relative paths
+    ``copied``, ``skipped`` (secrets) and ``kept`` (existing files left alone)."""
+    import shutil
+
+    check_name(name, "project")
+    if name == DEFAULT_PROJECT or not project_dir(name).is_dir():
+        raise ValueError(f"no project folder for {name!r}")
+    src = project_dir(name)
+    dst = Path(out_dir).expanduser() / name
+    out: dict[str, list[str]] = {"copied": [], "skipped": [], "kept": []}
+    for f in sorted(src.rglob("*")):
+        rel = f.relative_to(src)
+        if any(p in EXPORT_SKIP_DIRS for p in rel.parts[:-1]) or not f.is_file() or f.is_symlink():
+            continue
+        if rel.name.startswith(".") and rel.name != ".env" or rel.suffix in (".tmp", ".hrec", ".jsonl", ".db"):
+            continue
+        if rel.name in EXPORT_SECRET_FILES and not with_settings:
+            out["skipped"].append(str(rel))
+            continue
+        target = dst / rel
+        if target.exists() and not overwrite:
+            out["kept"].append(str(rel))
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(f, target)
+        out["copied"].append(str(rel))
+    return out
