@@ -751,7 +751,8 @@ def test_options_are_validated_and_merged(study):
         scheduling.check_scheduling({"cross": "diagonal"})
     with pytest.raises(ValueError, match="assistant_repeats must be true or false"):
         scheduling.check_scheduling({"assistant_repeats": "maybe"})
-    projects.create_project("HI", kind="assistant", scheduling={"cross": "none", "assistants": "cyclic"})
+    # (n_required = 1: the pool is the one Assistant of assistant_settings.json, and K ≤ N is checked)
+    projects.create_project("HI", kind="assistant", n_required=1, scheduling={"cross": "none", "assistants": "cyclic"})
     projects.create_study(study, scheduling={"assistant_repeats": True})
     assert scheduling.options_for(study) == {"cross": "none", "assistant_repeats": True}
     assert scheduling.methods_for(study)["assistants"] == "cyclic"  # the options are not dimensions

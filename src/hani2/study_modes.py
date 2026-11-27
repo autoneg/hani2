@@ -235,21 +235,26 @@ def _fmt(pool: list[str]) -> str:
 
 
 def check_settings(settings: dict[str, Any], kind: str = "none", *, explicit_fallback: bool | None = None,
-                   where: str = "") -> ModeInfo:
+                   where: str = "", env_opponents: Any = None) -> ModeInfo:
     """Check merged study settings (``study_mode``, ``opponents``, ``assistants``, ``pairing``)
     against each other and the project's ``kind``. ``explicit_fallback`` is
-    ``human_opponent_fallback`` when an env.json sets it (``None``: not set anywhere)."""
+    ``human_opponent_fallback`` when an env.json sets it (``None``: not set anywhere).
+    ``env_opponents`` is the pool env.json gives (study folder, project folder, settings folder):
+    a session plays it when the files name no ``opponents``, so it is checked the same way. A
+    Paired study is the exception: the pool it fills in wins over env.json, as in a session."""
     pre = f"{where}: " if where else ""
     info = ModeInfo()
-    opp_raw = settings.get("opponents")
-    opponents = items(opp_raw)
-    assistants = items(settings.get("assistants"))
-    info.derived = derive(opponents)
-    info.mode = info.derived
     try:
         info.declared = check_mode(settings.get("study_mode"))
     except ValueError as e:
         info.errors.append(pre + str(e))
+    opp_raw = settings.get("opponents")
+    opponents = items(opp_raw)
+    if not opponents and info.declared != PAIRED:
+        opponents = items(env_opponents)
+    assistants = items(settings.get("assistants"))
+    info.derived = derive(opponents)
+    info.mode = info.derived
     pairing, problems = check_pairing(settings.get("pairing"))
     info.pairing = pairing
     info.errors += [pre + p for p in problems]
@@ -369,63 +374,262 @@ def _layer_settings(project: Any, overrides: dict | None) -> dict[str, Any]:
     return out
 
 
-def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None) -> list[str]:
-    """What the mode checks refuse in a project.yaml (``nested="defaults"``) or study.yaml
-    (``nested="overrides"``) about to be saved: the file's settings merged with its project's."""
+def _env_opponents(dirs: list) -> tuple[list[str], str]:
+    """The opponent pool env.json gives in the current layer view (``opponents``, old name
+    ``agents``) and where it comes from: the first of ``dirs`` (study folder, project folder) or the
+    settings folder whose own env.json names it, else ``hani2 --settings``."""
+    from hani2.config import get_env, read_json_own_file, settings_dir
+
+    pool = items(get_env("opponents", []) or get_env("agents", []) or [])
+    if not pool:
+        return [], ""
+    names = ["study env.json", "project env.json", "settings env.json"]
+    for name, d in zip(names, [*dirs[:2], settings_dir()]):
+        if d is None:
+            continue
+        own = read_json_own_file(d / "env.json")
+        if items(own.get("opponents")) or items(own.get("agents")):
+            return pool, name
+    return pool, "hani2 --settings"
+
+
+def _settings_assistant() -> tuple[str, str]:
+    """The Assistant of assistant_settings.json in the current layer view (``agent_class``, else
+    the built-in one) and the file it comes from."""
+    from hani2 import config, groups
+    from hani2.support_agent.settings import FILENAME, load_assistant_settings
+
+    spec = groups.default_assistant_spec(load_assistant_settings())
+    study, proj = config.experiment_dir(), config.project_dir()
+    for d in [*config.settings_layers(), config.settings_dir()]:
+        if str(config.read_json_own_file(d / FILENAME).get("agent_class") or "").strip():
+            where = "study" if d == study else "project" if d == proj else "settings"
+            return spec, f"{where} {FILENAME}"
+    return spec, "built-in"
+
+
+@dataclass
+class Pools:
+    """The pools a session of a study (or of a project's studies) would play, resolved from the
+    files without starting one. Process settings (``hani2 --assistants`` / ``HANI2_ASSISTANTS``,
+    ``hani2 --opponents``) and per-session choices (URLs, group files, ``schedule.json``) are
+    left out: see :func:`process_warnings`."""
+
+    #: the Assistant entries as written (study.yaml, project.yaml, the mode, assistant_settings.json)
+    assistant_entries: list[str] = field(default_factory=list)
+    #: the Assistants after groups are expanded (N of the K ≤ N check)
+    assistants: list[str] = field(default_factory=list)
+    assistants_source: str = ""
+    #: the opponent entries (study.yaml, project.yaml, the mode, env.json, the built-in pool)
+    opponents: list[str] = field(default_factory=list)
+    opponents_source: str = ""
+    #: K: counted negotiations per person and where it comes from
+    n_required: int = 5
+    n_required_source: str = "default"
+    #: the merged ``scheduling`` block (project, then study)
+    scheduling: dict[str, Any] = field(default_factory=dict)
+    mode: ModeInfo = field(default_factory=ModeInfo)
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def assistant_method(self) -> str:
+        from hani2 import scheduling
+
+        return str(self.scheduling.get("assistants") or scheduling.DEFAULTS["assistants"])
+
+    def options(self) -> dict[str, Any]:
+        """``cross`` / ``assistant_repeats`` as set in the files (a bad value: ValueError)."""
+        from hani2 import scheduling
+
+        return {k: scheduling.check_option(k, self.scheduling[k]) for k in scheduling.OPTIONS if k in self.scheduling}
+
+    def repeat_problems(self) -> list[str]:
+        """K > N for a method that uses each Assistant at most once (``[]`` when the pool is only
+        ``none``: a study without Assistants)."""
+        from hani2 import scheduling
+
+        if self.assistants and all(a.lower() == NO_ASSISTANT for a in self.assistants):
+            return []
+        try:
+            opts = self.options()
+        except ValueError:
+            return []  # reported by check_scheduling
+        return scheduling.repeat_problems(self.assistant_method, self.n_required, self.assistants, opts)
+
+    def to_dict(self) -> dict[str, Any]:
+        from hani2 import scheduling
+
+        try:
+            repeats = scheduling.repeats_allowed(self.assistant_method, self.options())
+        except ValueError:
+            repeats = None
+        return {"assistants": {"entries": list(self.assistant_entries), "pool": list(self.assistants),
+                               "n": len(self.assistants), "source": self.assistants_source},
+                "opponents": {"entries": list(self.opponents), "source": self.opponents_source},
+                "n_required": {"value": self.n_required, "source": self.n_required_source},
+                "assistant_method": self.assistant_method, "assistant_repeats": repeats,
+                "mode": self.mode.mode, "declared": self.mode.declared, "derived": self.mode.derived,
+                "mode_error": self.mode.mode_error,
+                "repeat_problems": self.repeat_problems(),
+                "process_overrides": process_overrides(),
+                "errors": list(self.errors)}
+
+
+def process_overrides() -> dict[str, str]:
+    """The process settings that replace a study's pools for every session of this server
+    (``hani2 --assistants`` / ``--assistant``, ``hani2 --opponents``, ``PROLIFIC_N_REQUIRED``)."""
+    import os
+
+    from hani2.support_agent.settings import ASSISTANT_CLASS_ENV_VAR, SUPPORT_AGENT_CLASS_ENV_VAR, assistant_env
+
+    out: dict[str, str] = {}
+    a = (os.environ.get("HANI2_ASSISTANTS") or "").strip() or (
+        assistant_env(ASSISTANT_CLASS_ENV_VAR, SUPPORT_AGENT_CLASS_ENV_VAR) or "").strip()
+    if a:
+        out["assistants"] = a
+    o = (os.environ.get("HANI2_OPPONENTS") or os.environ.get("HANI2_AGENTS") or "").strip()
+    if o:
+        out["opponents"] = o
+    k = (os.environ.get("PROLIFIC_N_REQUIRED") or "").strip()
+    if k:
+        out["n_required"] = k
+    return out
+
+
+def _project_from(name: str, data: dict | None):
+    """Project ``name`` as on disk, or as the project.yaml mapping ``data`` about to be saved."""
     from hani2 import projects
 
-    r = None
+    if data is not None:
+        _, defaults, _ = projects._split(data, projects.PROJECT_FIELDS, "defaults")
+        kind = str(data.get("kind") or "none").lower()
+        return projects.Project(name=name, kind=kind if kind in projects.KINDS else "none", defaults=defaults)
+    try:
+        return projects.load_project(name)
+    except ValueError:
+        return projects.Project(name=name)
+
+
+def effective_pools(project: Any, overrides: dict | None = None, ref: Any = None, *, where: str = "") -> Pools:
+    """The pools, K and the mode of study ``ref`` (``overrides``: its study.yaml settings) in
+    ``project`` (a :class:`hani2.projects.Project`, possibly one about to be saved), or of the
+    project's own defaults (``ref`` ``None``), resolved the way a session resolves them:
+
+    * Assistants: study.yaml, else project.yaml ``assistants``, else what the mode fills in (a
+      Paired HAN study: ``none``), else ``agent_class`` of assistant_settings.json (study folder,
+      project folder, settings folder), else the built-in Assistant;
+    * opponents: study.yaml, else project.yaml ``opponents``, else what a Paired study fills in,
+      else env.json (study folder, project folder, settings folder), else the built-in pool;
+    * K: ``PROLIFIC_N_REQUIRED``, else ``n_required`` of the files, else 5.
+    """
+    import os
+
+    from hani2 import groups, projects
+
+    r = projects.parse_ref(ref) if ref is not None else None
+    pname = project.name
+    merged = _layer_settings(project, overrides)
+    ov = overrides or {}
+    dirs = [projects.study_dir(r), projects.project_layer_dir(pname)] if r is not None \
+        else [None, projects.project_layer_dir(pname)]
+    out = Pools()
+    with _layer(r, None if r is not None else pname):
+        env_pool, env_source = _env_opponents(dirs)
+        info = check_settings(merged, project.kind, explicit_fallback=_explicit_fallback([d for d in dirs if d]),
+                              where=where, env_opponents=env_pool)
+        out.mode = info
+
+        def source(key: str) -> str:
+            return "study.yaml" if ov.get(key) is not None else "project.yaml"
+
+        if items(merged.get("opponents")):
+            out.opponents, out.opponents_source = items(merged["opponents"]), source("opponents")
+        elif info.filled.get("opponents"):
+            out.opponents, out.opponents_source = list(info.filled["opponents"]), "study_mode"
+        elif env_pool:
+            out.opponents, out.opponents_source = env_pool, env_source
+        else:
+            from hani2.agents import DEFAULT_POOL
+
+            out.opponents, out.opponents_source = [str(x) for x in DEFAULT_POOL], "built-in"
+        raw = items(merged.get("assistants"))
+        if raw:
+            out.assistants_source = source("assistants")
+        elif info.filled.get("assistants"):
+            raw, out.assistants_source = list(info.filled["assistants"]), "study_mode"
+        if raw:
+            out.assistant_entries = raw
+            problems: list[str] = []
+            try:
+                out.assistants = groups.expand_assistants(raw, r, errors=problems)
+            except Exception as e:  # noqa: BLE001 - a broken group is reported by the group checks
+                problems.append(str(e))
+            out.errors += problems
+        else:
+            spec, out.assistants_source = _settings_assistant()
+            out.assistant_entries = out.assistants = [spec]
+    from hani2 import scheduling
+
+    out.scheduling = scheduling._merged_scheduling(project.defaults.get("scheduling"), ov.get("scheduling"))
+    env_k = (os.environ.get("PROLIFIC_N_REQUIRED") or "").strip()
+    try:
+        if env_k:
+            out.n_required, out.n_required_source = int(env_k), "PROLIFIC_N_REQUIRED"
+        elif merged.get("n_required") is not None:
+            out.n_required, out.n_required_source = int(merged["n_required"]), source("n_required")
+    except (TypeError, ValueError):
+        out.n_required_source = "invalid"
+    return out
+
+
+def file_pools(data: dict, nested: str, *, ref: Any = None, project: str | None = None,
+               project_data: dict | None = None) -> Pools:
+    """:func:`effective_pools` of a project.yaml (``nested="defaults"``) or study.yaml
+    (``nested="overrides"``) mapping about to be saved. ``project_data`` is a project.yaml about
+    to be saved that a study's settings are merged with (default: the project as on disk)."""
+    from hani2 import projects
+
     _, settings, _ = projects._split(data, (), nested)
-    settings = {k: v for k, v in settings.items() if k in projects.DEFAULT_KEYS}
     if nested == "overrides":
         r = projects.parse_ref(ref) if ref is not None else None
         pname = r.project if r is not None else (project or projects.DEFAULT_PROJECT)
-        try:
-            pr = projects.load_project(pname)
-        except ValueError:
-            pr = projects.Project(name=pname)
-        merged = _layer_settings(pr, settings)
-        kind = pr.kind
-        dirs = [projects.study_dir(r) if r is not None else None, projects.project_layer_dir(pname)]
-    else:
-        merged = _layer_settings(None, settings)
-        kind = str(data.get("kind") or "none").lower()
-        dirs = [projects.project_layer_dir(project) if project else None]
-    with _layer(r if nested == "overrides" else None, None if nested == "overrides" else project):
-        info = check_settings(merged, kind, explicit_fallback=_explicit_fallback(dirs))
-    return info.errors
+        return effective_pools(_project_from(pname, project_data), settings, r)
+    return effective_pools(_project_from(project or projects.DEFAULT_PROJECT, data), None, None)
+
+
+def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None,
+                  project_data: dict | None = None) -> list[str]:
+    """What the mode checks refuse in a project.yaml (``nested="defaults"``) or study.yaml
+    (``nested="overrides"``) about to be saved: the file's settings merged with its project's
+    (``project_data``: a project.yaml about to be saved), against the opponent pool a session would
+    play (the files, else env.json)."""
+    return file_pools(data, nested, ref=ref, project=project, project_data=project_data).mode.errors
 
 
 _REPORTED: set[str] = set()
+
+
+def study_pools(ref: Any) -> Pools | None:
+    """:func:`effective_pools` of study ``ref`` as it is on disk."""
+    from hani2 import projects
+
+    r = projects.parse_ref(ref) if isinstance(ref, str) else ref
+    if r is None:
+        return None
+    st = projects.get_study(r)
+    return effective_pools(projects.get_project(r), st.overrides if st is not None else {}, r, where=f"study {r}")
 
 
 def resolve(ref: Any) -> ModeInfo:
     """The mode of study ``ref`` (``None``: outside a study, the derived mode of no pool). Problems
     are printed once to the server log; when the declared mode disagrees with the pool, the derived
     one is used."""
-    from hani2 import projects
-
     if ref is None:
         return ModeInfo()
-    r = projects.parse_ref(ref) if isinstance(ref, str) else ref
-    if r is None:
+    pools = study_pools(ref)
+    if pools is None:
         return ModeInfo()
-    pr = projects.get_project(r)
-    st = projects.get_study(r)
-    merged = _layer_settings(pr, st.overrides if st is not None else {})
-    dirs = [projects.study_dir(r), projects.project_layer_dir(r.project)]
-    with _layer(r):
-        info = check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback(dirs), where=f"study {r}")
-    if not merged.get("opponents") and info.declared is None:
-        # no opponents in the files: the derived mode comes from the pool env.json gives
-        try:
-            from hani2.config import get_env
-
-            with projects.use_study(r):
-                env_pool = get_env("opponents", []) or get_env("agents", []) or []
-            info.derived = info.mode = derive(env_pool)
-        except Exception:  # noqa: BLE001
-            pass
+    info = pools.mode
     for e in info.errors:
         if e not in _REPORTED:
             _REPORTED.add(e)
@@ -434,15 +638,54 @@ def resolve(ref: Any) -> ModeInfo:
     return info
 
 
-def resolve_project(name: str) -> ModeInfo:
-    """The mode a project gives its studies (its defaults alone), with what is wrong with it."""
+def project_pools(name: str) -> Pools:
+    """:func:`effective_pools` of a project's own defaults."""
     from hani2 import projects
 
-    pr = projects.load_project(name)
-    merged = _layer_settings(pr, {})
-    with _layer(project=name):
-        return check_settings(merged, pr.kind, explicit_fallback=_explicit_fallback([projects.project_layer_dir(name)]),
-                              where=f"project {name}")
+    return effective_pools(projects.load_project(name), None, None, where=f"project {name}")
+
+
+def resolve_project(name: str) -> ModeInfo:
+    """The mode a project gives its studies (its defaults alone), with what is wrong with it."""
+    return project_pools(name).mode
+
+
+def process_warnings(ref: Any) -> list[str]:
+    """What the process settings of this server (``hani2 --assistants`` / ``HANI2_ASSISTANTS``,
+    ``hani2 --opponents`` / ``HANI2_OPPONENTS``) break in study ``ref``: they replace the study's
+    pools for every session, so they are warnings (``hani2 study show``), never a refusal."""
+    from hani2 import groups, scheduling
+
+    pools = study_pools(ref)
+    if pools is None:
+        return []
+    over = process_overrides()
+    out: list[str] = []
+    if "assistants" in over:
+        pool = groups.expand_assistants(items(over["assistants"]), pools_ref(ref))
+        try:
+            opts = pools.options()
+        except ValueError:
+            opts = {}
+        for p in scheduling.repeat_problems(pools.assistant_method, pools.n_required, pool, opts):
+            out.append(f"{p} (the Assistants come from hani2 --assistants / HANI2_ASSISTANTS on this server)")
+    if "opponents" in over and pools.mode.declared is not None:
+        from hani2 import projects
+
+        r = pools_ref(ref)
+        merged = _layer_settings(projects.get_project(r), {**(getattr(projects.get_study(r), "overrides", {}) or {}),
+                                                           "opponents": items(over["opponents"])})
+        info = check_settings(merged, projects.get_project(r).kind)
+        for e in info.errors:
+            if "study_mode" in e:
+                out.append(f"{e} (the opponents come from hani2 --opponents / HANI2_OPPONENTS on this server)")
+    return out
+
+
+def pools_ref(ref: Any) -> Any:
+    from hani2 import projects
+
+    return projects.parse_ref(ref) if isinstance(ref, str) else ref
 
 
 # --------------------------------------------------------------------------- #

@@ -313,76 +313,35 @@ def _merged_scheduling(*layers: Any) -> dict[str, Any]:
     return out
 
 
-def _file_repeat_problems(project_defaults: dict, overrides: dict | None, ref: Any) -> list[str]:
-    from hani2 import groups
-
-    def pick(key: str, default: Any = None) -> Any:
-        if overrides is not None and overrides.get(key) is not None:
-            return overrides[key]
-        v = project_defaults.get(key)
-        return default if v is None else v
-
-    sched = _merged_scheduling(project_defaults.get("scheduling"), (overrides or {}).get("scheduling"))
-    method = str(sched.get("assistants") or DEFAULTS["assistants"])
-    if method not in AT_MOST_ONCE_ASSISTANTS and method != "random_each":
-        return []
-    opts = {k: check_option(k, sched[k]) for k in OPTIONS if k in sched}
-    raw = pick("assistants")
-    if raw is None and method != "random_each":
-        return []  # the pool comes from the server's settings: unknown here
-    import os
-
-    try:  # PROLIFIC_N_REQUIRED wins, as it does when the study runs
-        k = int((os.environ.get("PROLIFIC_N_REQUIRED") or "").strip() or pick("n_required", 5))
-    except (TypeError, ValueError):
-        return []
-    errors: list[str] = []
-    try:
-        pool = groups.expand_assistants(raw, ref, errors=errors) if raw is not None else []
-    except Exception:  # noqa: BLE001 - a broken group is reported elsewhere
-        return []
-    if raw is not None and (errors or not pool):
-        return []
-    return repeat_problems(method, k, pool, opts)
-
-
-def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None) -> list[str]:
+def save_problems(data: dict, nested: str, *, ref: Any = None, project: str | None = None,
+                  project_data: dict | None = None) -> list[str]:
     """What a project.yaml (``nested="defaults"``) or study.yaml (``nested="overrides"``) about to be
     saved breaks about Assistant repeats (``n_required`` > the Assistants for a method that uses each
     at most once, unless ``assistant_repeats: true``). The study's settings are merged with its
-    project's; a pool that cannot be expanded here is not checked."""
-    from hani2 import projects
+    project's (``project_data``: a project.yaml about to be saved), and N is the Assistant pool a
+    session would use: the files, else what the mode fills in, else assistant_settings.json (see
+    :func:`hani2.study_modes.effective_pools`). ``hani2 --assistants`` is a process setting: it is a
+    warning in ``hani2 study show``, not a refusal."""
+    from hani2 import study_modes
 
-    _, settings, _ = projects._split(data, (), nested)
     try:
-        if nested == "overrides":
-            r = projects.parse_ref(ref) if ref is not None else None
-            pname = r.project if r is not None else (project or projects.DEFAULT_PROJECT)
-            try:
-                pr = projects.load_project(pname)
-            except ValueError:
-                pr = projects.Project(name=pname)
-            with projects.use_study(r):
-                return _file_repeat_problems(dict(pr.defaults), settings, r)
-        return _file_repeat_problems(settings, None, None)
+        return study_modes.file_pools(data, nested, ref=ref, project=project,
+                                      project_data=project_data).repeat_problems()
     except ValueError:
         return []  # bad option values are reported by check_scheduling
 
 
 def study_repeat_problems(ref: Any) -> list[str]:
     """:func:`save_problems` for a study as it is on disk (a running study only gets a warning)."""
-    from hani2 import projects
+    from hani2 import study_modes
 
     if ref is None:
         return []
-    r = projects.parse_ref(ref) if isinstance(ref, str) else ref
-    pr = projects.get_project(r)
-    st = projects.get_study(r)
     try:
-        with projects.use_study(r):
-            return _file_repeat_problems(dict(pr.defaults), dict(st.overrides) if st is not None else {}, r)
+        pools = study_modes.study_pools(ref)
     except ValueError:
         return []
+    return pools.repeat_problems() if pools is not None else []
 
 
 # --------------------------------------------------------------------------- #
@@ -1395,9 +1354,12 @@ Example: 3 Assistants A, B, C and 3 opponents a, b, c, both on `latin_square`
 `latin_square`, `cyclic`, `balanced_subset`, `random_subset` and `external`
 promise that a human gets **each Assistant at most once**. That is possible only
 when the counted negotiations per person ($K$, `n_required`) are at most the
-Assistants of the pool ($N$). With `assistant_repeats` unset (or `false`), a
-study file where $K > N$ is **refused on save** ("n_required = 6 negotiations but
-only 5 Assistants"); a study already running with such a file only gets a
+Assistants of the pool ($N$): the pool a session would use (`assistants` of the
+study, else of the project, else the one Assistant of `assistant_settings.json`).
+With `assistant_repeats` unset (or `false`), a study or project file where
+$K > N$ is **refused on save** ("n_required = 6 negotiations but only 5
+Assistants"), and so is a project change that would give one of its studies
+$K > N$; a study already running with such a file only gets a
 warning in the log, in `hani2 study show` and in `hani2 study balance`, and the
 Assistants wrap around. With `assistant_repeats: true` the Assistants wrap around
 on purpose.

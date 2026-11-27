@@ -336,7 +336,8 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
     checks run too, on the file's settings merged with its project's: ``study_mode`` against
     ``opponents``, the Assistant and the project's ``kind``, the ``pairing`` block, and the years
     of ``:han<year>-<set>`` entries (see :mod:`hani2.study_modes`), and ``n_required`` against
-    the Assistants for a method that uses each at most once (:func:`hani2.scheduling.save_problems`)."""
+    the Assistants for a method that uses each at most once (:func:`hani2.scheduling.save_problems`).
+    A project.yaml is also checked against the project's studies: see :func:`project_change_problems`."""
     problems = file_problems(data, nested)
     if ref is not None or project is not None:
         from hani2 import scheduling, study_modes
@@ -346,9 +347,39 @@ def check_file_data(data: dict, nested: str, *, ref: "StudyRef | str | None" = N
         problems = list(dict.fromkeys([*problems, *study_modes.save_problems(data, nested, ref=ref, project=project),
                                        *scheduling.save_problems(data, nested, ref=ref, project=project),
                                        *boards.save_problems(data, nested, ref=ref, project=project)]))
+        if nested == "defaults" and project is not None and not problems:
+            problems = project_change_problems(project, data)
     if problems:
         raise ValueError("; ".join(problems))
     return data
+
+
+def project_change_problems(name: str, data: dict) -> list[str]:
+    """What saving ``data`` as project ``name``'s project.yaml would break in its studies: the mode
+    checks and the K ≤ N check of every study, with the study's settings merged with the new
+    project file, each problem named ``study <project>/<study>: …``. Only new problems count: what
+    a study's file already breaks with the project as it is on disk does not block an unrelated
+    project edit (it is reported by the study's own checks)."""
+    from hani2 import scheduling, study_modes
+
+    out: list[str] = []
+    for s in list_studies(name):
+        ref = StudyRef(name, s)
+        f = study_dir(ref) / STUDY_FILE
+        sdata = read_yaml(f) if f.exists() else {}
+
+        def problems(project_data: dict | None) -> list[str]:
+            return [*study_modes.save_problems(sdata, "overrides", ref=ref, project_data=project_data),
+                    *scheduling.save_problems(sdata, "overrides", ref=ref, project_data=project_data)]
+
+        try:
+            before = set(problems(None))
+            after = problems(data)
+        except Exception as e:  # noqa: BLE001 - a broken study file is reported by its own checks
+            print(f"[hani2] could not check study {ref} against the new project file: {e}")
+            continue
+        out += [f"study {ref}: {p}" for p in dict.fromkeys(after) if p not in before]
+    return out
 
 
 def _report(problems: list[str], where: Path, level: str = "ERROR") -> list[str]:
