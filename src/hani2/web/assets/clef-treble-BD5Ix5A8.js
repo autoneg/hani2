@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/clef-treble-BD5Ix5A8.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"clef-treble",size:24,node:[["path",{d:"M10.586 21.414a2 2 0 0 0 3.378-1.791L11.036 4.377a2 2 0 1 1 3.378 1.037C12.414 7.414 7 8 7 13a5 5 0 0 0 5 5 5 4 0 0 0 5-4 3 3 0 0 0-3-3 3 2 0 0 0-3 2",key:"1v9z72"}]]};e.node;const t=a(e);export{e as __iconData,t as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/clef-treble-DZtpVzH5.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"clef-treble",size:24,node:[["path",{d:"M10.586 21.414a2 2 0 0 0 3.378-1.791L11.036 4.377a2 2 0 1 1 3.378 1.037C12.414 7.414 7 8 7 13a5 5 0 0 0 5 5 5 4 0 0 0 5-4 3 3 0 0 0-3-3 3 2 0 0 0-3 2",key:"1v9z72"}]]};e.node;const t=a(e);export{e as __iconData,t as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"clef-treble",size:24,node:[["path",{d:"M10.586 21.414a2 2 0 0 0 3.378-1.791L11.036 4.377a2 2 0 1 1 3.378 1.037C12.414 7.414 7 8 7 13a5 5 0 0 0 5 5 5 4 0 0 0 5-4 3 3 0 0 0-3-3 3 2 0 0 0-3 2",key:"1v9z72"}]]};e.node;const t=a(e);export{e as __iconData,t as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/clef-treble-CH0zcv65.js

@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/bell-dot-BKzTikF2.js
-import{c}from"./index-C-yFU6-Y.js";const e={name:"bell-dot",size:24,node:[["path",{d:"M10.268 21a2 2 0 0 0 3.464 0",key:"vwvbt9"}],["path",{d:"M11.68 2.009A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673c-.824-.85-1.678-1.731-2.21-3.348",key:"xaq59h"}],["circle",{cx:"18",cy:"5",r:"3",key:"gq8acd"}]]};e.node;const t=c(e);export{e as __iconData,t as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/bell-dot-B1od5otu.js
-import{c}from"./index-BeDEz9Xj.js";const e={name:"bell-dot",size:24,node:[["path",{d:"M10.268 21a2 2 0 0 0 3.464 0",key:"vwvbt9"}],["path",{d:"M11.68 2.009A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673c-.824-.85-1.678-1.731-2.21-3.348",key:"xaq59h"}],["circle",{cx:"18",cy:"5",r:"3",key:"gq8acd"}]]};e.node;const t=c(e);export{e as __iconData,t as default};
-========
-import{c}from"./index-Cjbv4bp8.js";const e={name:"bell-dot",size:24,node:[["path",{d:"M10.268 21a2 2 0 0 0 3.464 0",key:"vwvbt9"}],["path",{d:"M11.68 2.009A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673c-.824-.85-1.678-1.731-2.21-3.348",key:"xaq59h"}],["circle",{cx:"18",cy:"5",r:"3",key:"gq8acd"}]]};e.node;const t=c(e);export{e as __iconData,t as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/bell-dot-C7KqYC9e.js

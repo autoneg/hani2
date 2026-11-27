@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/venus-and-mars-C1ajb3H6.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"venus-and-mars",size:24,node:[["path",{d:"M10 20h4",key:"ni2waw"}],["path",{d:"M12 16v6",key:"c8a4gj"}],["path",{d:"M17 2h4v4",key:"vhe59"}],["path",{d:"m21 2-5.46 5.46",key:"19kypf"}],["circle",{cx:"12",cy:"11",r:"5",key:"16gxyc"}]]};e.node;const n=a(e);export{e as __iconData,n as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/venus-and-mars-Diw6gItb.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"venus-and-mars",size:24,node:[["path",{d:"M10 20h4",key:"ni2waw"}],["path",{d:"M12 16v6",key:"c8a4gj"}],["path",{d:"M17 2h4v4",key:"vhe59"}],["path",{d:"m21 2-5.46 5.46",key:"19kypf"}],["circle",{cx:"12",cy:"11",r:"5",key:"16gxyc"}]]};e.node;const n=a(e);export{e as __iconData,n as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"venus-and-mars",size:24,node:[["path",{d:"M10 20h4",key:"ni2waw"}],["path",{d:"M12 16v6",key:"c8a4gj"}],["path",{d:"M17 2h4v4",key:"vhe59"}],["path",{d:"m21 2-5.46 5.46",key:"19kypf"}],["circle",{cx:"12",cy:"11",r:"5",key:"16gxyc"}]]};e.node;const n=a(e);export{e as __iconData,n as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/venus-and-mars-Br90OGdN.js

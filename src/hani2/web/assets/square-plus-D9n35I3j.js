@@ -1,0 +1,1 @@
+import{c as a}from"./index-iG1wCHgq.js";const e={name:"square-plus",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M8 12h8",key:"1wcyev"}],["path",{d:"M12 8v8",key:"napkw2"}]],aliases:["plus-square"]};e.node;const s=a(e);export{e as __iconData,s as default};

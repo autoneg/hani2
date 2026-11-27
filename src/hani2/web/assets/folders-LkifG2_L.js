@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/folders-LkifG2_L.js
-import{c as e}from"./index-C-yFU6-Y.js";const a={name:"folders",size:24,node:[["path",{d:"M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z",key:"a4852j"}],["path",{d:"M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1",key:"yxbcw3"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/folders-B22AL6FX.js
-import{c as e}from"./index-BeDEz9Xj.js";const a={name:"folders",size:24,node:[["path",{d:"M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z",key:"a4852j"}],["path",{d:"M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1",key:"yxbcw3"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const a={name:"folders",size:24,node:[["path",{d:"M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z",key:"a4852j"}],["path",{d:"M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1",key:"yxbcw3"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/folders-X8RtTJ3y.js

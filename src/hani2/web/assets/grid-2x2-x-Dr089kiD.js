@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/grid-2x2-x-Dr089kiD.js
-import{c as e}from"./index-C-yFU6-Y.js";const a={name:"grid-2x2-x",size:24,node:[["path",{d:"M12 3v17a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1H3",key:"11za1p"}],["path",{d:"m16.5 16.5 5 5",key:"zc9lw7"}],["path",{d:"m16.5 21.5 5-5",key:"1fr29m"}]],aliases:["grid-2-x-2-x"]};a.node;const t=e(a);export{a as __iconData,t as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/grid-2x2-x-CZFPdGrG.js
-import{c as e}from"./index-BeDEz9Xj.js";const a={name:"grid-2x2-x",size:24,node:[["path",{d:"M12 3v17a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1H3",key:"11za1p"}],["path",{d:"m16.5 16.5 5 5",key:"zc9lw7"}],["path",{d:"m16.5 21.5 5-5",key:"1fr29m"}]],aliases:["grid-2-x-2-x"]};a.node;const t=e(a);export{a as __iconData,t as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const a={name:"grid-2x2-x",size:24,node:[["path",{d:"M12 3v17a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1H3",key:"11za1p"}],["path",{d:"m16.5 16.5 5 5",key:"zc9lw7"}],["path",{d:"m16.5 21.5 5-5",key:"1fr29m"}]],aliases:["grid-2-x-2-x"]};a.node;const t=e(a);export{a as __iconData,t as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/grid-2x2-x-B2dnnrNy.js

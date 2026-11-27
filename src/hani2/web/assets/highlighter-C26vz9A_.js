@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/highlighter-C26vz9A_.js
-import{c as e}from"./index-C-yFU6-Y.js";const a={name:"highlighter",size:24,node:[["path",{d:"m9 11-6 6v3h9l3-3",key:"1a3l36"}],["path",{d:"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4",key:"14a9rk"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/highlighter-B6khU1P0.js
-import{c as e}from"./index-BeDEz9Xj.js";const a={name:"highlighter",size:24,node:[["path",{d:"m9 11-6 6v3h9l3-3",key:"1a3l36"}],["path",{d:"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4",key:"14a9rk"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const a={name:"highlighter",size:24,node:[["path",{d:"m9 11-6 6v3h9l3-3",key:"1a3l36"}],["path",{d:"m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4",key:"14a9rk"}]]};a.node;const o=e(a);export{a as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/highlighter-DmokCulA.js

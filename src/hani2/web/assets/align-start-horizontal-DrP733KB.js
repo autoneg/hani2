@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/align-start-horizontal-DrP733KB.js
-import{c as e}from"./index-C-yFU6-Y.js";const t={name:"align-start-horizontal",size:24,node:[["rect",{width:"6",height:"16",x:"4",y:"6",rx:"2",key:"1n4dg1"}],["rect",{width:"6",height:"9",x:"14",y:"6",rx:"2",key:"17khns"}],["path",{d:"M22 2H2",key:"fhrpnj"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-start-horizontal-CgC-ra3Z.js
-import{c as e}from"./index-BeDEz9Xj.js";const t={name:"align-start-horizontal",size:24,node:[["rect",{width:"6",height:"16",x:"4",y:"6",rx:"2",key:"1n4dg1"}],["rect",{width:"6",height:"9",x:"14",y:"6",rx:"2",key:"17khns"}],["path",{d:"M22 2H2",key:"fhrpnj"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const t={name:"align-start-horizontal",size:24,node:[["rect",{width:"6",height:"16",x:"4",y:"6",rx:"2",key:"1n4dg1"}],["rect",{width:"6",height:"9",x:"14",y:"6",rx:"2",key:"17khns"}],["path",{d:"M22 2H2",key:"fhrpnj"}]]};t.node;const a=e(t);export{t as __iconData,a as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/align-start-horizontal-DCPEBF4W.js

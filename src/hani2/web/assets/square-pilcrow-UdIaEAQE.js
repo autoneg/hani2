@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/square-pilcrow-UdIaEAQE.js
-import{c as a}from"./index-C-yFU6-Y.js";const e={name:"square-pilcrow",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 12H9.5a2.5 2.5 0 0 1 0-5H17",key:"1l9586"}],["path",{d:"M12 7v10",key:"jspqdw"}],["path",{d:"M16 7v10",key:"lavkr4"}]],aliases:["pilcrow-square"]};e.node;const r=a(e);export{e as __iconData,r as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-pilcrow-BRsNrXCX.js
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"square-pilcrow",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 12H9.5a2.5 2.5 0 0 1 0-5H17",key:"1l9586"}],["path",{d:"M12 7v10",key:"jspqdw"}],["path",{d:"M16 7v10",key:"lavkr4"}]],aliases:["pilcrow-square"]};e.node;const r=a(e);export{e as __iconData,r as default};
-========
-import{c as a}from"./index-Cjbv4bp8.js";const e={name:"square-pilcrow",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M12 12H9.5a2.5 2.5 0 0 1 0-5H17",key:"1l9586"}],["path",{d:"M12 7v10",key:"jspqdw"}],["path",{d:"M16 7v10",key:"lavkr4"}]],aliases:["pilcrow-square"]};e.node;const r=a(e);export{e as __iconData,r as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/square-pilcrow-DGKcnPzX.js

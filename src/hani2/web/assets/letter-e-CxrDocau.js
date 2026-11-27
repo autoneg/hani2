@@ -1,1 +1,0 @@
-import{c as t}from"./index-zswJHfWV.js";const e={name:"letter-e",size:24,node:[["path",{d:"M18 4H7a1 1 0 00-1 1v14a1 1 0 001 1h11",key:"gqqh7n"}],["path",{d:"M6 12h8",key:"1hdiqa"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

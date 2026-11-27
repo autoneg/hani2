@@ -1,0 +1,1 @@
+import{c}from"./index-iG1wCHgq.js";const e={name:"eighth-note",size:24,node:[["path",{d:"m19 6-5.2-3.9a.5.5 0 0 0-.8.4V18",key:"nsdg4r"}],["circle",{cx:"9",cy:"18",r:"4",key:"1972g7"}]],aliases:["music-2"]};e.node;const a=c(e);export{e as __iconData,a as default};

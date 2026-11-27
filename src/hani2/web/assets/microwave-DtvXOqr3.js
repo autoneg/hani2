@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/microwave-DtvXOqr3.js
-import{c as t}from"./index-C-yFU6-Y.js";const e={name:"microwave",size:24,node:[["rect",{width:"20",height:"15",x:"2",y:"4",rx:"2",key:"2no95f"}],["rect",{width:"8",height:"7",x:"6",y:"8",rx:"1",key:"zh9wx"}],["path",{d:"M18 8v7",key:"o5zi4n"}],["path",{d:"M6 19v2",key:"1loha6"}],["path",{d:"M18 19v2",key:"1dawf0"}]]};e.node;const o=t(e);export{e as __iconData,o as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/microwave-DmkNmyRQ.js
-import{c as t}from"./index-BeDEz9Xj.js";const e={name:"microwave",size:24,node:[["rect",{width:"20",height:"15",x:"2",y:"4",rx:"2",key:"2no95f"}],["rect",{width:"8",height:"7",x:"6",y:"8",rx:"1",key:"zh9wx"}],["path",{d:"M18 8v7",key:"o5zi4n"}],["path",{d:"M6 19v2",key:"1loha6"}],["path",{d:"M18 19v2",key:"1dawf0"}]]};e.node;const o=t(e);export{e as __iconData,o as default};
-========
-import{c as t}from"./index-Cjbv4bp8.js";const e={name:"microwave",size:24,node:[["rect",{width:"20",height:"15",x:"2",y:"4",rx:"2",key:"2no95f"}],["rect",{width:"8",height:"7",x:"6",y:"8",rx:"1",key:"zh9wx"}],["path",{d:"M18 8v7",key:"o5zi4n"}],["path",{d:"M6 19v2",key:"1loha6"}],["path",{d:"M18 19v2",key:"1dawf0"}]]};e.node;const o=t(e);export{e as __iconData,o as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/microwave-B3-ajKHF.js

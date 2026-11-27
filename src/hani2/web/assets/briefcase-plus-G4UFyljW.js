@@ -1,7 +1,0 @@
-<<<<<<<< HEAD:src/hani2/web/assets/briefcase-plus-G4UFyljW.js
-import{c as e}from"./index-C-yFU6-Y.js";const a={name:"briefcase-plus",size:24,node:[["path",{d:"M13.354 20H4a2 2 0 01-2-2V8a2 2 0 012-2h16a2 2 0 012 2v3.354",key:"59v5n6"}],["path",{d:"M16 11.354V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v16",key:"13yhyp"}],["path",{d:"M16 17h6",key:"1ook5g"}],["path",{d:"M19 14v6",key:"1ckrd5"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
-|||||||| parent of 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/briefcase-plus-B86xypIR.js
-import{c as e}from"./index-BeDEz9Xj.js";const a={name:"briefcase-plus",size:24,node:[["path",{d:"M13.354 20H4a2 2 0 01-2-2V8a2 2 0 012-2h16a2 2 0 012 2v3.354",key:"59v5n6"}],["path",{d:"M16 11.354V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v16",key:"13yhyp"}],["path",{d:"M16 17h6",key:"1ook5g"}],["path",{d:"M19 14v6",key:"1ckrd5"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
-========
-import{c as e}from"./index-Cjbv4bp8.js";const a={name:"briefcase-plus",size:24,node:[["path",{d:"M13.354 20H4a2 2 0 01-2-2V8a2 2 0 012-2h16a2 2 0 012 2v3.354",key:"59v5n6"}],["path",{d:"M16 11.354V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v16",key:"13yhyp"}],["path",{d:"M16 17h6",key:"1ook5g"}],["path",{d:"M19 14v6",key:"1ckrd5"}]]};a.node;const t=e(a);export{a as __iconData,t as default};
->>>>>>>> 6c86bda3b9 (build: rebuild src/hani2/web (grouped criteria pickers, validated marks)):src/hani2/web/assets/briefcase-plus-DTVEIXK6.js
