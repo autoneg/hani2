@@ -34,6 +34,46 @@ interface LibSet {
   validated?: boolean;
   validation_note?: string;
   url?: string;
+  /** a source warning from the registry (e.g. TAM items not checked against Davis, 1989); admin only */
+  warning?: string;
+}
+
+/** a source warning of the bundled sets a form uses (from /api/admin/questionnaires/check) */
+interface SetWarning {
+  set: string;
+  title: string;
+  warning: string;
+}
+
+/** The source warnings of a form, one box per distinct text naming the sets it covers. Admin only:
+ * never part of the participant's form. */
+function SourceWarnings({ warnings, id }: { warnings?: SetWarning[]; id?: string }) {
+  if (!warnings?.length) return null;
+  const by = new Map<string, string[]>();
+  for (const w of warnings) by.set(w.warning, [...(by.get(w.warning) ?? []), w.title]);
+  return (
+    <div data-testid="form-source-warning" id={id}>
+      {[...by].map(([text, titles]) => (
+        <Note tone="warn" key={text}>
+          <TriangleAlert size={14} className="mr-1 inline" /> <b>Items not checked against the source</b> ({titles.join(", ")}): {text} <span className="text-muted">Shown to admins only; participants never see it.</span>
+        </Note>
+      ))}
+    </div>
+  );
+}
+
+/** the source warnings of a form's text (empty while loading or when it has none) */
+function useFormWarnings(text: string | undefined) {
+  const [w, setW] = useState<SetWarning[]>([]);
+  useEffect(() => {
+    if (!text?.trim()) return setW([]);
+    let live = true;
+    api("/api/admin/questionnaires/check", { body: { text } }).then((r) => live && setW(r.warnings ?? [])).catch(() => live && setW([]));
+    return () => {
+      live = false;
+    };
+  }, [text]);
+  return w;
 }
 
 export function StudyForms() {
@@ -77,6 +117,7 @@ export function StudyForms() {
     if (!confirm(`Switch this form off for ${layer.label}? Its own file becomes "enabled: false" (any questions in it are replaced).`)) return;
     save("enabled: false\n");
   };
+  const effectiveWarnings = useFormWarnings(d?.active ? d.effective : "");
   const startFromInherited = () => {
     setText(d?.effective ?? "");
     setDirty(true);
@@ -121,6 +162,7 @@ export function StudyForms() {
               </div>
             </Row>
           </Group>
+          <SourceWarnings warnings={effectiveWarnings} id="setting-form-effective-warning" />
           {d.problems?.length > 0 && <Note tone="warn">This layer's file has problems: {d.problems.join("; ")}</Note>}
           <Group
             title={d.exists ? "This layer's form (YAML)" : "New form for this layer (YAML)"}
@@ -237,6 +279,12 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
                   {s.source === "settings" ? " · your own" : ""}
                 </span>
                 <span className="block text-xs text-muted">{s.description}</span>
+                {s.warning && (
+                  <span className="mt-1 flex items-start gap-1.5 rounded-md border border-warn/30 bg-warn/10 px-2 py-1 text-xs text-warn" data-testid="set-source-warning">
+                    <TriangleAlert size={13} className="mt-0.5 shrink-0" />
+                    <span>{s.warning}</span>
+                  </span>
+                )}
                 {s.reference && (
                   <span className="block text-[11px] italic text-muted">
                     {s.reference}
@@ -278,7 +326,7 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
 }
 
 function Preview({ text }: { text: string }) {
-  const [r, setR] = useState<{ problems: string[]; form: Questionnaire | null } | null>(null);
+  const [r, setR] = useState<{ problems: string[]; form: Questionnaire | null; warnings?: SetWarning[] } | null>(null);
   useEffect(() => {
     const t = window.setTimeout(() => {
       api("/api/admin/questionnaires/check", { body: { text } }).then(setR).catch((e) => setR({ problems: [e.message], form: null }));
@@ -298,6 +346,11 @@ function Preview({ text }: { text: string }) {
         <div className="flex items-start gap-2 bg-warn/10 px-4 py-2 text-sm text-warn">
           <TriangleAlert size={15} className="mt-0.5 shrink-0" />
           <span>{r.problems.join("; ")}</span>
+        </div>
+      ) : null}
+      {r?.warnings?.length ? (
+        <div className="px-4 pt-3">
+          <SourceWarnings warnings={r.warnings} />
         </div>
       ) : null}
       <div className="px-4 py-3">
