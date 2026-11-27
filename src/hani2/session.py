@@ -2347,6 +2347,12 @@ class NegotiationSession:
         if pool:
             self.opponent_group = _group_name(self.admin_prefs.get("opponent_types"))
             return pool
+        from hani2.hosting.registry import hosted_pool
+
+        pool = hosted_pool("opponent", self.study_ref)  # the self-hosted mode (``hosted: {opponents: true}``)
+        if pool:
+            self.opponent_group = "hosted"
+            return pool
         env = get_env("opponents", []) or get_env("agents", []) or []
         pool = expand_agents(env)
         self.opponent_group = _group_name(env) if pool else ""

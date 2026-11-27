@@ -67,7 +67,10 @@ PAIRED_FIELDS = ("study_mode", "opponent_kind", "pairing", "match_id", "match_ce
                  "assistant_position", "plan_size", "opponent_han_year", "cross_study")
 #: where a HAN opponent agent came from (see hani2.han_submissions.PROVENANCE_COLUMNS), and who left a
 #: human-opponent negotiation (``abandoned``: ``self``, ``opponent`` or empty)
-OTHER_ROW_FIELDS = ("opponent_han_source", "opponent_han_version", "abandoned")
+#: and a self-hosted side's declared version and failed calls (see hani2.results.HOSTED_COLUMNS; the
+#: continuous leaderboard reads the declared version as a hint of a new agent)
+OTHER_ROW_FIELDS = ("opponent_han_source", "opponent_han_version", "abandoned", "assistant_version",
+                    "opponent_version", "hosted_failures")
 #: fields that only the boards read (hani2.evaluation.boards): the guest's inviter, the other person
 #: of a match and whether the human is counted. Boards never show them.
 BOARD_ROW_FIELDS = ("invited_by", "opponent_user", "counted")

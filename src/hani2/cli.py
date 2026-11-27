@@ -39,6 +39,9 @@ app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_
 app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
 app.add_typer(__import__("hani2.cli_scores", fromlist=["x"]).scores_app, name="scores")
 app.add_typer(__import__("hani2.cli_leaderboard", fromlist=["x"]).leaderboard_app, name="leaderboard")
+app.add_typer(__import__("hani2.cli_hosted", fromlist=["x"]).hosted_app, name="hosted")
+app.command("host-assistant")(__import__("hani2.cli_hosted", fromlist=["x"]).host_assistant)
+app.command("host-opponent")(__import__("hani2.cli_hosted", fromlist=["x"]).host_opponent)
 
 
 def _open_when_ready(url: str) -> None:

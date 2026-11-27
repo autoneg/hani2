@@ -2004,6 +2004,7 @@ def _index_html(text: str, study_prefix: str = "") -> str:
 from hani2.admin_api import router as _admin_router  # noqa: E402
 
 app.include_router(_admin_router)  # before the catch-all page route below
+app.include_router(__import__("hani2.admin_hosted", fromlist=["router"]).router)  # self-hosted agents
 
 
 @app.get("/{path:path}", include_in_schema=False)

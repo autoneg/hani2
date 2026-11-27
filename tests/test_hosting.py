@@ -396,3 +396,47 @@ def test_an_unreachable_assistant_host_says_so_and_does_not_block():
 def test_an_unregistered_assistant_fails_loudly():
     s = make_session(agent_class="remote:nobody")
     assert s.support_agent is None and "no hosted agent" in (s.assistant_error or "")
+
+
+def test_self_hosted_mode_fills_the_opponent_pool():
+    projects.create_project("SO", kind="opponent")
+    projects.create_study("SO/live", type="online")
+    f = projects.project_dir("SO") / projects.PROJECT_FILE
+    d = projects.read_yaml(f)
+    d["hosted"] = {"opponents": True}
+    projects.write_yaml(f, d)
+    registry.add("SO", "oppA", "opponent", "https://a.example")
+    registry.add("SO", "astB", "assistant", "https://b.example")
+    s = make_session(study="SO/live", opponent=None, partner=None)
+    assert s.opponent_pool() == ["remote:oppA"] and s.opponent_group == "hosted"
+
+
+# --------------------------------------------------------------------------- #
+# The admin console API                                                        #
+# --------------------------------------------------------------------------- #
+def test_admin_api_registers_checks_and_never_lists_tokens(monkeypatch):
+    monkeypatch.setenv("HANI2_OPPONENTS", "BoulwareTBNegotiator")
+    from hani2.server import app
+
+    projects.create_project("HP", kind="assistant")
+    with TestClient(app) as c:
+        assert c.get("/api/admin/projects/HP/hosted").status_code in (401, 403)
+        assert c.post("/api/auth/login", json={"username": "admin", "password": "adminpass"}).status_code == 200
+        with run_host(make_app("assistant", "hani2.support_agent.runtime:SupportAgent", token=TOKEN, version="9")) as url:
+            r = c.post("/api/admin/projects/HP/hosted", json={"name": "teamA", "kind": "assistant", "url": url,
+                                                              "token": TOKEN, "team": "A"})
+            assert r.status_code == 200 and "token" not in r.json()  # the admin gave it: not echoed
+            chk = c.post("/api/admin/projects/HP/hosted/teamA/check").json()
+            assert chk["ok"] and chk["info"]["version"] == "9"
+        r = c.post("/api/admin/projects/HP/hosted", json={"name": "teamB", "kind": "opponent", "url": "https://b.example"})
+        assert r.json()["token"].startswith("h2t_")  # made by HANI2: shown once
+        listed = c.get("/api/admin/projects/HP/hosted").json()
+        assert [a["name"] for a in listed["agents"]] == ["teamA", "teamB"]
+        assert TOKEN not in str(listed) and r.json()["token"] not in str(listed)
+        assert c.put("/api/admin/projects/HP/hosted/teamB/enabled", json={"enabled": False}).json()["ok"]
+        assert c.post("/api/admin/projects/HP/hosted", json={"name": "bad name", "url": "https://x"}).status_code == 400
+        m = c.put("/api/admin/projects/HP/hosted-mode", json={"assistants": True, "timeout": 20}).json()["mode"]
+        assert m["assistants"] is True and m["timeout"] == 20
+        assert c.put("/api/admin/projects/HP/hosted-mode", json={"assistants": "yes"}).status_code == 400
+        assert registry.hosted_pool("assistant", projects.StudyRef("HP", "x")) == ["remote:teamA"]
+        assert c.delete("/api/admin/projects/HP/hosted/teamA").json()["ok"]
