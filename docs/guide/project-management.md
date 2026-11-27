@@ -625,6 +625,34 @@ block whose keys are not known, whose switch values or defaults are not allowed,
 is refused too. A hand-edited file that breaks these rules is still served: what cannot be used is
 left out and named in the board's `warnings`.
 
+### Setting up a board in the admin console
+
+In **Projects & Studies**, open the project: its **Leaderboard** group edits the `leaderboard`
+block, and the study page has the same group for the study's own board. Every row has a `?` that
+explains the choice (the same text as in the [Settings reference](settings-reference.md)). Changes
+are saved with the page's **Save**.
+
+![The Leaderboard settings of a project: track, studies, sort options, columns, the switches end users get, visibility and the rules](../assets/screens/editor-leaderboard.png)
+
+| Row | What it sets |
+|---|---|
+| Project board | Turns the project's `leaderboard` block on. With it the board is listed by `GET /api/v1/leaderboards`; without it, the board still exists with the defaults but is not listed. |
+| Track, Source | `track` and `source`. |
+| Studies | `studies`: every study of the project until you choose some. |
+| Rows from other projects | `include`: a study of another project and the one stratum it feeds. |
+| Sort options, Default sort | `sort_options` (enabled scores, and criteria with a direction) and `default_sort`, which offers only the sort options. Removing the default from the sort options moves the default to the first remaining one. |
+| Columns | `columns`: enabled scores, the counts and any criterion. |
+| Games, Group and Period switch | `user_options`. The switch toggles whether end users get it, and the boxes are its allowed values. **Group** is the stratum: Combined, Solo and Paired for HI, Alone, With an Assistant (`vs_team`) and Both for HAN. A switch with a single value is not shown. |
+| Switch defaults | `defaults`, offering only each switch's allowed values. |
+| Visibility | `visibility`. |
+| Minimum games, Minimum players, Cap per pair of people, Cap per player, Own-team games, Adjustment, Confidence level | `rules` (empty caps mean no cap). |
+| The board as end users see it | Opens `/s/<project>/leaderboard` (or the study's page) in a new tab. Save first to see a change. |
+
+A row marked **set here** is written in this file; its reset button goes back to what the row
+inherits (the defaults for a project, the project's value for a study), which its menu names. The
+same checks as on the command line apply when saving, so a block that would break the board is
+refused with the reason.
+
 ### Rows from other projects
 
 `include` takes games from a study of another project into the board, for **one stratum** only.
@@ -692,6 +720,62 @@ Every board says what it left out and why under `excluded` (`practice`, `admin o
 No board ever contains a user name, the other person's name, who invited a guest or a participant
 index: only entrants and counts.
 
+### The leaderboard pages
+
+Every board has a page that needs no other website:
+
+| Page | Board | Who sees it |
+|---|---|---|
+| `/s/<project>/leaderboard` | the project board | per the project's `visibility` |
+| `/s/<project>/<study>/leaderboard` | that study's board | per the study's `visibility` |
+| `/leaderboard` | a list of the boards the viewer may see | anyone |
+
+The pages read the same [leaderboard API](#the-leaderboard-api) a website reads, as end users get
+it. They offer only the sort options and switches the board allows, so an admin who opens them sees
+exactly what everyone else sees. A board for `participants` asks visitors who are not signed in to
+sign in, and a board for `admins` tells a participant it is not open to them.
+
+![The project board as end users see it: the sort, the games and group switches, the intervals, a tie with the leader and an entrant not ranked yet](../assets/screens/leaderboard-page.png)
+
+- **Ranked by** lists the sort options. A score marked *provisional* is still waiting for the judge,
+  or for a frozen normalisation reference.
+- The value the board is ranked by is shown with its confidence interval: the band is the interval
+  and the dot is the mean. The other columns show their mean, with the interval under it.
+- **=2** marks an entrant that is tied with the leader, because their intervals overlap.
+- **Not ranked yet** lists the entrants below the minimums, each with the reason (for example
+  "Fewer than 10 counted games").
+- **How to read this board** gives the confidence level, the minimums, what was left out (counts
+  only) and the board's notes.
+- The chosen view is kept in the address (`?sort=hi_team&games=people`), so a link opens the same
+  view. A link whose values the board no longer allows opens the board's defaults.
+- No user names appear anywhere: only the entrants and counts.
+
+On a phone, each entrant is a card with its rank, its value and interval, and the other columns
+under them:
+
+![The same board at phone width](../assets/screens/leaderboard-phone.png){ width="320" }
+
+### Admin → Leaderboards
+
+**Leaderboards** (in the admin console's Activity group) shows any project or study board as an
+admin reads it:
+
+- **Ranked by** offers the board's sort options, every enabled score and every criterion that has a
+  direction, grouped by source.
+- Every switch offers every value. **Group** shows the strata as tabs: Combined, Solo and Paired for
+  HI; Alone, With an Assistant and Both for HAN.
+- The entries also show the entrant ids.
+- **Weights in effect** shows each score's weights after coverage, the parts left out for
+  everyone, and whether the score is provisional.
+- **Games left out** shows the counts of `excluded`, with the games and deals in the view.
+- **Rules in effect** and **Warnings** show the rest of the board.
+- **As end users see it** opens the end-user page. **Board settings** and **Scores** open the
+  project or study in Projects & Studies, at its Leaderboard or Scores group.
+
+![Admin → Leaderboards: every switch value and the entrant ids](../assets/screens/admin-leaderboards.png)
+
+![The weights in effect of each score, with the parts left out](../assets/screens/admin-leaderboards-weights.png)
+
 ### Where the numbers come from
 
 A board never re-reads recordings. When a game's row is written, the metrics that need no language
@@ -750,6 +834,11 @@ views the project allows. An unknown project or study gives 404; a board the cal
 gives 401 (no sign-in, no token) or 403 (see [Visibility](#visibility)). Each response carries an
 `ETag`; send it back as `If-None-Match` to get a 304 when nothing changed, or cache on
 `data_version`.
+
+A signed-in admin gets every enabled score and every switch value. Add `view=user` to get the
+board exactly as end users get it, with only the board's sort options and switches (the
+[leaderboard pages](#the-leaderboard-pages) always send it). `view=user` only ever takes options
+away.
 
 The response (schema `hani2.leaderboard/2`) carries the options the viewer may use, so a website
 draws exactly the switches the project allows:

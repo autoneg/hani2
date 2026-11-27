@@ -817,6 +817,7 @@ See [Project management: scores](project-management.md#scores) and run
   Assistant × position, the pairs of Assistants used by the same person, the same-Assistant matches,
   the AI fallbacks, the Assistants skipped because nobody could be paired (`fallback: end`) and the
   people with fewer than K counted negotiations (still playing, or left with nobody to meet).
+- The study page shows the Paired part too, as the **Paired balance** group: the completed and in-flight matches, the planned cells still empty and their spread, the AI fallbacks, the same-Assistant matches, the people below K and the matches per Assistant. **Every cell** opens a table per scenario (the Assistant on side 0 against side 1), **Assistant × position** the positions, and **People below K** the list of those people.
 - `GET /api/admin/projects/{project}/studies/{study}/balance` and `.../assignments` return the same as JSON (see [Admin API](#admin-api)); the Paired part is under `paired` (`null` for a Solo study).
 
 ## Results
@@ -1206,6 +1207,14 @@ leaderboard:
   visibility: admins                     # the study's board stays internal while it runs
   rules: {min_games: 5, adjust: balanced} # a planned study: every Assistant plays every cell
 ```
+
+Set it on the study's page in **Projects & Studies**: the study's **Leaderboard** group has the
+same rows as the project's (see
+[Setting up a board in the admin console](project-management.md#setting-up-a-board-in-the-admin-console)).
+Each row offers the project's value as the inherited one, and **set here** marks what the study
+overrides. The study's page for end users is `/s/<project>/<study>/leaderboard` (see
+[The leaderboard pages](project-management.md#the-leaderboard-pages)). Admins can open any study's
+board in **Leaderboards**, with every score, criterion and stratum.
 
 A study board ignores `studies` and `include`: it always shows its own study. Its `sort_options`
 and `columns` must be enabled in the study (`scores_enabled`); saving a study whose scores no longer

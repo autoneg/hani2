@@ -23,8 +23,9 @@ See [Authentication](authentication.md). The `?admin=1` query parameter does not
 | Activity | Live sessions | The sessions on this server, refreshed every five seconds. |
 | | Results | Every negotiation, the leaderboard and the results CSV. |
 | | Event analytics | Charts and a filterable event log, recorded sessions, the events CSV. |
+| | Leaderboards | Any project or study board as admins see it: every score and criterion, the strata, the weights in effect and the games left out (see [Admin → Leaderboards](project-management.md#admin-leaderboards)). |
 | | Replay | Opens [Replay](recordings.md). |
-| Studies | Projects & Studies | Projects, their studies, `project.yaml` and `study.yaml`, the links to give participants, results counts and the Assistant balance. |
+| Studies | Projects & Studies | Projects, their studies, `project.yaml` and `study.yaml`, the links to give participants, results counts, the Assistant balance (and the Paired balance), the scores and the leaderboard settings. |
 | | Texts | The welcome text, the consent form, the scenario sets and the custom order, per layer, with a live preview. |
 | | Study forms | Consent for study participants, and the pre, per-negotiation and post-session questionnaires, per layer, with predefined questionnaires and a live preview. |
 | Library | Scenarios | Every scenario type, its details, new ones by upload or link, and the scenario sets. |
