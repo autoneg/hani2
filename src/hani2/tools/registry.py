@@ -74,6 +74,7 @@ class ToolSpec:
 def builtin_tool_classes() -> list[type[Tool]]:
     from hani2.tools import builtin as b
     from hani2.tools import information_tools as it
+    from hani2.tools.scenario_stats_tool import ScenarioStatsTool
 
     return [
         b.PreferencesTool,
@@ -93,6 +94,7 @@ def builtin_tool_classes() -> list[type[Tool]]:
         b.RandomOutcomeTool,
         b.AllResultsTool,
         b.OpponentPreferencesTool,
+        ScenarioStatsTool,
     ]
 
 

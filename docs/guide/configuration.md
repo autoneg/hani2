@@ -342,6 +342,18 @@ or the assistant write to the opponent are sent as written.
 
 See [Tools](tools.md).
 
+### `scenario_stats`
+
+The negmas statistics of every scenario, computed in the background and cached next to it. See
+[Scenario statistics](scenarios.md#scenario-statistics).
+
+| Key | Meaning |
+| --- | --- |
+| `scenario_stats.enabled` | Compute and show them (default `true`). |
+| `scenario_stats.pareto_max_outcomes` | Keep the Pareto frontier in the cache only for scenarios with at most this many outcomes (default `1000000`). |
+| `scenario_stats.timeout` | Seconds one computation may take; a slower scenario is skipped (default `300`). |
+| `scenario_stats.max_outcomes` | Skip larger outcome spaces without trying (default negmas's `STATS_MAX_CARDINALITY`). |
+
 ### `tools.yaml`
 
 Tool groups, the tools sessions get and where tools go in each view, read from the settings

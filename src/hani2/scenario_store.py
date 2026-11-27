@@ -201,6 +201,9 @@ def _load_dir(path: Path) -> Scenario | None:
     if s is None:
         return None
     s.info = _read_info(path) or (s.info or {})
+    from hani2 import scenario_stats
+
+    scenario_stats.drop_stale(s, path)  # negmas read _stats.yaml; it may be of an older version
     return s
 
 
@@ -371,7 +374,14 @@ def _save(scenario: Scenario, folder: Path, info_name: str) -> Path:
     for f in folder.iterdir():
         if f.is_file() and f.suffix in (".yml", ".yaml") and not f.name.startswith("_") and f.name not in keep:
             f.unlink()
-    scenario.dumpas(folder, save_info=False)
+    # the cached statistics (hani2.scenario_stats) are of the files being replaced: they are computed
+    # again in the background, never written from a possibly outdated ``scenario.stats``
+    scenario.dumpas(folder, save_info=False, save_stats=False)
+    from hani2 import scenario_stats
+
+    meta = scenario_stats.read_cached(folder)
+    if meta is None:
+        scenario_stats.clear(folder)
     if scenario.info:
         write_info(scenario.info, folder / info_name)
     for n in INFO_FILES:

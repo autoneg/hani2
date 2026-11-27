@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Scenario statistics.** Every scenario gets negmas's statistics (opposition, utility ranges,
+  rational fraction, the Pareto frontier and the Nash, Kalai, KS and welfare solutions), computed
+  in the background when a negotiation starts, in a separate process with a time limit, and cached
+  next to the scenario in negmas's `_stats.yaml` (the Pareto frontier only up to
+  `scenario_stats.pareto_max_outcomes`, a million by default). Too slow or failing scenarios are
+  skipped and say why. They show under **Statistics** on the console's Scenarios page and in the
+  new admin-only **Scenario Stats** tool. See [Scenario statistics](guide/scenarios.md#scenario-statistics).
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow

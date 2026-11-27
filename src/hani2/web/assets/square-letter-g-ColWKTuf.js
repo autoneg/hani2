@@ -1,0 +1,1 @@
+import{c as t}from"./index-C6BuAo7L.js";const e={name:"square-letter-g",size:24,node:[["path",{d:"M12.5 12H15v2.268a.88.88 0 01-.263.65A4 4 0 1112 8h2.5",key:"qr2odw"}],["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}]]};e.node;const r=t(e);export{e as __iconData,r as default};

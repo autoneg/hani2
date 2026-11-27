@@ -197,5 +197,7 @@ def test_the_results_keep_the_exact_scenario_played(hani2_home):
     assert s.wait_until_done()
     saved = list((hani2_home / "db" / "tester" / "scenarios").iterdir())
     assert len(saved) == 1
-    assert _files(saved[0]) == {k: v for k, v in _files(slot).items() if not k.endswith(".pkl")}
+    # caches next to the slot (negmas's .pkl, the statistics of hani2.scenario_stats) are not the scenario
+    assert _files(saved[0]) == {k: v for k, v in _files(slot).items()
+                                if not k.endswith(".pkl") and not k.startswith("_stats")}
     assert any((hani2_home / "db" / "tester" / "mechanisms").iterdir())  # written after the scenario copy

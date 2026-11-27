@@ -232,6 +232,15 @@ export const TOOLS_BASE: FieldGroup[] = [
       { id: "tools-extra", path: "tools.extra", label: "Extra tools", hint: "Python classes, e.g. my_pkg.tools:MyTool", type: "tags", placeholder: "pkg.mod:Tool" },
     ],
   },
+  {
+    title: "Scenario statistics",
+    footer: "negmas statistics of every scenario (opposition, Pareto frontier, bargaining solutions), computed in the background when a negotiation starts and cached next to the scenario (_stats.yaml). Shown on the Scenarios page and in the Scenario Stats tool.",
+    fields: [
+      { id: "scenario-stats-enabled", path: "scenario_stats.enabled", label: "Compute scenario statistics", type: "toggle", keywords: "stats statistics pareto nash kalai opposition negmas" },
+      { id: "scenario-stats-pareto-max", path: "scenario_stats.pareto_max_outcomes", label: "Keep the Pareto frontier up to (outcomes)", hint: "Larger scenarios cache every other statistic but not the frontier", type: "stepper", min: 0, step: 100000, keywords: "stats pareto frontier cache" },
+      { id: "scenario-stats-timeout", path: "scenario_stats.timeout", label: "Time limit (seconds)", hint: "A scenario that takes longer is skipped", type: "stepper", min: 1, step: 30, keywords: "stats timeout slow" },
+    ],
+  },
 ];
 const toolFields = (meta: any): FieldGroup => ({
   title: "Tools offered",

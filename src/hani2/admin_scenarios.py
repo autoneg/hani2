@@ -216,6 +216,22 @@ def scenario_picture(token: str, layer: Layer) -> dict:
     return {"light": light, "dark": dark}
 
 
+def scenario_statistics(token: str, force: bool = False) -> dict:
+    """The negmas statistics of a scenario described before (``plot_token`` of its details), as
+    :func:`hani2.scenario_stats.view` shows them. Cached ones come at once; otherwise they are
+    computed in the background and this says ``pending`` (ask again)."""
+    from hani2 import scenario_stats
+
+    s, human_idx, _, folder = _shown(token)
+    if folder is not None and not store._is_scenario_dir(Path(folder)):
+        folder = None
+    result = scenario_stats.request(s, folder, force=force)
+    ufuns = list(s.ufuns)
+    human = (str(getattr(ufuns[human_idx], "name", "") or "") or None
+             if human_idx is not None and 0 <= human_idx < len(ufuns) else None)
+    return scenario_stats.view(result, human)
+
+
 class _ViewSession:
     """What the Preferences tool asks of a session when it renders outside one."""
 
@@ -355,6 +371,14 @@ def _sample(s) -> list[dict]:
 def admin_scenario_plot(token: str):
     """The outcome-space plots of the example a details call just showed (by its ``plot_token``)."""
     return scenario_plots(token)
+
+
+@router.get("/api/admin/scenarios/stats/{token}")
+def admin_scenario_stats(token: str, force: bool = False):
+    """The negmas statistics of the example a details call just showed (by its ``plot_token``):
+    ``status`` ``ok`` with the statistics, ``pending`` while they are computed (poll), or
+    ``failed`` / ``timeout`` / ``too_large`` / ``disabled`` with a ``message``. ``force`` computes again."""
+    return scenario_statistics(token, force)
 
 
 @router.get("/api/admin/scenarios/picture/{token}")
