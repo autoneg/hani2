@@ -1081,7 +1081,15 @@ def admin_scores(project: str | None = None, study: str | None = None, _: str = 
     if ref is None and not project:
         raise HTTPException(400, "give a project or a study (project/study)")
     project, name = _score_target(ref.project if ref is not None else str(project), ref.study if ref else None)
-    return jsonable(S.resolve(project, name).to_dict())
+    from hani2.evaluation.catalog import VALIDATED_TOOLTIP, validation_of
+
+    ss = S.resolve(project, name)
+    out = ss.to_dict()
+    for d in out["scores"]:  # a built-in score checked against a hand-worked example carries the ✓
+        s = ss.scores.get(d["key"])
+        d["validated"] = bool(s is not None and s.builtin and validation_of(d["key"]))
+    out["validated_tooltip"] = VALIDATED_TOOLTIP
+    return jsonable(out)
 
 
 @app.post("/api/admin/scores/preview")
@@ -1997,6 +2005,7 @@ def _index_html(text: str, study_prefix: str = "") -> str:
 from hani2.admin_api import router as _admin_router  # noqa: E402
 
 app.include_router(_admin_router)  # before the catch-all page route below
+app.include_router(__import__("hani2.admin_hosted", fromlist=["router"]).router)  # self-hosted agents
 
 
 @app.get("/{path:path}", include_in_schema=False)

@@ -1,1 +1,0 @@
-import{c as a}from"./index-BeDEz9Xj.js";const e={name:"tally-4",size:24,node:[["path",{d:"M4 4v16",key:"6qkkli"}],["path",{d:"M9 4v16",key:"81ygyz"}],["path",{d:"M14 4v16",key:"12vmem"}],["path",{d:"M19 4v16",key:"8ij5ei"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

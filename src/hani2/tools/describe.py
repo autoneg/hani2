@@ -126,6 +126,9 @@ def _walk(c: Any, out: list[str], depth: int, max_rows: int) -> None:
                  if c.get("empty_label") and c.get("empty_input") else "")
         out.append(pad + f"Button {c.get('label')!r} → action {c.get('action')!r}" + empty
                    + (" (disabled)" if c.get("disabled") else ""))
+    elif t == "placed":  # the pane's version (the window's shows the same, drawn otherwise)
+        for ch in (c.get("children") or [])[:1]:
+            _walk(ch, out, depth, max_rows)
     elif t in ("card", "row", "column", "grid", "stats", "tabs", "section"):
         if c.get("title"):
             out.append(pad + f"## {c['title']}")

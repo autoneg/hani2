@@ -556,9 +556,9 @@ def verify(kind: str, spec: str) -> type:
 
             cls = get_agent_type(spec)
         elif kind == "assistants":
-            from hani2.support_agent.runtime import load_class
+            from hani2.support_agent.runtime import load_assistant_class
 
-            cls = load_class(spec)
+            cls = load_assistant_class(spec)  # a hosted one (remote:<name>) gives its adapter class
         else:
             from hani2.tools.registry import import_tool
 

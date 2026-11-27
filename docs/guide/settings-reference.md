@@ -60,6 +60,8 @@ More: [Study management](study-management.md#study-types).
 | [Scenario set](#setting-scenario-set) | `scenario_set` | The scenario types participants negotiate, and their order |
 | [Strict scenarios](#setting-strict-scenarios) | `strict_scenarios` | Serve saved scenarios only: a missing or broken pool is an error, never a generated scenario |
 | [Simple scenarios](#setting-simple-scenarios) | `simple_scenarios` | Generate scenarios with round numbers and linear or symmetric preferences |
+| [Normalized scenarios](#setting-normalized-scenarios) | `normalized_scenarios` | Generate scenarios normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1 |
+| [Assume normalized](#setting-assume-normalized) | `assume_normalized` | Start every negotiation on the scenario as it is, without checking that it is normalized |
 | [Forced value on disagreement](#setting-force-reserved-value) | `force_reserved_value` | The participant's value on disagreement in every negotiation, whatever the scenario says |
 | [Counted negotiations](#setting-n-required) | `n_required` | K: how many negotiations of each participant count (practice not included) |
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
@@ -123,6 +125,33 @@ same way are served. With **No**, any saved scenario may be served and generated
 shape.
 
 More: [Scenarios](scenarios.md#simple-scenarios).
+
+### Normalized scenarios {#setting-normalized-scenarios}
+
+`normalized_scenarios`: *Generate scenarios normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1*
+
+With **Yes** (the default), every generated scenario is normalized the way negmas normalizes: for each
+side every deal is worth 0 to 1 and, for linear-additive preferences, the issue weights add up to 1 and every
+issue's value function ranges from 0 to 1; the value on disagreement goes through the same map. With **No**,
+generated scenarios are kept as their generators draw them without normalizing (any values, negative
+included; of the built-in generators only Grocery draws such preferences, its items' points). Simple scenarios
+are always normalized, so switch **Simple scenarios** off too for this to have an effect. Saved scenarios are
+served as they were saved.
+
+More: [Scenarios](scenarios.md#normalized-scenarios).
+
+### Assume normalized {#setting-assume-normalized}
+
+`assume_normalized`: *Start every negotiation on the scenario as it is, without checking that it is normalized*
+
+Every negotiation is played on a normalized scenario (every deal worth 0 to 1, as negmas normalizes), so
+the offer buttons, gauges, history and scores read as percentages. A scenario that is not normalized is
+normalized when the negotiation starts; one that is normalized already (every built-in generator makes
+those) is used as it is. With **Yes**, the check is skipped too and every scenario is taken as normalized:
+use it when the scenarios are known to be normalized and the check takes too long. The Preferences tools
+in raw numbers show a scenario's original numbers either way.
+
+More: [Scenarios](scenarios.md#normalized-scenarios).
 
 ### Forced value on disagreement {#setting-force-reserved-value}
 
@@ -266,6 +295,7 @@ More: [Information](information.md).
 |---|---|---|
 | [HAN agents](#setting-opponents-han) | `opponents` | Add the entrant agents of a HAN league by year and set; the year is always written out |
 | [Opponent pool](#setting-opponents-pool) | `opponents` | Who participants face at this layer; the study's mode decides which human entries are offered |
+| [Self-hosted agents](#setting-hosted) | `hosted` | The Assistants and/or opponents are the teams' own hosts, registered for the project |
 
 ### HAN agents {#setting-opponents-han}
 
@@ -318,6 +348,18 @@ in red, so that it can be removed; the server refuses to save the contradiction.
 mode, the mode is derived from the pool, so every entry is offered.
 
 More: [Project management](project-management.md#pools-of-opponents-and-assistants).
+
+### Self-hosted agents {#setting-hosted}
+
+`hosted`: *The Assistants and/or opponents are the teams' own hosts, registered for the project*
+
+`{assistants: true, opponents: false, timeout: 30, max_failures: 3}`: when a side is `true`, its pool is
+every hosted agent of that kind registered for the project and switched on (Library → Hosted agents,
+`hani2 hosted add`), unless `assistants` / `opponents` lists its own. `timeout` is the seconds HANI2 waits
+for a host per call; `max_failures` the failed calls in a row before a hosted opponent walks away (the game
+still counts).
+
+More: [Self hosting](self-hosting.md).
 
 ## Assignment
 
@@ -790,6 +832,7 @@ More: [Project management](project-management.md#which-games-count).
 | [Leaderboard](#setting-leaderboard) | `leaderboard` | The board of this project (all its chosen studies) or of this study |
 | [Track](#setting-leaderboard-track) | `leaderboard.track` | Who is ranked: Assistants (hi) or opponent agents (han) |
 | [Source](#setting-leaderboard-source) | `leaderboard.source` | game: the games people played (default); tournament: the simulated table |
+| [Update](#setting-leaderboard-update) | `leaderboard.update` | pooled (default), latest tournament, or continuous (all games, recent ones weigh more) |
 | [Studies](#setting-leaderboard-studies) | `leaderboard.studies` | Which studies of this project feed the project board (default: all) |
 | [Rows from other projects](#setting-leaderboard-include) | `leaderboard.include` | Studies of other projects whose games of one stratum join this board |
 | [Sort options](#setting-leaderboard-sort-options) | `leaderboard.sort_options` | What end users may rank by: enabled scores or criteria with a direction |
@@ -839,6 +882,19 @@ More: [Project management](project-management.md#configuring-a-board).
   ranked by goal rate only; it has no switches, and a request for another sort or a switch gets a 400.
 
 More: [Project management](project-management.md#configuring-a-board).
+
+### Update {#setting-leaderboard-update}
+
+`leaderboard.update`: *pooled (default), latest tournament, or continuous (all games, recent ones weigh more)*
+
+- `pooled` (default): every counted game weighs the same.
+- `latest`: each study is a tournament; the newest one (by its latest game) replaces the board.
+- `continuous`: every counted game, recent games weigh more, and a probable change of an entrant is
+  flagged (for self-hosted agents, whose code may change unseen). The default method is a Kalman filter
+  over time ranked by its lower bound; `{mode: continuous, method: decayed, half_life_days: 30}` is a
+  time-decayed mean. A version an entrant declares is a hint only.
+
+More: [Project management](project-management.md#leaderboard-update-modes).
 
 ### Studies {#setting-leaderboard-studies}
 

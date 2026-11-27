@@ -34,5 +34,8 @@ cd frontend && npm install && npm run build   # rebuild the web app after fronte
   an `Assistant` helper, docs and a test.
 - Regenerate the scenario catalog when scenario texts change:
   `.venv/bin/python scripts/make_scenario_catalog.py docs/guide/scenario-sets.md`.
+- Regenerate the metric catalogue and the questionnaires page when a metric, a group, a validation or a bundled
+  questionnaire changes: `.venv/bin/python scripts/make_metric_catalog.py` (a new metric needs a group in
+  `evaluation/catalog.py`; mark a column validated only with a hand-worked test in `tests/validation/`).
 - Call the three parties the human ("participant" for the study role), the Assistant and the opponent.
   Old names (support agent, partner) stay only as aliases; stored and wire names do not change.

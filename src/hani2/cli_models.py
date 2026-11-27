@@ -153,26 +153,39 @@ def models_list(study: StudyOpt = None, as_json: Annotated[bool, typer.Option("-
 
     with _bound(study):
         eff = model_chain.effective_chains()
+        seqs = [d for d in model_chain.effective_sequences() if not d["purpose"]]
     if as_json:
-        typer.echo(json.dumps(eff, indent=2))
+        typer.echo(json.dumps({**eff, "sequences": seqs}, indent=2))
         return
-    for purpose, d in eff.items():
-        typer.echo(f"{purpose} (from {d['source'] or '-'}{', old settings' if d['implicit'] else ''}):")
-        for i, e in enumerate(d["entries"], 1):
+
+    def _entries(entries):
+        for i, e in enumerate(entries, 1):
             params = f" {json.dumps(e['params'])}" if e.get("params") else ""
             typer.echo(f"  {i}. {e.get('connection') or e.get('provider')}:{e['model']}{params}"
                        + (f"  ({e['label']})" if e.get("label") else ""))
+
+    for purpose, d in eff.items():
+        seq = f", sequence {d['sequence']}" if d.get("sequence") else ""
+        typer.echo(f"{purpose} (from {d['source'] or '-'}{', old settings' if d['implicit'] else ''}{seq}):")
+        _entries(d["entries"])
+    typer.echo("")
+    typer.echo("Named sequences:")
+    for d in seqs:
+        state = "DISABLED " if d["disabled"] else ""
+        typer.echo(f"{d['name']} ({state}from {d['source']}){': ' + d['description'] if d.get('description') else ''}")
+        _entries(d["entries"])
 
 
 @models_app.command("resolve")
 def models_resolve(study: StudyOpt = None,
                    purpose: Annotated[Optional[str], typer.Option("--purpose", help="Only this purpose.")] = None,
+                   sequence: Annotated[Optional[str], typer.Option("--sequence", help="Only this named sequence.")] = None,
                    as_json: Annotated[bool, typer.Option("--json")] = False):
-    """Which entry each purpose would use now (checks the providers)."""
+    """Which entry each purpose (or a named sequence) would use now (checks the providers)."""
     from hani2 import connections as conns
     from hani2 import model_chain
 
-    purposes = [purpose] if purpose else list(model_chain.PURPOSES)
+    purposes = [] if sequence else [purpose] if purpose else list(model_chain.PURPOSES)
     out = {}
     with _bound(study):
         conns.forget_probes()
@@ -180,6 +193,8 @@ def models_resolve(study: StudyOpt = None,
             if p not in model_chain.PURPOSES:
                 _fail(f"unknown purpose {p!r}; use {', '.join(model_chain.PURPOSES)}")
             out[p] = model_chain.resolve(p, fresh=True).record()
+        if sequence:
+            out[sequence] = model_chain.resolve(purpose or "assistant", sequence=sequence, fresh=True).record()
     if as_json:
         typer.echo(json.dumps(out, indent=2))
         return

@@ -9,7 +9,9 @@ HANI2 does not need a language model to run a negotiation. You need one for thre
 !!! tip "Which model is used"
     The models to use are set as **model chains**: ordered lists of models HANI2 tries until one
     is available, per purpose, per project or study, with **connections** to any provider (API
-    keys, local servers, agent harnesses). See [Models and connections](models.md). The two files
+    keys, local servers, agent harnesses), and as **named sequences** (`tiny`, `offline`, `small`,
+    `medium`, `large` and your own) that the Assistant, tools and the judge can pick by name. See
+    [Models and connections](models.md) and [Named sequences](models.md#named-sequences). The two files
     below are the old single-model settings: they are used when no chain is set, and their
     prompts and other keys always apply.
 

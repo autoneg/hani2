@@ -3,7 +3,7 @@
 import { api } from "../api";
 
 export type Interval = { mean: number | null; ci: [number | null, number | null] };
-export type SortOption = { key: string; title: string; kind: "score" | "criterion"; description?: string; direction?: string };
+export type SortOption = { key: string; title: string; kind: "score" | "criterion"; description?: string; direction?: string; group?: string; validated?: boolean };
 export type Entry = {
   rank: number;
   tied_with_leader: boolean;
@@ -31,7 +31,7 @@ export type Board = {
   generated_at: string;
   data_version: string;
   query: Record<string, string>;
-  options: { sort: SortOption[]; games?: string[]; stratum?: string[]; window?: string[]; defaults: Record<string, string> };
+  options: { sort: SortOption[]; games?: string[]; stratum?: string[]; window?: string[]; defaults: Record<string, string>; groups?: { id: string; title: string }[]; validated_tooltip?: string };
   columns: string[];
   scores: Record<string, ScoreInfo>;
   rules: Record<string, any>;

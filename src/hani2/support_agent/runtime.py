@@ -122,6 +122,11 @@ class SupportAgent:
     #: beside the page or over the tool area). ``None`` leaves it to the admin's
     #: settings. Needs the ``presentation`` capability; see :meth:`set_presentation`.
     presentation: dict[str, Any] | None = None
+    #: The named model sequence this Assistant's replies use (``""``: the study's ``assistant``
+    #: chain). Any sequence the study offers: ``default``, ``tiny``, ``offline``, ``small``,
+    #: ``medium``, ``large`` or one the admin (or, with ``own_models``, this Assistant) defined.
+    #: Needs the ``model_choice`` capability; see :meth:`use_model_sequence`.
+    model_sequence: str = ""
 
     def __init__(self, session_state: dict[str, Any], settings: dict):
         self.session_state = session_state
@@ -966,11 +971,102 @@ class SupportAgent:
 
     def model(self):
         """The language model this Assistant uses (a :class:`hani2.model_chain.Resolution`): the
-        ``assistant`` chain's first available entry, chosen once per session."""
+        ``assistant`` chain's first available entry (or of :attr:`model_sequence`), chosen once per
+        session."""
+        return self._resolve_model()
+
+    def _sequence(self, sequence: str | None = None) -> str:
+        """The sequence a call uses: ``sequence``, else :attr:`model_sequence` (only with ``model_choice``)."""
+        from hani2 import model_chain
+
+        name = self.model_sequence if sequence is None else sequence
+        if name and not self.capabilities.has(Capability.MODEL_CHOICE):
+            # its own sequences need only own_models
+            models = model_chain.models_of(self.session_state)
+            own = models is not None and name in models.own and self.capabilities.has(Capability.OWN_MODELS)
+            return name if own else ""
+        return name or ""
+
+    def _resolve_model(self, sequence: str | None = None):
+        from hani2 import model_chain
+
+        seq = self._sequence(sequence)
+        models = model_chain.models_of(self.session_state)
+        if models is not None:
+            return models.get("assistant", seq)
+        return model_chain.resolve("assistant", sequence=seq)
+
+    # ------------------------------------------------------------------ #
+    # Model sequences                                                     #
+    # ------------------------------------------------------------------ #
+    def model_sequences(self) -> list[dict[str, Any]]:
+        """The named model sequences this Assistant may use: ``[{name, description, source,
+        entries: [{provider|connection, model, params}]}]`` (no keys)."""
         from hani2 import model_chain
 
         models = model_chain.models_of(self.session_state)
-        return models.get("assistant") if models is not None else model_chain.resolve("assistant")
+        if models is not None:
+            return models.sequences()
+        return [d for d in model_chain.effective_sequences() if not d["disabled"]]
+
+    def use_model_sequence(self, name: str = "") -> dict[str, Any]:
+        """Use the named model sequence for this Assistant's replies from now on (``""``: back to the
+        study's ``assistant`` chain). Needs ``model_choice``. Returns ``{ok, sequence, model}`` or
+        ``{ok: False, error}``; the choice is recorded with the session's models."""
+        name = str(name or "").strip()
+        if not self.capabilities.has(Capability.MODEL_CHOICE) and not (name and self._sequence(name)):
+            return {"ok": False, "error": "capability 'model_choice' is not enabled"}
+        if name in ("", "assistant"):
+            self.model_sequence = ""
+            res = self._resolve_model()
+        else:
+            res = self._resolve_model(name)
+            if not res.ok:
+                return {"ok": False, "error": res.error}
+            self.model_sequence = name
+        return {"ok": True, "sequence": self.model_sequence, "model": res.short()}
+
+    def define_model_sequence(self, name: str, entries: Any, description: str = "") -> dict[str, Any]:
+        """Define one of this Assistant's own model sequences for the session (``own_models``
+        capability, off by default). ``entries`` is a list of ``"provider:model"`` texts or mappings
+        ``{"provider", "model", "params", "api_key" | "api_key_env", "api_base"}``; the key is used only
+        for this session's calls, masked in every log and never stored. Use it with
+        :meth:`use_model_sequence` or ``ask_llm(..., sequence=name)``."""
+        from hani2 import model_chain
+
+        if not self.capabilities.has(Capability.OWN_MODELS):
+            return {"ok": False, "error": "capability 'own_models' is not enabled"}
+        models = model_chain.models_of(self.session_state)
+        if models is None:
+            return {"ok": False, "error": "no session to define a model sequence for"}
+        try:
+            seq = models.define(str(name or "").strip(), entries, description)
+        except model_chain.ChainError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "sequence": seq.public()}
+
+    def ask_llm(self, prompt: str, *, system: str | None = None, sequence: str | None = None,
+                **params: Any) -> str:
+        """Send one prompt to a language model and return the reply text (for any task of yours that
+        needs a model: summaries, analyses, rewriting). ``sequence`` names a model sequence (needs
+        ``model_choice``; default: :attr:`model_sequence`, else the ``assistant`` chain); keyword
+        arguments (``temperature``, ``max_tokens``, ``effort``, ``thinking`` …) tune this call.
+        Blocks; raises when no model answers."""
+        from hani2 import model_chain
+
+        seq = self._sequence(sequence)
+        if sequence and not seq:
+            raise PermissionError("capability 'model_choice' is not enabled")
+        text = f"{system.strip()}\n\n{prompt}" if system else prompt
+        models = model_chain.models_of(self.session_state)
+        res = None if models is not None else model_chain.resolve("assistant", sequence=seq)
+        r = model_chain.completion("assistant", [{"role": "user", "content": text}], models=models,
+                                   resolution=res, sequence=seq,
+                                   params={k: v for k, v in params.items() if v is not None})
+        out = r.choices[0].message.content
+        if not out:
+            raise ValueError("the language model returned an empty reply")
+        return str(out).strip()
 
     def _own_model(self, res):
         """When no model chain is set (``res`` comes from the old settings files) but this
@@ -1034,12 +1130,13 @@ class SupportAgent:
         from hani2.recording.recorder import current_actor, llm_role
 
         with llm_role("autopilot" if current_actor() == "autopilot" else "support"):
-            res0 = models.get("assistant") if models is not None else model_chain.resolve("assistant")
-            own = self._own_model(res0)
+            seq = self._sequence()
+            res0 = self._resolve_model()
+            own = None if seq else self._own_model(res0)
             if own is not None:  # this Assistant's own settings name a model and no chain is set
                 res0, models = own, None
             params = {k: v for k, v in params.items() if k not in (res0.entry.params if res0.entry else {})}
-            response = model_chain.completion("assistant", _messages, models=models,
+            response = model_chain.completion("assistant", _messages, models=models, sequence=seq,
                                               resolution=None if models is not None else res0, params=params, **extra)
         msg = response.choices[0].message
         out: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
@@ -1071,8 +1168,8 @@ class SupportAgent:
         from hani2.recording.recorder import current_actor, llm_role, record_llm_call
 
         models = model_chain.models_of(self.session_state)
-        res = models.get("assistant") if models is not None else model_chain.resolve("assistant")
-        own = self._own_model(res)
+        res = self._resolve_model()
+        own = None if self._sequence() else self._own_model(res)
         if own is not None:
             res, models = own, None
         n = 0
@@ -1235,7 +1332,15 @@ class AssistantLoadError(RuntimeError):
 
 
 def load_assistant_class(spec: str) -> type[SupportAgent]:
-    """Load an Assistant class strictly (raises :class:`AssistantLoadError`)."""
+    """Load an Assistant class strictly (raises :class:`AssistantLoadError`). A hosted Assistant
+    (``remote:<name>``, ``remote+https://…``) gives an adapter class bound to its address (see
+    :mod:`hani2.hosting`)."""
+    from hani2.hosting.protocol import is_remote_spec
+
+    if is_remote_spec(spec):
+        from hani2.hosting.assistant import remote_assistant_class
+
+        return remote_assistant_class(spec)
     try:
         klass = load_class(spec)
     except Exception as e:  # noqa: BLE001

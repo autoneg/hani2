@@ -1,0 +1,1 @@
+import{c as a}from"./index-BbWPU41l.js";const e={name:"line-height",size:24,node:[["path",{d:"M15 14H9",key:"u4f7rb"}],["path",{d:"M21 21H3",key:"oafrgs"}],["path",{d:"M21 3H3",key:"e9iw4c"}],["path",{d:"m8 16 3.453-7.648a.6.6 0 011.094.001L16 16",key:"16ilm2"}]]};e.node;const i=a(e);export{e as __iconData,i as default};

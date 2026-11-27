@@ -32,25 +32,65 @@ The Preferences tool also shows, for every scenario:
   only part of their preferences ([Who knows what](information.md)) sees no
   hints.
 
-## Weights as a donut or a bar
+## Weights as a bar or a donut
 
-Issue weights are drawn as a donut by default. A thin horizontal bar, split
-into one segment per issue, takes much less room: set `tools.weights_chart` to
-`bar` in `env.json` (in the settings folder, a project or a study), or choose
-*Issue weights shown as* on the console's **Tools** page. Each segment shows
-its share when it fits, and the legend under the bar names every issue with
-its share. Signed weights (linear preferences with negative weights) are always
-drawn as signed bars.
+Issue weights are drawn as one thin horizontal bar by default, split into one
+coloured segment per issue: it takes much less room than a donut. Each segment
+shows its share when it fits, and the legend under the bar names every issue
+with its share. Set `tools.weights_chart` to `donut` in `env.json` (in the
+settings folder, a project or a study), or choose *Issue weights shown as* on
+the console's **Tools** page, to draw a ring instead. Signed weights (linear
+preferences with negative weights) are always drawn as signed bars.
+
+When the tool is **enlarged or popped out** (in its own window rather than
+pinned in a pane), `tools.weights_chart_window` decides on its own: `donut` or
+`bar`, or `same` (the default) for the pane's chart (*Issue weights in an
+enlarged or popped-out tool* on the **Tools** page).
 
 ```json
-{"tools": {"weights_chart": "bar"}}
+{"tools": {"weights_chart": "bar", "weights_chart_window": "donut"}}
 ```
+
+## Side by side in a pinned pane
+
+In a tool pane pinned outside the full view (the simple view on a desktop), the
+weights and the value of each option sit **side by side** whenever the pane is
+wide enough for two columns of about 170 px; in the full view's narrower
+columns, and in the tool's window, the usual two-column layout applies (it
+stacks below about 520 px).
+
+## Normalized percentages or raw numbers
+
+By default (`tools.preferences_scale: normalized`) everything is a percentage,
+normalized the way negmas normalizes: every deal is worth 0% (the worst) to
+100% (the best), the weights are shares adding up to 100% and every issue's
+options are worth 0% to 100%. Preferences that are not normalized are
+**normalized for display** by negmas (`ufun.normalize()`); the value on
+disagreement goes through the same map, so it keeps its place among the deals
+(below 0% if it is worse than the worst deal). The scenarios HANI2 generates
+are normalized already and are shown as they are. Preferences on an outcome
+space too large to search (and not linear-additive) are shown as they are.
+
+With `tools.preferences_scale: raw` (*Preferences shown as* on the **Tools**
+page) the tools show the utility function's own numbers: the weights as they
+are, the value of every option and the value on disagreement (with what the
+best deal is worth), without percentages. Not normalized, a deal can be worth anything (negative
+included), an issue's options any amount and the weights any size; a negative
+weight is drawn in red.
+
+## Many options: a line instead of bars
+
+An issue with more than `tools.values_line_above` options (12 by default), and
+every continuous issue, shows the value of its options as a **line** drawn the
+same way round as the bars: the options down the side, top to bottom, and their
+value across. Set the number on the **Tools** page (*Line plot above
+(options)*).
 
 ## Supported types
 
 | Utility function | What is shown |
 | --- | --- |
-| `LinearAdditiveUtilityFunction`, `LinearUtilityAggregationFunction` | Issue weights (donut or bar, see below), the value of each option of the selected issue, the starting amount if not zero |
+| `LinearAdditiveUtilityFunction`, `LinearUtilityAggregationFunction` | Issue weights (a bar or a donut, see above), the value of each option of the selected issue (bars, or a line for many options), the starting amount if not zero |
 | `LinearUtilityFunction`, `AffineUtilityFunction` | Signed weight per numeric issue, the formula, the starting amount |
 | `GLAUtilityFunction` | Weight of each factor; for the selected factor its value function, or a heatmap for two small discrete issues |
 | `PAUtilityFunction`, `GPAUtilityFunction` | Table of polynomial terms (coefficient and product of factors) and the value functions |

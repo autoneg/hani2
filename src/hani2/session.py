@@ -172,6 +172,9 @@ ADMIN_PREFS: dict[str, Any] = {
     # Generate simple scenarios (round numbers, linear and symmetric preferences); a project or
     # study setting `simple_scenarios` wins over this global default (see hani2.scenarios.simple).
     "simple_scenarios": True,
+    # generated scenarios normalized (the best deal worth 1) or in points; a study setting
+    # `normalized_scenarios` wins over this global default (see hani2.scenario_store).
+    "normalized_scenarios": True,
     "predefined_order": True,
     "allow_scenario_selection": False,
     # The scenario set to use (None: HANI2_SCENARIO_SET, then the default set).
@@ -453,8 +456,10 @@ class NegotiationSession:
         self.models = SessionModels(self)
         self.model_error: str | None = None
         self.support_agent = create_support_agent_for(self)
-        if self.support_agent is not None:
-            self.models.get("assistant")  # chosen at session start; a missing model shows a banner
+        if self.support_agent is not None and not getattr(self.support_agent, "brings_own_model", False):
+            # chosen at session start (the sequence the Assistant uses, if it chose one); a missing model shows a
+            # banner. A remote Assistant brings its own model: no local chain or sequence applies to it.
+            self.models.get("assistant", self.models.assistant_sequence())
         ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution(),
                                                                          **self._study_mode_event()})
 
@@ -2102,11 +2107,15 @@ class NegotiationSession:
                         strict=store.strict_scenarios(self.study_ref),  # a project/study setting, not an admin pref
                         simple_mode=store.simple_scenarios(self.study_ref,
                                                            self.admin_prefs.get("simple_scenarios", True)),
+                        normalized=store.normalized_scenarios(self.study_ref,
+                                                              self.admin_prefs.get("normalized_scenarios", True)),
                     )
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
                 self.toast(f"Could not load a scenario: {e}", "error")
                 return
+            if joined is None:  # the host of a match normalized the shared scenario already
+                scenario = store.normalize_for_play(scenario, self.study_ref)
             self.round_plan = plan
             # a participant who joined plays the waiting participant's scenario (and its type)
             self.ss["scenario_type"] = (info.get("scenario_type") or stype) if joined is not None else stype
@@ -2136,6 +2145,11 @@ class NegotiationSession:
             self.ss["scenario"] = scenario
             self.ss["scenario_info"] = info
             self.ss["scenario_dir"] = sdir
+            if sdir and joined is None:
+                # the scenario's statistics, cached next to it, in the background (hani2.scenario_stats)
+                from hani2 import scenario_stats
+
+                scenario_stats.request(folder=sdir, with_stats=False)
             self.ss["outcome_display"] = store.display_for(scenario, sdir)
             self.display_overrides = {}  # overrides name the previous scenario's issues
             if joined is not None:
@@ -2356,10 +2370,13 @@ class NegotiationSession:
     def assistant_attribution(self) -> dict[str, Any]:
         """``assistant``, ``assistant_group``, ``assistant_class``, ``assistant_error`` (results rows,
         events, recordings)."""
+        from hani2.hosting.protocol import is_remote_spec, recorded_spec
+
         c = self.assistant_choice
         sa = self.__dict__.get("support_agent")
+        spec = (c.spec or "") if c is not None else ""
         return dict(
-            assistant=(c.spec or "") if c is not None else "",
+            assistant=recorded_spec(spec) if is_remote_spec(spec) else spec,  # a hosted one: its name, no address
             assistant_group=(c.group or "") if c is not None else "",
             assistant_source=c.source if c is not None else "",
             assistant_class=f"{type(sa).__module__}.{type(sa).__qualname__}" if sa is not None else "",
@@ -2493,6 +2510,12 @@ class NegotiationSession:
         pool = expand_agents(self.admin_prefs.get("opponent_types") or [])
         if pool:
             self.opponent_group = _group_name(self.admin_prefs.get("opponent_types"))
+            return pool
+        from hani2.hosting.registry import hosted_pool
+
+        pool = hosted_pool("opponent", self.study_ref)  # the self-hosted mode (``hosted: {opponents: true}``)
+        if pool:
+            self.opponent_group = "hosted"
             return pool
         env = get_env("opponents", []) or get_env("agents", []) or []
         pool = expand_agents(env)
@@ -3205,6 +3228,12 @@ class NegotiationSession:
             verbose=os.environ.get("HANI2_VERBOSE") == "1",
             models=self.models,
         )
+        self.ss.pop("hosted_opponent", None)
+        if getattr(agent, "is_remote", False):  # a self-hosted opponent: record its name, never its address
+            from hani2.hosting.protocol import recorded_spec
+
+            self.ss["last_partner_type"] = recorded_spec(partner)
+            agent.attach(self)
         self.ss["opponent_user"] = None
         self._finish_make_mechanism(scenario, hi, agent, human_name)
 
@@ -4118,7 +4147,8 @@ class NegotiationSession:
         """Change the interface layout: ``view`` (full | simple | focus | bare; bare shows no
         tools; refused when the study locks the view),
         ``sizes`` (region → fraction of its container, as set by dragging the
-        dividers: ``tools`` (tool column width), ``upper`` (upper tools' share of
+        dividers: ``tools`` (tool column width in the full view), ``simple_tools``
+        (in the simple view), ``upper`` (upper tools' share of
         the column), ``dock`` (offer area's share of the height), ``side``
         (offer generators' share of the offer row), ``assistant``; tablets use
         ``tablet_tools``, ``tablet_dock`` and ``tray``; a missing key means the

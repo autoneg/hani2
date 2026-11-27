@@ -358,10 +358,12 @@ def _build_full_context(ctx: NegotiationContext | None) -> dict[str, str]:
     }
 
 
-def chain_settings(purpose: str = "text", models: Any = None, **params: Any) -> dict:
-    """Settings for :func:`_call_llm` that use the ``purpose`` model chain (prompts from
-    ``llm_settings.json``; ``models``: the session's :class:`~hani2.model_chain.SessionModels`)."""
-    return {**load_llm_settings(), "_purpose": purpose, "_models": models, "_params": params}
+def chain_settings(purpose: str = "text", models: Any = None, sequence: str = "", **params: Any) -> dict:
+    """Settings for :func:`_call_llm` that use the ``purpose`` model chain, or the named model
+    ``sequence`` (prompts from ``llm_settings.json``; ``models``: the session's
+    :class:`~hani2.model_chain.SessionModels`)."""
+    return {**load_llm_settings(), "_purpose": purpose, "_models": models, "_params": params,
+            "_sequence": sequence or ""}
 
 
 def _one_off_entry(settings: dict):
@@ -386,7 +388,8 @@ def _call_llm(prompt: str, settings: dict | None = None) -> str:
     if "_purpose" in settings:
         params = {k: v for k, v in (settings.get("_params") or {}).items() if v is not None}
         response = model_chain.completion(settings["_purpose"], messages, models=settings.get("_models"),
-                                          resolution=settings.get("_resolution"), params=params)
+                                          resolution=settings.get("_resolution"), params=params,
+                                          sequence=settings.get("_sequence") or "")
     else:
         res = _one_off_entry(settings)
         response = model_chain.completion("text", messages, resolution=res)
@@ -894,11 +897,13 @@ def get_llm_status(purpose: str = "text") -> dict[str, Any]:
 
 
 def complete(prompt: str, *, system: str | None = None, session: Any = None, purpose: str = "tools",
-             **overrides: Any) -> str:
+             sequence: str = "", **overrides: Any) -> str:
     """Send one prompt to the language model and return its reply as text.
 
     This is the simplest way for a tool (or any other code) to use the language model: the
     ``tools`` model chain (see :mod:`hani2.model_chain`), pinned for ``session`` when given.
+    ``sequence`` names a model sequence to use instead (``small``, ``large``, ``offline`` …; see
+    :func:`hani2.model_chain.sequence_chain`).
     ``system`` is put before the prompt as instructions; ``temperature``, ``max_tokens`` and other
     keyword arguments tune this call; ``provider`` and ``model`` (with ``api_key_env``,
     ``api_base``) call that model directly instead of the chain.
@@ -911,4 +916,4 @@ def complete(prompt: str, *, system: str | None = None, session: Any = None, pur
         settings = {**load_llm_settings(), **overrides}
         return _call_llm(text, settings).strip()
     models = model_chain.models_of(session)
-    return _call_llm(text, chain_settings(purpose, models, **overrides)).strip()
+    return _call_llm(text, chain_settings(purpose, models, sequence, **overrides)).strip()

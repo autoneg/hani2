@@ -81,6 +81,7 @@ export const NEGOTIATION: FieldGroup[] = [
       { id: "load-existing", path: "negotiation.load_existing", label: "Use saved scenario pools", hint: "Off: generate a fresh scenario each time", type: "toggle" },
       { id: "generate-on-failure", path: "negotiation.generate_on_failure", label: "Generate a scenario when none is saved", type: "toggle" },
       { id: "simple-scenarios", path: "negotiation.simple_scenarios", label: "Simple scenarios", hint: "Round numbers, linear and symmetric preferences; a project or study setting wins", type: "toggle" },
+      { id: "normalized-scenarios", path: "negotiation.normalized_scenarios", label: "Normalized scenarios", hint: "Generated scenarios are normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1, every value function from 0 to 1 (on by default). Off, they are kept as their generators draw them (any values; only Grocery draws such ones). Simple scenarios stay normalized, so switch them off too. A project or study setting wins", type: "toggle", keywords: "normalized normalised raw points scale generate scenarios" },
       { id: "scenario-set-session", path: "negotiation.scenario_set", label: "Scenario set", hint: "Empty: the default set (Scenarios page)", type: "custom" },
       { id: "predefined-order", path: "negotiation.predefined_order", label: "Follow the scenario order", type: "toggle" },
       { id: "allow-scenario-selection", path: "negotiation.allow_scenario_selection", label: "Participants may choose the scenario", hint: "The old switch (any type, every layer); prefer \"What participants may choose\" below", type: "toggle" },
@@ -227,11 +228,23 @@ export const TOOLS_BASE: FieldGroup[] = [
     title: "Tool panes",
     fields: [
       { id: "tools-maximize", path: "tools.maximize", label: "Enlarged tools open as", hint: "Each tool has an enlarge button; Put back returns it to its pane", type: "select", options: [{ value: "window", label: "A large window" }, { value: "fullscreen", label: "The full screen" }, { value: "off", label: "Not allowed" }] },
-      { id: "weights-chart", path: "tools.weights_chart", label: "Issue weights shown as", hint: "In the Preferences tool. A thin bar takes much less room than the donut.", type: "select", options: [{ value: "donut", label: "A donut" }, { value: "bar", label: "A horizontal bar" }], keywords: "weights donut pie bar stacked preferences space compact" },
+      { id: "weights-chart", path: "tools.weights_chart", label: "Issue weights shown as", hint: "In the Preferences tools. A thin bar (the default) takes much less room than the donut.", type: "select", options: [{ value: "bar", label: "A horizontal bar" }, { value: "donut", label: "A donut" }], keywords: "weights donut pie circle bar stacked preferences space compact" },
+      { id: "weights-chart-window", path: "tools.weights_chart_window", label: "Issue weights in an enlarged or popped-out tool", hint: "When the Preferences tool is in its own window (enlarged or a popup) rather than pinned in a pane", type: "select", options: [{ value: "same", label: "As in the pane" }, { value: "donut", label: "A donut" }, { value: "bar", label: "A horizontal bar" }], keywords: "weights donut pie circle bar window popup enlarged maximized unpinned preferences" },
+      { id: "preferences-scale", path: "tools.preferences_scale", label: "Preferences shown as", hint: "Normalized: percentages, every deal worth 0% to 100% and the weights as shares adding up to 100% (preferences that are not normalized are normalized for display, as negmas does it). Raw: the utility function's own numbers.", type: "select", options: [{ value: "normalized", label: "Normalized percentages" }, { value: "raw", label: "Raw numbers" }], keywords: "normalized normalised percent raw numbers scale weights values preferences" },
+      { id: "values-line-above", path: "tools.values_line_above", label: "Line plot above (options)", hint: "An issue with more options than this (or a continuous one) shows its values as a line instead of bars", type: "stepper", min: 2, max: 200, keywords: "line plot bars values options many continuous preferences" },
       { id: "isolate-builtin", path: "tools.isolate_builtin", label: "Catch built-in tool failures", hint: "On: a failing built-in tool shows the failure in its own pane, like external tools always do. Off: built-in errors surface as before (for debugging HANI2).", type: "toggle", keywords: "error failure crash isolate guard exception debug broken tool" },
       { id: "render-timeout", path: "tools.render_timeout", label: "Tool render time limit (seconds)", hint: "A tool that takes longer to draw shows that it is not working; 0: no limit", type: "stepper", min: 0, step: 5, keywords: "timeout slow hang stuck tool render" },
       { id: "show-opponent-utility", path: "tools.show_opponent_utility", label: "Participants see opponent utilities", hint: "Lets everyone switch on the opponent's utility in the Utility Plot and Trace", type: "toggle" },
       { id: "tools-extra", path: "tools.extra", label: "Extra tools", hint: "Python classes, e.g. my_pkg.tools:MyTool", type: "tags", placeholder: "pkg.mod:Tool" },
+    ],
+  },
+  {
+    title: "Scenario statistics",
+    footer: "negmas statistics of every scenario (opposition, Pareto frontier, bargaining solutions), computed in the background when a negotiation starts and cached next to the scenario (_stats.yaml). Shown on the Scenarios page and in the Scenario Stats tool.",
+    fields: [
+      { id: "scenario-stats-enabled", path: "scenario_stats.enabled", label: "Compute scenario statistics", type: "toggle", keywords: "stats statistics pareto nash kalai opposition negmas" },
+      { id: "scenario-stats-pareto-max", path: "scenario_stats.pareto_max_outcomes", label: "Keep the Pareto frontier up to (outcomes)", hint: "Larger scenarios cache every other statistic but not the frontier", type: "stepper", min: 0, step: 100000, keywords: "stats pareto frontier cache" },
+      { id: "scenario-stats-timeout", path: "scenario_stats.timeout", label: "Time limit (seconds)", hint: "A scenario that takes longer is skipped", type: "stepper", min: 1, step: 30, keywords: "stats timeout slow" },
     ],
   },
 ];

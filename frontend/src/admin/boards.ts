@@ -3,19 +3,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { SortOption } from "../leaderboard/board";
-
-export const SOURCE_TITLE: Record<string, string> = {
-  hard: "Criteria measured when the game ends",
-  soft: "Criteria rated by the language-model judge",
-  subjective: "Questionnaire scales (bundled)",
-  questionnaire: "Questionnaire items and scales of the forms",
-};
+import { grouped, type MetricGroup } from "../ui/metricGroups";
 
 export interface Criteria {
-  /** criteria with a direction (higher or lower), by source: what a board can be sorted by */
+  /** criteria with a direction (higher or lower), in the catalogue's groups: what a board can be sorted by */
   sortGroups: { label: string; options: SortOption[] }[];
   /** every criterion, for columns (a criterion without a direction can be shown but not sorted by) */
-  all: { key: string; title: string; direction: string; source: string }[];
+  all: { key: string; title: string; direction: string; source: string; group: string; validated: boolean }[];
+  /** the groups of similar measures (``groups`` of the API), in order */
+  groups: MetricGroup[];
   titles: Record<string, string>;
 }
 
@@ -32,26 +28,26 @@ export function useCriteria(project: string | null, study?: string | null): Crit
         const crit = (d.criteria ?? []).filter((x: any) => x.source !== "score");
         const titles: Record<string, string> = {};
         for (const x of d.criteria ?? []) titles[x.id] = x.title || x.id;
-        const sortGroups = Object.keys(SOURCE_TITLE)
-          .map((s) => ({
-            label: SOURCE_TITLE[s],
-            options: crit.filter((x: any) => x.source === s && (x.direction === "higher" || x.direction === "lower")).map((x: any) => ({ key: x.id, title: x.title || x.id, kind: "criterion" as const, direction: x.direction, description: x.description })),
-          }))
-          .filter((g) => g.options.length);
-        setC({ sortGroups, titles, all: crit.map((x: any) => ({ key: x.id, title: x.title || x.id, direction: x.direction, source: x.source })) });
+        const groups: MetricGroup[] = d.groups ?? [];
+        const sortable = crit.filter((x: any) => x.direction === "higher" || x.direction === "lower");
+        const sortGroups = grouped(sortable, (x: any) => x.group, groups).map((g) => ({
+          label: g.title,
+          options: g.items.map((x: any) => ({ key: x.id, title: x.title || x.id, kind: "criterion" as const, direction: x.direction, description: x.description, group: x.group, validated: !!x.validated })),
+        }));
+        setC({ sortGroups, titles, groups, all: crit.map((x: any) => ({ key: x.id, title: x.title || x.id, direction: x.direction, source: x.source, group: x.group, validated: !!x.validated })) });
       })
-      .catch(() => setC({ sortGroups: [], titles: {}, all: [] }));
+      .catch(() => setC({ sortGroups: [], titles: {}, all: [], groups: [] }));
   }, [project, study]);
   return c;
 }
 
-/** ``GET /api/admin/scores``: every defined score (key, title, track) and the enabled ones. */
+/** ``GET /api/admin/scores``: every defined score (key, title, track, whether it is validated) and the enabled ones. */
 export function useScores(project: string | null, study?: string | null, version?: unknown) {
-  const [d, setD] = useState<{ scores: { key: string; title: string; track: string }[]; enabled: string[] } | null | undefined>(undefined);
+  const [d, setD] = useState<{ scores: { key: string; title: string; track: string; validated: boolean }[]; enabled: string[] } | null | undefined>(undefined);
   useEffect(() => {
     if (!project) return;
     api(`/api/admin/scores?${qs(project, study)}`)
-      .then((r: any) => setD({ scores: (r.scores ?? []).map((s: any) => ({ key: s.key, title: s.title || s.key, track: s.track })), enabled: r.enabled ?? [] }))
+      .then((r: any) => setD({ scores: (r.scores ?? []).map((s: any) => ({ key: s.key, title: s.title || s.key, track: s.track, validated: !!s.validated })), enabled: r.enabled ?? [] }))
       .catch(() => setD(null));
   }, [project, study, version]);
   return d;

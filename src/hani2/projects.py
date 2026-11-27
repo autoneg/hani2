@@ -41,10 +41,10 @@ STUDY_TYPES = ("prolific", "online", "lab")
 DEFAULT_KEYS = (
     "scenario_set", "n_required", "practice", "practice_time_limit", "counted_time_limit", "time_limit",
     "n_steps", "minutes", "role_rule", "human_roles", "opponents", "assistants", "scheduling",
-    "strict_scenarios", "simple_scenarios", "information", "assistant_starts_on", "questionnaires",
+    "strict_scenarios", "simple_scenarios", "normalized_scenarios", "assume_normalized", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
     "scores", "scores_enabled", "normalisation", "leaderboard",
-    "force_reserved_value",
+    "force_reserved_value", "hosted",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -289,6 +289,10 @@ def file_problems(data: dict, nested: str, *, strict: bool = True) -> list[str]:
     from hani2.evaluation import boards
 
     out += boards.file_problems(data, nested)
+    from hani2.hosting.registry import check_hosted_block
+
+    for where, src in (("hosted", data), (f"{nested}.hosted", inner)):
+        out += check_hosted_block(src.get("hosted"), where)
     return list(dict.fromkeys(out))
 
 
@@ -702,7 +706,8 @@ def public_base_url() -> str:
 #: folders never exported (results, recordings, caches)
 EXPORT_SKIP_DIRS = {"results", "recordings", "eval_cache", "secrets", "__pycache__", ".git"}
 #: settings files that may hold keys or passwords: exported only with ``with_settings``
-EXPORT_SECRET_FILES = {"env.json", "llm_settings.json", "models.json", "connections.json", ".env"}
+EXPORT_SECRET_FILES = {"env.json", "llm_settings.json", "models.json", "connections.json", ".env",
+                       "hosted_agents.json"}  # the teams' tokens of self-hosted agents
 
 
 def export_project(name: str, out_dir: "str | Path", *, with_settings: bool = False,

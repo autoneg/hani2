@@ -376,6 +376,14 @@ parameters (`temperature=0.2, max_tokens=800`) and a label. You can test, move, 
 an entry. **Test chains** shows which entry each purpose resolves to now, and why each earlier entry
 was skipped; with unsaved changes it tests those. See [Models and connections](models.md#model-chains).
 
+A purpose can also use a **named sequence** instead of its own chain (the picker next to **Use the
+inherited chain**). The **Named model sequences** group lists every sequence at the layer: the
+built-in `tiny`, `offline`, `small`, `medium` and `large`, and the ones defined in the settings
+folder, the project or the study, each with where it comes from. **Override here** copies one to the
+layer to edit, **Disable here** hides it at this layer and below, and **Add a sequence** creates a
+new one. Parameters include `thinking=false` and `effort=high`. See
+[Named sequences](models.md#named-sequences).
+
 ## Assistant settings
 
 `assistant_settings.json`.

@@ -432,3 +432,17 @@ def test_docs_page_is_in_sync():
     for c in C.metric_criteria():
         assert f"`{c.id}`" in text
     assert "HANI " not in text and "HANI." not in text
+
+
+def test_scale_direction_follows_its_items():
+    """A scale whose items are all lower-is-better (NASA-TLX workload) is lower-is-better, not higher."""
+    from hani2 import questionnaires
+    from hani2.evaluation.criteria import questionnaire_criteria
+
+    tlx = questionnaires.library()["nasa_tlx"]
+    crit = {c.id: c for c in questionnaire_criteria({"questions": tlx["questions"]}, "per_negotiation")}
+    assert crit["scale_workload"].direction == "lower" and crit["scale_workload_norm"].direction == "lower"
+    assert crit["q_tlx_mental"].direction == "lower"
+    mixed = {"questions": [{"id": "a", "text": "a", "type": "likert7", "scale": "s", "direction": "lower"},
+                           {"id": "b", "text": "b", "type": "likert7", "scale": "s"}]}
+    assert {c.id: c.direction for c in questionnaire_criteria(mixed)}["scale_s"] == "higher"

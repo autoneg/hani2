@@ -12,6 +12,8 @@ import { Stepper } from "./controls/Stepper";
 import { Checks } from "./controls/Checks";
 import { Toggle } from "./controls/Toggle";
 import { type Criteria, useCriteria, useScores } from "./boards";
+import { grouped } from "../ui/metricGroups";
+import { type KeyGroup, KeyList } from "./controls/KeyList";
 import { COUNT_COLUMNS, SWITCH_TITLE, type Switch, boardPage, switchLabel } from "../leaderboard/board";
 import { ROOT } from "../pages/Leaderboard";
 
@@ -23,32 +25,6 @@ function switchValues(sw: Switch, track: string, extra: string[] = []): string[]
   if (sw === "games") return ["all", "people", "ai"];
   if (sw === "stratum") return STRATA[track] ?? STRATA.hi;
   return [...new Set([...WINDOWS, ...extra.filter((x) => /^last_\d+_days$/.test(x))])];
-}
-
-type KeyGroup = { label: string; keys: { key: string; title: string }[] };
-
-/** An ordered list of score or criterion keys: chips with a remove button, and an "Add…" menu. */
-function KeyList({ label, value, groups, onChange, titles }: { label: string; value: string[]; groups: KeyGroup[]; onChange: (v: string[]) => void; titles: Record<string, string> }) {
-  return (
-    <span className="flex flex-wrap items-center justify-end gap-1.5" data-key-list={label}>
-      {value.map((k) => (
-        <span key={k} className="chip py-0.5 text-[0.78rem]" title={k}>
-          {titles[k] ?? k}
-          <button type="button" aria-label={`Remove ${k} from ${label}`} className="text-muted hover:text-bad" onClick={() => onChange(value.filter((x) => x !== k))}>
-            <X size={12} />
-          </button>
-        </span>
-      ))}
-      <select aria-label={`Add to ${label}`} value="" onChange={(e) => e.target.value && onChange([...value, e.target.value])} className="max-w-[12rem] rounded-md border border-line bg-surface py-1 pl-2 pr-6 text-xs text-ink focus:border-you focus:outline-none">
-        <option value="">Add…</option>
-        {groups.map((g) => (
-          <optgroup key={g.label} label={g.label}>
-            {g.keys.filter((x) => !value.includes(x.key)).map((x) => <option key={x.key} value={x.key}>{x.title}{x.title !== x.key ? ` (${x.key})` : ""}</option>)}
-          </optgroup>
-        ))}
-      </select>
-    </span>
-  );
 }
 
 export function LeaderboardSettings({ value, onChange, project, study, kind, info, studies, version }: {
@@ -93,9 +69,11 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
   const enabled = scores?.enabled ?? [];
   const titleOf: Record<string, string> = { ...(crit?.titles ?? {}), ...COUNT_TITLE };
   for (const s of scores?.scores ?? []) titleOf[s.key] = s.title;
-  const scoreGroup: KeyGroup = { label: "Enabled scores", keys: enabled.map((k) => ({ key: k, title: titleOf[k] ?? k })) };
-  const sortGroups: KeyGroup[] = [scoreGroup, ...(crit?.sortGroups ?? []).map((g) => ({ label: g.label, keys: g.options.map((o) => ({ key: o.key, title: o.title })) }))];
-  const columnGroups: KeyGroup[] = [scoreGroup, { label: "Counts", keys: COUNT_COLUMNS.map((k) => ({ key: k, title: COUNT_TITLE[k] })) }, { label: "Criteria", keys: (crit?.all ?? []).map((c) => ({ key: c.key, title: c.title })) }];
+  const validatedScore = new Set((scores?.scores ?? []).filter((s) => s.validated).map((s) => s.key));
+  const scoreGroup: KeyGroup = { label: "Enabled scores", keys: enabled.map((k) => ({ key: k, title: titleOf[k] ?? k, validated: validatedScore.has(k) })) };
+  const sortGroups: KeyGroup[] = [scoreGroup, ...(crit?.sortGroups ?? []).map((g) => ({ label: g.label, keys: g.options.map((o) => ({ key: o.key, title: o.title, validated: o.validated })) }))];
+  const criteriaGroups: KeyGroup[] = grouped(crit?.all ?? [], (c) => c.group, crit?.groups).map((g) => ({ label: g.title, keys: g.items.map((c) => ({ key: c.key, title: c.title, validated: c.validated })) }));
+  const columnGroups: KeyGroup[] = [scoreGroup, { label: "Counts", keys: COUNT_COLUMNS.map((k) => ({ key: k, title: COUNT_TITLE[k] })) }, ...criteriaGroups];
   const sortOptions: string[] = v.sort_options ?? inh.sort_options ?? [];
   const columns: string[] = v.columns ?? inh.columns ?? [];
   const defaultSort: string = v.default_sort ?? inh.default_sort ?? sortOptions[0] ?? "";
@@ -158,6 +136,14 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
           </Row>
           <Row id="board-source" help="leaderboard.source" label="Source" overridden={v.source !== undefined} onReset={() => put("source", null)}>
             <Select label="Source" value={v.source ?? ""} onChange={(x) => put("source", x)} options={[{ value: "", label: shown("source") }, { value: "game", label: "game: the games people played" }, { value: "tournament", label: "tournament: the simulated table" }]} />
+          </Row>
+          <Row id="board-update" help="leaderboard.update" label="Update" overridden={v.update !== undefined} onReset={() => put("update", null)}>
+            <Select
+              label="Update"
+              value={updateValue(v.update)}
+              onChange={(x) => put("update", x === "" ? null : x === "decayed" ? { mode: "continuous", method: "decayed" } : x)}
+              options={[{ value: "", label: `${inherit} (${updateValue(inh.update) || "pooled"})` }, { value: "pooled", label: "pooled: every game weighs the same" }, { value: "latest", label: "latest: the newest study replaces the board" }, { value: "continuous", label: "continuous: all games, recent ones weigh more (Kalman)" }, { value: "decayed", label: "continuous: time-decayed mean" }]}
+            />
           </Row>
           {!isStudy && (
             <>
@@ -233,4 +219,12 @@ export function LeaderboardSettings({ value, onChange, project, study, kind, inf
       )}
     </Group>
   );
+}
+
+/** The update rule as the select shows it: a mode name, or ``decayed`` for a continuous decayed mean. */
+function updateValue(u: any): string {
+  if (!u) return "";
+  if (typeof u === "string") return u;
+  if (u.mode === "continuous" && u.method === "decayed") return "decayed";
+  return String(u.mode ?? "pooled");
 }

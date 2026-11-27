@@ -1,0 +1,1 @@
+import{c as t}from"./index-BbWPU41l.js";const e={name:"letter-w",size:24,node:[["path",{d:"m21 4-4.794 15.821a.25.25 0 01-.471.021l-3.503-8.685a.25.25 0 00-.464 0l-3.503 8.685a.25.25 0 01-.47-.021L3 4",key:"1q41gw"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

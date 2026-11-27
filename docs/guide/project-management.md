@@ -264,6 +264,20 @@ the settings folder and finally the built-in groups (see [Group files](opponents
 and [Assistant groups](assistant.md#assistant-groups)). `hani2 groups list --project <P>` lists a
 project's groups, and the admin API edits them (see [Admin API](#admin-api)).
 
+**Self-hosted pools.** With
+
+```yaml
+hosted:
+  assistants: true      # the Assistant pool: every hosted Assistant registered for the project and switched on
+  opponents: false      # the same for opponents
+  timeout: 30           # seconds HANI2 waits for a host per call
+  max_failures: 3       # failed calls in a row before a hosted opponent walks away
+```
+
+in `project.yaml` (or a study's `study.yaml`), the teams' own hosts make up the pool (see
+[Self-hosting an Assistant or opponent](self-hosting.md)). An `assistants:` or `opponents:` list
+still wins and may name hosted agents itself as `remote:<name>`.
+
 **The mode limits the opponent pool.** In the admin console (Opponents → **Opponents participants
 face**), the pool of a project or study that declares a **Mode** offers only the entries that mode
 allows:
@@ -437,7 +451,7 @@ hani2 scores criteria HI2027/play --coverage   # with the share of the study's g
 
 Admins get the same list from `GET /api/admin/criteria?project=<project>` or
 `?study=<project>/<study>`, with `&coverage=true` for the coverage. Each entry has its `id`, `title`,
-`description`, `source`, `level`, `direction`, `normaliser`, `cost` and `coverage`. The response also
+`description`, `source`, `level`, `direction`, `normaliser`, `cost`, `coverage`, `group` (its group of similar measures) and `validated` (see the [Metric catalogue](metric-catalog.md)); the response's `groups` lists the groups in order. The response also
 gives the normaliser kinds and a summary of the project's reference (whether it is frozen, when, from
 which studies and how many games). Coverage is computed from the games without the judge, so judged
 criteria and post-session answers show no coverage (`null`) there.
@@ -693,6 +707,7 @@ leaderboard:
   visibility: participants          # public | participants | admins
   rules: {min_games: 10, min_participants: 3, max_games_per_pair: 3,
           max_games_per_participant: 20, exclude_own: false, adjust: relative, ci: 0.95}
+  update: pooled                    # pooled (default) | latest | continuous (see below)
 ```
 
 | Key | Default | Meaning |
@@ -708,6 +723,7 @@ leaderboard:
 | `defaults` | `games: all`, the first stratum, `window: all` | The value of each switch when the viewer does not choose. |
 | `visibility` | `participants` | Who may see the board ([below](#visibility)). |
 | `rules` | see [Which games count](#which-games-count) | Minimums, caps, own-team games, adjustment, confidence level. |
+| `update` | `pooled` | How games combine over time: `pooled`, `latest` or `continuous` ([below](#leaderboard-update-modes)). |
 
 **Sorting.** A score is ranked by its entrant-level mean, and a criterion by its mean in its own
 direction (a criterion where lower is better, such as `irrational_accept`, ranks upwards). End
@@ -726,6 +742,51 @@ block whose keys are not known, whose switch values or defaults are not allowed,
 (`scores_enabled`) in every study the board reads. A study that disables a score its board sorts by
 is refused too. A hand-edited file that breaks these rules is still served: what cannot be used is
 left out and named in the board's `warnings`.
+
+### Leaderboard update modes
+
+`update` says how a board combines games played at different times:
+
+| `update` | Which games | Use it for |
+|---|---|---|
+| `pooled` (default) | Every counted game, each weighing the same. | A study that runs once, or entrants whose code is fixed. |
+| `latest` | Only the newest **tournament**. Each study of the board is one tournament, and the newest by its latest game replaces the board; an entrant missing from it is not listed. The notes name the tournament, and `excluded` counts the earlier games. | Periodic or aperiodic competitions in which every round replaces the previous ranking. |
+| `continuous` | Every counted game, with recent games weighing more. Nothing assumes that an entrant's code stays the same. | Self-hosted agents ([Self-hosting](self-hosting.md)): teams may change their agent at any time, and we cannot see its code. |
+
+A continuous board takes options:
+
+```yaml
+leaderboard:
+  update: {mode: continuous, method: kalman, drift_sd: 0.1, z: 1.0, change_h: 5}
+  # or {mode: continuous, method: decayed, half_life_days: 30, shrinkage: 5}
+```
+
+* **`method: kalman`** (default). Each entrant's skill is a level that drifts over time (`drift_sd`
+  per 30 days). Every game is a noisy observation of the level. The observation noise and the prior
+  come from the board's own games, so an entrant with few games is pulled toward the field.
+    * The board ranks by the **lower bound** `mean − z·sd`, so a new entrant, an idle one (its
+      uncertainty grows while it does not play) or one that just changed is not ranked above an
+      established one on a few lucky games. Use `rank_by: mean` to rank by the mean instead.
+    * A **change flag** (a two-sided CUSUM test on the filter's surprises, threshold `change_h`) marks
+      a probable new version when the results shift. The estimate then re-learns within a few games
+      instead of averaging the old and new versions.
+    * A change of the version the entrant declares (`assistant_version` / `opponent_version`, from
+      self-hosted agents) does the same. It is only a hint (`version_hint: false` ignores it): a
+      declared version never splits an entrant.
+* **`method: decayed`**. An exponentially time-decayed mean with half-life `half_life_days`, pulled
+  toward the field's mean by `shrinkage` games.
+
+The filter reads each game's **cell-adjusted** value (the same adjustment as `rules.adjust`), so a
+change in the mix of scenarios or opponents is not read as a change in the entrant. On a continuous
+board each entry's `values[k].mean` and `ci` are the filtered mean and `mean ± z·sd`, and the entry
+gains a `rating` field: `mean`, `sd`, `lower`, `score` (what the rank uses), `n_eff`, `first_game`,
+`last_game`, `versions` and `changes` (time and kind of each flagged change). The notes say which
+entrants were flagged. `min_games`, `min_participants` and the switches work as on every board.
+
+The same rules are available outside HANI2 in the module `hani2.ratings`, which needs only the Python
+standard library. Another site can import it, or run
+`python -m hani2.ratings '{"mode": "continuous"}' < games.jsonl`, where each line is
+`{"entrant", "time", "value", "version"?, "tournament"?}`.
 
 ### Setting up a board in the admin console
 
@@ -1187,6 +1248,7 @@ A layer `L` is `settings`, `project:<P>` or `study:<P>/<S>`; the old `?study=P/S
 | `/api/admin/library/...` | Scenario types, opponents, Assistants and tools: items, upload, link, remove, groups, the default scenario set, the tools offered and their placement per view. See the [Library API](../reference/library-api.md). |
 | `GET /api/admin/scenarios/{name}?layer=L[&scenario=S][&generate=N]` | A type's details: texts, roles, issues and options, sample utilities, its pool, and a `plot_token` for the plot below. |
 | `GET /api/admin/scenarios/plot/{token}` | The outcome-space plots of the example those details showed: `plots` (one Plotly figure per pair of roles) and `plot_note`. Fetched apart so the details never wait for it; 404 once the example is no longer kept. |
+| `GET /api/admin/scenarios/stats/{token}` | The negmas statistics of the example those details showed ([Scenario statistics](scenarios.md#scenario-statistics)): `status` `ok` with the statistics, `pending` while they are computed in the background (ask again), or `failed` / `timeout` / `too_large` / `disabled` with a `message`. `?force=true` computes them again. |
 | `GET /api/admin/criteria[?project=P \| ?study=P/S][&coverage=true]` | The evaluation criteria (metric columns, the answers of the forms in use, scores) with source, level, direction, default normaliser, cost and optional coverage, the normaliser kinds and the project's reference. See [Scores](#scores). |
 | `GET /api/admin/scores?project=P` (or `?study=P/S`) | The scores: the built-ins (`builtin`, read-only) and the project's and study's definitions, each with `origin`, `enabled`, its components with their weights in effect (summing to 1), directions and normalisers, and `flattened` (the weights down to criteria); `enabled`, `enabled_set_by`, `problems` and `warnings`. |
 | `POST /api/admin/scores/preview?project=P` (or `?study=P/S`) | `{"key": "…", "score": {definition}}`: the score, unsaved, on the board's current games: `weights_in_effect` (after coverage), `dropped`, a ten-bin `histogram` over [0, 1], `stats` (mean, median, coverage), the top five `entries` and `n_entrants`; or `problems`. Nothing is written. See [Previewing a score](#previewing-a-score). |

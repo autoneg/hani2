@@ -205,10 +205,27 @@ class Criterion:
     #: whether HI scores may use it (``False`` for post-session answers of people who used several Assistants)
     hi_usable: bool = True
     reason: str = ""
+    #: the group of similar measures it belongs to (:data:`hani2.evaluation.catalog.GROUPS`)
+    group: str = ""
+    #: the test that validates it on a hand-computed example (empty: not validated)
+    validated_by: str = ""
+
+    def __post_init__(self) -> None:
+        from hani2.evaluation import catalog
+
+        if not self.group:
+            self.group = catalog.group_of(self.id, self.metric, self.source)
+        if not self.validated_by and (self.metric or self.source == "questionnaire"):  # a project's own score: no
+            self.validated_by = catalog.validation_of(self.id)
+
+    @property
+    def validated(self) -> bool:
+        return bool(self.validated_by)
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["normaliser_text"] = describe_normaliser(self.normaliser, self.direction)
+        d["validated"] = self.validated
         return d
 
 
@@ -289,6 +306,8 @@ def questionnaire_criteria(spec: dict | None, form: str = "per_negotiation") -> 
     where = "after each negotiation" if level == "negotiation" else "once, after the last negotiation"
     items: list[Criterion] = []
     scales: dict[str, list[tuple[float, float]]] = {}
+    #: the directions the items of each scale state (a scale is lower-is-better, e.g. workload, when all say so)
+    stated: dict[str, set[str]] = {}
     for q in spec.get("questions") or []:
         qid, b = q.get("id"), item_bounds(q)
         if not qid or b is None or b[1] <= b[0]:
@@ -296,6 +315,7 @@ def questionnaire_criteria(spec: dict | None, form: str = "per_negotiation") -> 
         scale = str(q["scale"]) if q.get("scale") else ""
         if scale:
             scales.setdefault(scale, []).append(b)
+            stated.setdefault(scale, set()).add(str(q.get("direction") or "higher"))
         d = str(q.get("direction") or ("higher" if scale else "none"))
         text = re.sub(r"[*_`]", "", str(q.get("text") or qid)).strip()
         rev = " (reversed)" if q.get("reverse") else ""
@@ -310,16 +330,18 @@ def questionnaire_criteria(spec: dict | None, form: str = "per_negotiation") -> 
         lo, hi = {b[0] for b in bounds}, {b[1] for b in bounds}
         same = len(lo) == 1 and len(hi) == 1
         what = SCALES.get(name, name.replace("_", " "))
+        dirs = stated.get(name) or {"higher"}
+        sd = next(iter(dirs)) if len(dirs) == 1 and next(iter(dirs)) in DIRECTIONS else "higher"
         out.append(Criterion(
             id=f"{prefix}scale_{name}", title=name.replace("_", " ").capitalize(),
             description=f"{what}: the mean of its {len(bounds)} item(s), asked {where}",
-            source="questionnaire", level=level, direction="higher",
+            source="questionnaire", level=level, direction=sd,
             normaliser={"kind": "bounded", "lo": min(lo), "hi": max(hi)} if same else None, cost=cost,
             range=f"{min(lo):g}–{max(hi):g}" if same else "mixed ranges", form=form))
         out.append(Criterion(
             id=f"{prefix}scale_{name}_norm", title=f"{name.replace('_', ' ').capitalize()} (0–1)",
             description=f"{what}, rescaled to 0–1 item by item, asked {where}",
-            source="questionnaire", level=level, direction="higher",
+            source="questionnaire", level=level, direction=sd,
             normaliser={"kind": "bounded", "lo": 0.0, "hi": 1.0}, cost=cost, range="[0, 1]", form=form))
     return out + items
 
@@ -803,6 +825,18 @@ def docs_section(text: str) -> str:
     return text[a + len(DOCS_START): b].strip() + "\n"
 
 
+def _groups_payload() -> list[dict[str, str]]:
+    from hani2.evaluation import catalog
+
+    return catalog.groups_payload()
+
+
+def _validated_tooltip() -> str:
+    from hani2.evaluation import catalog
+
+    return catalog.VALIDATED_TOOLTIP
+
+
 def api_payload(project: str | None = None, study: str | None = None, rows: list[dict] | None = None) -> dict:
     """What ``GET /api/admin/criteria`` returns."""
     crits = catalogue(project, study, rows)
@@ -812,6 +846,7 @@ def api_payload(project: str | None = None, study: str | None = None, rows: list
                             for k, (t, r, d) in NORMALISER_KINDS.items()],
             "sources": list(SOURCES), "levels": list(LEVELS), "directions": list(DIRECTIONS), "costs": list(COSTS),
             "not_numeric": non_numeric_columns(),
+            "groups": _groups_payload(), "validated_tooltip": _validated_tooltip(),
             "reference": reference_summary(ref), "games": None if rows is None else len(rows)}
 
 

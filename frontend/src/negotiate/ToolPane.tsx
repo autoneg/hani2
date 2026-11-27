@@ -81,8 +81,14 @@ export function ToolHelp({ tool }: { tool: ToolInfo }) {
   );
 }
 
-export function ToolBody({ tool }: { tool: ToolInfo }) {
+/** A tool's view. ``place``: in its pane (the default) or in its window (the popup or the
+ *  enlarged tool), for views drawn differently there (e.g. the issue weights). */
+export function ToolBody({ tool, place = "pane" }: { tool: ToolInfo; place?: "pane" | "window" }) {
   const view = useStore((s) => s.toolViews[tool.id]);
+  const layoutView = useStore((s) => s.state?.layout.view);
+  const { device } = useDevice();
+  // pinned outside the full view (the simple view on a desktop; elsewhere it shows as the full view)
+  const narrow = place === "pane" && layoutView !== "full" && device === "desktop";
   const rv = useStore((s) => s.state?.reserved_value);
   const allowSwitch = useStore((s) => s.state?.settings.allow_tool_switch !== false);
   const disabled = !tool.enabled && !tool.permanent && allowSwitch;
@@ -103,6 +109,8 @@ export function ToolBody({ tool }: { tool: ToolInfo }) {
       components={view}
       ctx={{
         reserved: rv,
+        place,
+        narrow,
         onInput: (name, value) => send({ type: "tool_input", id: tool.id, name, value }),
         onAction: (action, payload) => {
           flushDraftText(); // a tool may send the offer with the typed message
@@ -283,7 +291,7 @@ export function MaximizedTool() {
           </button>
         </div>
         <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
-          <ToolBody key={tool.id} tool={tool} />
+          <ToolBody key={tool.id} tool={tool} place="window" />
         </div>
       </div>
     </div>
@@ -464,7 +472,7 @@ export function ToolPopup() {
         </button>
       </div>
       <div className={`scroll-thin min-h-0 flex-1 overflow-y-auto p-3 ${assistantHere ? "hidden" : ""}`}>
-        <ToolBody key={tool.id} tool={tool} />
+        <ToolBody key={tool.id} tool={tool} place="window" />
       </div>
     </div>,
     document.body,

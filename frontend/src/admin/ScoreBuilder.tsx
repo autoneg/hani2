@@ -7,23 +7,17 @@ import { Row } from "./Row";
 import { HelpFor } from "./help";
 import { Select } from "./controls/Select";
 import { TextField } from "./controls/TextField";
-import { Tags } from "./controls/Tags";
+import { KeyList } from "./controls/KeyList";
 import { Note, Spinner } from "./schema";
 import { toast } from "./toast";
 import { atHundred, normalise, sumText, toFractions } from "./weights";
+import { grouped, type MetricGroup, ValidatedMark } from "../ui/metricGroups";
 
 /* ---------- the target of the score endpoints ---------- */
 const base = (project: string, study?: string) =>
   `/api/admin/projects/${encodeURIComponent(project)}${study ? `/studies/${encodeURIComponent(study)}` : ""}`;
 const query = (project: string, study?: string) => (study ? `study=${encodeURIComponent(`${project}/${study}`)}` : `project=${encodeURIComponent(project)}`);
 
-const SOURCE_TITLE: Record<string, string> = {
-  hard: "Measured when the game ends",
-  soft: "Rated by the language-model judge",
-  subjective: "Questionnaire scales (bundled)",
-  questionnaire: "Questionnaire items and scales of this project's forms",
-  score: "Scores",
-};
 const TRACKS = [
   { value: "any", label: "any: Assistants or opponents" },
   { value: "hi", label: "hi: ranks Assistants" },
@@ -66,26 +60,25 @@ function unusable(c: any, track: string, chosen: string[]): string {
   return "";
 }
 
-function CriteriaPicker({ criteria, track, chosen, onPick }: { criteria: any[]; track: string; chosen: string[]; onPick: (c: any) => void }) {
+function CriteriaPicker({ criteria, groups: order, tip, track, chosen, onPick }: { criteria: any[]; groups?: MetricGroup[]; tip?: string; track: string; chosen: string[]; onPick: (c: any) => void }) {
   const [q, setQ] = useState("");
   const groups = useMemo(() => {
     const t = q.trim().toLowerCase();
-    const hit = (c: any) => !t || `${c.id} ${c.title} ${c.description} ${c.metric} ${c.source}`.toLowerCase().includes(t);
-    const out: Record<string, any[]> = {};
-    for (const c of criteria) if (hit(c)) (out[c.source] ??= []).push(c);
-    return Object.keys(SOURCE_TITLE).filter((s) => out[s]?.length).map((s) => [s, out[s]] as const);
-  }, [criteria, q]);
-  const n = groups.reduce((a, [, cs]) => a + cs.length, 0);
+    const titles = Object.fromEntries((order ?? []).map((g) => [g.id, g.title]));
+    const hit = (c: any) => !t || `${c.id} ${c.title} ${c.description} ${c.metric} ${c.source} ${titles[c.group] ?? ""}`.toLowerCase().includes(t);
+    return grouped(criteria.filter(hit), (c: any) => c.group, order);
+  }, [criteria, q, order]);
+  const n = groups.reduce((a, g) => a + g.items.length, 0);
   return (
     <div>
       <input aria-label="Search criteria" type="search" className="mb-2 w-full rounded-md border border-line bg-surface px-2 py-1 text-sm focus:border-you focus:outline-none" placeholder={`Search ${criteria.length} criteria`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="scroll-thin max-h-72 overflow-y-auto rounded-lg border border-line/70" role="listbox" aria-label="Criteria">
-        {groups.map(([src, cs]) => (
-          <div key={src}>
-            <div className="sticky top-0 z-[1] border-b border-line/60 bg-sunken/95 px-3 py-1 text-xs font-semibold text-muted">
-              {SOURCE_TITLE[src]} <span className="font-normal">({cs.length})</span>
+        {groups.map((g) => (
+          <div key={g.id} role="group" aria-label={g.title} data-group={g.id}>
+            <div className="sticky top-0 z-[1] border-b border-line/60 bg-sunken/95 px-3 py-1 text-xs font-semibold text-muted" title={order?.find((x) => x.id === g.id)?.description}>
+              {g.title} <span className="font-normal">({g.items.length})</span>
             </div>
-            {cs.map((c: any) => {
+            {g.items.map((c: any) => {
               const why = unusable(c, track, chosen);
               return (
                 <button
@@ -100,7 +93,8 @@ function CriteriaPicker({ criteria, track, chosen, onPick }: { criteria: any[]; 
                 >
                   <Plus size={13} className="mt-1 shrink-0 text-you" />
                   <span className="min-w-0 flex-1">
-                    <span className="font-mono text-[0.78rem]">{c.id}</span> <span className="text-muted">{c.title !== c.id ? c.title : ""}</span>
+                    <span className="font-mono text-[0.78rem]">{c.id}</span>
+                    {c.validated && <ValidatedMark tip={tip} />} <span className="text-muted">{c.title !== c.id ? c.title : ""}</span>
                     <span className="block text-xs text-muted">
                       {[
                         c.direction === "none" ? "no direction" : `${c.direction} is better`,
@@ -295,6 +289,12 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
   const [saving, setSaving] = useState(false);
   const cat = useCriteria(project, study, coverage);
   const byId = useMemo(() => Object.fromEntries((cat?.criteria ?? []).map((c: any) => [c.id, c])), [cat]);
+  // the criteria a rule can name, in the catalogue's groups (scores cannot be named)
+  const zeroIfGroups = useMemo(() => {
+    const crit = (cat?.criteria ?? []).filter((c: any) => c.source !== "score");
+    return grouped(crit, (c: any) => c.group, cat?.groups).map((g) => ({ label: g.title, keys: g.items.map((c: any) => ({ key: c.id, title: c.title || c.id, validated: !!c.validated })) }));
+  }, [cat]);
+  const critTitles = useMemo(() => Object.fromEntries((cat?.criteria ?? []).map((c: any) => [c.id, c.title || c.id])), [cat]);
   const weights = comps.map((c) => c.weight);
   /** The definition as saved (and previewed): weights as fractions summing to 1. */
   const bodyOf = () => {
@@ -363,7 +363,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
           <Select label="Same-Assistant games" value={same} onChange={setSame} options={[{ value: "once", label: "Count once (the mean of the two rows)" }, { value: "skip", label: "Leave out" }]} />
         </Row>
         <Row label="Zero if" help="scores.zero_if">
-          <Tags label="Zero if" value={zeroIf} onChange={(x: string[] | undefined) => setZeroIf(x ?? [])} placeholder="opponent_failed" suggestions={(cat.criteria ?? []).filter((c: any) => c.source !== "score").map((c: any) => c.id)} />
+          <KeyList label="Zero if" value={zeroIf} onChange={setZeroIf} groups={zeroIfGroups} titles={critTitles} tip={cat?.validated_tooltip} />
         </Row>
         <Row label="Needs an Assistant" help="scores.needs_assistant">
           <Select label="Needs an Assistant" value={needsAssistant ? "yes" : "no"} onChange={(x) => setNeedsAssistant(x === "yes")} options={[{ value: "no", label: "No: every session" }, { value: "yes", label: "Yes: empty without an Assistant" }]} />
@@ -432,7 +432,7 @@ export function ScoreBuilder({ project, study, scoreKey, initial, onSaved, onClo
         footer={cat.reference?.frozen ? `Scales come from the project's frozen reference.` : "This project has no frozen reference yet: the scales of unbounded criteria are provisional (hani2 scores freeze)."}
       >
         <div className="px-4 py-3">
-          <CriteriaPicker criteria={cat.criteria ?? []} track={track} chosen={comps.map((c) => c.criterion)} onPick={(x) => setComps([...comps, { criterion: x.id, weight: 0, direction: "", normaliser: null }])} />
+          <CriteriaPicker criteria={cat.criteria ?? []} groups={cat.groups} tip={cat.validated_tooltip} track={track} chosen={comps.map((c) => c.criterion)} onPick={(x) => setComps([...comps, { criterion: x.id, weight: 0, direction: "", normaliser: null }])} />
         </div>
       </Group>
       {error && <Note tone="warn">{error}</Note>}

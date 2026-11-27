@@ -97,6 +97,16 @@ simple_scenarios: false   # the original, finer-grained preferences
 
 `hani2 generate` follows the same setting (`--simple` / `--no-simple` override it). It keeps existing slots, so pass `--force` to regenerate an old pool as simple scenarios. In code, `with hani2.scenarios.simple.simple_mode(): ...` generates simple scenarios and `simplify_scenario(s)` simplifies any linear-additive scenario.
 
+### Normalized scenarios
+
+Generated scenarios are **normalized** by default, the way negmas (and negobench) normalize: for every side each deal is worth 0 (the worst) to 1 (the best) and, for linear-additive preferences, the issue weights add up to 1 and every issue's value function ranges from 0 to 1 (negmas's canonical form). Each side is normalized on its own (`Scenario.normalize(common_range=False)`), and the value on disagreement goes through the same map as the deals. Most built-in generators produce normalized scenarios already, which are kept as they are; a Trade scenario whose worst deal is above 0 is stretched to 0, so its value on disagreement moves too (and can fall below 0 when it was below the worst deal). `hani2 generate` sets the values on disagreement after normalizing.
+
+Switch it off (`normalized_scenarios: false`) to generate scenarios **not normalized**: a deal can be worth anything (negative included), value functions have any range and weights any size. Generators that can draw such preferences do: of the built-in ones only Grocery (its utilities are the items' points, and the value on disagreement is put at the same place between the worst and best deals); the others draw normalized preferences either way, so for them nothing changes. Simple scenarios are always normalized, and they are on by default: switch [simple scenarios](#simple-scenarios) off too for this setting to have an effect. `hani2 generate` measures the opposition band on a normalized copy, and puts the values on disagreement at the same place between each side's worst and best deals. A scenario generated this way that is not normalized is marked `normalized: false` in its `_info.yaml`. Saved scenarios are served as they were saved.
+
+The setting is global (*Settings* → *Scenarios and opponents* → *Normalized scenarios*, `negotiation.normalized_scenarios` in `env.json`), per project (`project.yaml`) and per study (`study.yaml`), with the same precedence as [simple scenarios](#simple-scenarios). `hani2 generate` follows it (`--normalized` / `--no-normalized` override it). Simple scenarios are always normalized: their round numbers are percentages.
+
+**Negotiations always run on normalized scenarios.** When a negotiation starts, a scenario that is not normalized (a saved one, or one generated with the setting off) is normalized for it, as negmas normalizes; a scenario that is normalized already is used as it is. The offer buttons, gauges, history, scores, the opponent and the Assistant therefore always work on 0 to 1. Only the Preferences tools in raw numbers (`tools.preferences_scale: raw`) show the scenario's original numbers. The project or study setting `assume_normalized: true` (*Assume normalized* in the project editor) skips the check as well and takes every scenario as normalized, for scenarios known to be normalized. Showing a scenario's own numbers everywhere, chosen by the admin, is planned. To *show* any scenario in raw numbers or as percentages, see [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers).
+
 The [Prolific](prolific.md) study has its own rules for the type and slot.
 
 ## Scenario sets
@@ -341,6 +351,45 @@ evaluated with the criteria it was played with. Criteria for every scenario with
 ```
 
 `hani2 scenario check` reports unknown parts, rules and components and conditions it cannot read.
+
+## Scenario statistics
+
+Every scenario gets the statistics negmas computes for it (`Scenario.calc_stats`): the number of
+outcomes and issues, the **opposition** (0: the roles want the same, 1: fully opposed), each role's
+**utility range**, the **rational fraction** (the share of outcomes better than no deal for every
+role), the **Pareto frontier**, and the bargaining solutions: the **Nash** point, the **Kalai**
+and **modified Kalai** points, the **KS** and **modified KS** points, **maximum welfare** and
+**maximum relative welfare**, each with its utilities and its outcome.
+
+**When.** They are computed in the background when a negotiation starts on a saved scenario, and
+when an administrator opens them; nothing waits for them. Each computation runs in its own process,
+one scenario at a time, with a time limit (`scenario_stats.timeout`, 300 seconds by default). A
+scenario that takes longer is stopped and skipped, one that cannot be computed is skipped too, and
+so is an outcome space larger than `scenario_stats.max_outcomes` (negmas's `STATS_MAX_CARDINALITY`
+by default) or a continuous one. Pages and tools show why instead of the numbers. A skipped
+scenario is not tried again until its files change or an administrator clicks **Compute again**.
+
+**Where they are kept.** Next to the scenario's `_info.yaml`, in negmas's own stats file
+`_stats.yaml` (which `negmas.Scenario.load` reads back), and `_stats_meta.json` (what HANI2 needs
+on top: a fingerprint of the scenario files, when and how fast it was computed, or why it was
+skipped). The Pareto frontier is written into `_stats.yaml` only when the scenario has at most
+`scenario_stats.pareto_max_outcomes` outcomes (a million by default; negmas has no default for
+this); larger scenarios keep every other statistic. Editing or saving the scenario's files makes
+the cache stale: it is ignored and computed again. Scenarios that are not a folder (generated ones,
+or a saved one changed for a session, for example by a [forced value on
+disagreement](project-management.md#forcing-the-value-on-disagreement)) and the bundled samples
+are kept in memory only. `hani2` never writes into its own package.
+
+**Where to see them.** On the **Scenarios** page of the console, under **Statistics** (folded
+away by default), and in the [Scenario Stats](tools.md#scenario-stats) tool during a negotiation
+(admins only by default).
+
+| Setting (`env.json`) | Default | Meaning |
+| --- | --- | --- |
+| `scenario_stats.enabled` | `true` | Compute and show scenario statistics. |
+| `scenario_stats.pareto_max_outcomes` | `1000000` | Keep the Pareto frontier in `_stats.yaml` up to this many outcomes. |
+| `scenario_stats.timeout` | `300` | Seconds a computation may take before it is stopped and skipped. |
+| `scenario_stats.max_outcomes` | negmas's `STATS_MAX_CARDINALITY` | Larger outcome spaces are skipped without trying. |
 
 ## Scenario pictures
 

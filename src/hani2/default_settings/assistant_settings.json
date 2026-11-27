@@ -33,7 +33,9 @@
     "llm_tool": true,
     "private_info": true,
     "opponent_model": true,
-    "opponent_utility": false
+    "opponent_utility": false,
+    "model_choice": true,
+    "own_models": false
   },
   "proactive": {
     "on_negotiation_started": false,

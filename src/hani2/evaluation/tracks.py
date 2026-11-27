@@ -444,7 +444,7 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
                 include_practice: bool = False, reliability: Any = None, official: bool = False,
                 include_simulated: bool = False, stratum: str | None = None, ci_unit: str = "participant",
                 head_to_head: bool | str = False, rank_by: str | None = None, values: list[str] | None = None,
-                directions: dict[str, str] | None = None, ci: float = 0.95) -> dict:
+                directions: dict[str, str] | None = None, ci: float = 0.95, estimator: Any = None) -> dict:
     """Rank the entrants of ``track`` (``han`` or ``hi``) on ``board``
     (``outcome`` or ``interaction``) from evaluated rows (``evaluate_*()["rows"]``).
 
@@ -470,7 +470,9 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
     ``board="game"`` (:mod:`hani2.evaluation.boards`): the rows already carry their scores; the board
     ranks by ``rank_by`` (any score or criterion column) in its direction (``directions``, default
     ``higher``) and reports ``values`` too. With ``relative`` the cell-adjusted means are shifted back by
-    the grand mean, so they stay on the scale of the values. Rows may carry ``_entrant`` (the entrant's
+    the grand mean, so they stay on the scale of the values. ``estimator`` (game board) replaces the
+    cell-balanced mean and bootstrap: ``estimator(name, {entrant: [(row, adjusted value), ...]})`` returns
+    ``{entrant: {"mean", "lo", "hi", ...}}`` (the extra keys are kept; see :mod:`hani2.ratings`). Rows may carry ``_entrant`` (the entrant's
     name), ``_exclude`` (a reason: the row is excluded and counted), ``_hidden`` (left out of this view)
     and ``_only_stratum`` (counted in that stratum only); partners are found among every row.
 
@@ -556,15 +558,25 @@ def leaderboard(rows: list[dict], track: str = "hi", board: str = "outcome", *, 
             return r["_match"] or r["_session"]
         return r["_participant"]
 
+    estimated: dict[str, dict[str, dict]] = {}
+    if estimator is not None and game:
+        for n in names:
+            per_entrant = {g: [(r, float(r[n])) for r in rs if num(r.get(n)) is not None] for g, rs in groups.items()}
+            estimated[n] = estimator(n, {g: v for g, v in per_entrant.items() if v}) or {}
     entries = []
     for g, rs in groups.items():
         sc: dict[str, dict] = {}
         for n in names:
             items = [(cluster(r), cell(r), float(r[n])) for r in rs if num(r.get(n)) is not None]
             covs = [num(r.get(f"{n}_coverage")) for r in rs]
+            coverage = float(np.mean([c for c in covs if c is not None])) if any(c is not None for c in covs) else None
+            if n in estimated:
+                est = dict(estimated[n].get(g) or {"mean": None, "lo": None, "hi": None})
+                sc[n] = dict(est, n=len(items), ci_unit=est.get("ci_unit", "rating"), coverage=coverage)
+                continue
             lo, hi, unit = _bootstrap(items, n_boot, rng, ci_unit, ci)
             sc[n] = dict(mean=_balanced([(c, v) for _, c, v in items]), lo=lo, hi=hi, n=len(items), ci_unit=unit,
-                         coverage=float(np.mean([c for c in covs if c is not None])) if any(c is not None for c in covs) else None)
+                         coverage=coverage)
         ph = _pass_hat_k(rs, cell, success, success_threshold, max_k)
         costs = [num(r.get("llm_cost_usd")) for r in rs]
         costs = [c for c in costs if c is not None]

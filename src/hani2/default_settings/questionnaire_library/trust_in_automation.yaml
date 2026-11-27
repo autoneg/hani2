@@ -6,9 +6,9 @@ forms: [per_negotiation, post_session]
 questions:
   - {id: tia_deceptive, text: "The assistant is deceptive.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
   - {id: tia_underhanded, text: "The assistant behaves in an underhanded manner.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_suspicious, text: "I am suspicious of the assistant's intent, actions or outputs.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_suspicious, text: "I am suspicious of the assistant's intent, action, or output.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
   - {id: tia_wary, text: "I am wary of the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_harmful, text: "The assistant's actions will have a harmful or injurious outcome.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_harmful, text: "The assistant's action will have a harmful or injurious outcome.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
   - {id: tia_confident, text: "I am confident in the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
   - {id: tia_security, text: "The assistant provides security.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
   - {id: tia_integrity, text: "The assistant has integrity.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}

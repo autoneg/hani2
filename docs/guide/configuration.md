@@ -323,7 +323,10 @@ or the assistant write to the opponent are sent as written.
 | `tools.extra` | Extra tool classes, as `"module:Class"`, `"module.Class"` or `"path/to/file.py:Class"`. |
 | `tools.paths` | Extra folders (or `.py` files) to load tools from, besides `$HANI2_HOME/tools`. |
 | `tools.disabled` | Names of tools to remove (case-insensitive). |
-| `tools.weights_chart` | How the Preferences tool draws issue weights: `donut` (default) or `bar` (one thin horizontal bar, saves space). See [Weights as a donut or a bar](preferences.md#weights-as-a-donut-or-a-bar). |
+| `tools.weights_chart` | How the Preferences tools draw issue weights: `bar` (default, one thin horizontal bar, saves space) or `donut`. See [Weights as a bar or a donut](preferences.md#weights-as-a-bar-or-a-donut). |
+| `tools.weights_chart_window` | The issue weights when the tool is enlarged or popped out: `same` (default, as `tools.weights_chart`), `donut` or `bar`. |
+| `tools.preferences_scale` | `normalized` (default: percentages, normalized as negmas does it: every deal 0–100%, weights adding up to 100%) or `raw` (the utility function's own numbers). See [Normalized percentages or raw numbers](preferences.md#normalized-percentages-or-raw-numbers). |
+| `tools.values_line_above` | An issue with more options than this (default 12), or a continuous one, shows its values as a line instead of bars. |
 | `tools.isolate_builtin` | Catch the failures of built-in tools too and show them in the tool's own tab (default `true`). `false`: built-in tool errors surface as they used to, for debugging. External tools are always guarded. See [When a tool fails](tools.md#when-a-tool-fails). |
 | `tools.render_timeout` | Seconds a guarded tool may take for one call (render, input, button, hook, `init`, or the Assistant reading it) before the call is abandoned and its tab shows that it took too long (default `20`; `0`: no limit). |
 | `tools.show_opponent_utility` | Let every participant show the opponent's utility in the Utility Plot and Trace (default `false`; admins always can). |
@@ -343,6 +346,18 @@ or the assistant write to the opponent are sent as written.
 ```
 
 See [Tools](tools.md).
+
+### `scenario_stats`
+
+The negmas statistics of every scenario, computed in the background and cached next to it. See
+[Scenario statistics](scenarios.md#scenario-statistics).
+
+| Key | Meaning |
+| --- | --- |
+| `scenario_stats.enabled` | Compute and show them (default `true`). |
+| `scenario_stats.pareto_max_outcomes` | Keep the Pareto frontier in the cache only for scenarios with at most this many outcomes (default `1000000`). |
+| `scenario_stats.timeout` | Seconds one computation may take; a slower scenario is skipped (default `300`). |
+| `scenario_stats.max_outcomes` | Skip larger outcome spaces without trying (default negmas's `STATS_MAX_CARDINALITY`). |
 
 ### `tools.yaml`
 
@@ -415,7 +430,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `max_tokens` | `2000` | Maximum answer length. |
 | `max_tool_iterations` | `10` | Maximum rounds of function calls per user message; then one last call without functions gives the answer. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` except `opponent_utility` | The twenty-four capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `offer_display`, `interface`, `presentation`, `panels`, `tool_add`, `tool_use`, `llm_tool`, `private_info`, `opponent_model`, and the admin-only oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)). |
+| `capabilities` | all `true` except `opponent_utility` and `own_models` | The twenty-six capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `offer_display`, `interface`, `presentation`, `panels`, `tool_add`, `tool_use`, `llm_tool`, `private_info`, `opponent_model`, and three admin-only ones: the oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)), `model_choice` (pick a [named model sequence](models.md#named-sequences); default `true`) and `own_models` (define its own sequences; default `false`). |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |

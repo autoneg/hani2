@@ -110,6 +110,7 @@ nav:
       - Language models: guide/llms.md
       - Opponents: guide/opponents.md
       - Human opponents: guide/human-opponents.md
+      - Self-hosting an Assistant or opponent: guide/self-hosting.md
       - Scenarios: guide/scenarios.md
       - Scenario sets: guide/scenario-sets.md
       - Compositional scenarios: guide/compositional.md
@@ -118,6 +119,7 @@ nav:
       - Evaluation metrics: guide/evaluation.md
       - Simulated participants: guide/simulation.md
       - Metric reference: guide/metrics.md
+      - Metric catalogue: guide/metric-catalog.md
       - Ablations: guide/ablations.md
       - Authentication: guide/authentication.md
       - Admin console: guide/admin.md
@@ -129,6 +131,7 @@ nav:
       - Criteria and scores reference: guide/criteria.md
       - Settings reference: guide/settings-reference.md
       - Study forms: guide/study-forms.md
+      - Questionnaires: guide/questionnaires.md
       - Prolific: guide/prolific.md
   - Tutorials:
       - Build an Assistant: tutorials/assistant.md
@@ -136,6 +139,7 @@ nav:
       - Shape the interface: tutorials/interface.md
   - Reference:
       - Architecture: reference/architecture.md
+      - "Design note: self-hosted agents and a continuous leaderboard": reference/hosted-agents-design.md
       - Python API: reference/api.md
       - Library API: reference/library-api.md
   - Changelog: changelog.md

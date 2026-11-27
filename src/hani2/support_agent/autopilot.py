@@ -129,7 +129,10 @@ def make_negotiator_driver(session: "NegotiationSession"):
     try:
         from hani2.agents import make_agent
 
-        agent = make_agent(driver, {"name": "Autopilot"}, models=getattr(session, "models", None), purpose="assistant")
+        sa = getattr(session, "support_agent", None)
+        seq = sa._sequence() if sa is not None and hasattr(sa, "_sequence") else ""  # the Assistant's chosen sequence
+        agent = make_agent(driver, {"name": "Autopilot"}, models=getattr(session, "models", None), purpose="assistant",
+                           sequence=seq)
         # make_agent wraps the class to refuse accepting a None offer; that is
         # what we want for the human seat too.
         return agent

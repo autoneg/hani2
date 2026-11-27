@@ -1,6 +1,7 @@
 """The project editor in the admin console: a `?` opens its help, the score builder saves a score only
-at 100 % (Normalise gets it there), a page Save afterwards keeps that score, and a mode that
-contradicts the pool is refused with a 400."""
+at 100 % (Normalise gets it there), a page Save afterwards keeps that score, a mode that
+contradicts the pool is refused with a 400, the criteria picker shows the catalogue's groups with
+validated criteria marked, and so do the predefined questionnaires of the Study forms page."""
 
 from __future__ import annotations
 
@@ -59,7 +60,7 @@ def test_build_a_score_then_save_a_contradiction(new_page):
     builder.get_by_label("Score key").fill("e2e_score")
     for crit in ("human_advantage", "agreement"):
         builder.get_by_label("Search criteria").fill(crit)
-        builder.get_by_role("option").filter(has_text=crit).first.click()
+        builder.get_by_role("listbox", name="Criteria").get_by_role("option").filter(has_text=crit).first.click()
     for crit in ("human_advantage", "agreement"):
         w = builder.get_by_label(f"Weight of {crit} (%)")
         w.fill("30")
@@ -165,3 +166,60 @@ def test_editing_a_score_keeps_zero_if_and_needs_assistant(new_page):
     after = {s["key"]: s for s in p.request.get(f"/api/admin/scores?project={name}").json()["scores"]}
     assert after["my_han"]["zero_if"] == ["opponent_failed"]
     assert after["my_team"]["needs_assistant"] is True
+
+
+def test_the_criteria_picker_is_grouped_and_marks_validated_criteria(new_page):
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    _open_project(p, name)
+    p.get_by_role("button", name="New score").click()
+    builder = p.locator("[data-score-builder]")
+    picker = builder.get_by_role("listbox", name="Criteria")
+    groups = picker.locator("[data-group]")
+    expect(groups.first).to_have_attribute("data-group", "outcome")
+    titles = [g.get_attribute("aria-label") for g in groups.all()]
+    assert titles[:3] == ["Outcome and utility", "Efficiency and welfare", "Fairness"], titles
+    fairness = picker.get_by_role("group", name="Fairness")
+    expect(fairness.get_by_role("option").filter(has_text="fairness_gap")).to_have_count(1)
+    expect(fairness.get_by_role("option").filter(has_text="fairness_gap").locator("[data-validated]")).to_have_count(1)
+    judged = picker.get_by_role("group", name="Language-model judgements").get_by_role("option").filter(has_text="ja_overall")
+    expect(judged).to_have_count(1)
+    expect(judged.locator("[data-validated]")).to_have_count(0)  # a judgement is not validated
+    # searching keeps the groups: a group's title finds its criteria
+    builder.get_by_label("Search criteria").fill("fairness")
+    expect(picker.get_by_role("group", name="Fairness")).to_be_visible()
+
+
+def test_predefined_questionnaires_mark_the_validated_ones(new_page):
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    p.goto("/admin#forms")
+    p.get_by_role("button", name="Add predefined questionnaires").click()
+    svi = p.locator("#setting-form-library label").filter(has_text="Subjective Value Inventory")
+    expect(svi.locator("[data-validated]")).to_have_count(1)
+    expect(svi.get_by_role("link", name="source")).to_have_attribute("href", "https://www.subjectivevalue.com/")
+    tam = p.locator("#setting-form-library label").filter(has_text="TAM perceived ease of use")
+    expect(tam).to_have_count(1)
+    expect(tam.locator("[data-validated]")).to_have_count(0)
+
+
+def test_zero_if_offers_grouped_criteria(new_page):
+    """The score builder's Zero if menu lists the criteria in the catalogue's groups, validated ones marked."""
+    p = new_page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = _project(p)
+    _open_project(p, name)
+    p.get_by_role("button", name="New score").click()
+    builder = p.locator("[data-score-builder]")
+    menu = builder.get_by_role("combobox", name="Add to Zero if")
+    expect(menu.locator("optgroup").first).to_be_attached()  # the catalogue has loaded
+    labels = [g.get_attribute("label") for g in menu.locator("optgroup").all()]
+    assert labels[:2] == ["Outcome and utility", "Efficiency and welfare"] and "Task success and rules" in labels, labels
+    assert "Combined scores" not in labels  # a rule names criteria, not scores
+    failed = menu.locator("optgroup[label='Task success and rules'] option[value='opponent_failed']")
+    expect(failed).to_have_attribute("data-validated", "")
+    menu.select_option("opponent_failed")
+    chips = builder.locator("[data-key-list='Zero if'] .chip")
+    expect(chips).to_have_count(1)
+    expect(chips.first.locator("[data-validated]")).to_have_count(1)

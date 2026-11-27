@@ -14,6 +14,15 @@ from hani2.tools import builtin as b
 from hani2.tools import registry
 from hani2.tools.failure import FailedTool
 
+
+def _run(coro):
+    """``asyncio.run`` in a thread of its own: a Playwright session of the e2e tests (run earlier in
+    the same process) keeps an event loop running in the main thread, where ``asyncio.run`` refuses."""
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(1) as ex:
+        return ex.submit(asyncio.run, coro).result()
+
 BROKEN_TOOLS = textwrap.dedent('''
     import os
     import sys
@@ -286,7 +295,7 @@ def test_a_slow_render_times_out_without_holding_up_the_others(broken_tools):
         healed = await hub.render_tool_view(s, slow)
         assert healed["view"][0]["text"] == "SlowRender works"
 
-    asyncio.run(run())
+    _run(run())
     assert s.tool_failure(_tool(s, "SlowRender")) is None
 
 
@@ -309,7 +318,7 @@ def test_slow_renders_do_not_hold_up_others_when_slots_run_out(broken_tools, mon
         assert other["view"][0]["text"] == "GoodTool works"
         assert (await slow_task)["view"][0]["text"] == "SlowRender works"  # within its 3 s
 
-    asyncio.run(run())
+    _run(run())
 
 
 def test_participants_see_no_detail_of_a_timeout(broken_tools):

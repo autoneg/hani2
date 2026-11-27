@@ -39,6 +39,9 @@ app.add_typer(__import__("hani2.cli_compose", fromlist=["compose_app"]).compose_
 app.add_typer(__import__("hani2.cli_ablation", fromlist=["x"]).ablation_app, name="ablation")
 app.add_typer(__import__("hani2.cli_scores", fromlist=["x"]).scores_app, name="scores")
 app.add_typer(__import__("hani2.cli_leaderboard", fromlist=["x"]).leaderboard_app, name="leaderboard")
+app.add_typer(__import__("hani2.cli_hosted", fromlist=["x"]).hosted_app, name="hosted")
+app.command("host-assistant")(__import__("hani2.cli_hosted", fromlist=["x"]).host_assistant)
+app.command("host-opponent")(__import__("hani2.cli_hosted", fromlist=["x"]).host_opponent)
 
 
 def _open_when_ready(url: str) -> None:
@@ -154,10 +157,12 @@ def _check_opponents(value: str) -> None:
 
 
 def _check_assistant_class(klass: str) -> None:
-    from hani2.support_agent.runtime import Assistant, load_class
+    from hani2.support_agent.runtime import Assistant, load_assistant_class, load_class
 
     try:
-        cls = load_class(klass)
+        from hani2.hosting.protocol import is_remote_spec
+
+        cls = load_assistant_class(klass) if is_remote_spec(klass) else load_class(klass)
     except Exception as e:  # noqa: BLE001
         raise typer.BadParameter(f"cannot load {klass!r}: {e}", param_hint="--assistant") from None
     if not (isinstance(cls, type) and issubclass(cls, Assistant)):

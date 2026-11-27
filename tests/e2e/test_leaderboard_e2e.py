@@ -74,7 +74,10 @@ def test_switching_the_sort_and_the_games(page):
     rows = _rows(p)
     expect(rows.first).to_have_attribute("data-entrant", "sub_aurora")
     sort = p.get_by_label("Ranked by")
-    assert sort.locator("option").all_inner_texts() == ["Utility", "HI team (provisional)", "Agreement"]
+    # the board's options in the catalogue's groups, validated ones marked ✓
+    assert sort.locator("option").all_inner_texts() == ["Utility ✓", "HI team (provisional) ✓", "Agreement ✓"]
+    assert [g.get_attribute("label") for g in sort.locator("optgroup").all()] == ["Combined scores", "Outcome and utility"]
+    expect(sort.locator("option[value=agreement]")).to_have_attribute("data-validated", "")
     # ties with the leader read "=2", intervals are shown, and the entrant below the minimums has its reason
     expect(rows.nth(1).locator("[data-rank]")).to_have_text("=2")
     expect(rows.first).to_contain_text("0.52 – 0.74")
@@ -247,7 +250,7 @@ def test_the_score_preview_follows_a_weight(page):
     b.get_by_label("Score key").fill("e2e_preview")
     for crit, w in (("human_advantage", "90"), ("agreement", "10")):
         b.get_by_label("Search criteria").fill(crit)
-        b.get_by_role("option").filter(has_text=crit).first.click()
+        b.get_by_role("listbox", name="Criteria").get_by_role("option").filter(has_text=crit).first.click()
         f = b.get_by_label(f"Weight of {crit} (%)")
         f.fill(w)
         f.blur()
@@ -263,3 +266,24 @@ def test_the_score_preview_follows_a_weight(page):
     expect(pv.locator("[data-preview-entrant]").first).to_have_attribute("data-preview-entrant", "Birch", timeout=20000)
     scores = p.request.get("/api/admin/scores?project=LB").json()
     assert "e2e_preview" not in [s["key"] for s in scores["scores"]]
+
+
+def test_board_settings_mark_validated_enabled_scores(page):
+    """The enabled scores of the board settings carry the ✓ of validated built-ins, in the Add menu and
+    on the chips of the chosen sort options."""
+    p = page(viewport={"width": 1400, "height": 1000})
+    _admin(p)
+    name = "E2EV" + uuid.uuid4().hex[:5]
+    assert p.request.put(f"/api/admin/projects/{name}", data={"data": {"kind": "assistant", "year": 2027}}).ok
+    enabled = p.request.get(f"/api/admin/scores?project={name}").json()["enabled"]
+    assert enabled
+    p.goto("/admin#projects")
+    p.get_by_text(name, exact=True).first.click()
+    group = p.locator("#setting-board-settings")
+    group.get_by_role("switch", name="Project board settings").click()
+    group.get_by_role("button", name="Choose here").first.click()
+    sort = group.locator("[data-key-list='Sort options']")
+    expect(sort.locator(".chip [data-validated]").first).to_be_visible()
+    scores = sort.get_by_role("combobox", name="Add to Sort options").locator("optgroup[label='Enabled scores'] option")
+    if scores.count():  # the first enabled score is already a chip; the others stay in the menu
+        assert all(o.get_attribute("data-validated") is not None for o in scores.all())

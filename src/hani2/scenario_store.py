@@ -194,13 +194,16 @@ def _read_info(path: Path) -> dict:
 
 def _load_dir(path: Path) -> Scenario | None:
     try:
-        s = Scenario.load(path)
+        s = Scenario.load(path, load_stats=False)
     except Exception as e:  # pragma: no cover - defensive
         print(f"[hani2] cannot load scenario {path}: {e}")
         return None
     if s is None:
         return None
     s.info = _read_info(path) or (s.info or {})
+    # negmas reads the cached _stats.yaml (hani2.scenario_stats) into ``stats``; HANI2 never uses it
+    # there, and with it set negmas recomputes statistics inline in some transforms
+    s.stats = None
     return s
 
 
@@ -242,6 +245,37 @@ def strict_scenarios(ref: Any = None) -> bool:
 
     kw = {} if ref is None else {"ref": ref}
     return bool(projects.setting("strict_scenarios", False, cast=bool, **kw))
+
+
+def assume_normalized(ref: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study takes every scenario as normalized: the
+    ``assume_normalized`` setting of its ``study.yaml``, else of its project's
+    ``project.yaml``; off by default. On, a negotiation starts on the scenario as it is,
+    without checking whether it is normalized (see :func:`normalize_for_play`)."""
+    from hani2 import projects
+
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        return bool(projects.setting("assume_normalized", False, cast=bool, **kw))
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return False
+
+
+def normalize_for_play(scenario: Scenario, ref: Any = None) -> Scenario:
+    """The scenario a negotiation is played on: normalized (as negmas normalizes) unless it
+    is normalized already, or the study assumes it is (:func:`assume_normalized`). Every
+    part of the negotiation screen but the Preferences tools' raw numbers works on 0..1;
+    the original utility functions stay with the normalized ones for those (see
+    :func:`hani2.ufun_scale.normalize_for_play`).
+
+    TODO: show utilities in a scenario's own numbers everywhere (the offer buttons, gauges,
+    history, scores, Assistant), chosen by the admin, so a scenario that is not normalized
+    could be played as it is."""
+    if assume_normalized(ref):
+        return scenario
+    from hani2.ufun_scale import normalize_for_play as _for_play
+
+    return _for_play(scenario)
 
 
 def forced_reserved_value(ref: Any = None) -> float | None:
@@ -290,18 +324,87 @@ def simple_scenarios(ref: Any = None, default: Any = None) -> bool:
         return bool(default)
 
 
+def normalized_scenarios(ref: Any = None, default: Any = None) -> bool:
+    """Whether the current (or ``ref``'s) study generates *normalized* scenarios (as negmas
+    normalizes: every deal worth 0 to 1, the weights adding up to 1, every value function
+    from 0 to 1; see :mod:`hani2.ufun_scale`): the ``normalized_scenarios`` setting of its
+    ``study.yaml``, else of its project's ``project.yaml``, else ``default`` (the global
+    setting ``negotiation.normalized_scenarios`` in ``env.json``); **on** by default. Off,
+    a generated scenario is kept as its maker draws it without normalizing (see
+    :func:`make_scenario`). Saved scenarios are served as they were saved."""
+    from hani2 import projects
+
+    if default is None:
+        from hani2.config import get_env
+
+        default = (get_env("negotiation", {}) or {}).get("normalized_scenarios", True)
+    kw = {} if ref is None else {"ref": ref}
+    try:
+        return bool(projects.setting("normalized_scenarios", bool(default), cast=bool, **kw))
+    except Exception:  # noqa: BLE001 - no project context (scripts, tests)
+        return bool(default)
+
+
+#: the key of a scenario's info that marks it as generated not normalized
+NORMALIZED_KEY = "normalized"
+
+
+def normalize_scenario(scenario: Scenario) -> Scenario:
+    """Every utility function of ``scenario`` normalized on its own, as negmas does it:
+    deals from 0 to 1 and, for a linear-additive one, weights adding up to 1 and every
+    value function from 0 to 1 (see :mod:`hani2.ufun_scale`). A scenario normalized
+    already (most built-in ones) is kept as it is."""
+    from hani2.ufun_scale import normalize_scenario as _normalize
+
+    return _normalize(scenario)
+
+
+def _make_raw(type_: str, index: int) -> Scenario:
+    """Slot ``index`` of ``type_`` as its maker draws it without normalizing: a maker with a
+    ``normalize`` option is called with ``normalize=False`` (Grocery: its utilities are the
+    items' points, and the value on disagreement it draws as a fraction is put at that
+    place between the worst and best deals); any other maker gives its scenario as it is.
+    Marks the info ``normalized: false`` when the result is not normalized (Island's
+    ``normalize=False`` and the story generators still give normalized preferences)."""
+    import inspect
+
+    maker = MAKER_MAP[type_]
+    try:
+        raw = "normalize" in inspect.signature(maker).parameters
+    except (TypeError, ValueError):
+        raw = False
+    s = maker(index, normalize=False) if raw else maker(index)
+    if raw:  # the maker draws the value on disagreement on the 0..1 scale: the same place on this one
+        from hani2.ufun_scale import on_range
+
+        for u in s.ufuns:
+            try:
+                u.reserved_value = on_range(u, float(u.reserved_value))
+            except Exception:  # noqa: BLE001
+                pass
+    from hani2.ufun_scale import is_normalized
+
+    if not all(is_normalized(u) for u in s.ufuns):
+        s.info = dict(s.info or {})
+        s.info[NORMALIZED_KEY] = False
+    return s
+
+
 def _simple_dir(path: Path) -> bool:
     return bool(_read_info(path).get(simple.SIMPLE_KEY))
 
 
-def make_scenario(type_: str, index: int, simple_mode: bool = False) -> Scenario:
+def make_scenario(type_: str, index: int, simple_mode: bool = False, normalized: bool = True) -> Scenario:
     """Generate slot ``index`` of ``type_``; ``simple_mode`` makes it a simple scenario
-    (a maker that knows nothing about the mode is simplified afterwards)."""
+    (a maker that knows nothing about the mode is simplified afterwards). ``normalized``
+    (the default) normalizes every utility function (:func:`normalize_scenario`);
+    ``False`` keeps what the maker draws without normalizing (:func:`_make_raw`). A simple
+    scenario is always normalized: its round numbers are percentages."""
     if not simple_mode:
-        return MAKER_MAP[type_](index)
+        return normalize_scenario(MAKER_MAP[type_](index)) if normalized else _make_raw(type_, index)
     with simple.simple_mode():
         s = MAKER_MAP[type_](index)
-        return s if simple.is_simple(s) else simple.simplify_scenario(s)
+        return normalize_scenario(s if simple.is_simple(s) else simple.simplify_scenario(s))
 
 
 GENERATION_RULES: dict[str, dict[str, str]] = {
@@ -318,13 +421,14 @@ def default_rule(ref: Any = None) -> str:
     return "simple" if simple_scenarios(ref) else "random"
 
 
-def generate_scenario(type_: str, index: int, rule: str | None = None) -> Scenario:
+def generate_scenario(type_: str, index: int, rule: str | None = None, normalized: bool | None = None) -> Scenario:
     """Generate slot ``index`` of ``type_`` by ``rule`` (a :data:`GENERATION_RULES` key;
-    ``None``: the current study's rule)."""
+    ``None``: the current study's rule), normalized or not (``None``: the current
+    study's ``normalized_scenarios`` setting)."""
     rule = rule or default_rule()
     if rule not in GENERATION_RULES:
         raise ValueError(f"unknown generation rule {rule!r}; one of {', '.join(GENERATION_RULES)}")
-    return make_scenario(type_, index, rule == "simple")
+    return make_scenario(type_, index, rule == "simple", normalized_scenarios() if normalized is None else normalized)
 
 
 def pool_problems(types: list[str]) -> dict[str, str]:
@@ -371,7 +475,14 @@ def _save(scenario: Scenario, folder: Path, info_name: str) -> Path:
     for f in folder.iterdir():
         if f.is_file() and f.suffix in (".yml", ".yaml") and not f.name.startswith("_") and f.name not in keep:
             f.unlink()
-    scenario.dumpas(folder, save_info=False)
+    # the cached statistics (hani2.scenario_stats) are of the files being replaced: they are computed
+    # again in the background, never written from a possibly outdated ``scenario.stats``
+    scenario.dumpas(folder, save_info=False, save_stats=False)
+    from hani2 import scenario_stats
+
+    meta = scenario_stats.read_cached(folder)
+    if meta is None:
+        scenario_stats.clear(folder)
     if scenario.info:
         write_info(scenario.info, folder / info_name)
     for n in INFO_FILES:
@@ -388,6 +499,7 @@ def load_scenario(
     name: str | None = None,
     strict: bool = False,
     simple_mode: bool = False,
+    normalized: bool = True,
 ) -> tuple[Scenario, dict[str, Any], str | None]:
     """Return ``(scenario, basic_info, scenario_dir)`` for slot ``index`` of ``type_``.
 
@@ -405,6 +517,10 @@ def load_scenario(
     has none) a scenario generated in simple mode. With ``strict`` the saved set
     wins: a pool without simple scenarios is served as it is. Saved scenarios are
     never changed when they are served.
+
+    ``normalized`` (the setting ``normalized_scenarios``, on by default): a scenario
+    generated on the fly is normalized, else kept as its maker draws it without
+    normalizing (saved scenarios are served as saved).
     """
     if strict:
         load_existing, generate_on_failure = True, False
@@ -444,10 +560,11 @@ def load_scenario(
                 return s, dict(index=index, load_index=None, load_path=str(sample),
                                scenario_name=type_, generated=False, scenario_type=type_), None
         raise ValueError(f"Unknown scenario type {type_!r}")
-    s = make_scenario(type_, index, simple_mode)
+    s = make_scenario(type_, index, simple_mode, normalized)
     info = dict(index=index, load_index=None, load_path=None,
                 scenario_name=s.outcome_space.name, generated=True, scenario_type=type_,
-                **({"simple": True} if simple_mode else {}))
+                **({"simple": True} if simple_mode else {}),
+                **({NORMALIZED_KEY: False} if (s.info or {}).get(NORMALIZED_KEY) is False else {}))
     return s, info, None
 
 

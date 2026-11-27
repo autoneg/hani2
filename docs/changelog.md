@@ -2,6 +2,81 @@
 
 ## Unreleased
 
+- **Preferences: weights as a bar, side by side, normalized or raw.** The issue weights are now
+  drawn as one thin coloured bar by default (`tools.weights_chart: bar`; `donut` brings the ring
+  back). In a tool pane pinned outside the full view (the simple view) the weights and the value of
+  each option sit side by side when the pane allows it. When the tool is enlarged or popped out,
+  `tools.weights_chart_window: donut` (or `bar`) draws the weights its own way there, independently
+  of the pane (`same`, the default, keeps the pane's chart). `tools.preferences_scale: raw` shows the
+  utility function's own numbers instead of normalized percentages (`normalized`, the default;
+  preferences that are not normalized are normalized for display with negmas). An issue with more than
+  `tools.values_line_above` options (12 by default), or a continuous one, shows its values as a line
+  drawn the same way round as the bars. For tool authors: `ui.placed(pane, window)` shows one
+  component in a pane and another in the tool's window, and `ui.grid(..., narrow_min=...)` keeps the
+  columns side by side in a narrow pinned pane. See [Showing preferences](guide/preferences.md#weights-as-a-bar-or-a-donut).
+- **Normalized or raw generated scenarios.** The setting `normalized_scenarios` (global
+  `negotiation.normalized_scenarios`, project and study; on by default) keeps every generated
+  scenario normalized as negmas normalizes: every deal worth 0 to 1, weights adding up to 1, every
+  value function from 0 to 1 (a Trade scenario whose worst deal was above 0 is now stretched to 0).
+  Off, generated scenarios are kept as their generators draw them (of the built-in ones only
+  Grocery draws preferences that are not normalized, its items' points; simple scenarios, on by
+  default, stay normalized). `hani2 generate --no-normalized` does the same for a pool. See
+  [Normalized scenarios](guide/scenarios.md#normalized-scenarios).
+- **Negotiations run on normalized scenarios.** A scenario that is not normalized is normalized
+  (as negmas normalizes) when the negotiation starts, so every number on the negotiation screen is on
+  0 to 1; one that is normalized already is used as it is. The Preferences tools in raw numbers show
+  the original numbers. `assume_normalized` (project or study) skips the check. **Note:** saved
+  scenarios that are not normalized (for example scaled so the best deal is 1 but the worst above 0,
+  or compositional scenarios with a constraint) are now played on a different scale, so their
+  utilities and scores are not comparable with results recorded before; set `assume_normalized` to
+  keep playing them as they are.
+- **A wider tools column in the simple view.** On a desktop the simple view's tools column now
+  takes 42% of the width by default (as on a tablet), so the Preferences tool shows the weights and
+  the option values side by side; it has its own size (`layout.sizes.simple_tools`).
+- **Scenario statistics.** Every scenario gets negmas's statistics (opposition, utility ranges,
+  rational fraction, the Pareto frontier and the Nash, Kalai, KS and welfare solutions), computed
+  in the background when a negotiation starts, in a separate process with a time limit, and cached
+  next to the scenario in negmas's `_stats.yaml` (the Pareto frontier only up to
+  `scenario_stats.pareto_max_outcomes`, a million by default). Too slow or failing scenarios are
+  skipped and say why. They show under **Statistics** on the console's Scenarios page and in the
+  new admin-only **Scenario Stats** tool. See [Scenario statistics](guide/scenarios.md#scenario-statistics).
+
+- **Self-hosted Assistants and opponents.** A team runs its Assistant or opponent on its own machine,
+  with any language model, by running `hani2 host-assistant my_agent:MyAssistant` or
+  `hani2 host-opponent my_neg:MyNegotiator` with its token. HANI2 calls the agent over HTTP (protocol
+  `hani2-hosted/1`), and to the rest of HANI2 it looks like a local agent.
+    * **How you name one.** Wherever a class is accepted, you can name a hosted agent as
+      `remote:<name>`. Organisers register it in **Library → Hosted agents** or with
+      `hani2 hosted add|list|check|enable|remove`. A project or study can make a side self-hosted with
+      `hosted: {assistants: true}`.
+    * **Isolation and safety.** Every negotiation is a separate host session, so concurrent
+      negotiations never share state. A hosted Assistant can only do what its capabilities and
+      autonomy allow, because everything it asks for runs in HANI2. A slow or unreachable host never
+      hangs a negotiation, and its games still count.
+    * **What results record.** The registered name, the version and model the host declares, and
+      `hosted_failures`.
+    * See [Self-hosting an Assistant or opponent](guide/self-hosting.md).
+- **Continuous leaderboards.** A board's `update` is one of three rules:
+    * `pooled` (as before);
+    * `latest` (the newest study replaces the board, for periodic tournaments);
+    * `continuous` (every game, recent ones weigh more, with a Kalman filter that flags a probable
+      change of agent and ranks by its lower bound).
+  
+  The rules live in the pure module `hani2.ratings`, which other sites can import or run as
+  `python -m hani2.ratings`. See [Leaderboard update modes](guide/project-management.md#leaderboard-update-modes).
+
+- **Named model sequences.** Besides the per-purpose chains, `models.json` can define any number
+  of named sequences (`sequences`), and a purpose can name one (`"judge": "judge-strict"`). Built-in
+  `tiny`, `offline` (local Ollama only), `small`, `medium` and `large` sequences come with every
+  installation. Sequences merge by name across the settings folder, project and study, and any
+  layer can override one or disable an inherited one (`{"disabled": true}`). Entries take
+  `thinking` (`true`/`false` or a token budget) and `effort` as well as `temperature` and any
+  other provider parameter. The Assistant can pick a sequence by name for its replies and for any
+  task (`model_choice`, on by default; `use_model_sequence`, `ask_llm(..., sequence=...)`), and
+  with `own_models` (off by default) it can define its own sequences signed in with its own keys or
+  servers. The **Models** page edits, overrides, disables and tests sequences. `hani2 models list`
+  lists them and `hani2 models resolve --sequence` checks one. Results record each sequence used
+  (`llm_models`, `purpose@sequence`).
 - **A failing tool stays in its own tab.** A tool that raises (when created, in `init`, a hook,
   its view, an input or a button) or takes longer than `tools.render_timeout` seconds to render
   (20 by default) no longer breaks the session or leaves a blank pane: its tab shows that it is not
@@ -11,10 +86,20 @@
   the top of the library's **Tools** page. `tools.isolate_builtin: false` (*Catch built-in tool
   failures*) lets built-in tool errors surface as before, for debugging. See [When a tool
   fails](guide/tools.md#when-a-tool-fails). The same guard covers inputs, buttons, hooks, `init`
-and what the Assistant reads or presses (each gets `tools.render_timeout` seconds; a hung call is
-abandoned and never blocks the page or the Assistant), `sys.exit()` in a tool, and a tool that is
-always too slow (not retried after three timeouts until its tab is opened again); participants
-never see exception text, only administrators do.
+  and what the Assistant reads or presses (each gets `tools.render_timeout` seconds; a hung call is
+  abandoned and never blocks the page or the Assistant), `sys.exit()` in a tool, and a tool that is
+  always too slow (not retried after three timeouts until its tab is opened again); participants
+  never see exception text, only administrators do.
+- **Metric catalogue and questionnaires pages.** Every measure is now in a group of similar measures
+  (outcome, efficiency and welfare, fairness, task success and rules, process, behaviour, Assistant use,
+  activity, questionnaires, language-model judgements, scores, LLM cost, simulation, context). The score
+  builder, the board settings and the leaderboard's *Ranked by* show criteria in these groups. A ✓
+  marks measures validated against a hand-computed example, and questionnaires validated against their
+  source instrument; the Study forms page shows the marks and links the sources. See the [Metric
+  catalogue](guide/metric-catalog.md) and [Questionnaires](guide/questionnaires.md).
+- **Workload is lower-is-better.** A questionnaire scale whose items all say `direction: lower` (the
+  NASA-TLX `workload` scale) is lower-is-better in scores and on boards, instead of higher-is-better.
+
 - **A more compact Preferences tool.** The hints and "What you want on each issue" moved from
   the bottom into the *In short* card on top, which now folds away with a click (and stays folded
   while the tool updates). Every issue sentence ends with an icon as tall as the text: a green arrow
@@ -22,8 +107,8 @@ never see exception text, only administrators do.
   (best at one value). Administrators can draw the issue weights as one thin horizontal bar instead
   of the donut (`tools.weights_chart: bar`, *Issue weights shown as* on the **Tools** page). For
   tool authors: `ui.kv(..., marks=[...])` puts such an icon after a value, `ui.legend(...)` is a colour key that wraps, and
-  `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a donut
-  or a bar](guide/preferences.md#weights-as-a-donut-or-a-bar).
+  `ufun_views.explain_issue` returns an issue's sentence with its direction. See [Weights as a bar
+  or a donut](guide/preferences.md#weights-as-a-bar-or-a-donut).
 - **Tools on either side in the simple view.** `interface.simple_tools_side` (`right`, the
   default, or `left`) puts the simple view's tools column on either side of the negotiation. The
   console's **Participant interface** page gets a *Layout* group with the starting view, the view

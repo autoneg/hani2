@@ -11,6 +11,7 @@ import { TextArea } from "../controls/TextField";
 import { Toggle } from "../controls/Toggle";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
+import { VALIDATED_SOURCE_TIP, ValidatedMark } from "../../ui/metricGroups";
 
 type Form = "pre_questionnaire" | "per_negotiation" | "post_session";
 export const FORMS: [Form, string, string][] = [
@@ -21,7 +22,19 @@ export const FORMS: [Form, string, string][] = [
 const LAYER_NAME = (id?: string) =>
   !id || id === "none" ? "nowhere (no form)" : id === "bundled" ? "the bundled default" : id === "settings" ? "the settings folder" : id === "env.json" ? "a name in env.json" : id.startsWith("env:") ? `the ${id.slice(4)} environment variable` : id.startsWith("project:") ? `project ${id.slice(8)}` : `study ${id.slice(6)}`;
 
-interface LibSet { id: string; title: string; description: string; reference: string; forms: string[]; questions: any[]; source: string }
+interface LibSet {
+  id: string;
+  title: string;
+  description: string;
+  reference: string;
+  forms: string[];
+  questions: any[];
+  source: string;
+  /** checked against its source instrument (hani2.evaluation.catalog) */
+  validated?: boolean;
+  validation_note?: string;
+  url?: string;
+}
 
 export function StudyForms() {
   const { layer } = useLayer();
@@ -180,11 +193,14 @@ function ConsentSetting() {
 
 function LibraryPicker({ form, text, onText }: { form: Form; text: string; onText: (t: string) => void }) {
   const [lib, setLib] = useState<LibSet[] | null>(null);
+  const [tip, setTip] = useState(VALIDATED_SOURCE_TIP);
   const [picked, setPicked] = useState<string[]>([]);
   const [all, setAll] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => {
-    api("/api/admin/questionnaires/library").then((r) => setLib(r.sets)).catch((e) => toast(e.message, "error"));
+    api("/api/admin/questionnaires/library")
+      .then((r) => (setLib(r.sets), r.validated_tooltip && setTip(r.validated_tooltip)))
+      .catch((e) => toast(e.message, "error"));
   }, []);
   const shown = useMemo(() => (lib ?? []).filter((s) => all || s.forms.includes(form)), [lib, all, form]);
   const add = async () => {
@@ -215,12 +231,25 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
               <input type="checkbox" className="mt-1" checked={picked.includes(s.id)} onChange={(e) => setPicked((p) => (e.target.checked ? [...p, s.id] : p.filter((x) => x !== s.id)))} />
               <span className="min-w-0 flex-1">
                 <span className="text-sm font-medium">{s.title}</span>
+                {s.validated && <ValidatedMark tip={`${tip}${s.validation_note ? `: ${s.validation_note}` : ""}`} />}
                 <span className="ml-2 text-xs text-muted">
                   {s.questions.length} question{s.questions.length === 1 ? "" : "s"}
                   {s.source === "settings" ? " · your own" : ""}
                 </span>
                 <span className="block text-xs text-muted">{s.description}</span>
-                {s.reference && <span className="block text-[11px] italic text-muted">{s.reference}</span>}
+                {s.reference && (
+                  <span className="block text-[11px] italic text-muted">
+                    {s.reference}
+                    {s.url && (
+                      <>
+                        {" "}
+                        <a href={s.url} target="_blank" rel="noreferrer" className="not-italic text-you hover:underline" onClick={(e) => e.stopPropagation()}>
+                          source
+                        </a>
+                      </>
+                    )}
+                  </span>
+                )}
               </span>
               <button type="button" className="btn-ghost px-1.5 text-xs" onClick={(e) => (e.preventDefault(), setOpen(open === s.id ? null : s.id))}>
                 {open === s.id ? "Hide" : "Items"}

@@ -126,6 +126,33 @@ def _attribution(ss: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+#: self-hosted agents (see hani2.hosting): the version each side's host declared (a hint, never
+#: checked) and how many calls to the hosts failed in the game ("" when no side is hosted). A hosted
+#: side's ``<side>_llm`` holds ``remote:<provider/model>`` as its host reported it (unverified) and
+#: ``<side>_llm_entry`` ``hosted:<name>@<version>``.
+HOSTED_COLUMNS = ["assistant_version", "opponent_version", "hosted_failures"]
+
+
+def _hosted(ss: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {k: "" for k in HOSTED_COLUMNS}
+    fails, any_hosted = 0, False
+    for side in ("assistant", "opponent"):
+        h = ss.get(f"hosted_{side}")
+        if not isinstance(h, dict):
+            continue
+        any_hosted = True
+        ver = str(h.get("version") or "")
+        out[f"{side}_version"] = ver
+        out[f"{side}_llm"] = f"remote:{h['model']}" if h.get("model") else "remote"
+        name = str(h.get("name") or "")
+        name = name[len("remote:"):] if name.startswith("remote:") else name
+        out[f"{side}_llm_entry"] = f"hosted:{name}" + (f"@{ver}" if ver else "")
+        fails += int(h.get("failures") or 0)
+    if any_hosted:
+        out["hosted_failures"] = fails
+    return out
+
+
 def _han_provenance(ss: dict[str, Any], m: SAOMechanism) -> dict[str, Any]:
     """``opponent_han_year``, ``opponent_han_source`` and ``opponent_han_version`` when the AI
     opponent is a HAN agent (see :mod:`hani2.han_submissions`); empty otherwise."""
@@ -380,6 +407,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         )
         | _condition(ss)
         | _attribution(ss)
+        | _hosted(ss)
         | _han_provenance(ss, m)
         | paired_columns(ss)
         | _participant(ss, human_ufun, human_utility, m.agreement is not None)

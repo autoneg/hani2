@@ -111,7 +111,10 @@ def factors(ctx: EvalContext, options: dict) -> dict:
     target = comp.get("target") or {}
     r = float(ctx.disagreement[0]) if ctx.has_scenario else None
     hu = float(pt[0]) if pt is not None else num((ctx.summary or {}).get("human_utility"))
-    tu = num(target.get("human_utility"))
+    # the target deal's utility as the negotiation played it (a scenario that is not normalized
+    # is normalized when the negotiation starts), else the number the composer stored
+    tu = ctx.hu(target["outcome"]) if isinstance(target.get("outcome"), dict) else None
+    tu = tu if tu is not None else num(target.get("human_utility"))
     if hu is not None and tu is not None and r is not None and tu - r > 1e-9:
         out["target_attainment"] = (hu - r) / (tu - r)
         out["reached_target"] = int(agr is not None and hu >= tu - 1e-9)
