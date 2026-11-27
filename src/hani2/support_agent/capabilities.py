@@ -45,6 +45,8 @@ class Capability(str, Enum):
     PRIVATE_INFO = "private_info"
     OPPONENT_MODEL = "opponent_model"
     OPPONENT_UTILITY = "opponent_utility"
+    MODEL_CHOICE = "model_choice"
+    OWN_MODELS = "own_models"
 
 
 #: Human-readable labels / descriptions (used by the settings screens).
@@ -76,11 +78,17 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "opponent_utility": ("Know the opponent's preferences (oracle)",
                          "See the opponent's utility function and the opponent's utility of every offer — an "
                          "ablation (the information ceiling), off by default and never shown to the participant"),
+    "model_choice": ("Choose its language models",
+                     "Pick one of the study's named model sequences (default, tiny, offline, small, medium, large, "
+                     "…) for its replies and for any other task that uses a language model"),
+    "own_models": ("Bring its own language models",
+                   "Define its own model sequences for the session, signed in with its own keys or servers — "
+                   "off by default"),
 }
 
 #: capabilities only the admin grant decides: the participant neither sees nor switches them (an
 #: experimental condition must not be self-selected or unblinded)
-ADMIN_ONLY_CAPABILITIES: frozenset[str] = frozenset({"opponent_utility"})
+ADMIN_ONLY_CAPABILITIES: frozenset[str] = frozenset({"opponent_utility", "model_choice", "own_models"})
 
 
 class Autonomy(str, Enum):

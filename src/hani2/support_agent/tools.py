@@ -98,6 +98,11 @@ class ToolDispatcher:
                                       self._schema_show_past_negotiation),
             "get_opponent_utility": (Capability.OPPONENT_UTILITY, self._get_opponent_utility,
                                      self._schema_get_opponent_utility),
+            # model_choice or own_models (the runtime checks which sequences it may use)
+            "list_model_sequences": (None, self._list_model_sequences, self._schema_list_model_sequences),
+            "use_model_sequence": (None, self._use_model_sequence, self._schema_use_model_sequence),
+            "define_model_sequence": (Capability.OWN_MODELS, self._define_model_sequence,
+                                      self._schema_define_model_sequence),
         }
         self.register_extra_tools()
 
@@ -139,6 +144,10 @@ class ToolDispatcher:
                     or self.caps.has(Capability.TOOL_ORDER)
                     or self.caps.has(Capability.TOOL_ADD)
                     or self.caps.has(Capability.TOOL_USE)
+                ):
+                    continue
+                if name in ("list_model_sequences", "use_model_sequence") and not (
+                    self.caps.has(Capability.MODEL_CHOICE) or self.caps.has(Capability.OWN_MODELS)
                 ):
                     continue
                 names.append(name)
@@ -590,6 +599,43 @@ class ToolDispatcher:
             {"offer": {"type": "object", "description": "Optional map of issue name to value to score."}},
             [],
         )
+
+    # ------------------------------------------------------------------ #
+    # Model sequences                                                     #
+    # ------------------------------------------------------------------ #
+    def _list_model_sequences(self, args: dict) -> dict:
+        seqs = [{"name": d["name"], "description": d.get("description", ""),
+                 "models": [f"{e.get('connection') or e.get('provider')}:{e.get('model')}" for e in d.get("entries", [])]}
+                for d in self.runtime.model_sequences()]
+        return {"ok": True, "current": self.runtime.model_sequence or "assistant", "sequences": seqs}
+
+    def _schema_list_model_sequences(self) -> dict:
+        return _fn("list_model_sequences",
+                   "List the named language-model sequences you may switch to (e.g. tiny, offline, small, "
+                   "medium, large) and the one you use now.", {}, [])
+
+    def _use_model_sequence(self, args: dict) -> dict:
+        return self.runtime.use_model_sequence(str(args.get("name") or ""))
+
+    def _schema_use_model_sequence(self) -> dict:
+        return _fn("use_model_sequence",
+                   "Use another named language-model sequence for your next replies (from list_model_sequences; "
+                   "'assistant' goes back to the default). Prefer small models for simple requests.",
+                   {"name": {"type": "string", "description": "The sequence name."}}, ["name"])
+
+    def _define_model_sequence(self, args: dict) -> dict:
+        return self.runtime.define_model_sequence(str(args.get("name") or ""), args.get("entries") or [],
+                                                  str(args.get("description") or ""))
+
+    def _schema_define_model_sequence(self) -> dict:
+        return _fn("define_model_sequence",
+                   "Define your own language-model sequence for this session (tried in order). Each entry is "
+                   "'provider:model' or an object with provider, model, params (temperature, effort, thinking, "
+                   "...), and optionally api_key_env / api_base for your own server.",
+                   {"name": {"type": "string", "description": "A new sequence name."},
+                    "entries": {"type": "array", "items": {}, "description": "The entries, first choice first."},
+                    "description": {"type": "string", "description": "What the sequence is for."}},
+                   ["name", "entries"])
 
     # ------------------------------------------------------------------ #
     # Action panel                                                        #
