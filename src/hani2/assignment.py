@@ -60,8 +60,9 @@
   ``used_assistants`` and the ``assistant`` of their counted results rows). When
   no unused Assistant is left, ``scheduling.assistant_repeats: true`` wraps around;
   otherwise the human finishes early (a ``finished_early`` event and a log line).
-  A study whose pool was smaller than K from the human's start (``assistant_pool``,
-  recorded on first sight) warns and wraps, as before.
+  Only a pool that lost a member of the one the human started with
+  (``assistant_pool``, recorded on first sight) ends their study early; otherwise
+  (a study whose pool was always smaller than K) it warns and wraps, as before.
 
 * **Participant index.** Every counted human of a study gets the next index (0, 1,
   …) on first sight; it picks their row of the opponent Latin square and their
@@ -393,9 +394,10 @@ def pool_at_start(session: Any, pool: list[str]) -> list[str]:
 def assistants_wrap(session: Any, method: str, pool: list[str], paired: bool = False) -> bool:
     """Whether a human who has used every Assistant left in ``pool`` gets one again (the plan
     wraps around) instead of finishing early: ``scheduling.assistant_repeats: true``; or, without
-    it, a study whose pool was smaller than K from the human's start (a running study whose file
-    breaks the rule: warned, and wrapped as before). In Paired, only a one-Assistant pool wraps
-    without ``assistant_repeats``."""
+    it, when no Assistant of the pool the human started with has left it (a running study whose
+    file breaks the rule, a study without a count of negotiations, an admin: warned and wrapped as
+    before). Only a pool that lost a member makes the human finish early. In Paired, only a
+    one-Assistant pool wraps without ``assistant_repeats``."""
     from hani2 import scheduling
 
     ref = getattr(session, "study_ref", None)
@@ -405,7 +407,7 @@ def assistants_wrap(session: Any, method: str, pool: list[str], paired: bool = F
     first = set(pool_at_start(session, pool))
     if paired:
         return len(first) <= 1
-    return len(first) < _plan_size(session)
+    return not (first - set(pool))
 
 
 def _planned_sequence(session: Any, pool: list[str], method: str, k: int) -> list[str]:
@@ -449,7 +451,7 @@ def subset_plan(session: Any, pool: list[str], method: str) -> list[str]:
             return fresh
         # a re-plan: the slots already played stay, the open ones get Assistants not used yet
         kept = played[:k]
-        return kept + scheduling.fill_open_slots(fresh, taken, pool, k, start=len(kept) + len(skipped))
+        return kept + scheduling.fill_open_slots(fresh, taken, pool, k, start=len(kept))
 
     path = store_path(session.study_ref)
     if not counts_as_human(session):

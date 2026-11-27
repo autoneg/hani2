@@ -601,3 +601,19 @@ def test_paired_replan_fills_open_slots_from_unused(hani2_home):
     new, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
     assert new == [x for x in (HELLO, RULES, COACH) if x not in rest[:2]]
     assert assignment.read_assignments(ref)["humans"]["bob"]["assistant_plan"][0] == rest[0]
+
+
+def test_paired_replan_with_a_skipped_assistant_is_stable(hani2_home):
+    ref = paired_study(assistants=[HELLO, RULES, COACH, "level6_guided:GuidedAgent"],
+                       scheduling={"assistants": "balanced_subset"}, n_required=3)
+    a = person("carol", ref, load=False)
+    rest, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    assignment.mark_used(a, rest[0], "m1")
+    assignment.skip_assistant(a, rest[1])
+    _set_pool(ref, [x for x in (HELLO, RULES, COACH, "level6_guided:GuidedAgent") if x != rest[2]])
+    first, _m = assignment.remaining_assistants(a, a.assistant_settings, {})
+    for _ in range(2):
+        assert assignment.remaining_assistants(a, a.assistant_settings, {})[0] == first
+    h = assignment.read_assignments(ref)["humans"]["carol"]
+    assert len(h["previous_assistant_plans"]) == 1
+    assert len(first) == 1 and first[0] not in rest[:3]  # one open slot (the skip used one), unused

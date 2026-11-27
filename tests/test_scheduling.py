@@ -1060,3 +1060,19 @@ def test_too_few_unused_assistants_left_wraps_with_repeats(study, monkeypatch):
     assert s.phase != "finished" and s.assistant_choice.spec in seen  # wraps around
     _play(s)
     assert len(_rows(s)) == 3 and _finished_early(study) == 0
+
+
+def test_an_unchanged_pool_wraps_past_n_outside_a_counted_study(hani2_home):
+    """A study without a count of negotiations (no n_required end): with the pool untouched, slot
+    N+1 still gets an Assistant (it wraps), it does not finish early."""
+    projects.create_project("HI", kind="assistant")
+    projects.create_study("HI/open", type="online", assistants=[HELLO, RULES], n_required=2,
+                          scheduling={"assistants": "latin_square"})
+    s = make_session(user="opener", partner=None, study=StudyRef("HI", "open"), query={"noautostart": "1"})
+    seen = []
+    for _ in range(3):
+        seen.append(s.assistant_choice.spec)
+        _play(s)
+        s.load()
+    assert s.phase != "finished" and sorted(seen[:2]) == sorted([HELLO, RULES]) and seen[2] in seen[:2]
+    assert _finished_early(StudyRef("HI", "open")) == 0

@@ -294,9 +294,9 @@ they have already done:
   otherwise the person **finishes early** with the completion link. The server log says why, and a
   `finished_early` event (`component = scheduling`) is recorded (once per person while the server runs).
 
-A study whose pool was smaller than K from a person's first negotiation does not finish early: it
-warns and wraps, as described above. The pool each person started with is kept as `assistant_pool` in
-`assignments.json`.
+Only a pool that lost an Assistant ends a person's study early. A study whose pool was smaller than
+K from the start warns and wraps, as described above. The pool each person started with is kept as
+`assistant_pool` in `assignments.json`.
 
 A `schedule.json` that
 names one Assistant in two slots is used as written but flagged (`external:repeat` in the
