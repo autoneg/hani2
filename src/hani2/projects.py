@@ -44,7 +44,7 @@ DEFAULT_KEYS = (
     "strict_scenarios", "simple_scenarios", "normalized_scenarios", "assume_normalized", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
     "scores", "scores_enabled", "normalisation", "leaderboard",
-    "force_reserved_value",
+    "force_reserved_value", "hosted",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -289,6 +289,10 @@ def file_problems(data: dict, nested: str, *, strict: bool = True) -> list[str]:
     from hani2.evaluation import boards
 
     out += boards.file_problems(data, nested)
+    from hani2.hosting.registry import check_hosted_block
+
+    for where, src in (("hosted", data), (f"{nested}.hosted", inner)):
+        out += check_hosted_block(src.get("hosted"), where)
     return list(dict.fromkeys(out))
 
 

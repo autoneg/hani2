@@ -385,8 +385,10 @@ def _expand_agent_items(items) -> list:
     """Expand a list of agent-list items (group tokens + literals) into a
     flat, de-duplicated, order-preserving list of agent specs."""
     from hani2.composition import expand_entries
+    from hani2.hosting.protocol import normalise_spec
 
-    return expand_entries(list(items or []), opponent_lookup, label="opponent group")
+    # a hosted opponent given as a mapping ({url, token_env} or {name}) becomes its string spec
+    return expand_entries([normalise_spec(x) for x in list(items or [])], opponent_lookup, label="opponent group")
 
 
 def resolve_agent_group(key: str) -> list:
@@ -426,8 +428,13 @@ def _prime_group_syspaths() -> None:
 
 def client_spec_allowed(spec: str) -> bool:
     """Whether a spec typed by a browser (URL or opponent picker) may be loaded for a non-admin:
-    never ``file:`` (that would make the server execute a .py file of the visitor's choosing)."""
-    return not str(spec).strip().lower().startswith("file:")
+    never ``file:`` (that would make the server execute a .py file of the visitor's choosing) and never
+    a hosted agent's address (``remote+https://…``: the server would call a host of the visitor's
+    choosing); a registered ``remote:<name>`` is fine."""
+    from hani2.hosting.protocol import is_direct_address
+
+    s = str(spec).strip()
+    return not s.lower().startswith("file:") and not is_direct_address(s)
 
 
 def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = True,
@@ -466,6 +473,12 @@ def session_agent_override(args: dict[str, Any] | None, *, allow_files: bool = T
 
 
 def get_agent_type(x: Negotiator | str | None) -> Negotiator:
+    from hani2.hosting.protocol import is_remote_spec
+
+    if is_remote_spec(x):  # a self-hosted opponent: an adapter class bound to its address
+        from hani2.hosting.opponent import remote_opponent_class
+
+        return remote_opponent_class(x)  # type: ignore[return-value]
     # Handle file: prefix for loading classes from Python files
     if isinstance(x, str) and x.startswith("file:"):
         # Format: file:path/to/filename.ClassName
@@ -721,6 +734,10 @@ def expand_agents(items) -> list:
 
 
 def short_name(spec: Any) -> str:
+    from hani2.hosting.protocol import is_remote_spec, short_label
+
+    if is_remote_spec(spec):
+        return short_label(spec)
     name = spec if isinstance(spec, str) else getattr(spec, "__name__", str(spec))
     return str(name).split(":")[-1].split(".")[-1]
 

@@ -565,13 +565,15 @@ def _query_val(query: dict, *names: str) -> str:
 
 
 def _items(raw: Any) -> list[str]:
+    from hani2.hosting.protocol import normalise_spec
+
     if raw is None:
         return []
     if isinstance(raw, str):
         return [s.strip() for s in raw.split(",") if s.strip()]
-    if isinstance(raw, (list, tuple)):
-        return [str(s).strip() for s in raw if str(s).strip()]
-    return [str(raw).strip()]
+    if isinstance(raw, (list, tuple)):  # a hosted Assistant may be a mapping {url, token_env} or {name}
+        return [str(normalise_spec(s)).strip() for s in raw if str(normalise_spec(s)).strip()]
+    return [str(normalise_spec(raw)).strip()]
 
 
 def group_file(session: Any):
@@ -711,6 +713,14 @@ def assistant_pool(session: "NegotiationSession", settings: dict, plan: dict | N
             levels.append(("env", items, _group_of(items)))
     if not levels:
         raw = projects.setting("assistants", None, ref=ref)
+        if raw is None:  # the self-hosted mode: the registered hosted Assistants (see hani2.hosting)
+            from hani2.hosting.registry import hosted_pool
+
+            raw = hosted_pool("assistant", ref) or None
+            if raw is None and (projects.setting("hosted", None, ref=ref) or {}).get("assistants") is True:
+                return AssistantChoice(spec=None, source="study", pool=[],
+                                       error="the study's Assistants are self-hosted but no hosted Assistant is "
+                                             "registered and switched on (`hani2 hosted add` or the admin console)")
         if raw is None:  # a Paired HAN study plays without Assistants (see hani2.study_modes)
             info = getattr(session, "study_mode_info", None)
             raw = info.filled.get("assistants") if info is not None else None

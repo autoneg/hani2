@@ -450,7 +450,7 @@ class NegotiationSession:
         self.models = SessionModels(self)
         self.model_error: str | None = None
         self.support_agent = create_support_agent_for(self)
-        if self.support_agent is not None:
+        if self.support_agent is not None and not getattr(self.support_agent, "brings_own_model", False):
             self.models.get("assistant")  # chosen at session start; a missing model shows a banner
         ev.log_event(sid, ev.EventType.SESSION_START, user=user, value={"mode": mode, **self.assistant_attribution(),
                                                                          **self._study_mode_event()})
@@ -2206,10 +2206,13 @@ class NegotiationSession:
     def assistant_attribution(self) -> dict[str, Any]:
         """``assistant``, ``assistant_group``, ``assistant_class``, ``assistant_error`` (results rows,
         events, recordings)."""
+        from hani2.hosting.protocol import is_remote_spec, recorded_spec
+
         c = self.assistant_choice
         sa = self.__dict__.get("support_agent")
+        spec = (c.spec or "") if c is not None else ""
         return dict(
-            assistant=(c.spec or "") if c is not None else "",
+            assistant=recorded_spec(spec) if is_remote_spec(spec) else spec,  # a hosted one: its name, no address
             assistant_group=(c.group or "") if c is not None else "",
             assistant_source=c.source if c is not None else "",
             assistant_class=f"{type(sa).__module__}.{type(sa).__qualname__}" if sa is not None else "",
@@ -3055,6 +3058,12 @@ class NegotiationSession:
             verbose=os.environ.get("HANI2_VERBOSE") == "1",
             models=self.models,
         )
+        self.ss.pop("hosted_opponent", None)
+        if getattr(agent, "is_remote", False):  # a self-hosted opponent: record its name, never its address
+            from hani2.hosting.protocol import recorded_spec
+
+            self.ss["last_partner_type"] = recorded_spec(partner)
+            agent.attach(self)
         self.ss["opponent_user"] = None
         self._finish_make_mechanism(scenario, hi, agent, human_name)
 

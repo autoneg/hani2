@@ -1213,7 +1213,15 @@ class AssistantLoadError(RuntimeError):
 
 
 def load_assistant_class(spec: str) -> type[SupportAgent]:
-    """Load an Assistant class strictly (raises :class:`AssistantLoadError`)."""
+    """Load an Assistant class strictly (raises :class:`AssistantLoadError`). A hosted Assistant
+    (``remote:<name>``, ``remote+https://…``) gives an adapter class bound to its address (see
+    :mod:`hani2.hosting`)."""
+    from hani2.hosting.protocol import is_remote_spec
+
+    if is_remote_spec(spec):
+        from hani2.hosting.assistant import remote_assistant_class
+
+        return remote_assistant_class(spec)
     try:
         klass = load_class(spec)
     except Exception as e:  # noqa: BLE001
