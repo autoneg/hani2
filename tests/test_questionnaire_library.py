@@ -4,6 +4,7 @@ set rewrites its file, new sets and copies, the checks, path traversal, admin on
 parse / dump round trip of the Study forms item editor."""
 
 import json
+import shlex
 
 import pytest
 import yaml
@@ -59,7 +60,7 @@ def test_list_shows_origin_path_read_only_and_warnings(admin, lib_dir):
     assert sets["subjective_value"]["warning"] == ""
     mine = sets["my_set"]
     assert mine["origin"] == "own" and not mine["read_only"] and mine["path"] == str(lib_dir / "my_set.yaml")
-    assert mine["delete"]["command"] == f"rm {lib_dir / 'my_set.yaml'}" and "disappears" in mine["delete"]["effect"]
+    assert mine["delete"]["command"] == f"rm {shlex.quote(str(lib_dir / 'my_set.yaml'))}" and "disappears" in mine["delete"]["effect"]
     dem = sets["demographics"]
     assert dem["origin"] == "override" and not dem["read_only"] and dem["title"] == "My demographics"
     assert dem["bundled_path"].endswith("default_settings/questionnaire_library/demographics.yaml")

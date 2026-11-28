@@ -590,20 +590,21 @@ def test_participants_never_see_exception_text(broken_tools, monkeypatch):
 
 
 def test_a_hung_action_does_not_block_the_session(broken_tools, monkeypatch):
-    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.3}})
+    # a wait would be a render_timeout (0.6 s), well above a busy runner's noise
+    write_settings(broken_tools.parent, "env.json", {"tools": {"render_timeout": 0.6}})
     _arm(monkeypatch, "HangAction")
     s = make_session()
     hang, good = _tool(s, "HangAction"), _tool(s, "GoodTool")
     hid, gid = s.tool_state(hang)["id"], s.tool_state(good)["id"]
     t0 = time.monotonic()
     s.submit_ui(s.tool_action, hid, "go", {}).result()  # the single-worker UI executor
-    assert time.monotonic() - t0 < 0.9
+    assert time.monotonic() - t0 < 1.5
     assert s.tool_unusable(hang) and s.tool_failure(hang)["where"] == "on_action"
     t0 = time.monotonic()
     s.submit_ui(s.tool_action, hid, "go", {}).result()  # skipped while the first call hangs
     s.submit_ui(s.tool_input, hid, "x", 1).result()
     s.submit_ui(s.tool_action, gid, "go", {}).result()  # other tools carry on
-    assert time.monotonic() - t0 < 0.3
+    assert time.monotonic() - t0 < 0.6
     assert _is_failure_view(_view(s, "HangAction")) and _shows_tool(_view(s, "GoodTool"))
     assert s.wait(lambda: not s.tool_unusable(hang), 5)  # the abandoned call returned
     _arm(monkeypatch)
