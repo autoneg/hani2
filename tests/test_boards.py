@@ -627,7 +627,7 @@ def test_cli_show_refresh_and_project_export(hani2_home, tmp_path, monkeypatch):
     dest = tmp_path / "export"
     out = r.invoke(app, ["project", "export", "E", "--out", str(dest)])
     assert out.exit_code == 0, out.output
-    got = sorted(str(p.relative_to(dest)) for p in dest.rglob("*") if p.is_file())
+    got = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
     assert got == ["E/groups/g.json", "E/project.yaml", "E/studies/play/study.yaml"]
     assert "skipped env.json" in out.output
     assert "leaderboard" in (dest / "E" / "project.yaml").read_text()

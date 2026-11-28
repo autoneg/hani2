@@ -53,7 +53,7 @@ def test_list_shows_origin_path_read_only_and_warnings(admin, lib_dir):
     assert r["broken"][0]["command"].startswith("rm ")
     sus = sets["sus"]
     assert sus["origin"] == "bundled" and sus["read_only"] and sus["validated"] and "Brooke" in sus["source_citation"]
-    assert sus["path"].endswith("default_settings/questionnaire_library/sus.yaml") and "delete" not in sus
+    assert sus["path"].replace("\\", "/").endswith("default_settings/questionnaire_library/sus.yaml") and "delete" not in sus
     assert sus["scales"] == ["sus"] and sus["n_questions"] == 10
     assert sets["tam_ease"]["read_only"] and "Davis, 1989" in sets["tam_ease"]["warning"]
     assert sets["subjective_value"]["warning"] == ""
