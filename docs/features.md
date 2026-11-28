@@ -21,10 +21,11 @@ details are.
 
 | Feature | What it does | Details |
 | --- | --- | --- |
-| Four views | **Full** (tools left, offer generators beside the offer area), **simple** (one tools column), **focus** (negotiation only) and **bare** (no tools at all; a study can fix it). | [Layout views](guide/interface.md#layout-views) |
+| Four views | **Simple** (the default: one tools column, on either side), **full** (tools left, offer generators beside the offer area), **focus** (negotiation only) and **bare** (no tools at all; a study can fix it). Any tool can open in a popup. | [Layout views](guide/interface.md#layout-views) |
 | Resizable panes | Drag the dividers between panes; double-click to reset. Sizes survive a reload. | [Resizing the panes](guide/interface.md#resizing-the-panes) |
 | Enlarge a tool | Open any tool in a large window or full screen, and put it back where it came from. | [Enlarge and put back](guide/interface.md#enlarge-and-put-back) |
 | Tablets and phones | Landscape and portrait tablet layouts with a tools tray, and a phone layout with Negotiate / Tools / Assistant tabs. | [Phones and tablets](guide/interface.md#phones-and-tablets) |
+| A different look in each negotiation | With `interface.vary_appearance`, the Assistant and/or the opponent get their own colour and icon in each negotiation. | [A different look in each negotiation](guide/interface.md#a-different-look-in-each-negotiation) |
 | Display settings | Light or dark theme, text size, history options, offers as sentences or chips. | [Display settings](guide/interface.md#display-settings) |
 
 ### Tools
@@ -35,6 +36,7 @@ details are.
 | Negotiation Plot | The negotiation in utility space with the Pareto frontier, Nash and Kalai points and both offer trajectories (admins, or everyone if allowed). | [Built-in tools](guide/tools.md#built-in-tools) |
 | Any kind of preferences | The Preferences and Opponent Preferences tools show linear, affine, additive, generalized linear, polynomial, nonlinear, hyper-rectangle, weighted, discounted, rank-only, constant and probabilistic utility functions, and anything else as a ranked list. | [Showing other preferences](guide/preferences.md) |
 | Rearrange tools | Tabs, an enable switch, move between panes, hide and restore. | [Tool panes](guide/interface.md#tool-panes) |
+| A failing tool stays in its tab | A tool that raises shows its error in its own tab; the rest of the page keeps working. | [When a tool fails](guide/tools.md#when-a-tool-fails) |
 | Smooth updates | Only visible tools are computed, in the background; charts draw when the browser is idle. | [How tools are rendered](guide/tools.md#how-tools-are-rendered) |
 
 ## The Assistant
@@ -42,13 +44,15 @@ details are.
 | Feature | What it does | Details |
 | --- | --- | --- |
 | Assistant dock and status board | Chat with the assistant, answer its questions with buttons, and see its current advice on an always-visible board. | [The assistant dock](guide/interface.md#the-assistant-dock) |
-| Eighteen capabilities | Chat, notifications, pinned messages, tool control (enable, show, rearrange), fill the offer and message, send, accept, end, highlight, annotate, change the layout, custom panels, **add tools**, **use tools** and **its own information**. Admins grant them; each participant can switch them off. | [Capabilities](guide/assistant.md#capabilities) |
+| Twenty-seven capabilities | Chat, notifications, pinned messages, tool control (enable, show, rearrange), fill the offer and message, send, accept, end, highlight, annotate, change the layout and how offers read, custom panels, **add tools**, **use tools**, **answer the LLM tool and the AI features** (*Write message*, *Offer from message*), **its own information**, the opponent's estimated preferences, and choosing its own language models. Admins grant them; each participant can switch them off. | [Capabilities](guide/assistant.md#capabilities) |
 | Three autonomy levels | Suggest, semi-autonomous or fully autonomous for sending, accepting and ending. | [Autonomy](guide/assistant.md#autonomy) |
 | Interface control | Spotlight buttons, issues and tools with a short note, attach notes, switch views, resize panes and show interactive panels. | [Interface control](guide/assistant.md#interface-control) |
 | Finds and uses tools | Reads any tool as text (numbers, tables, chart summaries, inputs and buttons) and operates it like the participant, within its own permissions. A tool written for people needs no extra code. | [Tools the agent can find, use and add](guide/assistant.md#tools-the-agent-can-find-use-and-add) |
 | Adds tools while you negotiate | Puts its own tools, or registered ones, on the screen at the right moment; tools with `timing = "agent"` wait for it. | [Tools the agent can find, use and add](guide/assistant.md#tools-the-agent-can-find-use-and-add) |
-| Your own agent | Subclass `Assistant` with or without a language model; ten tutorial levels from an echo bot to an agent that brings its own tools. | [Build an Assistant](tutorials/assistant.md) |
+| Your own agent | Subclass `Assistant` with or without a language model; twelve tutorial levels from an echo bot to an agent that shapes the interface and writes the participant's messages. | [Build an Assistant](tutorials/assistant.md) |
 | Autopilot | The Assistant or any negotiator plays the human's seat. | [Autopilot](guide/autopilot.md) |
+| Self-hosted Assistants and opponents | A team runs its Assistant or opponent on its own machine with `hani2 host-assistant` / `hani2 host-opponent`; HANI2 talks to it over the `hani2-hosted/1` protocol. | [Self-hosting](guide/self-hosting.md) |
+| Named model sequences | Define model chains by name in `models.json` and let an Assistant pick among them. | [Named sequences](guide/models.md#named-sequences) |
 | Who knows what | Give the participant and the Assistant different information so they must work together: past negotiations in the same scenario shared out between them, the issue weights to one and the option values to the other, market research for the Assistant, private briefings with limits only the human knows, decisions only the human makes. | [Who knows what](guide/information.md) |
 
 ## For competitions
@@ -61,6 +65,11 @@ details are.
 | A team's tools | `hani2 --tools team.py:TeamTool` | [Submitting tools and agents](guide/assistant.md#hybrid-intelligence-submitting-tools-and-agents) |
 | Opponent agents | `hani2 --opponents BoulwareTBNegotiator,:template` (also `?opponents=` per link for admins, `?group=` for anyone, and `opponents` in `env.json`) | [Opponents](guide/opponents.md) |
 | Leaderboards of both tracks | `hani2 replay leaderboard --track han\|hi`, or **Leaderboard** in the replay tool | [Tracks and leaderboards](guide/evaluation.md#tracks-and-leaderboards) |
+| Project and study boards | A `leaderboard` block per project or study, with strata (Solo, Paired; HAN alone or against teams), `pooled`, `latest` or `continuous` updates, pages of their own and an API for a competition website. | [Leaderboards](guide/project-management.md#leaderboards) |
+| Your own scores | Weighted means of any criterion (outcomes, judge ratings, questionnaire scales), defined per project or study, checked and previewed live in the admin console. | [Scores](guide/project-management.md#scores) |
+| Solo, Paired and Mixed studies | `study_mode` declares who negotiates with whom; Paired studies match two people, each with their own Assistant, fairly. | [Mode](guide/project-management.md#mode-solo-paired-or-mixed), [Paired studies](guide/study-management.md#paired-studies) |
+| HAN agents by year | `:han<year>-finalists` and the other groups; the current year from the submitted zips. | [HAN agents by year](guide/project-management.md#han-agents-by-year) |
+| Games between people | People play each other whenever they like, with an AI opponent as the fallback. | [A game](guide/human-opponents.md#a-game) |
 | Pass/fail criteria per scenario | an `evaluation` block in `_info.yaml` | [Evaluation criteria](guide/scenarios.md#evaluation-criteria) |
 | Saved competition setups | `hani2 experiment create NAME --no-assistant --opponents ... --tools ... --no-webmcp`, then `hani2 --experiment NAME` | [Command line](getting-started/cli.md#hani2-experiment-create) |
 
@@ -78,12 +87,14 @@ participant. Options, settings and admin screens use these two names throughout.
 | Your own scenarios | Write a story or a generator in Python and register it from a file, or serve saved scenarios from any folder with `--scenarios`. | [Writing your own scenario type](guide/scenarios.md#writing-your-own-scenario-type) |
 | Recording and replay | Every negotiation is recorded completely — screens, clicks, pointer, keys, offers, assistant messages and function calls, language-model calls with tokens and cost — and can be replayed exactly as the participant saw it, with a check that the replay matches their screen. On by default. | [Recording and replay](guide/recordings.md) |
 | Simulated participants | Scripted personas (follower, skeptic, stubborn, click-through) and language-model personas (goal, private reservation value, temperament, gradual disclosure, stop token) play the human seat for cheap, repeatable trials of an Assistant and pass^k, as a qualifying round before the human study. Tagged `mode: simulated`, never ranked with humans, with a simulator source in the error review. `hani2 simulate`. | [Simulated participants](guide/simulation.md) |
+| Fair assignment | Between-subjects, Latin squares, K of N Assistants per person, crossing with opponents, and `hani2 study balance` to check the result. | [Assigning Assistants](guide/study-management.md#assigning-assistants-opponents-and-scenarios) |
 | Participant types | An optional pre-questionnaire, shown once before the first negotiation, gives every participant a type (e.g. novice / expert) that is stored with their results and stratifies the leaderboard. | [Pre-questionnaire](guide/study-management.md#pre-questionnaire-and-participant-types) |
 | Evaluation metrics | Hard metrics (outcome, Pareto / Nash / Kalai distances, welfare, length, tokens and cost, move types, theory of mind, decision times, activity, use of the assistant, engagement flags), questionnaire scales (UEQ, TAM, opponent perception) and language-model judgements (assistant, opponent, human, assertions, error review), for any set of recordings; compare groups with scenario-balanced means and pass^k; check the judge (agreement between two judge models, correlation with the questionnaire) before ranking on soft scores. `hani2 replay evaluate`, `hani2 replay compare`, `hani2 replay judge-reliability` or the replay tool. | [Evaluation metrics](guide/evaluation.md) |
+| Questionnaire library | Predefined questionnaires (standard instruments and those of past negotiation competitions), tagged by the party they ask about, browsed and edited in the admin console's **Questionnaires** page. | [Questionnaires](guide/questionnaires.md) |
 | Evaluation questionnaire | UEQ, TAM, intention to use, feeling heard, and how the opponent came across, after every negotiation: `HANI2_PER_NEG_YAML=evaluation`. | [Subjective metrics](guide/evaluation.md#subjective-metrics) |
 | Results and events | A results CSV per participant (including the layout used: `device` and `orientation`) and an SQLite event log of every action, with analytics in the admin console. | [Results](guide/study-management.md#results) |
 | Prolific | A no-login flow keyed by the Prolific ID, with practice and counted rounds and the completion link. | [Prolific](guide/prolific.md) |
-| Admin console | A settings window with search: live sessions, results, events, users, every setting per layer (all projects, a project, a study), projects and studies with their participant links, texts with a live preview, and explorers to browse, upload, link and group scenarios, opponents and Assistants. | [Admin console](guide/admin.md) |
+| Admin console | A settings window with search: live sessions, results, events, users, every setting per layer (all projects, a project, a study) with an editor for each whole settings file, projects and studies with their participant links, texts with a live preview, a **?** on every setting, and explorers to browse, upload, link and group scenarios, opponents, Assistants and questionnaires. | [Admin console](guide/admin.md) |
 | Opening admin-only tools | Give any admin-only tool, or opponent utilities, to all participants. | [Opening admin-only tools](guide/tools.md#opening-admin-only-tools-to-participants) |
 | Enlarged tools | Choose whether tools enlarge into a window, fill the screen, or not at all. | [Enlarge and put back](guide/interface.md#enlarge-and-put-back) |
 | Accounts | Password, GitHub and Google login, or none; `hani2 users`. | [Authentication](guide/authentication.md) |
@@ -97,5 +108,6 @@ participant. Options, settings and admin screens use these two names throughout.
 | Tools in Python | Write a class with a `view()` built from components; no frontend code. Register in `env.json`, with `--tools`, or as a package entry point. | [Build a tool](tutorials/tools.md) |
 | Tools agents can use | Give a tool an `agent_hint`, or override `describe_for_agent()`; `timing = "agent"` for tools only an agent adds. | [Make your tool usable by an Assistant](tutorials/tools.md#make-your-tool-usable-by-an-assistant) |
 | Views for new kinds of preferences | Register a view for any utility-function class with a decorator or an entry point. | [Showing other preferences](guide/preferences.md) |
+| Try two people on one machine | `hani2 human-trial` opens a trial server with two linked pages. | [`hani2 human-trial`](getting-started/cli.md#hani2-human-trial) |
 | Headless testing | `hani2.testing.make_session` runs a whole session without a browser. | [Testing agents offline](tutorials/assistant.md#testing-agents-offline) |
 | Installation | `pip install hani2` on Python 3.11 to 3.15, on Linux, macOS and Windows. | [Installation](getting-started/installation.md) |

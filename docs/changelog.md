@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-28)
+
+Solo, Paired and Mixed studies with fair assignment of Assistants, user-defined scores over every
+criterion, leaderboards for projects and studies with their own pages and an API, self-hosted
+Assistants and opponents, named model sequences, a questionnaire library with the questionnaires of
+past competitions, a simpler participant interface (the simple view by default, a compact
+Preferences tool, the Utility Bar, Send offer in the offer generators), and an Assistant that
+answers the interface's AI features. See [Features](features.md) for the full list with links.
+
+**Changes to note when upgrading:** saved scenarios that are not normalized are now played
+normalized, so their utilities and scores are not comparable with earlier results (set
+`assume_normalized` to keep the old scale). The simple view is the default participant view. The
+Assistant no longer chooses its own language models unless an admin turns `model_choice` on.
 
 - **The Assistant answers the interface's AI features.** **Write message**, **Offer from message**, the
   message written for an offer sent without one (`auto_generate`) and the offer read from a sent message
@@ -149,6 +161,48 @@
     * **What results record.** The registered name, the version and model the host declares, and
       `hosted_failures`.
     * See [Self-hosting an Assistant or opponent](guide/self-hosting.md).
+- **Solo, Paired and Mixed studies.** `study_mode` (`solo`, `paired` or `mixed`) declares who
+  negotiates with whom, and HANI2 checks it against the pool, the Assistants and the project's `kind`
+  when a project or study is saved (a project save re-checks its studies). The `pairing` block (scope,
+  how a match is formed, fallbacks) is merged key by key from project to study. Paired studies form
+  **matches** from cells. Each person plays each of their Assistants at most once (a hard guarantee),
+  totals and cells are balanced as far as arrivals allow, and fallbacks apply when nobody fits. See [Mode](guide/project-management.md#mode-solo-paired-or-mixed) and
+  [Paired studies](guide/study-management.md#paired-studies).
+- **Fair assignment of Assistants.** New methods `balanced_subset` and `random_subset` give each
+  person K of N Assistants. `assistant_repeats` and `cross` (crossing Assistants with opponents) are
+  further options, and a re-plan never repeats an Assistant the person already used. `hani2 study
+  balance` reports cells, totals, positions and co-occurrence for Solo and Paired studies. See
+  [K sessions per person over N Assistants](guide/study-management.md#k-sessions-per-person-over-n-assistants)
+  and [Designs, ready to copy](guide/study-management.md#designs-ready-to-copy).
+- **User-defined scores over every criterion.** Any number HANI2 measures (metric columns,
+  judge ratings, questionnaire scales and items as `q_<id>`) is a *criterion* with a normaliser to
+  [0, 1] and a frozen reference. A project or study defines its own scores as weighted means of
+  criteria under `scores:`, with `zero_if` and `needs_assistant` rules. The built-in scores use the
+  same format. Use `hani2 scores list/show/check/set/remove/enable/duplicate`, the admin endpoints,
+  or the score builder in **Projects & Studies**, which previews an unsaved score live (weights in
+  effect, dropped parts and a histogram). See [Scores](guide/project-management.md#scores) and the
+  [Criteria and scores reference](guide/criteria.md).
+- **Leaderboards for projects and studies.** A `leaderboard` block gives a project or a study a
+  board. HI boards have the strata `combined`, `solo` and `paired`. HAN boards have `alone`,
+  `vs_team` and `both`. A board can take rows from other projects. Intervals are clipped to their
+  bounds, and a `visibility` setting controls who can see it. Boards have pages of their own
+  (`/s/<project>/leaderboard`, `/s/<project>/<study>/leaderboard`, `/leaderboard`) and an
+  **Admin → Leaderboards** page. A website reads them through `GET /api/v1/…/leaderboard` and
+  `/api/v1/leaderboards`, with short-lived API tokens (scopes `leaderboard:read` and `leaderboard:admin`).
+  `hani2 replay leaderboard` takes `--stratum`, `--ci-unit` and `--head-to-head`. See
+  [Leaderboards](guide/project-management.md#leaderboards) and
+  [The leaderboard API](guide/project-management.md#the-leaderboard-api).
+- **HAN agents of the current year.** `han.current_year` in `env.json` makes `:han<year>-…` groups
+  of that year come from the submitted zips. Other years come from `han-agents`, and a year that
+  neither covers is refused when saved. Group files can name `entrant`, `own` and `han_year`. See
+  [HAN agents by year](guide/project-management.md#han-agents-by-year).
+- **A ? for every setting.** Every choice in the project and study editor whose meaning is not
+  plain has a **?** that explains it. The texts come from one registry (`GET /api/admin/help`),
+  which also generates the new [Settings reference](guide/settings-reference.md).
+- **Project management and Study management pages.** Two new guide pages replace *Projects* and
+  *Studies*. They cover everything from a project's defaults to results, scores, boards and the
+  website API ([Project management](guide/project-management.md),
+  [Study management](guide/study-management.md)).
 - **Continuous leaderboards.** A board's `update` is one of three rules:
     * `pooled` (as before);
     * `latest` (the newest study replaces the board, for periodic tournaments);
