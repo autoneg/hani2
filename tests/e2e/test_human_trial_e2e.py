@@ -38,13 +38,21 @@ def test_two_tabs_of_one_browser_negotiate_with_each_other(e2e_browser, trial_se
         a.get_by_role("button", name="Start negotiation").click()
         expect(a.get_by_text("Waiting for the other participant…")).to_be_visible()
         b.get_by_role("button", name="Start negotiation").click()
-        wa, wb = a.get_by_text("Waiting for your opponent…"), b.get_by_text("Waiting for your opponent…")
+        # whose turn it is: End is enabled only on that side ("Waiting for your opponent…" can also
+        # flash on the mover while its first turn is being set up, so it does not tell the sides apart)
+        ea = a.locator("[data-anchor=end]").get_by_role("button")
+        eb = b.locator("[data-anchor=end]").get_by_role("button")
+
+        def turns() -> tuple[bool, bool]:
+            return (ea.count() > 0 and ea.first.is_enabled(), eb.count() > 0 and eb.first.is_enabled())
+
         for _ in range(150):
-            if wa.count() or wb.count():
+            if sum(turns()) == 1:
                 break
             a.wait_for_timeout(100)
-        assert wa.count() + wb.count() == 1, "exactly one side waits for the other"
-        mover, other = (b, a) if wa.count() else (a, b)
+        ta, tb = turns()
+        assert ta != tb, "exactly one side has the turn"
+        mover, other = (a, b) if ta else (b, a)
         if not mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").count():
             mover.get_by_role("button", name="Counter-offer").click()
         mover.locator("[data-anchor=send]").get_by_role("button", name="Send offer").click()
