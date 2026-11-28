@@ -3,6 +3,7 @@ title: "Subjective Value Inventory (SVI), 16 items"
 description: "How the participant feels about the instrumental outcome, themselves, the process and the relationship with the opponent, 7-point. Items 3 and 5 are reversed. Worded for one opponent (the inventory's counterpart(s)). Free for non-commercial research; the authors ask to be told of findings that use it; commercial use needs their written consent."
 reference: "Curhan, Elfenbein & Xu (2006). What do people value when they negotiate? Mapping the domain of subjective value in negotiation. JPSP 91(3), 493-512. https://www.subjectivevalue.com"
 forms: [per_negotiation, post_session]
+tags: [opponent]
 questions:
   - {id: svi_own_outcome, text: "How satisfied are you with your own outcome, i.e., the extent to which the terms of your agreement (or lack of agreement) benefit you?", type: likert7, required: true, scale: svi_instrumental, labels: {1: "Not at all", 7: "Perfectly"}}
   - {id: svi_balance, text: "How satisfied are you with the balance between your own outcome and your opponent's outcome?", type: likert7, required: true, scale: svi_instrumental, labels: {1: "Not at all", 7: "Perfectly"}}

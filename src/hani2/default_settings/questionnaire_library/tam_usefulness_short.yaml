@@ -3,6 +3,7 @@ title: "TAM perceived usefulness, 2 items"
 description: "The two perceived-usefulness items of the evaluation plan, 7-point agreement. Feeds the tam_usefulness scale."
 reference: "Davis (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly 13(3)."
 forms: [per_negotiation, post_session]
+tags: [assistant]
 questions:
   - {id: tam_effectiveness, text: "Using this assistant would enhance my effectiveness in negotiation.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
   - {id: tam_useful, text: "I would find this assistant useful in negotiations.", type: likert7, required: true, requires: support_agent, scale: tam_usefulness, labels: {1: "Strongly disagree", 7: "Strongly agree"}}

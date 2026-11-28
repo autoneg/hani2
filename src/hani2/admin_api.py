@@ -392,14 +392,27 @@ router.include_router(admin_models.router)
 # --------------------------------------------------------------------------- #
 # Study forms: the predefined question sets                                    #
 # --------------------------------------------------------------------------- #
+def _layer_study(layer: str | None) -> Any:
+    """The study whose ``{{variables}}`` a form edited at ``layer`` gets: the study, the project
+    (without a study) or, for the settings folder, ``None`` (the default project)."""
+    lay = get_layer(layer, default=SETTINGS) if layer else None
+    if lay is None or lay.kind == "settings":
+        return None
+    return lay.ref if lay.kind == "study" else projects.StudyRef(lay.project, "")
+
+
 @router.get("/api/admin/questionnaires/library")
-def admin_questionnaire_library():
-    """The predefined question sets (``hani2.questionnaires.library``) and the forms."""
+def admin_questionnaire_library(layer: str | None = None):
+    """The predefined question sets (``hani2.questionnaires.library``), the forms, ``agent``: the party
+    the questionnaires of ``layer`` ask about (``{{agent}}``, see :func:`hani2.questionnaires.agent_role`),
+    and ``kind``: its project's kind."""
     from hani2 import questionnaires
 
     from hani2.evaluation import catalog
 
-    return {"sets": [{**s, **catalog.questionnaire_payload(s["id"])} if s.get("source") == "bundled" else
+    ref = _layer_study(layer)
+    return {"agent": questionnaires.agent_role(ref), "kind": projects.get_project(ref).kind,
+            "sets": [{**s, **catalog.questionnaire_payload(s["id"])} if s.get("source") == "bundled" else
                      {**s, "validated": False, "warning": ""} for s in questionnaires.library().values()],
             "validated_tooltip": catalog.VALIDATED_SOURCE_TOOLTIP,
             "forms": [{"key": f.key, "title": f.title, "file": f"questionnaires/{f.file}"} for f in questionnaires.FORMS.values()],
@@ -425,10 +438,10 @@ def admin_questionnaire_compose(body: dict = Body(...)):
 
 
 @router.post("/api/admin/questionnaires/check")
-def admin_questionnaire_check(body: dict = Body(...)):
+def admin_questionnaire_check(body: dict = Body(...), layer: str | None = None):
     """Check a form's text: ``{"text"}`` → ``{"problems", "form", "warnings"}`` (``form``: the parsed questions,
-    for a preview; ``warnings``: the source warnings of the bundled sets whose questions it uses, for the admin
-    only, kept apart from ``form``)."""
+    for a preview, with the ``{{variables}}`` of ``layer``, default the current study; ``warnings``: the source
+    warnings of the bundled sets whose questions it uses, for the admin only, kept apart from ``form``)."""
     from hani2 import questionnaires
     from hani2.evaluation import catalog
 
@@ -439,9 +452,12 @@ def admin_questionnaire_check(body: dict = Body(...)):
     if not problems and text.strip():
         data = yaml.safe_load(text) or {}
         if data.get("enabled") is not False:
-            from hani2.templates import render_data
+            from hani2.templates import render_data, study_variables
 
-            form = render_data({k: data.get(k) for k in ("title", "intro", "questions")})
+            ref = _layer_study(layer) if layer else projects.UNSET
+            form = questionnaires.for_role(render_data({k: data.get(k) for k in ("title", "intro", "questions")},
+                                                       study_variables(ref)),
+                                           questionnaires.agent_role("current" if layer is None else ref))
             ids = [q.get("id") for q in data.get("questions") or [] if isinstance(q, dict)]
             warnings = catalog.form_warnings(ids, questionnaires.library())
     return {"problems": problems, "form": form, "warnings": warnings}

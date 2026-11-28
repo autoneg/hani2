@@ -3,6 +3,7 @@ title: "System Usability Scale (SUS), 10 items"
 description: "Brooke's 10-item usability scale about the negotiation interface, 5-point agreement. Even-numbered items are reversed. The standard 0-100 SUS score is 2.5 x the sum of the item contributions."
 reference: "Brooke (1996). SUS: a 'quick and dirty' usability scale. In Usability Evaluation in Industry."
 forms: [post_session]
+tags: []
 questions:
   - {id: sus_1, text: "I think that I would like to use this system frequently.", type: likert5, required: true, scale: sus, labels: {1: "Strongly disagree", 5: "Strongly agree"}}
   - {id: sus_2, text: "I found the system unnecessarily complex.", type: likert5, required: true, scale: sus, reverse: true, labels: {1: "Strongly disagree", 5: "Strongly agree"}}

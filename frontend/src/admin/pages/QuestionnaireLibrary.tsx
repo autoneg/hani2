@@ -16,6 +16,8 @@ export interface QSet {
   description: string;
   reference: string;
   forms: string[];
+  /** the parties its questions are about: assistant, opponent, both, or none (the participant, the task, the system) */
+  tags: string[];
   questions: any[];
   n_questions: number;
   scales: string[];
@@ -37,6 +39,9 @@ export interface QSet {
 const FORM_LABEL: Record<string, string> = { pre_questionnaire: "Pre", per_negotiation: "After each negotiation", post_session: "Post-session" };
 const ORIGIN_LABEL: Record<QSet["origin"], string> = { bundled: "Bundled", own: "Your own", override: "Your own, overrides a bundled set" };
 type Filter = "all" | "pre_questionnaire" | "per_negotiation" | "post_session";
+type About = "all" | "assistant" | "opponent" | "none";
+const ABOUT_LABEL = (tags: string[] = []) =>
+  tags.includes("assistant") && tags.includes("opponent") ? "about the Assistant or the opponent ({{agent}})" : tags.includes("assistant") ? "about the Assistant" : tags.includes("opponent") ? "about the opponent" : "";
 type Editing = { mode: "edit"; id: string; text: string } | { mode: "new"; text: string; from?: string };
 
 const GROUPS: [string, string, (s: QSet) => boolean][] = [
@@ -49,6 +54,7 @@ export function QuestionnaireLibrary() {
   const [d, setD] = useState<any>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [about, setAbout] = useState<About>("all");
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const load = () => api("/api/admin/questionnaire-library").then(setD).catch((e) => toast(e.message, "error"));
@@ -60,10 +66,12 @@ export function QuestionnaireLibrary() {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     return sets.filter((s) => {
       if (filter !== "all" && !s.forms.includes(filter)) return false;
+      const tags = s.tags ?? [];
+      if (about === "none" ? tags.length > 0 : about !== "all" && !tags.includes(about)) return false;
       const hay = [s.id, s.title, s.description, s.reference, s.based_on, ...s.scales, ...s.questions.map((x) => `${x.id} ${x.text}`)].join(" ").toLowerCase();
       return words.every((w) => hay.includes(w));
     });
-  }, [sets, q, filter]);
+  }, [sets, q, filter, about]);
   const edit = async (s: QSet) => {
     try {
       const r = await api(`/api/admin/questionnaire-library/${encodeURIComponent(s.id)}`);
@@ -106,8 +114,9 @@ export function QuestionnaireLibrary() {
           <FilePlus2 size={14} /> New set
         </button>
       </div>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap gap-3">
         <Segmented label="Meant for" value={filter} onChange={setFilter} options={[["all", "All forms"], ["pre_questionnaire", "Pre"], ["per_negotiation", "After each negotiation"], ["post_session", "Post-session"]]} />
+        <Segmented label="About" value={about} onChange={setAbout} options={[["all", "Any party"], ["assistant", "The Assistant"], ["opponent", "The opponent"], ["none", "Neither"]]} />
       </div>
       {d.broken?.length > 0 && (
         <Note tone="warn">
@@ -152,7 +161,8 @@ function SetRow({ s, tip, open, onToggle, onEdit, onCopy }: { s: QSet; tip: stri
           {s.warning && <TriangleAlert size={13} className="ml-1 inline text-warn" aria-label="Has a source warning" />}
           {s.read_only && <Lock size={12} className="ml-1 inline text-muted" aria-label="Read-only" />}
           <span className="ml-2 text-xs text-muted">
-            <code>{s.id}</code> · {s.n_questions} question{s.n_questions === 1 ? "" : "s"} · {s.forms.map((f) => FORM_LABEL[f] ?? f).join(", ")} · <span data-origin={s.origin}>{ORIGIN_LABEL[s.origin]}</span>
+            <code>{s.id}</code> · {s.n_questions} question{s.n_questions === 1 ? "" : "s"} · {s.forms.map((f) => FORM_LABEL[f] ?? f).join(", ")}
+            {ABOUT_LABEL(s.tags) && <span data-set-about={(s.tags ?? []).join(" ")}> · {ABOUT_LABEL(s.tags)}</span>} · <span data-origin={s.origin}>{ORIGIN_LABEL[s.origin]}</span>
           </span>
           <span className="block truncate text-xs text-muted">{s.description}</span>
         </span>
@@ -334,7 +344,7 @@ function SetEditor({ editing, set, ownDir, onClose, onSaved }: { editing: Editin
     <div id="questionnaire-set-editor">
       <Group
         title={editing.mode === "edit" ? `Edit ${editing.id}` : editing.from ? `New set, copied from ${editing.from}` : "New set"}
-        footer="Keys: id (letters, digits, _ and -), title, description, forms (pre_questionnaire, per_negotiation, post_session), based_on, questions. Question types: likert5, likert7, yes_no, select (with options), text."
+        footer="Keys: id (letters, digits, _ and -), title, description, forms (pre_questionnaire, per_negotiation, post_session), tags (assistant, opponent: the party the questions are about; with both, write {{agent}} for the party and requires: agent), based_on, questions. Question types: likert5, likert7, yes_no, select (with options), text."
         actions={
           <button className="btn-ghost text-xs" onClick={onClose}>
             <X size={13} /> Cancel

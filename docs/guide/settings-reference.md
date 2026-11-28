@@ -65,6 +65,7 @@ More: [Study management](study-management.md#study-types).
 | [Normalized scenarios](#setting-normalized-scenarios) | `normalized_scenarios` | Generate scenarios normalized as negmas does it: every deal worth 0 to 1, weights adding up to 1 |
 | [Assume normalized](#setting-assume-normalized) | `assume_normalized` | Start every negotiation on the scenario as it is, without checking that it is normalized |
 | [Forced value on disagreement](#setting-force-reserved-value) | `force_reserved_value` | The participant's value on disagreement in every negotiation, whatever the scenario says |
+| [Questionnaires ask about](#setting-questionnaire-agent) | `questionnaire_agent` | The party that {{agent}} names in questionnaires about both the Assistant and the opponent |
 | [Counted negotiations](#setting-n-required) | `n_required` | K: how many negotiations of each participant count (practice not included) |
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
 | [Participant's role](#setting-role-rule) | `role_rule` | Which side of the scenario the participant takes |
@@ -169,6 +170,28 @@ never changed: the value is applied when a scenario loads, and each recorded neg
 value that was played.
 
 More: [Project management](project-management.md#forcing-the-value-on-disagreement).
+
+### Questionnaires ask about {#setting-questionnaire-agent}
+
+`questionnaire_agent`: *The party that {{agent}} names in questionnaires about both the Assistant and the opponent*
+
+Every predefined questionnaire is tagged with the party its questions are about: the **Assistant**,
+the **opponent**, both, or neither (questions about the participant, the task or the system). A
+questionnaire tagged with both (UEQ, UEQ-S, trust in automation) says `{{agent}}` (or `{{Agent}}`
+at the start of a sentence) where the party goes, and `requires: agent` on its questions. When a
+participant sees the form, the placeholders become the party this setting names:
+
+| Value | `{{agent}}` | `requires: agent` |
+|---|---|---|
+| empty (the default) | `opponent` in a HAN project (`kind: opponent`), else `assistant` | as below |
+| `assistant` | `assistant` | the question is skipped when no Assistant took part |
+| `opponent` | `opponent` | the question is always asked |
+
+Question ids do not change, so the answers of an Assistant study and of an opponent study are in
+the same columns; tell them apart by project or study. A study asks about one party: to ask the same
+questionnaire about both, copy the set and give the copy other question ids.
+
+More: [Study forms](study-forms.md#questionnaires-about-the-assistant-or-the-opponent).
 
 ### Counted negotiations {#setting-n-required}
 

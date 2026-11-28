@@ -3,6 +3,7 @@ title: HAN2026-PostSession
 description: 'The questions HAN 2026 asked after each session: ease of use, engagement, the usefulness of the interface''s tools (Preferences, Scenario Info, Value Histogram, Trace, Utility-based Selector) and comments.'
 reference: "Questionnaires of the HAN 2026 human-agent negotiation competition"
 forms: [post_session]
+tags: []
 questions:
   - {id: ease_of_use, text: 'How easy was the negotiation interface to use?', type: likert5, labels: {1: Very difficult, 5: Very easy}, required: true}
   - {id: engagement, text: 'How engaging did you find the negotiation task?', type: likert5, labels: {1: Not at all engaging, 5: Very engaging}, required: true}

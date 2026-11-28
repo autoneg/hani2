@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Questionnaires about the Assistant or the opponent.** Every predefined questionnaire now has `tags` naming the
+  party its questions are about: `assistant` (TAM, reliance, intention to use, session feedback), `opponent` (SVI,
+  opponent perception, the HAN and ANAC-HAL sets), both (UEQ, UEQ-S, trust in automation), or none (demographics,
+  NASA-TLX, SUS, ...). The sets tagged with both say `{{agent}}` for the party and `requires: agent` on their questions.
+  Each study fills in the party it evaluates: `opponent` in a HAN project (`kind: opponent`), `assistant` otherwise,
+  or the new **Questionnaires ask about** setting (`questionnaire_agent`) of the study or its project. So one form reads
+  "I can trust the assistant." in an HI study and "I can trust the opponent." in a HAN study, with the same question
+  ids. The Questionnaires page filters by party, the Study forms picker shows each set's party and hides the
+  Assistant-only sets in a HAN project, and the preview fills in the layer's party. `hani2 questionnaire list
+  --about opponent` lists the sets about one party. See
+  [Questionnaires about the Assistant or the opponent](guide/study-forms.md#questionnaires-about-the-assistant-or-the-opponent).
 - **The Assistant no longer chooses its language models by default.** The `model_choice` ability
   (the `list_model_sequences` and `use_model_sequence` functions, `use_model_sequence()` and
   `ask_llm(..., sequence=...)`) is now off by default, like `own_models`. An admin turns it on under

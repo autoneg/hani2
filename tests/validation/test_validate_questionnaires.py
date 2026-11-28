@@ -17,6 +17,7 @@ import pytest
 
 from hani2 import questionnaires
 from hani2.evaluation.subjective import answer_values
+from hani2.templates import render
 
 
 def _set(sid):
@@ -210,7 +211,10 @@ def test_trust_in_automation_matches_source():
     qs = _set("trust_in_automation")["questions"]
     assert len(qs) == 12
     for i, (q, text) in enumerate(zip(qs, JIAN_SOURCE), 1):
-        assert _words(q["text"]) == _words(text.replace("system", "assistant")), f"item {i}"
+        # "system" is the party the study evaluates: {{agent}}, the assistant or the opponent
+        for party in ("assistant", "opponent"):
+            shown = render(q["text"], {"agent": party, "Agent": party.capitalize()})
+            assert _words(shown) == _words(text.replace("system", party)), f"item {i} ({party})"
         assert bool(q.get("reverse")) is (i <= 5), f"item {i}"
         assert (q["labels"][1], q["labels"][7]) == ("Not at all", "Extremely") and q["scale"] == "trust_automation"
     # the trust score is the mean of the 12 items with 1–5 reversed:

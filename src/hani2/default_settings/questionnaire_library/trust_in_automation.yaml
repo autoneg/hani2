@@ -1,18 +1,19 @@
 id: trust_in_automation
 title: "Trust in automation (Jian et al.), 12 items"
-description: "The Checklist for Trust between People and Automation, about the Assistant, 7-point. The first five items are distrust items (reversed)."
+description: "The Checklist for Trust between People and Automation, about the Assistant or the opponent (the party the study evaluates: {{agent}} in the texts), 7-point. The first five items are distrust items (reversed)."
 reference: "Jian, Bisantz & Drury (2000). Foundations for an empirically determined scale of trust in automated systems. International Journal of Cognitive Ergonomics 4(1)."
 forms: [per_negotiation, post_session]
+tags: [assistant, opponent]
 questions:
-  - {id: tia_deceptive, text: "The assistant is deceptive.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_underhanded, text: "The assistant behaves in an underhanded manner.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_suspicious, text: "I am suspicious of the assistant's intent, action, or output.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_wary, text: "I am wary of the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_harmful, text: "The assistant's action will have a harmful or injurious outcome.", type: likert7, required: true, requires: support_agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_confident, text: "I am confident in the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_security, text: "The assistant provides security.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_integrity, text: "The assistant has integrity.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_dependable, text: "The assistant is dependable.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_reliable, text: "The assistant is reliable.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_trust, text: "I can trust the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
-  - {id: tia_familiar, text: "I am familiar with the assistant.", type: likert7, required: true, requires: support_agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_deceptive, text: "The {{agent}} is deceptive.", type: likert7, required: true, requires: agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_underhanded, text: "The {{agent}} behaves in an underhanded manner.", type: likert7, required: true, requires: agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_suspicious, text: "I am suspicious of the {{agent}}'s intent, action, or output.", type: likert7, required: true, requires: agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_wary, text: "I am wary of the {{agent}}.", type: likert7, required: true, requires: agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_harmful, text: "The {{agent}}'s action will have a harmful or injurious outcome.", type: likert7, required: true, requires: agent, scale: trust_automation, reverse: true, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_confident, text: "I am confident in the {{agent}}.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_security, text: "The {{agent}} provides security.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_integrity, text: "The {{agent}} has integrity.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_dependable, text: "The {{agent}} is dependable.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_reliable, text: "The {{agent}} is reliable.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_trust, text: "I can trust the {{agent}}.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}
+  - {id: tia_familiar, text: "I am familiar with the {{agent}}.", type: likert7, required: true, requires: agent, scale: trust_automation, labels: {1: "Not at all", 7: "Extremely"}}

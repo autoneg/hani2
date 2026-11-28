@@ -13,6 +13,7 @@ questionnaire_app = typer.Typer(help="Predefined questionnaires: list them, buil
 @questionnaire_app.command("list")
 def questionnaire_list(
     form: Annotated[Optional[str], typer.Option("--form", help="Only sets meant for pre_questionnaire, per_negotiation or post_session.")] = None,
+    about: Annotated[Optional[str], typer.Option("--about", help="Only sets about the assistant or the opponent (their tags).")] = None,
     details: Annotated[bool, typer.Option("--details", help="Also print every question.")] = False,
 ):
     """List the predefined question sets (bundled, and your own in settings/questionnaire_library/)."""
@@ -21,8 +22,10 @@ def questionnaire_list(
     for s in questionnaires.library().values():
         if form and form not in s["forms"]:
             continue
+        if about and about not in s["tags"]:
+            continue
         own = "  (your own)" if s["source"] == "settings" else ""
-        typer.secho(f"{s['id']:24s} {s['title']}  [{len(s['questions'])} questions; {', '.join(s['forms'])}]{own}", bold=True)
+        typer.secho(f"{s['id']:24s} {s['title']}  [{len(s['questions'])} questions; {', '.join(s['forms'])}; about {' and '.join(s['tags']) or 'the participant'}]{own}", bold=True)
         typer.echo(f"    {s['description']}")
         if s["reference"]:
             typer.echo(f"    {s['reference']}")

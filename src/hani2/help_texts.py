@@ -166,6 +166,25 @@ any agreement is at least as good as none (and `0` is a value, not "unset"). Sav
 never changed: the value is applied when a scenario loads, and each recorded negotiation carries the
 value that was played.""",
         section="Defaults", docs="project-management.md#forcing-the-value-on-disagreement"),
+    "questionnaire_agent": Help(
+        "Questionnaires ask about", "The party that {{agent}} names in questionnaires about both the Assistant and the opponent",
+        """\
+Every predefined questionnaire is tagged with the party its questions are about: the **Assistant**,
+the **opponent**, both, or neither (questions about the participant, the task or the system). A
+questionnaire tagged with both (UEQ, UEQ-S, trust in automation) says `{{agent}}` (or `{{Agent}}`
+at the start of a sentence) where the party goes, and `requires: agent` on its questions. When a
+participant sees the form, the placeholders become the party this setting names:
+
+| Value | `{{agent}}` | `requires: agent` |
+|---|---|---|
+| empty (the default) | `opponent` in a HAN project (`kind: opponent`), else `assistant` | as below |
+| `assistant` | `assistant` | the question is skipped when no Assistant took part |
+| `opponent` | `opponent` | the question is always asked |
+
+Question ids do not change, so the answers of an Assistant study and of an opponent study are in
+the same columns; tell them apart by project or study. A study asks about one party: to ask the same
+questionnaire about both, copy the set and give the copy other question ids.""",
+        section="Defaults", docs="study-forms.md#questionnaires-about-the-assistant-or-the-opponent"),
     "n_required": Help(
         "Counted negotiations", "K: how many negotiations of each participant count (practice not included)",
         """\
@@ -763,6 +782,7 @@ REQUIRED = (
     "normalized_scenarios",
     "assume_normalized",
     "force_reserved_value",
+    "questionnaire_agent",
     "n_required",
     "practice",
     "role_rule",

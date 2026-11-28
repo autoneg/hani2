@@ -3,6 +3,7 @@ title: "NASA-TLX workload (raw, 7-point)"
 description: "The six NASA Task Load Index dimensions as 7-point items (raw TLX: the mean of the six, no pairwise weighting). Performance runs from perfect to failure, so on every item a higher answer means more workload (direction: lower, so a score treats less workload as better)."
 reference: "Hart & Staveland (1988). Development of NASA-TLX: results of empirical and theoretical research. Advances in Psychology 52."
 forms: [per_negotiation, post_session]
+tags: []
 questions:
   - {id: tlx_mental, text: "**Mental demand**: how mentally demanding was the task?", type: likert7, required: true, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}
   - {id: tlx_physical, text: "**Physical demand**: how physically demanding was the task?", type: likert7, required: false, scale: workload, direction: lower, labels: {1: "Very low", 7: "Very high"}}

@@ -117,38 +117,57 @@ HANI2 comes with complete question sets for questionnaires commonly used in huma
 !!! warning "TAM items not checked against the source"
     The three TAM sets (`tam_usefulness`, `tam_usefulness_short`, `tam_ease`) have not been checked against the published item sheet (Davis, 1989). The Study forms page shows this warning on each of them in the picker, above the preview of a form that uses their questions, and under *In effect here* when the form in effect uses them. It comes from the same registry as the warnings in [Questionnaires](questionnaires.md) and the [metric catalogue](metric-catalog.md). It is for admins only: participants never see it, neither in the form they fill in nor anywhere else in the session.
 
-| Set | Questions | Meant for | What it measures |
-|-----|-----------|-----------|------------------|
-| `ueq_eval` | 8 | after each negotiation, post-session | UEQ items 2, 5, 11, 12, 13, 20, 21, 22 about the Assistant (7-point differentials; Laugwitz, Held & Schrepp, 2008) |
-| `ueq_s` | 8 | after each negotiation, post-session | UEQ-S, the short UEQ: 4 pragmatic and 4 hedonic items (Schrepp, Hinderks & Thomaschewski, 2017) |
-| `tam_usefulness_short` | 2 | after each negotiation, post-session | TAM perceived usefulness, the two items "would enhance my effectiveness" and "would find it useful" (Davis, 1989) |
-| `tam_usefulness` | 6 | after each negotiation, post-session | TAM perceived usefulness, all six items |
-| `tam_ease` | 6 | after each negotiation, post-session | TAM perceived ease of use, six items |
-| `intention_to_use` | 3 | after each negotiation, post-session | Would use the Assistant again, felt heard, insights it gave |
-| `assistant_reliance` | 4 | after each negotiation | How much the participant used, followed and trusted the Assistant, and who deserves the credit |
-| `trust_in_automation` | 12 | after each negotiation, post-session | Trust between people and automation (Jian, Bisantz & Drury, 2000) |
-| `subjective_value` | 16 | after each negotiation, post-session | Subjective Value Inventory: instrumental outcome, self, process, relationship (Curhan, Elfenbein & Xu, 2006) |
-| `opponent_perception` | 6 | after each negotiation | Kindness, intelligence, human-likeness of the opponent; would negotiate again, felt connected, deal would be kept |
-| `outcome_appreciation` | 2 | after each negotiation | Satisfaction with the outcome, enjoyment |
-| `nasa_tlx` | 6 | after each negotiation, post-session | Workload, raw NASA-TLX on 7-point items (Hart & Staveland, 1988) |
-| `sus` | 10 | post-session | System Usability Scale of the interface (Brooke, 1996) |
-| `session_feedback` | 5 | post-session | The Assistants over the session, the interface, technical problems, comments |
-| `negotiation_experience` | 2 | pre-questionnaire | How often the participant negotiates, negotiation training |
-| `ai_experience` | 4 | pre-questionnaire | Use of and experience with AI assistants, expected reliance, general trust in AI |
-| `demographics` | 4 | pre-questionnaire, post-session | Age range, gender, education, English level |
-| `attention_check` | 1 | after each negotiation, post-session | One instructed-response item |
-| `HAN2026-PreSession` | 4 | pre-questionnaire | HAN 2026, as asked: negotiation experience, familiarity with AI, own skill, expected skill of the opponents |
-| `HAN2026-PostNegotiation` | 10 | after each negotiation | HAN 2026, as asked: the opponent's strategy, intelligence and skill, would employ it, engagement, its messages, time limit, its offers, satisfaction, comment |
-| `HAN2026-PostSession` | 8 | post-session | HAN 2026, as asked: ease of use, engagement, usefulness of each interface tool, comments |
-| `HAN2025-PreStudy` | 19 | pre-questionnaire | HAN 2025, as asked once before any negotiation: background, expertise, expectations about the system and AI negotiators |
-| `HAN2025-PostSession` | 13 | post-session | HAN 2025, as asked after a negotiation session: enjoyment, ease, the opponent, support, expectations |
-| `HAN2025-PostStudy` | 17 | post-session | HAN 2025, as asked after the whole competition: the post-session questions, understanding of the scenario, comments, strategy |
-| `ANAC-HAL2018-PostNegotiation` | 3 | after each negotiation | ANAC 2018 Human-Agent League, as reported: likeability of the agent (7-point) |
-| `ANAC-HAL2017-PostNegotiation` | 3 | after each negotiation | ANAC 2017 Human-Agent League, as reported: likeability of the agent (7-point) |
+| Set | Questions | Meant for | About | What it measures |
+|-----|-----------|-----------|-------|------------------|
+| `ueq_eval` | 8 | after each negotiation, post-session | both | UEQ items 2, 5, 11, 12, 13, 20, 21, 22 about the party the study evaluates (7-point differentials; Laugwitz, Held & Schrepp, 2008) |
+| `ueq_s` | 8 | after each negotiation, post-session | both | UEQ-S, the short UEQ: 4 pragmatic and 4 hedonic items (Schrepp, Hinderks & Thomaschewski, 2017) |
+| `tam_usefulness_short` | 2 | after each negotiation, post-session | Assistant | TAM perceived usefulness, the two items "would enhance my effectiveness" and "would find it useful" (Davis, 1989) |
+| `tam_usefulness` | 6 | after each negotiation, post-session | Assistant | TAM perceived usefulness, all six items |
+| `tam_ease` | 6 | after each negotiation, post-session | Assistant | TAM perceived ease of use, six items |
+| `intention_to_use` | 3 | after each negotiation, post-session | Assistant | Would use the Assistant again, felt heard, insights it gave |
+| `assistant_reliance` | 4 | after each negotiation | Assistant | How much the participant used, followed and trusted the Assistant, and who deserves the credit |
+| `trust_in_automation` | 12 | after each negotiation, post-session | both | Trust between people and automation (Jian, Bisantz & Drury, 2000) |
+| `subjective_value` | 16 | after each negotiation, post-session | opponent | Subjective Value Inventory: instrumental outcome, self, process, relationship (Curhan, Elfenbein & Xu, 2006) |
+| `opponent_perception` | 6 | after each negotiation | opponent | Kindness, intelligence, human-likeness of the opponent; would negotiate again, felt connected, deal would be kept |
+| `outcome_appreciation` | 2 | after each negotiation | — | Satisfaction with the outcome, enjoyment |
+| `nasa_tlx` | 6 | after each negotiation, post-session | — | Workload, raw NASA-TLX on 7-point items (Hart & Staveland, 1988) |
+| `sus` | 10 | post-session | — | System Usability Scale of the interface (Brooke, 1996) |
+| `session_feedback` | 5 | post-session | Assistant | The Assistants over the session, the interface, technical problems, comments |
+| `negotiation_experience` | 2 | pre-questionnaire | — | How often the participant negotiates, negotiation training |
+| `ai_experience` | 4 | pre-questionnaire | Assistant | Use of and experience with AI assistants, expected reliance, general trust in AI |
+| `demographics` | 4 | pre-questionnaire, post-session | — | Age range, gender, education, English level |
+| `attention_check` | 1 | after each negotiation, post-session | — | One instructed-response item |
+| `HAN2026-PreSession` | 4 | pre-questionnaire | opponent | HAN 2026, as asked: negotiation experience, familiarity with AI, own skill, expected skill of the opponents |
+| `HAN2026-PostNegotiation` | 10 | after each negotiation | opponent | HAN 2026, as asked: the opponent's strategy, intelligence and skill, would employ it, engagement, its messages, time limit, its offers, satisfaction, comment |
+| `HAN2026-PostSession` | 8 | post-session | — | HAN 2026, as asked: ease of use, engagement, usefulness of each interface tool, comments |
+| `HAN2025-PreStudy` | 19 | pre-questionnaire | opponent | HAN 2025, as asked once before any negotiation: background, expertise, expectations about the system and AI negotiators |
+| `HAN2025-PostSession` | 13 | post-session | opponent | HAN 2025, as asked after a negotiation session: enjoyment, ease, the opponent, support, expectations |
+| `HAN2025-PostStudy` | 17 | post-session | opponent | HAN 2025, as asked after the whole competition: the post-session questions, understanding of the scenario, comments, strategy |
+| `ANAC-HAL2018-PostNegotiation` | 3 | after each negotiation | opponent | ANAC 2018 Human-Agent League, as reported: likeability of the agent (7-point) |
+| `ANAC-HAL2017-PostNegotiation` | 3 | after each negotiation | opponent | ANAC 2017 Human-Agent League, as reported: likeability of the agent (7-point) |
 
 The `HAN…` and `ANAC-HAL…` sets repeat the questionnaires of human-agent negotiation competitions exactly as asked (the ANAC Human-Agent League ones as its results papers report them; the papers give no anchor labels) (their typos included), so a study can compare its answers with the competition's; their question ids are kept, so `HAN2026-PostSession`'s `comments` is skipped in a form that already has `session_feedback`. The HAN 2025 forms were Google Forms: the sets leave out their identification items (user name, session, date, number of negotiations), keep a question asked twice once, and turn the expertise grid into one question per field.
 
 Check the wording of a published instrument against its source before a study, and cite the source in your paper. Prolific already records most demographics and has its own rules for attention checks; ask only what you need.
+
+### Questionnaires about the Assistant or the opponent
+
+Each set is tagged (`tags`) with the party its questions are about. The *About* column above shows it:
+
+- **Assistant**: only makes sense when the participant has an Assistant (TAM, reliance, intention to use, session feedback). Their questions have `requires: support_agent`.
+- **opponent**: about the other side (SVI, opponent perception, the HAN and ANAC-HAL sets).
+- **both**: the instrument fits either party (UEQ, UEQ-S, trust in automation). Its texts say `{{agent}}` (`{{Agent}}` at the start of a sentence) where the party goes, and its questions have `requires: agent`.
+- **—** (no tag): about the participant, the task or the system (demographics, NASA-TLX, SUS, outcome, attention check).
+
+When a participant sees a form, `{{agent}}` becomes the party the study evaluates: `opponent` in a HAN project (`kind: opponent`), `assistant` in any other, or what the **Questionnaires ask about** setting of the study or its project says (`questionnaire_agent: assistant` or `opponent`). With `assistant`, a `requires: agent` question is skipped when no Assistant took part; with `opponent`, it is always asked. So "The {{agent}} is reliable." reads "The assistant is reliable." in an HI study and "The opponent is reliable." in a HAN study, and one form file serves both:
+
+```yaml title="projects/HAN2027/project.yaml"
+kind: opponent                    # {{agent}} is "opponent" in every study of this project
+defaults:
+  questionnaire_agent: opponent   # or set it per study; empty follows the kind
+```
+
+The question ids stay the same whichever party a study asks about, so the scales and metric columns do not change; tell the answers apart by project or study. A study asks about one party: to ask a both-party set about the Assistant *and* the opponent in one form, copy the set and give the copy other question ids. The preview on the Study forms page fills in the party of the layer being edited. The Questionnaires page shows each set's party and can show only the sets about one party. The Study forms picker shows it too, and in a HAN project (`kind: opponent`, no Assistant) it hides the sets only about the Assistant until you tick *Show sets about the Assistant*.
 
 ### Your own sets
 
@@ -162,7 +181,7 @@ Open a set to see its questions, its scales, the ✓ of a validated set, its sou
 
 **What counts as published.** A set is read-only in the app when the [metric catalogue](questionnaires.md) cites a published instrument for its id, or when its file has a `url` that links to one. `reference` alone does not count, because HANI2's own sets name themselves there too ("HANI2 items."). An own file that overrides a published set by id stays read-only as well. To change a published set anyway, edit its file by hand. The API refuses edits to these sets, not only the page.
 
-**Edit.** **Edit** opens the set's YAML in an editor that checks it as you type. **Save set** is refused while there are problems. The checks are the form checks (valid YAML, an `id` and a `text` for every question, unique ids, known types, `options` for every `select`) plus the set checks: an id made of letters, digits, `_` and `-`, a title, `forms` from `pre_questionnaire`, `per_negotiation` and `post_session`, at least one question, and no `url` (that would make the set read-only). The id of an existing set cannot change; use **Copy as new** for another id.
+**Edit.** **Edit** opens the set's YAML in an editor that checks it as you type. **Save set** is refused while there are problems. The checks are the form checks (valid YAML, an `id` and a `text` for every question, unique ids, known types, `options` for every `select`) plus the set checks: an id made of letters, digits, `_` and `-`, a title, `forms` from `pre_questionnaire`, `per_negotiation` and `post_session`, `tags` from `assistant` and `opponent` (a set tagged with both must say `{{agent}}`, not "assistant" or "opponent", and use `requires: agent`), at least one question, and no `url` (that would make the set read-only). The id of an existing set cannot change; use **Copy as new** for another id.
 
 - Saving a **bundled** set writes an override, `<settings>/questionnaire_library/<id>.yaml`. The bundled file inside the HANI2 package is never changed, and deleting the override brings the bundled version back.
 - Saving **your own** set rewrites the file that defines it, whatever that file is called.
@@ -179,6 +198,7 @@ title: "Trust in my teammate"
 description: "Three items about the human-Assistant team."
 reference: "Our lab's items."
 forms: [per_negotiation, post_session]
+tags: [assistant]              # the party the questions are about: [assistant], [opponent], both, or [] for neither
 questions:
   - {id: team_trust_1, text: "My teammate and I worked well together.", type: likert7, required: true, scale: team_trust, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
 ```
@@ -189,6 +209,7 @@ questions:
 
 ```bash
 hani2 questionnaire list --form post_session          # the sets for one form (--details: every question)
+hani2 questionnaire list --about opponent             # the sets tagged opponent (both-party sets too)
 hani2 questionnaire compose ueq_eval tam_usefulness_short opponent_perception \
     -o projects/HI2027/questionnaires/per_negotiation.yaml
 hani2 questionnaire check projects/HI2027/questionnaires/*.yaml

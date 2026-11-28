@@ -3,6 +3,7 @@ title: HAN2026-PostNegotiation
 description: 'The questions HAN 2026 asked after each negotiation: the opponent''s strategy, intelligence and skill, whether the participant would employ it, engagement, the influence of its messages, the time limit and the opponent''s offers, satisfaction with the outcome, and a comment.'
 reference: "Questionnaires of the HAN 2026 human-agent negotiation competition"
 forms: [per_negotiation]
+tags: [opponent]
 questions:
   - {id: agent_strategy, text: 'How would you describe the agent''s strategy this round?', type: select, options: [Cooperative, Competitive, Random, Couldn't tell], required: true}
   - {id: agent_employability, text: 'How likely is it for you to employ your opponent agent to negotiate in your behalf?', type: select, options: [Very Unlikely, Unlikely, Couldn't tell, Likely, Very Likely], required: true}

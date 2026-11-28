@@ -3,6 +3,7 @@ title: HAN2025-PreStudy
 description: 'The pre-study questionnaire HAN 2025 asked each participant once, before any negotiation: age, country, degree, earlier negotiation studies, expertise in five fields, and expectations about the system and AI negotiators. Converted from the Google Form: the identification items (registered user name) are left out, since HANI2 records them; a question the form asks twice is kept once; the expertise grid is one question per field, with the field after a dash. The 1–5 scales had no endpoint labels. The form: “Human-Agent Negotiation League Pre-study Questionnaire”, https://forms.gle/c4tNxYof1Gm7ezmC7.'
 reference: "Questionnaires of the HAN 2025 human-agent negotiation competition (pilot, IJCAI 2025)"
 forms: [pre_questionnaire]
+tags: [opponent]
 questions:
   - {id: han2025_age, text: 'What is your age?', type: select, options: [18-25, 25-30, 30-35, 40+], required: true}
   - {id: han2025_country, text: 'What is your country of residence?', type: text, required: true}

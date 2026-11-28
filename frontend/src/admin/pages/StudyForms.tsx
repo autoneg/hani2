@@ -29,6 +29,8 @@ interface LibSet {
   description: string;
   reference: string;
   forms: string[];
+  /** the parties its questions are about (assistant, opponent, both, or none) */
+  tags: string[];
   questions: any[];
   source: string;
   /** checked against its source instrument (hani2.evaluation.catalog) */
@@ -178,7 +180,7 @@ export function StudyForms() {
               </>
             }
           >
-            {showLib && <LibraryPicker form={form} text={text} onText={(t) => (setText(t), setDirty(true))} />}
+            {showLib && <LibraryPicker form={form} layer={layer.id} text={text} onText={(t) => (setText(t), setDirty(true))} />}
             {mode === "items" ? (
               <FormItemsEditor key={`${form}-${layer.id}`} text={text} onText={(t) => (setText(t), setDirty(true))} />
             ) : (
@@ -187,7 +189,7 @@ export function StudyForms() {
               </div>
             )}
           </Group>
-          <Preview text={text} />
+          <Preview text={text} layer={layer.id} />
           <div className="sticky bottom-0 z-10 -mx-4 flex items-center justify-end gap-2 border-t border-line bg-paper/85 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
             <span className="mr-auto truncate text-xs text-muted">{dirty ? `Unsaved changes · will be saved to ${layer.label}` : `Saving to ${layer.label}`}</span>
             <button className="btn-primary" onClick={() => save()} disabled={!dirty}>
@@ -242,18 +244,38 @@ function ConsentSetting() {
   );
 }
 
-function LibraryPicker({ form, text, onText }: { form: Form; text: string; onText: (t: string) => void }) {
+/** the party a set is about, as a short chip text (``agent``: the party this layer's study evaluates) */
+function aboutLabel(tags: string[] | undefined, agent?: string): string {
+  const t = tags ?? [];
+  if (t.includes("assistant") && t.includes("opponent")) return agent ? `About the ${agent} ({{agent}})` : "About the Assistant or the opponent";
+  if (t.includes("assistant")) return "About the Assistant";
+  if (t.includes("opponent")) return "About the opponent";
+  return "";
+}
+
+/** a question text with ``{{agent}}`` / ``{{Agent}}`` filled in */
+const withAgent = (text: string, agent: string) => String(text ?? "").replace(/\{\{\s*agent\s*\}\}/g, agent).replace(/\{\{\s*Agent\s*\}\}/g, agent.charAt(0).toUpperCase() + agent.slice(1));
+
+function LibraryPicker({ form, layer, text, onText }: { form: Form; layer: string; text: string; onText: (t: string) => void }) {
   const [lib, setLib] = useState<LibSet[] | null>(null);
+  const [agent, setAgent] = useState("assistant");
+  const [kind, setKind] = useState("none");
+  const [assistantSets, setAssistantSets] = useState(false);
   const [tip, setTip] = useState(VALIDATED_SOURCE_TIP);
   const [picked, setPicked] = useState<string[]>([]);
   const [all, setAll] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => {
-    api("/api/admin/questionnaires/library")
-      .then((r) => (setLib(r.sets), r.validated_tooltip && setTip(r.validated_tooltip)))
+    api(`/api/admin/questionnaires/library${lq(layer)}`)
+      .then((r) => (setLib(r.sets), r.agent && setAgent(r.agent), setKind(r.kind ?? "none"), r.validated_tooltip && setTip(r.validated_tooltip)))
       .catch((e) => toast(e.message, "error"));
-  }, []);
-  const shown = useMemo(() => (lib ?? []).filter((s) => all || s.forms.includes(form)), [lib, all, form]);
+  }, [layer]);
+  // a HAN project's studies have no Assistant: the sets only about the Assistant are hidden
+  const onlyAssistant = (s: LibSet) => (s.tags ?? []).includes("assistant") && !(s.tags ?? []).includes("opponent");
+  const shown = useMemo(
+    () => (lib ?? []).filter((s) => (all || s.forms.includes(form)) && (kind !== "opponent" || assistantSets || !onlyAssistant(s))),
+    [lib, all, form, kind, assistantSets],
+  );
   const add = async () => {
     try {
       const r = await api("/api/admin/questionnaires/compose", { body: { text, sets: picked, form } });
@@ -274,6 +296,11 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
         <label className="ml-auto inline-flex items-center gap-1.5">
           <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show sets meant for other forms
         </label>
+        {kind === "opponent" && (
+          <label className="inline-flex items-center gap-1.5" title="A HAN project (kind: opponent) plays without an Assistant, so sets only about the Assistant are hidden">
+            <input type="checkbox" checked={assistantSets} onChange={(e) => setAssistantSets(e.target.checked)} /> Show sets about the Assistant
+          </label>
+        )}
       </div>
       <div className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {shown.map((s) => (
@@ -287,6 +314,11 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
                   {s.questions.length} question{s.questions.length === 1 ? "" : "s"}
                   {s.source === "settings" ? " · your own" : ""}
                 </span>
+                {aboutLabel(s.tags, agent) && (
+                  <span className="ml-2 rounded-full border border-line px-1.5 py-px text-[11px] text-muted" data-set-about={(s.tags ?? []).join(" ") || "none"}>
+                    {aboutLabel(s.tags, agent)}
+                  </span>
+                )}
                 <span className="block text-xs text-muted">{s.description}</span>
                 {s.warning && (
                   <span className="mt-1 flex items-start gap-1.5 rounded-md border border-warn/30 bg-warn/10 px-2 py-1 text-xs text-warn" data-testid="set-source-warning">
@@ -316,7 +348,7 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
               <ol className="ml-7 mt-1 list-decimal pl-4 text-xs text-muted">
                 {s.questions.map((q: any) => (
                   <li key={q.id}>
-                    <code>{q.id}</code> · {q.type}: {q.text}
+                    <code>{q.id}</code> · {q.type}: {withAgent(q.text, agent)}
                     {q.labels ? ` (${Object.values(q.labels).join(" … ")})` : ""}
                   </li>
                 ))}
@@ -334,14 +366,14 @@ function LibraryPicker({ form, text, onText }: { form: Form; text: string; onTex
   );
 }
 
-function Preview({ text }: { text: string }) {
+function Preview({ text, layer }: { text: string; layer: string }) {
   const [r, setR] = useState<{ problems: string[]; form: Questionnaire | null; warnings?: SetWarning[] } | null>(null);
   useEffect(() => {
     const t = window.setTimeout(() => {
-      api("/api/admin/questionnaires/check", { body: { text } }).then(setR).catch((e) => setR({ problems: [e.message], form: null }));
+      api(`/api/admin/questionnaires/check${lq(layer)}`, { body: { text } }).then(setR).catch((e) => setR({ problems: [e.message], form: null }));
     }, 300);
     return () => window.clearTimeout(t);
-  }, [text]);
+  }, [text, layer]);
   return (
     <Group
       title={

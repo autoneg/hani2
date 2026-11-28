@@ -44,7 +44,7 @@ DEFAULT_KEYS = (
     "strict_scenarios", "simple_scenarios", "normalized_scenarios", "assume_normalized", "information", "assistant_starts_on", "questionnaires",
     "study_mode", "pairing",
     "scores", "scores_enabled", "normalisation", "leaderboard",
-    "force_reserved_value", "hosted",
+    "force_reserved_value", "hosted", "questionnaire_agent",
 )
 PROJECT_FIELDS = ("name", "full_name", "short_description", "link", "year", "kind", "organizer", "contact")
 STUDY_FIELDS = ("name", "project", "type", "title", "link", "year", "start", "end", "prolific_study_id",
@@ -285,6 +285,9 @@ def file_problems(data: dict, nested: str, *, strict: bool = True) -> list[str]:
         except ValueError as e:
             out.append(str(e))
         out += study_modes.check_pairing(src.get("pairing"))[1]
+        qa = src.get("questionnaire_agent")
+        if qa not in (None, "", "assistant", "opponent"):
+            out.append(f"questionnaire_agent must be assistant or opponent (empty: from the project's kind), not {qa!r}")
     out += _evaluation_problems(data, inner, nested, strict)[0]
     from hani2.evaluation import boards
 

@@ -946,14 +946,15 @@ def _editor_info(project: str, ref: "projects.StudyRef | None" = None) -> dict:
         current = han_submissions.current_year()
         years = han_submissions.package_years()
     inherited: dict[str, Any] = {"n_required": 5, "study_mode": None, "opponents": None, "assistants": None,
-                                 "pairing": {}, "scheduling": {}}
+                                 "pairing": {}, "scheduling": {}, "questionnaire_agent": None}
     if ref is not None:
         d = pr.defaults
         inherited = {"n_required": d.get("n_required") if d.get("n_required") is not None else 5,
                      "study_mode": d.get("study_mode"), "opponents": d.get("opponents"),
                      "assistants": d.get("assistants"),
                      "pairing": dict(d["pairing"]) if isinstance(d.get("pairing"), dict) else {},
-                     "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {}}
+                     "scheduling": dict(d["scheduling"]) if isinstance(d.get("scheduling"), dict) else {},
+                     "questionnaire_agent": d.get("questionnaire_agent") or None}
     try:  # the pools a session would play, K and the mode, for the editor's live checks
         st = projects.get_study(ref) if ref is not None else None
         p = study_modes.effective_pools(pr, st.overrides if st is not None else ({} if ref else None), ref)

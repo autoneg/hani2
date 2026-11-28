@@ -3,6 +3,7 @@ title: "Intention to use and felt heard"
 description: "Would the participant use the Assistant again, did it take their wishes into account, and what insights did it give."
 reference: "Items of the HANI2 evaluation questionnaire."
 forms: [per_negotiation, post_session]
+tags: [assistant]
 questions:
   - {id: use_again, text: "I would use this assistant again.", type: likert7, required: true, requires: support_agent, scale: intention_to_use, labels: {1: "Strongly disagree", 7: "Strongly agree"}}
   - {id: felt_heard, text: "I felt **heard** by the assistant (it took my wishes into account).", type: likert7, required: true, requires: support_agent, scale: felt_heard, labels: {1: "Strongly disagree", 7: "Strongly agree"}}

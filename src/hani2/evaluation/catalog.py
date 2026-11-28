@@ -317,7 +317,7 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
         "Checked: the 10 items, the 5-point agreement anchors, even items reversed, and that the standard score "
         "2.5 × Σ(contributions) equals 100 × scale_sus_norm. “System” is kept as in the original."),
     "ueq_s": QuestionnaireInfo(
-        "User experience of the Assistant: pragmatic quality (supportive, easy, efficient, clear) and hedonic quality "
+        "User experience of the Assistant or the opponent (the party the study evaluates): pragmatic quality (supportive, easy, efficient, clear) and hedonic quality "
         "(exciting, interesting, inventive, leading edge).",
         "Schrepp, Hinderks & Thomaschewski (2017). Design and evaluation of a short version of the User Experience "
         "Questionnaire (UEQ-S). IJIMAI 4(6), 103–108.", "https://doi.org/10.9781/ijimai.2017.09.001",
@@ -326,7 +326,8 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
         "pragmatic and 5–8 hedonic, each scale the mean of its items. HANI2 scores 1–7; subtract 4 for the "
         "handbook's −3…+3."),
     "ueq_eval": QuestionnaireInfo(
-        "Usability of the Assistant with eight items of the full UEQ, as two scales (ueq_pragmatic, ueq_hedonic).",
+        "Usability of the Assistant or the opponent (the party the study evaluates) with eight items of the full UEQ, "
+        "as two scales (ueq_pragmatic, ueq_hedonic).",
         "Laugwitz, Held & Schrepp (2008). Construction and evaluation of a user experience questionnaire. USAB 2008, "
         "LNCS 5298, 63–76.", "https://www.ueq-online.org/", "",
         "Not validated as a UEQ scale: the items are UEQ items 2, 5, 11, 12, 13, 20, 21 and 22 and the positive-left "
@@ -356,13 +357,14 @@ QUESTIONNAIRES: dict[str, QuestionnaireInfo] = {
         "The six items follow Davis's ease-of-use "
         "items, reworded for a negotiation assistant, with agree–disagree anchors."),
     "trust_in_automation": QuestionnaireInfo(
-        "Trust in the Assistant (Checklist for Trust between People and Automation).",
+        "Trust in the Assistant or the opponent, the party the study evaluates (Checklist for Trust between People and "
+        "Automation).",
         "Jian, Bisantz & Drury (2000). Foundations for an empirically determined scale of trust in automated systems. "
         "International Journal of Cognitive Ergonomics 4(1), 53–71.", "https://doi.org/10.1207/S15327566IJCE0401_04",
         _Q + "test_trust_in_automation_matches_source",
         "Checked against the checklist's 12 items as reproduced in McGrath et al. (2025, Frontiers in Artificial "
         "Intelligence, Table 1): wording, 1 = not at all … 7 = extremely, items 1–5 reverse scored, the trust score the "
-        "mean of the 12. Adapted: “the system” is worded as “the assistant”."),
+        "mean of the 12. Adapted: “the system” is worded as “the assistant” or “the opponent” ({{agent}})."),
     "nasa_tlx": QuestionnaireInfo(
         "Workload of the task: mental, physical and temporal demand, performance, effort and frustration (raw TLX; "
         "lower is better).",
