@@ -115,7 +115,7 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     # where the tools go in the simple view: right or left of the negotiation
     "simple_tools_side": "right",
     # a different colour and icon for the Assistant / the opponent in each negotiation of a
-    # participant (see hani2.appearance); ``true`` switches both on
+    # participant (see hani2.appearance)
     "vary_appearance": {"assistant": False, "opponent": False},
 }
 
@@ -4771,9 +4771,12 @@ class NegotiationSession:
         if not any(flags.values()):
             return None
         stored = self.ss.get("appearance")
-        if stored and self.phase in ("running", "ended", "questionnaire"):
+        if stored and self.phase in ("running", "ended", "questionnaire", "finished"):
             return stored
-        return look.look_for(f"{self.study_ref or ''}|{self.user}", self._negotiations_done(), flags)
+        index = self._negotiations_done()
+        if stored:  # never back to the look of the negotiation this session just played
+            index = max(index, int(stored.get("index", -1)) + 1)
+        return look.look_for(f"{self.study_ref or ''}|{self.user}", index, flags)
 
     def tool_maximize_mode(self) -> str:
         """How an enlarged tool opens: ``window`` (a large dialog), ``fullscreen``

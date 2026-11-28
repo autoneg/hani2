@@ -350,6 +350,29 @@ def test_the_assistant_and_the_opponent_get_a_look_of_their_own(e2e_browser, var
         ctx.close()
 
 
+def test_the_header_assistant_button_takes_the_assistants_look(e2e_browser, varied_panel_server):
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, varied_panel_server)
+    p = Page(ctx.new_page(), varied_panel_server)
+    try:
+        name = "e2e" + uuid.uuid4().hex[:8]
+        r = p.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                       "consent": True})
+        assert r.ok, r.text()
+        p.goto("/app")
+        button = p.get_by_role("banner").get_by_role("button", name="Assistant", exact=True)
+        expect(button).to_be_visible()
+        expect(p.locator("html")).to_have_attribute("data-look-assistant", re.compile(".+"))
+        css = button.evaluate("""(b) => ({
+            assistant: getComputedStyle(document.documentElement).getPropertyValue('--assistant').trim(),
+            icon: getComputedStyle(b.querySelector('svg')).color })""")
+        assert css["icon"] == "rgb(" + ", ".join(css["assistant"].split()) + ")", css
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()
+
+
 def test_assistant_opens_over_the_tool_area_and_gives_the_tool_back(e2e_browser, over_tools_server):
     from .conftest import Page, _context
 

@@ -1,0 +1,1 @@
+import{c as t}from"./index-CatE5x23.js";const e={name:"letter-h",size:24,node:[["path",{d:"M18 20V4",key:"o2hl4u"}],["path",{d:"M6 12H18",key:"1fx1vx"}],["path",{d:"M6 20V4",key:"1w1bmo"}]],aliases:["heading"]};e.node;const o=t(e);export{e as __iconData,o as default};

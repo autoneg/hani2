@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **A different look in each negotiation.** With `interface.vary_appearance` (`{"assistant": true,
-  "opponent": true}`, or `true` for both) in the settings folder, a project or a study, the Assistant
+  "opponent": true}`) in the env.json of the settings folder, a project or a study, the Assistant
   and/or the opponent get a colour and an icon of their own in each negotiation of a participant, so
   that each negotiation's Assistant feels like a different one. Each participant walks their own
   sequence of looks: two negotiations in a row never look alike, and a reload continues it. Off by

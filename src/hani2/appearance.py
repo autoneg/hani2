@@ -20,12 +20,13 @@ from __future__ import annotations
 import random
 from typing import Any
 
-#: colours of the Assistant (none is the participant's own blue, none is an opponent's)
-ASSISTANT_COLORS = ("violet", "teal", "fuchsia", "sky", "slate")
+#: colours of the Assistant (none is the participant's own blue, an opponent's, or close to the
+#: good / bad / warning colours of the page)
+ASSISTANT_COLORS = ("violet", "fuchsia", "cyan", "slate")
 #: icons of the Assistant
 ASSISTANT_ICONS = ("bot", "sparkles", "brain-circuit", "lightbulb", "wand-sparkles", "compass", "feather")
 #: colours of the opponent
-OPPONENT_COLORS = ("orange", "brown", "olive", "rose")
+OPPONENT_COLORS = ("orange", "brown", "olive")
 #: icons of an AI opponent (a human opponent keeps the person icon; only its colour changes)
 OPPONENT_ICONS = ("bot", "briefcase", "building-2", "store", "landmark", "factory", "globe")
 

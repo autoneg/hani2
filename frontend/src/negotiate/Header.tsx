@@ -19,7 +19,7 @@ import { Modal } from "../ui/Modal";
 import { NotificationBell } from "./Notifications";
 import { assistantStyle } from "./Persona";
 import { drawerHasControls, mayAdjust } from "./SettingsDrawer";
-import { AssistantIcon } from "./look";
+import { AssistantIcon, useAssistantLooks } from "./look";
 
 let brandCache: string | null = null;
 function useBrand(explicit?: string) {
@@ -186,6 +186,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
   const st = useStore((s) => s.state);
   const [pw, setPw] = useState(false);
   const assistantOpen = useStore((s) => s.assistantOpen);
+  const ownLook = useAssistantLooks();
   const setAssistant = useStore((s) => s.setAssistantOpen);
   if (!st) return null;
   const ap = st.autopilot;
@@ -247,11 +248,11 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
         )}
         {sup && assistantStyle(st, device) !== "persona" && (
           <button
-            className={`btn px-2.5 ${assistantOpen ? "bg-ink text-surface" : "border border-line hover:bg-sunken"} relative`}
+            className={`btn px-2.5 ${assistantOpen ? (ownLook ? "bg-assistant text-white" : "bg-ink text-surface") : `border ${ownLook ? "border-assistant/50 bg-assistant/[0.06]" : "border-line"} hover:bg-sunken`} relative`}
             onClick={() => setAssistant(!assistantOpen)}
             aria-pressed={assistantOpen}
           >
-            <AssistantIcon size={16} />
+            <AssistantIcon size={16} className={ownLook && !assistantOpen ? "text-assistant" : ""} />
             <span className="hidden sm:inline">Assistant</span>
             <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
           </button>

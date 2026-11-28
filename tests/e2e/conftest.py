@@ -124,13 +124,33 @@ def character_server(tmp_path_factory):
     _stop(proc, log)
 
 
+def _varied_look_env(home: Path) -> None:
+    import json
+
+    p = home / "settings" / "env.json"
+    env = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    env.setdefault("interface", {})["vary_appearance"] = {"assistant": True, "opponent": True}
+    p.write_text(json.dumps(env), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def varied_panel_server(tmp_path_factory):
+    """Like varied_look_server, with the Assistant in its default style (the header button and panel)."""
+    home = tmp_path_factory.mktemp("e2e_varied_panel_home")
+    hello = Path(__file__).resolve().parents[2] / "examples" / "support_agent_tutorial" / "level1_hello.py"
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--assistant", f"{hello}:HelloAgent"],
+                            setup_home=_varied_look_env)
+    yield url
+    _stop(proc, log)
+
+
 def _varied_look_settings(home: Path) -> None:
     import json
 
     _character_settings(home)
     p = home / "settings" / "env.json"
     env = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
-    env.setdefault("interface", {})["vary_appearance"] = True
+    env.setdefault("interface", {})["vary_appearance"] = {"assistant": True, "opponent": True}
     p.write_text(json.dumps(env), encoding="utf-8")
 
 

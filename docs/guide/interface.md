@@ -283,15 +283,17 @@ each negotiation its own look:
 {"interface": {"vary_appearance": {"assistant": true, "opponent": true}}}
 ```
 
-`"vary_appearance": true` switches both on. Like every `interface` key it can be set in the settings
-folder (every session), a project or a study; the more specific layer wins, key by key. In the console:
+Like every `interface` key it can be set in the settings folder (every session), a project or a
+study; the more specific layer wins, key by key (a study that sets only `opponent` keeps the
+`assistant` value of its project or of the settings folder). In the console:
 **Participant interface** → *Look of the Assistant and the opponent*. Both are off by default.
 
 - **The Assistant** gets a colour and an icon of its own: the character, its button in the header,
-  the conversation panel, its panels, the status board, its notifications and the mark on the tools
-  it added.
-- **The opponent** gets a colour of its own (its offers in the history, the typing dots and the
-  charts that use the opponent's colour) and, for an AI opponent, an icon of its own. A human
+  the conversation panel, the Assistant tab on phones, its panels, the status board, its
+  notifications and the mark on the tools it added.
+- **The opponent** gets a colour of its own (its avatar and offers in the history, the typing dots
+  and the page's other opponent marks; charts drawn by tools keep their own colours) and, for an AI
+  opponent, an icon of its own. A human
   opponent keeps the person icon.
 
 The looks come from a fixed set of colours and icons. Each participant walks a sequence of their

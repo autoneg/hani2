@@ -51,7 +51,7 @@ def test_off_by_default(hani2_home):
 
 
 def test_each_negotiation_gets_its_own_look(hani2_home):
-    _write(hani2_home / "settings" / "env.json", {"interface": {"vary_appearance": True}})
+    _write(hani2_home / "settings" / "env.json", {"interface": {"vary_appearance": {"assistant": True, "opponent": True}}})
     s = make_session(user="alice")
     before = s.snapshot()["interface"]["appearance"]
     first = _play_one(s)
@@ -75,7 +75,7 @@ def test_layers_global_project_study(hani2_home):
     _write(projects.project_dir("P") / "env.json", {"interface": {"vary_appearance": {"opponent": True}}})
     _write(projects.study_dir(projects.StudyRef("P", "s1")) / "env.json",
            {"interface": {"vary_appearance": {"assistant": True, "opponent": False}}})
-    _write(projects.study_dir(projects.StudyRef("P", "s3")) / "env.json", {"interface": {"vary_appearance": False}})
+    _write(projects.study_dir(projects.StudyRef("P", "s3")) / "env.json", {"interface": {"vary_appearance": {"assistant": False, "opponent": False}}})
 
     def look(study=None):
         return make_session(study=study, load=False).snapshot()["interface"]["appearance"]

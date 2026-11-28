@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Handshake, LayoutGrid, Loader2, WifiOff } from "lucide-react";
 import { api, ApiError } from "../api";
 import { currentPath, navigate, queryParams } from "../router";
 import { useStore, useUiState } from "../store";
@@ -16,7 +16,7 @@ import { Splitter, useLayoutSize } from "../ui/Splitter";
 import { PinnedMessages } from "./Notifications";
 import { Persona, assistantPlace, assistantStyle, useAssistantInTools, useAssistantSlot } from "./Persona";
 import { CustomStyle } from "./CustomStyle";
-import { useLookColors } from "./look";
+import { AssistantIcon, useLookColors } from "./look";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -390,7 +390,7 @@ function Mobile() {
   const sections: any[] = [
     ["negotiate", Handshake, "Negotiate"],
     ...(noTools ? [] : [["tools", LayoutGrid, "Tools"]]),
-    ...(st.support ? [["assistant", Bot, "Assistant"]] : []),
+    ...(st.support ? [["assistant", AssistantIcon, "Assistant"]] : []),
   ];
   return (
     <div className="flex min-h-0 flex-1 flex-col">
