@@ -124,6 +124,27 @@ def character_server(tmp_path_factory):
     _stop(proc, log)
 
 
+def _varied_look_settings(home: Path) -> None:
+    import json
+
+    _character_settings(home)
+    p = home / "settings" / "env.json"
+    env = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    env.setdefault("interface", {})["vary_appearance"] = True
+    p.write_text(json.dumps(env), encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def varied_look_server(tmp_path_factory):
+    """A character server whose Assistant and opponent get a look of their own in each negotiation."""
+    home = tmp_path_factory.mktemp("e2e_varied_look_home")
+    hello = Path(__file__).resolve().parents[2] / "examples" / "support_agent_tutorial" / "level1_hello.py"
+    url, proc, log = _start(home, ["--opponents", "BoulwareTBNegotiator", "--assistant", f"{hello}:HelloAgent"],
+                            setup_home=_varied_look_settings)
+    yield url
+    _stop(proc, log)
+
+
 def _over_tools_settings(home: Path) -> None:
     import json
 

@@ -114,6 +114,9 @@ DEFAULT_INTERFACE: dict[str, Any] = {
     "view_locked": False,
     # where the tools go in the simple view: right or left of the negotiation
     "simple_tools_side": "right",
+    # a different colour and icon for the Assistant / the opponent in each negotiation of a
+    # participant (see hani2.appearance); ``true`` switches both on
+    "vary_appearance": {"assistant": False, "opponent": False},
 }
 
 #: The sides the tools can take in the simple view (env.json → interface.simple_tools_side).
@@ -2899,8 +2902,10 @@ class NegotiationSession:
         """The mechanism exists (an AI opponent's, or a match's): the negotiation runs."""
         if self.closed:
             return
+        appearance = self.appearance()  # the look this negotiation was announced with
         with self.lock:
             self.round_number += 1
+            self.ss["appearance"] = appearance
             self.phase = "running"
             self.ss["negotiation_running"] = True
             self.ss["start_at_dt"] = datetime.now()
@@ -2917,6 +2922,7 @@ class NegotiationSession:
                      value={"partner": self.ss.get("last_partner_type"), "opponent_group": self.ss.get("opponent_group", ""),
                             "opponent_scheduling": self.ss.get("opponent_scheduling", ""),
                             "scenario_scheduling": self.ss.get("scenario_scheduling", ""),
+                            **({"appearance": appearance} if appearance else {}),
                             **(self.ss.get("assistant_attribution") or {}),
                             **self._paired_columns()})
         self._schedule_timeout()
@@ -4722,7 +4728,52 @@ class NegotiationSession:
             "notification_center": bool(notes.get("center", True)),
             "assistant": self.assistant_presentation(),
             "move_tools": bool(self.admin_prefs.get("allow_moving_tools", True)),
+            "appearance": self.appearance(pol),
         }
+
+    # ------------------------------------------------------------------ #
+    # A different look in each negotiation (env.json → interface.vary_appearance)
+    # ------------------------------------------------------------------ #
+    def _negotiations_done(self) -> int:
+        """How many negotiations of this participant are recorded (practice included): the index
+        of their next one. Read from their results.csv, so a reload or a return continues the count."""
+        import csv
+
+        up = self.ss.get("user_path")
+        f = Path(up) / "results.csv" if up else None
+        try:
+            st = f.stat() if f is not None else None
+        except OSError:
+            st = None
+        if f is None or st is None:
+            return 0
+        key = (str(f), st.st_mtime_ns, st.st_size)
+        cached = getattr(self, "_done_cache", None)
+        if cached and cached[0] == key:
+            return cached[1]
+        try:
+            with f.open(newline="", encoding="utf-8") as fh:
+                n = sum(1 for _ in csv.DictReader(fh))
+        except Exception:  # noqa: BLE001
+            n = 0
+        self._done_cache = (key, n)
+        return n
+
+    def appearance(self, policy: dict | None = None) -> dict[str, Any] | None:
+        """The look of the Assistant and the opponent in this negotiation (``None``: the usual one;
+        env.json → ``interface.vary_appearance``, see :mod:`hani2.appearance`).
+
+        Fixed when the negotiation starts and kept until it is over (questionnaire included);
+        before a negotiation starts, the look it will have."""
+        from hani2 import appearance as look
+
+        flags = look.vary_flags((policy or self.interface_policy()).get("vary_appearance"))
+        if not any(flags.values()):
+            return None
+        stored = self.ss.get("appearance")
+        if stored and self.phase in ("running", "ended", "questionnaire"):
+            return stored
+        return look.look_for(f"{self.study_ref or ''}|{self.user}", self._negotiations_done(), flags)
 
     def tool_maximize_mode(self) -> str:
         """How an enlarged tool opens: ``window`` (a large dialog), ``fullscreen``

@@ -283,4 +283,11 @@ export interface InterfaceState {
     place?: "beside" | "tools";
   };
   move_tools: boolean;
+  /** interface.vary_appearance: this negotiation's own colour and icon of the Assistant / the
+   *  opponent (null: the usual look; a side that does not vary is null) */
+  appearance?: {
+    index: number;
+    assistant: { color: string; icon: string } | null;
+    opponent: { color: string; icon: string } | null;
+  } | null;
 }

@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { Bot, EyeOff, X } from "lucide-react";
+import { EyeOff, X } from "lucide-react";
 import { send, useStore } from "../store";
 import type { SessionState } from "../types";
 import type { Device } from "../device";
 import { Assistant } from "./Assistant";
+import { AssistantIcon, useAssistantLooks } from "./look";
 
 /** Whether the persona is on screen (the global toasts then leave the Assistant's notifications to it). */
 export const usePersona = create<{ shown: boolean; setShown: (v: boolean) => void }>((set) => ({
@@ -100,6 +101,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
   const setShown = usePersona((s) => s.setShown);
   const inTools = useAssistantSlot((s) => s.inTools || s.inPopup);
   const vp = useViewport();
+  const own = useAssistantLooks();
   const style = assistantStyle(st, device);
   const shown = !!st?.support && style !== "panel";
   useEffect(() => {
@@ -182,7 +184,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
       {!open && bubbles.length > 0 && (
         <div data-persona-ui className={`pointer-events-none z-[45] flex w-[min(320px,calc(100vw-2rem))] gap-2 ${below ? "flex-col" : "flex-col-reverse"} ${right ? "items-end" : "items-start"}`} style={anchor} aria-live="polite">
           {bubbles.map((t) => (
-            <div key={t.id} className={`enter pointer-events-auto relative flex items-start gap-2 rounded-2xl border border-you/25 bg-surface px-3 py-2 text-sm shadow-pop ${right ? "rounded-br-sm" : "rounded-bl-sm"}`} role="status">
+            <div key={t.id} className={`enter pointer-events-auto relative flex items-start gap-2 rounded-2xl border border-assistant/25 bg-surface px-3 py-2 text-sm shadow-pop ${right ? "rounded-br-sm" : "rounded-bl-sm"}`} role="status">
               <button className="min-w-0 flex-1 text-left" onClick={() => { setOpen(true); drop(t.id); }} title="Open the conversation">
                 {t.message}
               </button>
@@ -219,7 +221,7 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         </button>
       )}
       {!open && <button
-        className={`fixed z-[47] flex touch-none select-none items-center justify-center rounded-full shadow-pop transition-transform ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"} ${movable ? "cursor-grab active:cursor-grabbing" : ""} hover:scale-105`}
+        className={`fixed z-[47] flex touch-none select-none items-center justify-center rounded-full shadow-pop transition-transform ${sup.enabled ? (own ? "bg-assistant text-white" : "bg-ink text-surface") : "bg-sunken text-muted"} ${movable ? "cursor-grab active:cursor-grabbing" : ""} hover:scale-105`}
         style={{ width: SIZE, height: SIZE, left: x - SIZE / 2, top: y - SIZE / 2 }}
         onPointerDown={onDown}
         onPointerMove={onMove}
@@ -231,8 +233,8 @@ export function Persona({ device, live = true }: { device: Device; live?: boolea
         data-persona
         data-persona-ui
       >
-        {sup.busy && <span className="absolute inset-0 animate-ping rounded-full bg-you/30" aria-hidden />}
-        <Bot size={26} />
+        {sup.busy && <span className="absolute inset-0 animate-ping rounded-full bg-assistant/30" aria-hidden />}
+        <AssistantIcon size={26} />
         <span className={`absolute right-0.5 top-0.5 h-3 w-3 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
       </button>}
     </>

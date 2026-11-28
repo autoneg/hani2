@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, Bot, CheckCircle2, CircleAlert, Info, Pin as PinIcon, Trash2, TriangleAlert, X } from "lucide-react";
+import { Bell, CheckCircle2, CircleAlert, Info, Pin as PinIcon, Trash2, TriangleAlert, X } from "lucide-react";
 import { send, useStore } from "../store";
 import type { NotificationItem, Pin } from "../types";
 import { Markdown } from "../ui/Markdown";
+import { AssistantIcon } from "./look";
 
 // one shared empty list: a fresh [] per call makes zustand re-render forever (old recordings have no pins)
 const NO_PINS: Pin[] = [];
@@ -149,7 +150,7 @@ export function NotificationBell() {
                 <ul className="divide-y divide-line/70">
                   {[...items].reverse().map((n) => {
                     const L = LEVEL[n.level] ?? LEVEL.info;
-                    const I = n.source === "assistant" ? Bot : L.icon;
+                    const I = n.source === "assistant" ? AssistantIcon : L.icon;
                     return (
                       <li key={n.id} className={`flex items-start gap-2.5 px-3 py-2 ${n.id > seen ? "bg-you/[0.04]" : ""}`}>
                         <I size={16} className={`mt-0.5 shrink-0 ${L.ic}`} />

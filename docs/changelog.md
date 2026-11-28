@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **A different look in each negotiation.** With `interface.vary_appearance` (`{"assistant": true,
+  "opponent": true}`, or `true` for both) in the settings folder, a project or a study, the Assistant
+  and/or the opponent get a colour and an icon of their own in each negotiation of a participant, so
+  that each negotiation's Assistant feels like a different one. Each participant walks their own
+  sequence of looks: two negotiations in a row never look alike, and a reload continues it. Off by
+  default; the console sets it on the **Participant interface** page. See
+  [A different look in each negotiation](guide/interface.md#a-different-look-in-each-negotiation).
 - **The Assistant no longer chooses its language models by default.** The `model_choice` ability
   (the `list_model_sequences` and `use_model_sequence` functions, `use_model_sequence()` and
   `ask_llm(..., sequence=...)`) is now off by default, like `own_models`. An admin turns it on under

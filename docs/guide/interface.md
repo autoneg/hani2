@@ -272,6 +272,37 @@ While the character is shown, the Assistant's notifications come out of it as sp
 
 The [Assistant](assistant.md) page explains autonomy, capabilities and proactive messages.
 
+### A different look in each negotiation
+
+By default the Assistant and the opponent look the same in every negotiation. When participants
+meet several Assistants (for example, a different one in each round of a counterbalanced study),
+the same look can make them feel they are talking to the same one. `interface.vary_appearance` gives
+each negotiation its own look:
+
+```json
+{"interface": {"vary_appearance": {"assistant": true, "opponent": true}}}
+```
+
+`"vary_appearance": true` switches both on. Like every `interface` key it can be set in the settings
+folder (every session), a project or a study; the more specific layer wins, key by key. In the console:
+**Participant interface** → *Look of the Assistant and the opponent*. Both are off by default.
+
+- **The Assistant** gets a colour and an icon of its own: the character, its button in the header,
+  the conversation panel, its panels, the status board, its notifications and the mark on the tools
+  it added.
+- **The opponent** gets a colour of its own (its offers in the history, the typing dots and the
+  charts that use the opponent's colour) and, for an AI opponent, an icon of its own. A human
+  opponent keeps the person icon.
+
+The looks come from a fixed set of colours and icons. Each participant walks a sequence of their
+own, one step per negotiation (practice included), so two negotiations in a row never share a
+colour or an icon, a participant who reloads or comes back continues where they were, and the order
+differs between participants (a look is not tied to a round). The Assistant's colours are never the
+participant's own colour or one of the opponent's. The look is fixed when a negotiation starts,
+shows before it starts and stays until its questionnaire is done. The snapshot carries it as
+`interface.appearance` (`index`, and `assistant` / `opponent` with a `color` and an `icon` key, or
+`null`), and the negotiation's *scenario started* event records it as `appearance`.
+
 ### The Assistant in the tool area
 
 `assistant_settings.json → presentation.place` (**The open Assistant goes** on the **Assistant

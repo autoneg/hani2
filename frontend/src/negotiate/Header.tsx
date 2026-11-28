@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Eye, EyeOff, Moon, Plane, Settings2, Shield, Square, Sun, SunMoon, UserRound } from "lucide-react";
+import { Columns3, KeyRound, LayoutPanelLeft, LogOut, Maximize2, Eye, EyeOff, Moon, Plane, Settings2, Shield, Square, Sun, SunMoon, UserRound } from "lucide-react";
 import { send, useStore, useUiState } from "../store";
 import { isVirtual, now as clockNow } from "../clock";
 import { Anchor } from "../ui/Anchor";
@@ -19,6 +19,7 @@ import { Modal } from "../ui/Modal";
 import { NotificationBell } from "./Notifications";
 import { assistantStyle } from "./Persona";
 import { drawerHasControls, mayAdjust } from "./SettingsDrawer";
+import { AssistantIcon } from "./look";
 
 let brandCache: string | null = null;
 function useBrand(explicit?: string) {
@@ -250,7 +251,7 @@ export function Header({ onSettings, device = "desktop" }: { onSettings: () => v
             onClick={() => setAssistant(!assistantOpen)}
             aria-pressed={assistantOpen}
           >
-            <Bot size={16} />
+            <AssistantIcon size={16} />
             <span className="hidden sm:inline">Assistant</span>
             <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface ${sup.enabled ? (sup.busy ? "bg-warn" : "bg-good") : "bg-muted"}`} />
           </button>

@@ -1,0 +1,1 @@
+import{c as a}from"./index-DQD0Erhb.js";const t={name:"square-chart-gantt",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M9 8h7",key:"kbo1nt"}],["path",{d:"M8 12h6",key:"ikassy"}],["path",{d:"M11 16h5",key:"oq65wt"}]],aliases:["gantt-chart-square","square-gantt-chart"]};t.node;const r=a(t);export{t as __iconData,r as default};

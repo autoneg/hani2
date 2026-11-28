@@ -211,6 +211,7 @@ What participants may adjust themselves, the defaults of their own settings, and
 | `view` | `simple` | The view a session starts in: `full`, `simple`, `focus` or `bare` (no tools). `?view=` in the URL wins. See [Layout views](interface.md#layout-views). |
 | `view_locked` | `false` | `true`: participants and the Assistant cannot leave that view (administrators still can). Use it with `view: bare` for a no-tools condition. |
 | `simple_tools_side` | `right` | Where the tools column goes in the simple view: `right` or `left` of the negotiation. |
+| `vary_appearance.assistant`, `vary_appearance.opponent` | `false` | `true`: the Assistant (or the opponent) gets a colour and an icon of its own in each negotiation of a participant, so each negotiation's Assistant looks like a different one. `vary_appearance: true` switches both on. See [A different look in each negotiation](interface.md#a-different-look-in-each-negotiation). |
 
 The `participant_settings` keys:
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Eraser, Send, SlidersHorizontal, UserRound, X } from "lucide-react";
+import { Eraser, Send, SlidersHorizontal, UserRound, X } from "lucide-react";
 import { send, sendOrWarn, useStore, useUiState } from "../store";
 import type { AgentPanel, SessionState } from "../types";
 import { Markdown } from "../ui/Markdown";
@@ -7,6 +7,7 @@ import { Modal } from "../ui/Modal";
 import { Renderer } from "../ui/Renderer";
 import { mayAdjust } from "./SettingsDrawer";
 import { useDevice } from "../device";
+import { AssistantIcon, useAssistantLooks } from "./look";
 
 // one shared empty list: a fresh [] per call makes zustand re-render forever
 const NO_PANELS: never[] = [];
@@ -20,10 +21,10 @@ const AUTONOMY = [
 export function PanelView({ p }: { p: AgentPanel }) {
   const rv = useStore((s) => s.state?.reserved_value);
   return (
-    <section className="enter rounded-xl border border-you/25 bg-surface">
+    <section className="enter rounded-xl border border-assistant/25 bg-surface">
       <div className="flex items-center justify-between border-b border-line px-3 py-2">
         <div className="flex items-center gap-1.5 text-sm font-semibold">
-          <Bot size={14} className="text-you" /> {p.title}
+          <AssistantIcon size={14} className="text-assistant" /> {p.title}
         </div>
         <button className="btn-ghost px-1 py-0.5" aria-label="Close panel" onClick={() => send({ type: "close_panel", panel_id: p.id })}>
           <X size={14} />
@@ -122,12 +123,13 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
     if (!t) return;
     if (sendOrWarn({ type: asking ? "answer" : "chat", text: t })) setText("");
   };
+  const own = useAssistantLooks();
   const showCharacter = device !== "phone" && !!st?.interface?.assistant?.may_show;
   return (
     <aside className={`flex h-full w-full flex-col bg-surface ${fill ? "" : "border-l border-line lg:w-[360px]"}`} aria-label="Assistant">
       <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
-        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${sup.enabled ? "bg-ink text-surface" : "bg-sunken text-muted"}`}>
-          <Bot size={17} />
+        <div className={`flex h-8 w-8 items-center justify-center rounded-full ${sup.enabled ? (own ? "bg-assistant text-white" : "bg-ink text-surface") : "bg-sunken text-muted"}`}>
+          <AssistantIcon size={17} />
         </div>
         <div className="flex-1">
           <div className="text-sm font-semibold">{sup.name}</div>
@@ -160,7 +162,7 @@ export function Assistant({ fill = false }: { fill?: boolean } = {}) {
           const mine = m.user === "You";
           return (
             <div key={m.id} className={`enter flex ${mine ? "justify-end" : ""}`}>
-              <div className={`max-w-[88%] rounded-xl px-3 py-2 ${mine ? "rounded-br-sm bg-you text-white" : "rounded-bl-sm bg-sunken"} ${m.kind === "question" ? "border border-you/30 bg-you/5" : ""}`}>
+              <div className={`max-w-[88%] rounded-xl px-3 py-2 ${mine ? "rounded-br-sm bg-you text-white" : "rounded-bl-sm bg-sunken"} ${m.kind === "question" ? "border border-assistant/30 bg-assistant/5" : ""}`}>
                 {mine ? <div className="whitespace-pre-wrap text-sm">{m.text}</div> : <Markdown text={m.text} size="sm" />}
                 {m.kind === "question" && st.pending_question?.id === m.question_id && (m.options?.length ?? 0) > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -233,7 +235,7 @@ export function StatusBoard() {
   if (!hasAgent || !board) return null;
   return (
     <div className="flex items-start gap-2 border-t border-line bg-surface px-3 py-2 sm:px-4" role="status" aria-label="Assistant status board" data-persona-avoid>
-      <Bot size={15} className="mt-0.5 shrink-0 text-you" />
+      <AssistantIcon size={15} className="mt-0.5 shrink-0 text-assistant" />
       <div className={`min-w-0 flex-1 ${collapsed ? "line-clamp-1" : "max-h-40 overflow-y-auto"}`}>
         <Markdown text={board} size="sm" />
       </div>

@@ -16,6 +16,7 @@ import { Splitter, useLayoutSize } from "../ui/Splitter";
 import { PinnedMessages } from "./Notifications";
 import { Persona, assistantPlace, assistantStyle, useAssistantInTools, useAssistantSlot } from "./Persona";
 import { CustomStyle } from "./CustomStyle";
+import { useLookColors } from "./look";
 
 function useMedia(q: string) {
   const [d, setD] = useState(() => window.matchMedia(q).matches);
@@ -459,6 +460,7 @@ export function NegotiatePage({ mode }: { mode: "main" | "guest" }) {
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0); // bumped by "Try again"
   const { device, landscape } = useDevice();
+  useLookColors();
   useAutoOpenAssistant();
 
   useEffect(() => {

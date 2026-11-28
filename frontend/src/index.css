@@ -26,6 +26,18 @@
   --issue-7: #6a4ce2;
   --issue-8: #ec4647;
   --accent-strong: 59 75 219;
+  /* the Assistant's colour (the participant's unless interface.vary_appearance gives it its own) */
+  --assistant: var(--you);
+  /* the looks of interface.vary_appearance (hani2.appearance) */
+  --look-violet: 124 58 237;
+  --look-teal: 13 148 136;
+  --look-fuchsia: 192 38 211;
+  --look-sky: 2 132 199;
+  --look-slate: 71 85 105;
+  --look-orange: 217 130 27;
+  --look-brown: 146 64 14;
+  --look-olive: 101 120 20;
+  --look-rose: 225 29 72;
   color-scheme: light;
 }
 
@@ -51,6 +63,15 @@
     --issue-7: #9887ef;
     --issue-8: #eb6263;
     --accent-strong: 79 91 214;
+    --look-violet: 167 139 250;
+    --look-teal: 45 212 191;
+    --look-fuchsia: 232 121 249;
+    --look-sky: 56 189 248;
+    --look-slate: 148 163 184;
+    --look-orange: 240 165 72;
+    --look-brown: 214 140 90;
+    --look-olive: 180 200 80;
+    --look-rose: 251 113 133;
     color-scheme: dark;
   }
 }
@@ -76,8 +97,28 @@
   --issue-7: #9887ef;
   --issue-8: #eb6263;
   --accent-strong: 79 91 214;
+  --look-violet: 167 139 250;
+  --look-teal: 45 212 191;
+  --look-fuchsia: 232 121 249;
+  --look-sky: 56 189 248;
+  --look-slate: 148 163 184;
+  --look-orange: 240 165 72;
+  --look-brown: 214 140 90;
+  --look-olive: 180 200 80;
+  --look-rose: 251 113 133;
   color-scheme: dark;
 }
+
+/* interface.vary_appearance: this negotiation's colours (set on <html> by negotiate/look.tsx) */
+:root[data-look-assistant="violet"] { --assistant: var(--look-violet); }
+:root[data-look-assistant="teal"] { --assistant: var(--look-teal); }
+:root[data-look-assistant="fuchsia"] { --assistant: var(--look-fuchsia); }
+:root[data-look-assistant="sky"] { --assistant: var(--look-sky); }
+:root[data-look-assistant="slate"] { --assistant: var(--look-slate); }
+:root[data-look-opponent="orange"] { --opponent: var(--look-orange); }
+:root[data-look-opponent="brown"] { --opponent: var(--look-brown); }
+:root[data-look-opponent="olive"] { --opponent: var(--look-olive); }
+:root[data-look-opponent="rose"] { --opponent: var(--look-rose); }
 
 html {
   font-size: calc(15px * var(--font-scale));

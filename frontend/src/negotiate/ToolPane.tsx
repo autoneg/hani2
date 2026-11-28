@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bot, EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
+import { EyeOff, GripHorizontal, Lock, Maximize2, MoreHorizontal, PanelBottom, PanelRight, PanelTop, PictureInPicture2, Pin, Plus, X } from "lucide-react";
 import { flushDraftText, send, useStore, useUiState } from "../store";
 import type { ToolInfo } from "../types";
 import { Anchor } from "../ui/Anchor";
@@ -11,6 +11,7 @@ import { Renderer } from "../ui/Renderer";
 import { useDevice } from "../device";
 import { Assistant } from "./Assistant";
 import { assistantPlace, useAssistantInTools } from "./Persona";
+import { AssistantIcon } from "./look";
 
 type Pane = "upper" | "lower" | "side";
 const PANE_ICON = { upper: PanelTop, lower: PanelBottom, side: PanelRight };
@@ -161,7 +162,7 @@ export function ToolPane({ panes, className = "", label }: { panes: Pane[]; clas
                   {t.name}
                   {t.added_by && (
                     <span className="rounded bg-you/10 px-1 text-[10px] font-medium text-you" title={`Added by ${t.added_by}`}>
-                      <Bot size={11} className="inline" aria-label={`Added by ${t.added_by}`} />
+                      <AssistantIcon size={11} className="inline" aria-label={`Added by ${t.added_by}`} />
                     </span>
                   )}
                   {on && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-you" />}

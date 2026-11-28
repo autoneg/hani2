@@ -318,6 +318,38 @@ def test_participant_hides_the_character_and_gets_the_header_button(e2e_browser,
         ctx.close()
 
 
+def test_the_assistant_and_the_opponent_get_a_look_of_their_own(e2e_browser, varied_look_server):
+    from hani2 import appearance
+
+    from .conftest import Page, _context
+
+    ctx = _context(e2e_browser, varied_look_server)
+    p = Page(ctx.new_page(), varied_look_server)
+    try:
+        name = "e2e" + uuid.uuid4().hex[:8]
+        r = p.request.post("/api/auth/register", data={"username": name, "password": "secret1", "confirm": "secret1",
+                                                       "consent": True})
+        assert r.ok, r.text()
+        p.goto("/app")
+        character = p.locator("[data-persona]")
+        expect(character).to_be_visible()
+        html = p.locator("html")
+        expect(html).to_have_attribute("data-look-assistant", re.compile("|".join(appearance.ASSISTANT_COLORS)))
+        expect(html).to_have_attribute("data-look-opponent", re.compile("|".join(appearance.OPPONENT_COLORS)))
+        # the character takes the Assistant's colour (not the usual dark one)
+        css = p.evaluate("""() => {
+            const cs = getComputedStyle(document.documentElement);
+            const v = cs.getPropertyValue('--assistant').trim();
+            return { assistant: v, you: cs.getPropertyValue('--you').trim(),
+                     bg: getComputedStyle(document.querySelector('[data-persona]')).backgroundColor };
+        }""")
+        assert css["assistant"] and css["assistant"] != css["you"], css
+        assert css["bg"] == "rgb(" + ", ".join(css["assistant"].split()) + ")", css
+        assert not p.errors, p.errors
+    finally:
+        ctx.close()
+
+
 def test_assistant_opens_over_the_tool_area_and_gives_the_tool_back(e2e_browser, over_tools_server):
     from .conftest import Page, _context
 

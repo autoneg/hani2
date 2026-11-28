@@ -189,6 +189,14 @@ const INTERFACE_REST: FieldGroup[] = [
     ],
   },
   {
+    title: "Look of the Assistant and the opponent",
+    footer: "Each negotiation of a participant gets the next colour and icon of their own sequence (practice included), so two negotiations in a row never look alike.",
+    fields: [
+      { id: "vary-assistant-look", path: "interface.vary_appearance.assistant", label: "A different Assistant look in each negotiation", hint: "A colour and an icon of its own for the Assistant in every negotiation, so each one feels like a different Assistant", type: "toggle", keywords: "vary appearance colour color icon persona character assistant different" },
+      { id: "vary-opponent-look", path: "interface.vary_appearance.opponent", label: "A different opponent look in each negotiation", hint: "A colour (and, for AI opponents, an icon) of its own for the opponent in every negotiation; a human opponent keeps the person icon", type: "toggle", keywords: "vary appearance colour color icon opponent different" },
+    ],
+  },
+  {
     title: "Tools",
     fields: [
       { id: "allow-moving-tools", path: "negotiation.allow_moving_tools", label: "Participants may move tools between panes", hint: "The pane menu of each tool tab. The Assistant's own rearranging is its \"Rearrange tools\" ability.", type: "toggle", keywords: "move drag pane" },
