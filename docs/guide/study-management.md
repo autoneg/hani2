@@ -986,6 +986,8 @@ For an agreement, `ended_by` is `human` when the participant accepted and `agent
 | `oracle` | Whether the Assistant knew the opponent's utility function (the `opponent_utility` capability). |
 | `opponent_info_tools` | Whether the participant's tools could show the opponent's utilities (admins, or `tools.show_opponent_utility`). |
 | `autopilot_driver` | Who drove the seat when autopilot was used (`Assistant` or a negotiator); empty otherwise. |
+| `assistant_color` / `assistant_icon` | The Assistant's colour and icon in this negotiation when `interface.vary_appearance.assistant` is on, else empty. See [A different look in each negotiation](interface.md#a-different-look-in-each-negotiation). |
+| `opponent_color` / `opponent_icon` | The same for the opponent (`interface.vary_appearance.opponent`); a human opponent's icon is still recorded although the page shows the person icon. |
 | `opponent_group` | The opponent group the opponent came from (`?group=`, a single group token), if any. |
 | `opponent_han_year` | The HAN year of the AI opponent when it is a HAN entrant (from a `:han<year>-<set>` group, or from the `han_year` of the group file that names it by class path), else empty. |
 | `opponent_han_source` | Where that agent came from: `submissions` (the current year's submitted zips), `han-agents` (the package) or `group-file` (a group file with `han_year`). |

@@ -87,3 +87,31 @@ def test_layers_global_project_study(hani2_home):
     s1 = look("P/s1")  # the study's own value wins
     assert s1["assistant"] and s1["opponent"] is None
     assert look("P/s3") is None  # switched off in the study
+
+
+def test_results_record_the_look(hani2_home):
+    import csv
+
+    _write(hani2_home / "settings" / "env.json", {"interface": {"vary_appearance": {"assistant": True, "opponent": True}}})
+    s = make_session(user="carol")
+    look = _play_one(s)
+    with (s.ss["user_path"] / "results.csv").open(newline="", encoding="utf-8") as fh:
+        row = list(csv.DictReader(fh))[-1]
+    assert row["assistant_color"] == look["assistant"]["color"] and row["assistant_icon"] == look["assistant"]["icon"]
+    assert row["opponent_color"] == look["opponent"]["color"] and row["opponent_icon"] == look["opponent"]["icon"]
+
+
+def test_results_columns_empty_when_off(hani2_home):
+    import csv
+
+    s = make_session(user="dave")
+    _play_one(s)
+    with (s.ss["user_path"] / "results.csv").open(newline="", encoding="utf-8") as fh:
+        row = list(csv.DictReader(fh))[-1]
+    assert all(row[k] == "" for k in appearance_columns())
+
+
+def appearance_columns():
+    from hani2.results import APPEARANCE_COLUMNS
+
+    return APPEARANCE_COLUMNS

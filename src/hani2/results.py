@@ -180,6 +180,21 @@ def _han_provenance(ss: dict[str, Any], m: SAOMechanism) -> dict[str, Any]:
 #: :mod:`hani2.simulator`), ``participant_type`` (from the pre-questionnaire, or the persona's
 #: difficulty), ``persona`` and, for simulated participants, ``goal_met`` and ``sim_invalid`` (why the
 #: trial says nothing about the Assistant, ``""`` when it is valid)
+#: the look of the Assistant and the opponent in this negotiation (env.json → interface.vary_appearance,
+#: see hani2.appearance): a colour and an icon key each, empty when that side kept the usual look
+APPEARANCE_COLUMNS = ["assistant_color", "assistant_icon", "opponent_color", "opponent_icon"]
+
+
+def _appearance(ss: dict[str, Any]) -> dict[str, str]:
+    look = ss.get("appearance") or {}
+    out = {k: "" for k in APPEARANCE_COLUMNS}
+    for who in ("assistant", "opponent"):
+        side = look.get(who) or {}
+        out[f"{who}_color"] = str(side.get("color") or "")
+        out[f"{who}_icon"] = str(side.get("icon") or "")
+    return out
+
+
 PARTICIPANT_COLUMNS = ["mode", "participant_type", "persona", "goal_met", "sim_invalid"]
 
 
@@ -411,6 +426,7 @@ def save_result(ss: dict[str, Any], m: SAOMechanism) -> tuple[dict, dict]:
         | _han_provenance(ss, m)
         | paired_columns(ss)
         | _participant(ss, human_ufun, human_utility, m.agreement is not None)
+        | _appearance(ss)
         | _information(ss, m)
         | _stamp(ss)
         | _state_record(m.state)

@@ -6,7 +6,9 @@
   "opponent": true}`) in the env.json of the settings folder, a project or a study, the Assistant
   and/or the opponent get a colour and an icon of their own in each negotiation of a participant, so
   that each negotiation's Assistant feels like a different one. Each participant walks their own
-  sequence of looks: two negotiations in a row never look alike, and a reload continues it. Off by
+  sequence of looks: two negotiations in a row never look alike, and a reload continues it. Each
+  negotiation's look is in `results.csv` (`assistant_color`, `assistant_icon`, `opponent_color`,
+  `opponent_icon`). Off by
   default; the console sets it on the **Participant interface** page. See
   [A different look in each negotiation](guide/interface.md#a-different-look-in-each-negotiation).
 - **Questionnaires about the Assistant or the opponent.** Every predefined questionnaire now has `tags` naming the

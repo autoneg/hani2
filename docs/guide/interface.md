@@ -303,7 +303,9 @@ differs between participants (a look is not tied to a round). The Assistant's co
 participant's own colour or one of the opponent's. The look is fixed when a negotiation starts,
 shows before it starts and stays until its questionnaire is done. The snapshot carries it as
 `interface.appearance` (`index`, and `assistant` / `opponent` with a `color` and an `icon` key, or
-`null`), and the negotiation's *scenario started* event records it as `appearance`.
+`null`). The negotiation's *scenario started* event records it as `appearance`, and `results.csv`
+has it in `assistant_color`, `assistant_icon`, `opponent_color` and `opponent_icon` (empty for a side
+that kept the usual look).
 
 ### The Assistant in the tool area
 
