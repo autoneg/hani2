@@ -177,8 +177,8 @@ Default values of the per-session negotiation settings. Every key below may appe
 | `allow_text_agent` | `true` | Show the opponent's messages. |
 | `allow_text_human` | `true` | Give the human a message field. |
 | `text_only_mode` | `false` | The human sends messages only, no structured offer. |
-| `auto_extract` | `false` | Read an offer out of the human's message with the LLM before sending. |
-| `auto_generate` | `false` | Write a message with the LLM when the human sends an offer without one. |
+| `auto_extract` | `false` | Read an offer out of the human's message with the LLM before sending (the Assistant reads it when it has `llm_features`). |
+| `auto_generate` | `false` | Write a message with the LLM when the human sends an offer without one (the Assistant writes it when it has `llm_features`). |
 | `init_with_best` | `true` | Start the counter-offer editor at the human's best outcome. |
 | `init_with_last` | `true` | Start the counter-offer editor at the human's last offer, when there is one. |
 | `allow_tool_switch` | `true` | Let the human switch tools on and off. |
@@ -433,7 +433,7 @@ The old name of this file, `support_agent_settings.json`, is still read; where b
 | `max_tokens` | `2000` | Maximum answer length. |
 | `max_tool_iterations` | `10` | Maximum rounds of function calls per user message; then one last call without functions gives the answer. |
 | `autonomy` | `"full"` | `suggest`, `semi` or `full`. |
-| `capabilities` | all `true` except `opponent_utility`, `model_choice` and `own_models` | The twenty-six capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `offer_display`, `interface`, `presentation`, `panels`, `tool_add`, `tool_use`, `llm_tool`, `private_info`, `opponent_model`, and three admin-only ones: the oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)), `model_choice` (pick a [named model sequence](models.md#named-sequences); default `false`) and `own_models` (define its own sequences; default `false`). |
+| `capabilities` | all `true` except `opponent_utility`, `model_choice` and `own_models` | The twenty-seven capability switches: `chat`, `toast`, `pin`, `tool_enable`, `tool_visibility`, `tool_order`, `fill_offer`, `fill_text`, `submit_counter`, `accept`, `end`, `highlight`, `annotate`, `layout`, `offer_display`, `interface`, `presentation`, `panels`, `tool_add`, `tool_use`, `llm_tool`, `llm_features`, `private_info`, `opponent_model`, and three admin-only ones: the oracle `opponent_utility` (default `false`; see [Ablations](ablations.md)), `model_choice` (pick a [named model sequence](models.md#named-sequences); default `false`) and `own_models` (define its own sequences; default `false`). |
 | `toolbox` | `[]` | Tool classes (`module:Class` or `path/to/file.py:Class`) the agent may add by name, in addition to its own `tools`. |
 | `proactive.on_negotiation_started` | `false` | Speak up when a negotiation starts. |
 | `proactive.on_action_requested` | `false` | Speak up at each of the human's turns. |

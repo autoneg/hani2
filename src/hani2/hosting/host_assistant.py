@@ -127,6 +127,21 @@ class ProxySession:
     def display_outcome(self, d: Any) -> Any:
         return d
 
+    def llm_context(self, audience: str = "assistant"):
+        """What the default message / offer prompts know here: the issues, the recent offers and the
+        offer on the table from HANI2's context (the utility function stays with HANI2)."""
+        from hani2.llm_service import NegotiationContext
+
+        ctx = self._r.context() or {}
+        hist = []
+        for h in list(ctx.get("history") or [])[-10:]:
+            if isinstance(h, dict):
+                hist.append({"role": "You" if h.get("by") in ("human", "you") else "Opponent",
+                             "text": str(h.get("text") or ""), "outcome": str(h.get("offer") or "")})
+        po = ctx.get("partner_offer")
+        return NegotiationContext(issues=self.issues, outcome_space=self.outcome_space, ufun=None, history=hist or None,
+                                  current_offer=self.offer_outcome(po) if isinstance(po, dict) else None)
+
     def __getattr__(self, name: str) -> Any:
         raise AttributeError(f"a hosted Assistant cannot use session.{name} on its host; use the Assistant "
                              "helpers (post, toast, highlight, …) or its functions (get_negotiation_state, …)")
@@ -384,6 +399,10 @@ class AssistantRunner:
         if event == "suggest_offer":
             return lambda: {"suggestion": a.suggest_offer(str(data.get("instruction") or ""),
                                                           str(data.get("mode") or "both"))}
+        if event == "write_message":
+            return lambda: {"suggestion": a.write_message(dict(data.get("offer") or {}) or None)}
+        if event == "offer_from_message":
+            return lambda: {"suggestion": a.offer_from_message(str(data.get("text") or ""))}
         if event == "clear":
             return a.clear_conversation
         if event == "autopilot":

@@ -199,7 +199,8 @@ def make_app(kind: str, agent: Any, *, token: str | None = None, name: str | Non
     ``GET /health`` needs none). Without a token the host refuses to start unless ``allow_no_token``
     (local tests). ``version``: whatever the team declares (shown by HANI2; a hint, never checked).
     ``model``: ``{"provider", "model"}`` reported with every reply when the agent does not report its
-    own. ``events``: optional Assistant events the host wants (``draft_changed``)."""
+    own. ``events``: optional Assistant events the host wants (``draft_changed``, ``action_requested``;
+    an Assistant host always adds ``write_message`` and ``offer_from_message``)."""
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
 
@@ -217,6 +218,8 @@ def make_app(kind: str, agent: Any, *, token: str | None = None, name: str | Non
         from hani2.hosting.host_assistant import AssistantRunner, assistant_factory
 
         klass = assistant_factory(agent)
+        # a hosted Python Assistant answers the interface's AI features (its write_message / offer_from_message)
+        events = list(dict.fromkeys([*(events or []), "write_message", "offer_from_message"]))
 
         def make_runner(setup: dict) -> Any:
             return AssistantRunner(klass, setup, model=model)
@@ -266,6 +269,8 @@ def make_app(kind: str, agent: Any, *, token: str | None = None, name: str | Non
             _safe_close(runner)
             return JSONResponse({"ok": False, "error": str(e)}, 503)
         out: dict[str, Any] = {"ok": True, "version": version}
+        if events:
+            out["events"] = list(events)  # what HANI2 sends only on request (it reads them from this reply)
         m = getattr(runner, "model_info", None)
         m = m() if callable(m) else (getattr(runner, "model", None) or model)
         if m:

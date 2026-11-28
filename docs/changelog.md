@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **The Assistant answers the interface's AI features.** **Write message**, **Offer from message**, the
+  message written for an offer sent without one (`auto_generate`) and the offer read from a sent message
+  (`auto_extract`) now go to the participant's Assistant first, as the LLM offer tool already did. The
+  default Assistant answers them with the study's own `generation_prompt` and `extraction_prompt` on its
+  own model, with its instructions and conversation; the prompts see only what the Assistant may know.
+  The interface uses its own model when the Assistant is off, has no chat model, stays busy, returns
+  `None`, or is the one sending (its own counter-offers, the autopilot). New capability `llm_features`
+  (*Answer the AI features*, on by default; a participant can switch it off) and two methods to
+  override, `write_message(offer)` and `offer_from_message(text)`; tutorial level 12 answers them with
+  rules. Hosted Assistants get the optional `write_message` / `offer_from_message` events; a Python
+  Assistant served with `hani2 host-assistant` always asks for them. A built-in host's `--events` now
+  reach HANI2 (they were only listed on `/info`).
 - **Everything in the settings files can be set in the admin console.** Every JSON settings page and every
   project and study view has an editor for its whole file (**Edit the file**), so a key without a control
   can still be changed in the console. New controls:

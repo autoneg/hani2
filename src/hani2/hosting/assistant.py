@@ -37,8 +37,9 @@ ACTIONS = ("post", "toast", "show_on_board", "message_user", "pin_message", "unp
            "clear_highlights", "annotate", "set_layout", "set_offer_display", "set_interface", "set_presentation",
            "set_opponent_estimate", "focus_tool", "show_panel", "close_panel", "set_autopilot")
 #: events the host gets only when it asks for them (``events`` in its replies or /info);
-#: ``action_requested`` also when the admin turned on the proactive note for it
-OPTIONAL_EVENTS = ("draft_changed", "action_requested")
+#: ``action_requested`` also when the admin turned on the proactive note for it; without
+#: ``write_message`` / ``offer_from_message`` the interface's AI features use the interface's own model
+OPTIONAL_EVENTS = ("draft_changed", "action_requested", "write_message", "offer_from_message")
 MAX_CALLS_PER_REPLY = 10
 #: what :meth:`RemoteAssistant._run_action` returns for a name that is a function, not an action
 NOT_AN_ACTION = object()
@@ -342,6 +343,38 @@ class RemoteAssistant(SupportAgent):
         text = sug.get("text")
         return {"outcome": outcome, "text": str(text)[:4000] if text is not None else None,
                 "error": str(sug["error"])[:300] if sug.get("error") else None}
+
+    def _llm_feature(self, event: str, data: dict, wait: float) -> dict | None:
+        """The host's ``suggestion`` for an AI-feature ``event``, or ``None`` (the host did not ask
+        for the event, was busy or gave none: the interface uses its own model)."""
+        if event not in self._wants or not self.answers_llm_feature(event):
+            return None
+        _, reply = self._turn(event, data, wait=min(wait, 30.0), quiet=True)
+        sug = reply.get("suggestion") if isinstance(reply, dict) else None
+        if not isinstance(sug, dict):
+            return None
+        return sug
+
+    def write_message(self, offer: dict[str, Any] | None, wait: float = 15.0) -> dict | None:
+        sug = self._llm_feature("write_message", {"offer": json_safe(offer)}, wait)
+        if sug is None:
+            return None
+        text = sug.get("text")
+        return {"text": str(text)[:4000] if text else None, "error": str(sug["error"])[:300] if sug.get("error") else None}
+
+    def offer_from_message(self, text: str, wait: float = 15.0) -> dict | None:
+        sug = self._llm_feature("offer_from_message", {"text": str(text or "")[:4000]}, wait)
+        if sug is None:
+            return None
+        if sug.get("error"):
+            return {"outcome": None, "error": str(sug["error"])[:300]}
+        outcome = sug.get("outcome")
+        if outcome is None:
+            return {"outcome": None, "error": None}
+        o = self.session.offer_outcome(outcome) if isinstance(outcome, dict) else None
+        if o is None:
+            return {"outcome": None, "error": "The Assistant read an invalid offer."}
+        return {"outcome": self.session.outcome_to_dict(o), "error": None}
 
     def _run_autopilot_turn(self) -> None:
         acted, _ = self._turn("autopilot", {}, force_action=True, wait=5.0)

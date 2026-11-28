@@ -475,6 +475,85 @@ def _parse_extraction_response(response: str, issues: list[Issue]) -> Extraction
     )
 
 
+def _prompt_settings(settings: dict | None, context: NegotiationContext | None) -> dict:
+    if settings is None:
+        settings = chain_settings("text", getattr(context, "models", None))
+    return settings
+
+
+def build_extraction_prompt(
+    text: str,
+    issues: list[Issue],
+    context: NegotiationContext | None = None,
+    settings: dict | None = None,
+) -> str:
+    """The configured ``extraction_prompt`` filled in for ``text``: what
+    :func:`extract_outcome_from_text` sends (the Assistant's default
+    ``offer_from_message`` sends it to its own model)."""
+    settings = _prompt_settings(settings, context)
+    full_context = _build_full_context(context)
+    try:
+        return settings["extraction_prompt"].format(**full_context, message=text)
+    except KeyError:
+        # Fallback for simpler prompts
+        return settings["extraction_prompt"].format(issues_description=full_context["issues_description"], message=text)
+
+
+def build_generation_prompt(
+    outcome: Outcome,
+    issues: list[Issue],
+    context: NegotiationContext | None = None,
+    rejected_outcome: Outcome | None = None,
+    my_utility: float | None = None,
+    rejected_utility: float | None = None,
+    settings: dict | None = None,
+) -> str:
+    """The configured ``generation_prompt`` filled in for ``outcome``: what
+    :func:`generate_text_from_outcome` sends (the Assistant's default
+    ``write_message`` sends it to its own model)."""
+    settings = _prompt_settings(settings, context)
+    actual_rejected = rejected_outcome if rejected_outcome is not None else (context.current_offer if context else None)
+    if context and context.ufun:
+        if my_utility is None:
+            try:
+                my_utility = float(context.ufun(outcome))
+            except Exception:
+                pass
+        if rejected_utility is None and actual_rejected is not None:
+            try:
+                rejected_utility = float(context.ufun(actual_rejected))
+            except Exception:
+                pass
+    full_context = _build_full_context(context)
+    outcome_desc = _format_outcome_description(outcome, issues)
+    rejected_desc = _format_outcome_description(actual_rejected, issues) if actual_rejected else "None"
+    utility_context = _format_utility_context(outcome, actual_rejected, my_utility, rejected_utility)
+    prompt_vars = {
+        **full_context,
+        "outcome_description": outcome_desc,
+        "rejected_outcome_description": rejected_desc,
+        "utility_context": utility_context,
+    }
+    try:
+        return settings["generation_prompt"].format(**prompt_vars)
+    except KeyError:
+        # Fallback if prompt doesn't use all variables
+        return settings["generation_prompt"].format(
+            issues_description=full_context["issues_description"],
+            outcome_description=outcome_desc,
+            rejected_outcome_description=rejected_desc,
+            utility_context=utility_context,
+        )
+
+
+def clean_generated_text(response: str) -> str:
+    """A generated message without surrounding whitespace or quotes."""
+    text = (response or "").strip()
+    if len(text) >= 2 and text.startswith('"') and text.endswith('"'):
+        text = text[1:-1]
+    return text
+
+
 def extract_outcome_from_text(
     text: str,
     issues: list[Issue],
@@ -501,16 +580,7 @@ def extract_outcome_from_text(
     if settings is None:
         settings = chain_settings("text", getattr(context, "models", None))
 
-    # Build full context
-    full_context = _build_full_context(context)
-
-    try:
-        prompt = settings["extraction_prompt"].format(**full_context, message=text)
-    except KeyError:
-        # Fallback for simpler prompts
-        prompt = settings["extraction_prompt"].format(
-            issues_description=full_context["issues_description"], message=text
-        )
+    prompt = build_extraction_prompt(text, issues, context, settings)
 
     try:
         response = _call_llm(prompt, settings)
@@ -561,66 +631,12 @@ def generate_text_from_outcome(
     if settings is None:
         settings = chain_settings("text", getattr(context, "models", None))
 
-    # Use rejected_outcome from parameter or context
-    actual_rejected = (
-        rejected_outcome
-        if rejected_outcome is not None
-        else (context.current_offer if context else None)
-    )
-
-    # Compute utilities from context if not provided
-    if context and context.ufun:
-        if my_utility is None:
-            try:
-                my_utility = float(context.ufun(outcome))
-            except Exception:
-                pass
-        if rejected_utility is None and actual_rejected is not None:
-            try:
-                rejected_utility = float(context.ufun(actual_rejected))
-            except Exception:
-                pass
-
-    # Build all context for the prompt
-    full_context = _build_full_context(context)
-
-    outcome_desc = _format_outcome_description(outcome, issues)
-    rejected_desc = (
-        _format_outcome_description(actual_rejected, issues)
-        if actual_rejected
-        else "None"
-    )
-    utility_context = _format_utility_context(
-        outcome, actual_rejected, my_utility, rejected_utility
-    )
-
-    # Merge specific fields with full context
-    prompt_vars = {
-        **full_context,
-        "outcome_description": outcome_desc,
-        "rejected_outcome_description": rejected_desc,
-        "utility_context": utility_context,
-    }
-
-    try:
-        prompt = settings["generation_prompt"].format(**prompt_vars)
-    except KeyError as e:
-        # Fallback if prompt doesn't use all variables
-        prompt = settings["generation_prompt"].format(
-            issues_description=full_context["issues_description"],
-            outcome_description=outcome_desc,
-            rejected_outcome_description=rejected_desc,
-            utility_context=utility_context,
-        )
+    prompt = build_generation_prompt(outcome, issues, context, rejected_outcome=rejected_outcome,
+                                     my_utility=my_utility, rejected_utility=rejected_utility, settings=settings)
 
     try:
         response = _call_llm(prompt, settings)
-        # Clean up the response
-        text = response.strip()
-        # Remove quotes if the entire response is quoted
-        if text.startswith('"') and text.endswith('"'):
-            text = text[1:-1]
-        return GenerationResult(text=text)
+        return GenerationResult(text=clean_generated_text(response))
     except Exception as e:
         return GenerationResult(text="", error=str(e))
 

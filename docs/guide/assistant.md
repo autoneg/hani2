@@ -324,6 +324,7 @@ A capability is one thing the agent may do. Each capability that is not effectiv
 | `tool_add` | Add tools | Add new tools to the participant's screen during the session, and remove the ones it added | `add_tool`, `remove_tool` |
 | `tool_use` | Use tools | Read the participant's tools and use their inputs and buttons | `read_tool`, `use_tool` |
 | `llm_tool` | Answer the LLM tool | Write the suggestions of the participant's [LLM offer tool](offer-generators.md#llm) itself, with what it knows and the conversation (otherwise the tool asks its own model); also needs `fill_offer` and/or `fill_text` for the tool's mode | none (`suggest_offer`, called by the tool) |
+| `llm_features` | Answer the AI features | Answer the interface's own AI features: **Write message** and the message written when an offer is sent without one (`auto_generate`) need `fill_text`; **Offer from message** and the offer read from a sent message (`auto_extract`) need `fill_offer`. The default uses the study's own prompts on the Assistant's model (see [The interface's AI features](#the-interfaces-ai-features)); otherwise the interface asks its own model | none (`write_message`, `offer_from_message`, called by the interface) |
 | `private_info` | Its own information | Use what only it knows in this negotiation (past negotiations, market research, part of the participant's preferences); offered only when the human and the Assistant know different things (see [Who knows what](information.md)) | `get_private_information`, `show_past_negotiation` |
 | `opponent_model` | Estimate the opponent | Share its estimate of what the opponent wants; the participant's Negotiation Plot and Utility-based Selector then show it, marked as an estimate (see [Estimating the opponent](#estimating-the-opponent)) | `set_opponent_estimate` |
 | `opponent_utility` | Know the opponent's preferences (oracle) | See the opponent's utility function and the opponent's utility of every offer (off by default; admin-only) | `get_opponent_utility` |
@@ -495,6 +496,35 @@ When the participant edits the counter-offer on their turn and the draft is wort
 
 It warns once until the draft is fixed, and again on the next turn. This happens in `on_draft_changed`; override that method to change or remove it.
 
+## The interface's AI features
+
+The interface has its own uses of a language model besides the [LLM offer tool](offer-generators.md#llm):
+the **Write message** and **Offer from message** buttons (admins), a message written for an offer
+sent without one (`auto_generate`) and the offer read from a sent message (`auto_extract`). When the
+participant has an Assistant, the interface asks the Assistant first:
+
+| Feature | Assistant method | Needs |
+| --- | --- | --- |
+| LLM offer tool (**Generate**) | `suggest_offer(instruction, mode)` | `llm_tool`, plus `fill_offer` / `fill_text` for the mode |
+| **Write message**, `auto_generate` | `write_message(offer)` | `llm_features`, `fill_text` |
+| **Offer from message**, `auto_extract` | `offer_from_message(text)` | `llm_features`, `fill_offer` |
+
+Both capabilities are on by default, so the default Assistant answers all of them on its own model,
+with its own instructions and conversation: the study's `generation_prompt` and `extraction_prompt`
+(the prompts the interface would send) for the message and the offer, and a short JSON request for
+the offer tool. It remembers what it wrote in the conversation. The prompts see
+only what the Assistant may know (a deal's worth only when the Assistant sees it). The interface
+asks its own model instead when the Assistant is switched off, lacks the capability, has no chat
+model or runs through a harness, its model fails, it is busy for more than a few seconds, returns `None`, or is the one
+sending (the Assistant's own counter-offers and the autopilot use the interface's model).
+
+The participant (or the admin grant) can switch *Answer the AI features* and *Answer the LLM tool*
+off in the Assistant's settings to get the interface's own model back. An Assistant you write can
+answer these features itself by overriding the methods: [tutorial level 12](../tutorials/assistant.md#level-12-the-interfaces-ai-features)
+writes messages from a template and reads "Issue: value" offers without any model, and passes the
+rest to the default with `super()`. A [self-hosted](self-hosting.md) Python Assistant answers them
+too; any other host gets the `write_message` and `offer_from_message` events only when it asks for them.
+
 ## Attribution and logging
 
 Every function the agent runs through its dispatcher is logged to the event log as a `support_agent` event with `{"actor": "agent", ...}` and the function name as the action (for example `set_offer`, `accept_executed`, `accept_confirm_requested` or `recommend_accept`). Chat messages the participant sends to the agent are logged as `support_agent` events with `actor` `human` and action `user_message`.
@@ -554,6 +584,8 @@ Agent code runs in worker threads, never on the server's event loop. It may bloc
 | `on_draft_changed(draft)` | The participant edits the counter-offer | The reserved-value warning. |
 | `on_panel_action(panel_id, action, payload)` | A button in one of the agent's panels is clicked | Sends `(panel <id>) clicked <action>` to the model. |
 | `suggest_offer(instruction, mode="both") -> dict \| None` | The participant presses **Generate** in the [LLM offer tool](offer-generators.md#llm) (`mode`: `both`, `outcome_only`, `text_only`; an empty instruction arrives as "Recommend an offer, ...") | One `_complete` call with functions switched off, on the agent's system prompt and conversation plus the current state, asking for JSON; returns `{"outcome": {issue: value} or None, "text": ..., "error": ...}` and adds a plain-language note of the request and the suggestion to the conversation. Returns `None` (the tool uses its own prompt) when the agent is switched off, lacks `llm_tool` or `fill_offer` / `fill_text` for the mode (`answers_llm_tool(mode)`), or its model is a harness. |
+| `write_message(offer, wait=15.0) -> dict \| None` | The interface wants a message to the opponent for the participant's counter-offer `offer` (`{issue: value}`): **Write message**, or an offer sent without a message under `auto_generate` | The study's `generation_prompt` (as [Language models](llms.md#prompt-templates) describes, filled with what the Assistant may know) on the agent's model, system prompt and conversation, functions off; returns `{"text": ..., "error": ...}` and notes the message in the conversation. Returns `None` (the interface asks its own model) without `llm_features` and `fill_text` (`answers_llm_feature("write_message")`), without a chat model, when its model fails, or while the agent stays busy for `wait` seconds. |
+| `offer_from_message(text, wait=15.0) -> dict \| None` | The interface wants the offer in the participant's message `text`: **Offer from message**, or a message sent under `auto_extract` | The study's `extraction_prompt` on the agent's model, as for `write_message`; returns `{"outcome": {issue: value} or None, "error": ...}` (`outcome` `None` and no error: the message holds no offer). `None` as for `write_message`, with `fill_offer`. |
 | `_complete(tools, force_action=False, no_tools=False) -> dict` | Each model call | One `litellm.completion` (`no_tools=True`: the last call after the tool rounds run out, with functions switched off). Replace it to use another backend; return `{"role": "assistant", "content": ..., "tool_calls": [...]}`. |
 | `_context_snapshot() -> str \| None` | Before a chat, proactive, panel or autopilot turn | `context()` as indented JSON under `[Current negotiation state]`, put before the turn's message; `None` when `context()` fails. |
 | `_run_turn(user_text=None, system_note=None, context_note=None, force_action=False, output_channel="chat") -> set[str]` | For every model turn | Appends the message, then (unless a harness connection answers the turn) calls `_complete` and runs the returned tool calls until the model answers without tools, at most `max_tool_iterations` (10) rounds. Returns the names of the functions run. |

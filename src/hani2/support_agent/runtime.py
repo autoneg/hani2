@@ -836,6 +836,115 @@ class SupportAgent:
             self._busy.release()
             self._set_busy_state()
 
+    #: the interface's AI features the Assistant can answer, and what each needs besides ``llm_features``
+    _LLM_FEATURE_NEEDS = {"write_message": (Capability.FILL_TEXT,), "offer_from_message": (Capability.FILL_OFFER,)}
+
+    def answers_llm_feature(self, feature: str) -> bool:
+        """Whether this Assistant answers the interface's AI ``feature`` (``write_message`` or
+        ``offer_from_message``): it is on and has ``llm_features`` plus ``fill_text`` (write) or
+        ``fill_offer`` (read the offer). Otherwise the interface asks its own model."""
+        needs = self._LLM_FEATURE_NEEDS.get(feature)
+        if needs is None or not self.user_enabled or not self.capabilities.has(Capability.LLM_FEATURES):
+            return False
+        return all(self.capabilities.has(c) for c in needs)
+
+    def _side_completion(self, request: str, note: tuple[str, str] | None, wait: float) -> str | None:
+        """One completion on this Assistant's model, system prompt and conversation, functions
+        off, for ``request`` (kept out of the conversation; ``note`` = the user / assistant lines
+        remembered instead). ``None`` when there is no chat model or the Assistant stays busy for
+        ``wait`` seconds (the interface then uses its own model). Raises on a model error."""
+        try:
+            res = self.model()
+        except Exception:  # noqa: BLE001
+            return None
+        if res is None or not getattr(res, "ok", False) or getattr(res, "is_harness", False):
+            return None
+        if not self._busy.acquire(timeout=wait):
+            return None
+        self._set_busy_state()
+        try:
+            conversation = self.messages
+            self.messages = [*conversation, {"role": "user", "content": request}]
+            try:
+                reply = self._complete(self.dispatcher.schemas(), no_tools=True)
+            finally:
+                self.messages = conversation
+            content = reply.get("content") or ""
+            if note:
+                self.messages += [{"role": "user", "content": note[0]},
+                                  {"role": "assistant", "content": note[1].format(reply=content.strip()[:500])}]
+            return content
+        finally:
+            self._busy.release()
+            self._set_busy_state()
+
+    def write_message(self, offer: dict[str, Any] | None, wait: float = 15.0) -> dict | None:
+        """The interface wants a message to the opponent for ``offer`` (the participant's
+        counter-offer, ``{issue: value}``): its **Write message** button, or the message written as
+        they send an offer with none (``auto_generate``).
+
+        Returns ``{"text": str | None, "error": str | None}``, or ``None`` to let the interface
+        ask its own model (this Assistant is off, lacks ``llm_features`` or ``fill_text``, has no
+        chat model, its model fails, or it stays busy). The default sends the study's own message prompt
+        (``generation_prompt``, filled with what the Assistant may know) to this Assistant's model
+        with its system prompt and conversation, and remembers the message in the conversation.
+        Override it to write the message yourself (rules, a template, another model)."""
+        if not self.answers_llm_feature("write_message"):
+            return None
+        from hani2.llm_service import build_generation_prompt, clean_generated_text
+
+        sess = self.session
+        try:
+            outcome = sess.offer_outcome(offer) if offer else None
+            if outcome is None:
+                return {"text": None, "error": "Fill every issue first."}
+            prompt = build_generation_prompt(outcome, list(sess.issues), sess.llm_context("assistant"))
+            reply = self._side_completion(
+                f"{self._context_snapshot() or ''}\n\n---\nThe interface asks you to write the participant's "
+                f"message to the opponent.\n\n{prompt}",
+                ("(The interface asked me to write the message for the offer "
+                 f"{json.dumps(sess.outcome_to_dict(outcome), default=str)}.)", '(I wrote: "{reply}")'), wait)
+        except Exception:  # noqa: BLE001 - the Assistant's model failed: the interface's own model may still answer
+            traceback.print_exc()
+            return None
+        if reply is None:
+            return None
+        _log_agent_action(self.session_state, "write_message", "")
+        text = clean_generated_text(reply)
+        return {"text": text, "error": None} if text else {"text": None, "error": "The Assistant wrote no message."}
+
+    def offer_from_message(self, text: str, wait: float = 15.0) -> dict | None:
+        """The interface wants the offer in the participant's message ``text``: its **Offer from
+        message** button, or the offer read as they send a message (``auto_extract``).
+
+        Returns ``{"outcome": {issue: value} | None, "error": str | None}`` (``outcome`` ``None``
+        and no error: the message holds no offer), or ``None`` to let the interface ask its own
+        model (as for :meth:`write_message`, with ``fill_offer``). The default sends the study's
+        own extraction prompt (``extraction_prompt``) to this Assistant's model. Override it to read
+        offers yourself."""
+        if not self.answers_llm_feature("offer_from_message"):
+            return None
+        from hani2.llm_service import _parse_extraction_response, build_extraction_prompt
+
+        sess = self.session
+        try:
+            prompt = build_extraction_prompt(str(text or ""), list(sess.issues), sess.llm_context("assistant"))
+            reply = self._side_completion(
+                f"{self._context_snapshot() or ''}\n\n---\nThe interface asks you to read the offer in the "
+                f"participant's message.\n\n{prompt}",
+                (f"(The interface asked me for the offer in the message: {str(text)[:300]})", "(I read: {reply})"),
+                wait)
+            if reply is None:
+                return None
+            parsed = _parse_extraction_response(reply, list(sess.issues))
+        except Exception:  # noqa: BLE001 - as in write_message
+            traceback.print_exc()
+            return None
+        _log_agent_action(self.session_state, "offer_from_message", str(text)[:120])
+        if parsed.error:
+            return {"outcome": None, "error": parsed.error}
+        return {"outcome": sess.outcome_to_dict(parsed.outcome) if parsed.outcome is not None else None, "error": None}
+
     def on_panel_action(self, panel_id: str, action: str, payload: dict[str, Any]) -> None:
         """A button in one of your panels was clicked. Default: tell the LLM."""
         if not self.user_enabled:

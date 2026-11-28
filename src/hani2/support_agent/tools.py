@@ -8,9 +8,20 @@ capability is effective. Subclass :class:`ToolDispatcher` and override
 
 from __future__ import annotations
 
+import threading
 from typing import Any, Callable
 
 from hani2.support_agent.capabilities import Capability
+
+#: set while this thread runs one of the Assistant's functions (see :func:`in_assistant_call`)
+_IN_CALL = threading.local()
+
+
+def in_assistant_call() -> bool:
+    """Whether this thread is running one of the Assistant's functions (``submit_counter_offer`` …):
+    what it triggers is the Assistant's own doing (the interface does not ask it back, see
+    :meth:`hani2.session.NegotiationSession.llm_assistant`)."""
+    return bool(getattr(_IN_CALL, "depth", 0))
 
 __all__ = ["ToolDispatcher", "make_function_schema"]
 
@@ -212,11 +223,14 @@ class ToolDispatcher:
         import time as _time
 
         t0 = _time.perf_counter()
+        _IN_CALL.depth = getattr(_IN_CALL, "depth", 0) + 1
         try:
             result = handler(args or {})
         except Exception as e:
             self._record(name, args, {"ok": False, "error": str(e)}, _time.perf_counter() - t0)
             raise
+        finally:
+            _IN_CALL.depth -= 1
         self._record(name, args, result, _time.perf_counter() - t0)
         return result
 

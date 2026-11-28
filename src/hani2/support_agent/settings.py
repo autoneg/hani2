@@ -91,6 +91,7 @@ DEFAULT_CAPABILITIES: dict[str, bool] = {
     "tool_add": True,
     "tool_use": True,
     "llm_tool": True,
+    "llm_features": True,
     "private_info": True,
     "opponent_model": True,
     "opponent_utility": False,

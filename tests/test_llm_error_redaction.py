@@ -35,6 +35,7 @@ def test_llm_error_masks_stored_secrets(monkeypatch):
 def _extract_error(monkeypatch, is_admin):
     monkeypatch.setattr(llm, "_call_llm", _boom)
     s = make_session(is_admin=is_admin)
+    s.support_agent.capabilities.admin_capabilities["llm_features"] = False  # the interface's own model
     s.draft_text = "I offer everything"
     r = s.extract_offer_from_text()
     assert not r["ok"]

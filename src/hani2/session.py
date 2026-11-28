@@ -3922,12 +3922,7 @@ class NegotiationSession:
                 before = state()
             extracted = None
             if extract:
-                try:
-                    from hani2.llm_service import extract_outcome_from_text
-
-                    extracted = extract_outcome_from_text(msg, self.issues, context=self.llm_context()).outcome
-                except Exception:
-                    traceback.print_exc()
+                extracted, _ = self._llm_offer_from_message(msg)
             if generate:
                 msg = self._llm_generate_text() or ""
             with self.lock:
@@ -3966,17 +3961,86 @@ class NegotiationSession:
         ok = self.act(SAOResponse(ResponseType.REJECT_OFFER, outcome, data), sent)
         return {"ok": ok} if ok else {"ok": False, "error": "It is not your turn."}
 
-    def _llm_generate_text(self) -> str | None:
+    def llm_assistant(self, feature: str):
+        """The Assistant that answers the interface's AI ``feature`` (``write_message`` or
+        ``offer_from_message``) now, else ``None`` (the interface asks its own model): it is on and
+        allowed (:meth:`~hani2.support_agent.runtime.SupportAgent.answers_llm_feature`), and the
+        request does not come from the Assistant itself or the autopilot (it would wait on itself)."""
+        from hani2.support_agent.tools import in_assistant_call
+
+        sa = getattr(self, "support_agent", None)
+        if sa is None or self._actor() != "human" or getattr(sa, "autopilot", False) or in_assistant_call():
+            return None
+        answers = getattr(sa, "answers_llm_feature", None)
+        try:
+            return sa if answers is not None and answers(feature) else None
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            return None
+
+    def _llm_write_message(self) -> tuple[str | None, str | None]:
+        """A message for the counter-offer: ``(text, error)``, from the Assistant when it answers,
+        else from the interface's own model."""
+        sa = self.llm_assistant("write_message")
+        if sa is not None:
+            try:
+                r = sa.write_message(self.outcome_to_dict(self.draft_outcome()))
+            except Exception:  # noqa: BLE001 - a broken Assistant must not break sending
+                traceback.print_exc()
+                r = None
+            if isinstance(r, dict):
+                return (str(r["text"]) if r.get("text") else None), (str(r["error"]) if r.get("error") else None)
         try:
             from hani2.llm_service import generate_text_from_outcome
 
             res = generate_text_from_outcome(self.draft_outcome(), self.issues, context=self.llm_context())
-            return None if res.error else res.text
-        except Exception:
-            traceback.print_exc()
-            return None
+            if res.error:
+                from hani2.connections import llm_error
 
-    def llm_context(self):
+                return None, llm_error(res.error, admin=self.is_admin)
+            return res.text or None, None
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            return None, str(e)
+
+    def _llm_generate_text(self) -> str | None:
+        return self._llm_write_message()[0]
+
+    def _llm_offer_from_message(self, text: str) -> tuple[Any, str | None]:
+        """The offer (an outcome tuple, or ``None``) in ``text`` and an error: from the Assistant
+        when it answers, else from the interface's own model."""
+        sa = self.llm_assistant("offer_from_message")
+        if sa is not None:
+            try:
+                r = sa.offer_from_message(text)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+                r = None
+            if isinstance(r, dict):
+                if r.get("error"):
+                    return None, str(r["error"])
+                out = r.get("outcome")
+                if out is None:
+                    return None, None
+                o = self.offer_outcome(out) if isinstance(out, dict) else None
+                return (o, None) if o is not None else (None, "The Assistant read an invalid offer.")
+        try:
+            from hani2.llm_service import extract_outcome_from_text
+
+            res = extract_outcome_from_text(text, self.issues, context=self.llm_context())
+            if res.error:
+                from hani2.connections import llm_error
+
+                return None, llm_error(res.error, admin=self.is_admin)
+            return res.outcome, None
+        except Exception as e:  # noqa: BLE001
+            traceback.print_exc()
+            return None, str(e)
+
+    def llm_context(self, audience: str = "human"):
+        """What the interface's language-model prompts know of the negotiation, for ``audience``
+        (``human``, or ``assistant`` for the Assistant's own prompts): the utility function only when
+        that audience may see what deals are worth."""
         from hani2.llm_service import NegotiationContext
 
         hist = [
@@ -3986,28 +4050,24 @@ class NegotiationSession:
         return NegotiationContext(
             issues=self.issues,
             outcome_space=self.scenario.outcome_space if self.scenario else None,
-            ufun=self.human_ufun if self.information.human_sees_totals else None,
+            ufun=self.human_ufun if self.sees_totals("assistant" if audience == "assistant" else "human") else None,
             history=hist or None,
             current_offer=self.partner_offer(),
             models=self.models,
         )
 
     def extract_offer_from_text(self) -> dict:
-        from hani2.llm_service import extract_outcome_from_text
-
-        res = extract_outcome_from_text(self.draft_text or "", self.issues, context=self.llm_context())
-        if res.error:
-            from hani2.connections import llm_error
-
-            return {"ok": False, "error": llm_error(res.error, admin=self.is_admin)}
-        if res.outcome is None:
+        outcome, error = self._llm_offer_from_message(self.draft_text or "")
+        if error:
+            return {"ok": False, "error": error}
+        if outcome is None:
             return {"ok": False, "error": "No offer found in the message."}
-        return self.set_draft(self.outcome_to_dict(res.outcome) or {})
+        return self.set_draft(self.outcome_to_dict(outcome) or {})
 
     def generate_text(self) -> dict:
-        txt = self._llm_generate_text()
+        txt, error = self._llm_write_message()
         if not txt:
-            return {"ok": False, "error": "Could not generate text (is the LLM configured?)"}
+            return {"ok": False, "error": error or "Could not generate text (is the LLM configured?)"}
         self.set_draft_text(txt, by_agent=True)
         return {"ok": True, "text": txt}
 

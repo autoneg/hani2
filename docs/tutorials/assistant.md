@@ -1,6 +1,6 @@
 # Build an Assistant
 
-This tutorial builds a negotiation Assistant in twelve small steps. You start with an agent that echoes what the participant types and finish with one that rebuilds the interface the way the participant asks. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
+This tutorial builds a negotiation Assistant in thirteen small steps. You start with an agent that echoes what the participant types and finish with one that rebuilds the interface the way the participant asks. Most levels need no language model at all; levels 3, 4, 5 and 7 use one.
 
 | Level | You build | Needs an LLM |
 |-------|-----------|--------------|
@@ -349,12 +349,57 @@ the participant instead of pretending it worked. The style sheet is checked: no 
 `custom_css="[data-region=dock] { background: rgb(30 34 44); color: white; }"`.
 The [Shape the interface](interface.md) tutorial shows the same controls from the study's side.
 
+## Level 12: the interface's AI features
+
+The interface has a few uses of a language model of its own: the **Write message** and **Offer from
+message** buttons, and, when the study turns them on, a message written for an offer sent without
+one (`auto_generate`) and the offer read from a sent message (`auto_extract`). The LLM offer tool's
+**Generate** is another. When the participant has an Assistant, the interface asks the Assistant
+first. Every agent from level 1 on already answers them: the default methods send the study's own
+prompts to the Assistant's model, with its instructions and conversation, so the level 3 coach writes
+messages in its own persona. Without a model they return `None` and the interface asks its own model.
+
+To answer them your own way, override the methods:
+
+| Feature | Method | Return |
+| --- | --- | --- |
+| **Write message**, `auto_generate` | `write_message(offer)` | `{"text": ..., "error": None}` |
+| **Offer from message**, `auto_extract` | `offer_from_message(text)` | `{"outcome": {issue: value} or None, "error": None}` |
+| LLM offer tool | `suggest_offer(instruction, mode)` | `{"outcome": ..., "text": ..., "error": None}` |
+
+Return `None` to hand the request back to the interface's own model, or call `super()` for the
+default. This agent needs no model: it writes messages from a template and reads offers written as
+"Issue: value", and passes any other message to the default.
+
+```python
+--8<-- "examples/support_agent_tutorial/level12_ghostwriter.py"
+```
+
+Run it with `"agent_class": "level12_ghostwriter:GhostwriterAgent"` as an admin (only admins see the
+two buttons), or turn on `auto_generate` and `auto_extract` in the negotiation settings.
+
+1. Fill the counter-offer and press **Write message**: the message field reads, for example, "Hello!
+   To get us started, I propose Quantity 6, Price 200." (or thanks the opponent once they have offered).
+2. Type `Quantity: 8, Price: 180` and press **Offer from message**: the fields change to 8 and 180.
+3. Type "something cheaper" instead: the default reads it with the study's extraction prompt on the
+   Assistant's model, or the interface's own model when the Assistant has none.
+
+The methods are gated by capabilities: `llm_features` with `fill_text` (write) or `fill_offer`
+(read), and `llm_tool` for the offer tool. Both are on by default, and a participant can switch
+*Answer the AI features* off in the Assistant's settings to use the interface's own model. The
+interface also asks its own model when the Assistant itself sends the offer, or the autopilot does.
+
+**Try this:** write the message from the opponent's last offer in `self.session.context("assistant")`
+("You asked for 7, I can do 6"), or return `None` from `write_message` when the offer is worth less
+than the reserved value, so the interface's model writes it instead.
+See [The interface's AI features](../guide/assistant.md#the-interfaces-ai-features) for the details.
+
 ## What you built, and where next
 
 Starting from an echo, you added rules that read the negotiation (levels 1-2), a language model
 with your persona and your own functions (3-4), proactive advice (5), control over the tools, the
 participant's attention and the layout (6-9), your own tools and the use of the
-participant's tools (10), and finally an interface shaped by the participant's requests (11). A real Assistant usually combines a few of these.
+participant's tools (10), an interface shaped by the participant's requests (11), and finally the interface's own AI features answered your way (12). A real Assistant usually combines a few of these.
 
 - The [Assistant guide](../guide/assistant.md) lists every setting, capability, helper and function.
 - [Build a tool](tools.md) shows how to write the tools your Assistant can bring or use.

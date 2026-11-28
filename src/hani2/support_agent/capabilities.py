@@ -42,6 +42,7 @@ class Capability(str, Enum):
     TOOL_ADD = "tool_add"
     TOOL_USE = "tool_use"
     LLM_TOOL = "llm_tool"
+    LLM_FEATURES = "llm_features"
     PRIVATE_INFO = "private_info"
     OPPONENT_MODEL = "opponent_model"
     OPPONENT_UTILITY = "opponent_utility"
@@ -73,6 +74,11 @@ CAPABILITY_INFO: dict[str, tuple[str, str]] = {
     "tool_use": ("Use tools", "Read your tools and use their inputs and buttons"),
     "llm_tool": ("Answer the LLM tool", "Write the suggestions of the LLM offer tool itself, with what it knows of the "
                                         "negotiation and your conversation (otherwise the tool asks its own model)"),
+    "llm_features": ("Answer the AI features", "Write your message and read the offer in your message when the "
+                                               "interface's AI features ask (Write message, Offer from message, and "
+                                               "writing or reading them as you send), with what it knows of the "
+                                               "negotiation and your conversation (otherwise the interface asks its "
+                                               "own model)"),
     "private_info": ("Its own information", "Use what only it knows in this negotiation (past negotiations, market research, part of your preferences) to help you"),
     "opponent_model": ("Estimate the opponent", "Share its estimate of what the opponent wants; your Negotiation Plot and Utility-based Selector can then show it"),
     "opponent_utility": ("Know the opponent's preferences (oracle)",

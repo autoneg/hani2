@@ -145,7 +145,8 @@ request carries `Authorization: Bearer <token>`.
 * `setup` holds `issues`, `outcome_space`, `capabilities`, `autonomy`, `functions` (OpenAI-style
   schemas of what you may call) and `settings`.
 * A step holds `event` (`message`, `negotiation_started`, `action_requested`, `negotiation_ended`,
-  `draft_changed`, `panel_action`, `suggest_offer`, `autopilot`, `clear` or `results`) with its
+  `draft_changed`, `panel_action`, `suggest_offer`, `write_message`, `offer_from_message`, `autopilot`,
+  `clear` or `results`) with its
   `data`, plus `context`, the negotiation state a local Assistant reads.
 * Reply with `{status: done | calls, actions: [...], calls: [...], suggestion?, model?}`.
     * `actions` are run in order and not answered, for example `{action: "post", arguments: {text}}`,
@@ -153,6 +154,13 @@ request carries `Authorization: Bearer <token>`.
     * `calls` are functions from `functions`, for example
       `{id, function: "set_offer", arguments: {outcome}}`. HANI2 runs them and sends a `results` step
       with `data.results = [{id, result}]`. Answer it like any step, until you reply `done`.
-    * A `suggest_offer` event is answered with `suggestion: {outcome, text}`.
+    * A `suggest_offer` event is answered with `suggestion: {outcome, text}`, a `write_message` event
+      (`data.offer`) with `suggestion: {text}` and an `offer_from_message` event (`data.text`) with
+      `suggestion: {outcome}` (`null`: no offer in the message). No `suggestion` lets the interface
+      ask its own model.
+    * `draft_changed`, `action_requested`, `write_message` and `offer_from_message` come only when
+      the host asks for them: `events: [...]` in its reply to the session create. A host started with
+      `hani2 host-assistant` for a Python Assistant always asks for the last two (it answers them with
+      its `write_message` / `offer_from_message`).
 
 The [design note](../reference/hosted-agents-design.md) explains the choices behind the protocol.

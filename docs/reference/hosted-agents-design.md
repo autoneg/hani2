@@ -116,7 +116,8 @@ refuses new sessions beyond `--max-sessions`.
 * The setup holds the capabilities the admin granted, the autonomy, the issues (outcome space) and the
   function schemas that a local Assistant's language model would see.
 * A step sends one event: `message`, `negotiation_started`, `action_requested`, `negotiation_ended`,
-  `panel_action`, `suggest_offer`, `autopilot`, `draft_changed`, `clear` or `results`. It also sends the same
+  `panel_action`, `suggest_offer`, `write_message`, `offer_from_message`, `autopilot`, `draft_changed`,
+  `clear` or `results`. It also sends the same
   `context` snapshot a local Assistant reads, and nothing about the participant's identity.
 * The reply is `{status: done|calls, actions: […], calls: […], suggestion?, model?}`.
     * `actions` are fire-and-forget: `post`, `toast`, `show_on_board`, `highlight`, `annotate`,

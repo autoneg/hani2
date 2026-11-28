@@ -196,7 +196,7 @@ The counter-offer editor opens when you press **Counter-offer**, when there is n
 - the message box, when the participant may write messages (admin setting `allow_text_human`);
 - **Send offer**. Ctrl+Enter or Cmd+Enter in the message box also sends.
 
-Admins see an extra row: **Text only** (send the message without an offer), **Offer from message** (fill the fields from the message using the LLM) and **Write message** (write a message for the draft using the LLM). See [Language models](llms.md).
+Admins see an extra row: **Text only** (send the message without an offer), **Offer from message** (fill the fields from the message using the LLM) and **Write message** (write a message for the draft using the LLM). With an Assistant, the Assistant answers both (see [The interface's AI features](assistant.md#the-interfaces-ai-features)). See [Language models](llms.md).
 
 While autopilot runs, the dock shows "Autopilot is negotiating for you", the driver's name, and **Take back control**.
 
