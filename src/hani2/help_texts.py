@@ -265,6 +265,98 @@ participant and the Assistant by **Participant's share**.""",
         "Market research", "Who gets statistics about how preferences in the scenario are usually distributed",
         "`none`, `assistant`, `human` or `both`.",
         section="Information", key="information.market_research.audience", docs="information.md"),
+    "assistant_starts_on": Help(
+        'Assistant starts on', "Whether a Prolific or online participant's Assistant starts switched on",
+        'Off (the default): the participant switches their Assistant on when they want it. On: it is on from the first negotiation. The environment variable PROLIFIC_ASSISTANT_ON wins over the study and the project.',
+        section="Defaults", docs="study-management.md"),
+    "questionnaires": Help(
+        'Questionnaires', 'No switches every questionnaire of the study off: pre, per-negotiation and post-session',
+        "`questionnaires: false` in study.yaml or project.yaml (or in a layer's env.json) means no questionnaire at all, whatever the form files say and whatever form the environment variables name. Empty or Yes: the forms decide (Study forms page).",
+        section="Defaults", docs="study-forms.md#what-wins-over-the-files"),
+    "questionnaires.named": Help(
+        'Named form', "A bundled or named form that wins over every layer's file",
+        "`pre_questionnaire`, `questionnaire` (after each negotiation) and `post_questionnaire` in env.json name a form instead of a layer's file: a bundled one (`expertise`, `evaluation`, ...) or the stem of a file in a `questionnaires/` folder. While a name is set, editing the layers' files changes nothing. The environment variables (`HANI2_PRE_YAML`, `HANI2_PER_NEG_YAML`, `HANI2_POST_YAML`) win over this name.",
+        section="Defaults", key="pre_questionnaire, questionnaire, post_questionnaire (env.json)", docs="study-forms.md#what-wins-over-the-files"),
+    "normalisation.reference": Help(
+        'Reference games', "The games whose medians scale the unbounded criteria of the project's scores",
+        '`normalisation.reference` in project.yaml (never in a study): `studies` (none: every study of the project) and `end` (only games started on or before that date). `hani2 scores freeze <project>` records the medians of these games in `results/normalisation.json`; until then the scales of unbounded criteria are provisional.',
+        section="Scores", docs="project-management.md#the-frozen-reference"),
+    "hosted": Help(
+        'Self-hosted mode of a study', "A study's own hosted: block, replacing the project's",
+        "Empty: the study follows the project's self-hosted mode (the Self-hosted page). Set, the study's block replaces the project's as a whole: keys it leaves out take the defaults (not self-hosted, the default time limit and failures), not the project's values.",
+        section="Study", docs="self-hosting.md#for-organisers"),
+    "information.briefing": Help(
+        'Briefings', "Private instructions for one side, added to the scenario's own",
+        'Each briefing is a text for the participant (the default), the Assistant or both, optionally for one role only. Constraints that are checked against the agreement and pinned briefings are written in the file (see the docs).',
+        section="Information", docs="information.md#private-briefings-and-hidden-constraints"),
+    "information.use_scenario_briefing": Help(
+        "Use the scenario's briefing", "Add the briefing of the scenario's _info.yaml",
+        "Yes (the default): the scenario's own briefing is given too. No: only the briefings set here.",
+        section="Information", docs="information.md#private-briefings-and-hidden-constraints"),
+    "information.briefing_audience": Help(
+        'Scenario briefings go to', 'Give every scenario briefing to this side instead of the one it names',
+        '`human`, `assistant` or `both`; empty: as each briefing says.',
+        section="Information", docs="information.md#private-briefings-and-hidden-constraints"),
+    "information.preferences.show_totals_to_partial": Help(
+        'Deal values with partial preferences', 'Show utilities to a party that knows only part of the preferences',
+        'No (the default): a party that knows only the weights or only the values does not see what deals are worth, and tools that show it are not offered. Yes: it sees them anyway.',
+        section="Information", docs="information.md#preferences"),
+    "information.control.human_only_issues": Help(
+        'Only the participant may set', 'Issues the Assistant may only suggest values for',
+        'The Assistant can suggest a value for these issues but cannot set it in an offer it sends.',
+        section="Information", docs="information.md#decisions-only-the-human-makes"),
+    "information.control.human_only_actions": Help(
+        'Only the participant may', 'Actions the Assistant may only suggest',
+        'Any of `send`, `accept` and `end`: the Assistant points at the button instead of acting.',
+        section="Information", docs="information.md#decisions-only-the-human-makes"),
+    "information.past_negotiations.opponent_preferences": Help(
+        "Opponent's past preferences", "Past preferences for the opponent's side only",
+        '`similar`, `same` or `different`; empty: as Past preferences.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.noise": Help(
+        'How different is similar', 'How far similar preferences move',
+        '0: the same preferences, 1: very different. Default 0.25.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.shared": Help(
+        'Give every record to both', 'Both get every past negotiation',
+        "Yes: the participant and the Assistant get every record, and the participant's share is ignored.",
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.assignment": Help(
+        'Who gets which records', 'Random per participant and round, or the participant gets the first ones',
+        '`random` (the default) or `first`.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.utilities": Help(
+        'Utilities in a record', 'Whose utilities a past negotiation shows',
+        "`own` (the party in the participant's role, the default), `both` or `none`.",
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.n_steps": Help(
+        'Rounds of a simulated negotiation', 'Rounds of each simulated past negotiation',
+        'Default 20.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.negotiators": Help(
+        'Simulated negotiators', 'The negmas negotiators that play the simulated negotiations',
+        'Class names, e.g. BoulwareTBNegotiator; empty: four standard time-based and tit-for-tat negotiators.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.use_scenario_file": Help(
+        "Use the scenario's own records", 'Use _past_negotiations.yaml of the scenario folder when it has one',
+        'Yes (the default): a scenario that ships its own records uses them instead of a simulation.',
+        section="Information", docs="information.md#past-negotiations"),
+    "information.past_negotiations.seed": Help(
+        'Simulation seed', 'An extra seed for the simulated negotiations',
+        "The scenario's name is always part of the seed, so every participant of a strict study meets the same records.",
+        section="Information", docs="information.md#past-negotiations"),
+    "information.market_research.sides": Help(
+        'Market research describes', 'Whose preferences it describes',
+        '`opponent` (the default), `own` or `both`.',
+        section="Information", docs="information.md#market-research"),
+    "information.market_research.samples": Help(
+        'Market research profiles', 'How many plausible preference profiles it is computed from',
+        'Default 40.',
+        section="Information", docs="information.md#market-research"),
+    "information.market_research.noise": Help(
+        'Market research spread', 'How spread out the profiles are',
+        '0 to 1; default 0.3.',
+        section="Information", docs="information.md#market-research"),
     "opponents.han": Help(
         "HAN agents", "Add the entrant agents of a HAN league by year and set; the year is always written out",
         """\
@@ -794,6 +886,29 @@ REQUIRED = (
     "information.past_negotiations.human_share",
     "information.past_negotiations.preferences",
     "information.market_research.audience",
+    "assistant_starts_on",
+    "questionnaires",
+    "questionnaires.named",
+    "normalisation.reference",
+    "hosted",
+    "information.briefing",
+    "information.use_scenario_briefing",
+    "information.briefing_audience",
+    "information.preferences.show_totals_to_partial",
+    "information.control.human_only_issues",
+    "information.control.human_only_actions",
+    "information.past_negotiations.opponent_preferences",
+    "information.past_negotiations.noise",
+    "information.past_negotiations.shared",
+    "information.past_negotiations.assignment",
+    "information.past_negotiations.utilities",
+    "information.past_negotiations.n_steps",
+    "information.past_negotiations.negotiators",
+    "information.past_negotiations.use_scenario_file",
+    "information.past_negotiations.seed",
+    "information.market_research.sides",
+    "information.market_research.samples",
+    "information.market_research.noise",
     "opponents.han",
     "scheduling.opponents",
     "scheduling.assistants",

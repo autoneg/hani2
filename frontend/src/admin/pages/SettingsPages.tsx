@@ -9,6 +9,17 @@ import { Select } from "../controls/Select";
 import { Tags } from "../controls/Tags";
 import { useLayer } from "../layer";
 import type { SearchEntry } from "../types";
+import { Stepper } from "../controls/Stepper";
+import { TextField } from "../controls/TextField";
+import { InformationRows } from "./Projects";
+import { Plus } from "lucide-react";
+
+/** A switch whose default when the file does not set it is ``def``: it shows ``value ?? def`` and saves
+ *  an explicit true or false (a missing key and ``null`` read differently in the backend). */
+const triField = (id: string, path: string, label: string, def: boolean, hint?: string, extra: Partial<any> = {}) => ({
+  id, path, label, hint, type: "custom" as const, ...extra,
+  render: (s: any) => <Toggle label={label} value={s.get(path) ?? def} onChange={(x) => s.set(path, x)} />,
+});
 
 const PROVIDERS = ["ollama", "openai", "anthropic", "gemini", "azure", "groq", "mistral", "openrouter"];
 
@@ -19,31 +30,81 @@ export const GENERAL: FieldGroup[] = [
     fields: [
       { id: "title", path: "title", label: "Title", hint: "Shown in the header and the browser tab", type: "text" },
       { id: "subtitle", path: "subtitle", label: "Subtitle", type: "text" },
+      { id: "docs-url", path: "docs_url", label: "Help link", hint: "Where the app's help links go (empty: the HANI2 documentation)", type: "text", placeholder: "https://…" },
       { id: "public-url", path: "public_url", label: "Public address", hint: "Where participants reach this server; used in study links (HANI2_PUBLIC_URL wins)", type: "text", placeholder: "https://negotiate.example.org" },
     ],
   },
   {
     title: "Sign-in",
     fields: [
-      { id: "auth-mode", path: "auth.mode", label: "Sign-in", hint: "Password, OAuth, both, or no sign-in at all", type: "select", options: [{ value: "password", label: "Username and password" }, { value: "oauth", label: "OAuth only" }, { value: "dual", label: "Password and OAuth" }, { value: "none", label: "No sign-in" }] },
+      { id: "auth-mode", path: "auth.mode", label: "Sign-in", hint: "Password, OAuth, both, or no sign-in at all", type: "select", options: [{ value: "password", label: "Username and password" }, { value: "oauth", label: "OAuth only" }, { value: "dual", label: "Password and OAuth" }, { value: "none", label: "No sign-in" }, { value: "auto", label: "Automatic (password and OAuth when a provider is set up)" }] },
       { id: "allow-registration", path: "auth.allow_registration", label: "People can create accounts", type: "toggle" },
       { id: "enforce-consent", path: "auth.enforce_consent", label: "Require consent", hint: "Participants accept the consent form before negotiating", type: "toggle", keywords: "consent.md" },
       { id: "playground", path: "playground.enabled", label: "Playground", hint: "Open /play without an account", type: "toggle" },
       { id: "admin-emails", path: "admin.emails", label: "Admin emails", hint: "OAuth users with these emails are administrators", type: "tags", placeholder: "a@uni.edu" },
+      { id: "default-password-login", path: "auth.default_password_login", label: "Admins with a default password", hint: "Automatic: refused only when the server listens beyond this computer. Refuse it behind a reverse proxy on 127.0.0.1.", type: "select", options: [{ value: "auto", label: "Automatic" }, { value: "refuse", label: "Always refuse them" }, { value: "allow", label: "Always allow them" }], keywords: "admin default password security login" },
     ],
   },
   {
     title: "OAuth",
-    footer: "A provider is used when it has both a client id and a secret.",
+    footer: "A provider is used when it is switched on and has both a client id and a secret.",
     fields: [
       { id: "oauth-redirect", path: "oauth.redirect_uri", label: "OAuth redirect base", hint: "Public URL of this server", type: "text", placeholder: "https://negotiate.example.org" },
+      { id: "github-enabled", path: "oauth.providers.github.enabled", label: "Sign in with GitHub", type: "toggle", keywords: "oauth github enabled" },
       { id: "github-key", path: "oauth.providers.github.key", label: "GitHub client id", type: "text" },
       { id: "github-secret", path: "oauth.providers.github.secret", label: "GitHub client secret", type: "password" },
+      { id: "google-enabled", path: "oauth.providers.google.enabled", label: "Sign in with Google", type: "toggle", keywords: "oauth google enabled" },
       { id: "google-key", path: "oauth.providers.google.key", label: "Google client id", type: "text" },
       { id: "google-secret", path: "oauth.providers.google.secret", label: "Google client secret", type: "password" },
     ],
   },
 ];
+GENERAL.push({
+  title: "Single sign-on (hand-off)",
+  footer: "Another site (a competition page, for example) signs a short-lived token with the shared secret and sends people here signed in. A provider is used only with a secret of at least 16 characters; HANI2_SSO_<NAME>_SECRET wins over the one here.",
+  fields: [{ id: "sso-providers", path: "auth.sso", label: "Providers", type: "custom", wide: true, keywords: "sso hand-off single sign-on token jwt scmlweb anac", render: (s: any) => <SsoProviders value={s.get("auth.sso")} onChange={(v) => s.set("auth.sso", v)} /> }],
+});
+
+/** ``auth.sso``: one row per hand-off provider. */
+function SsoProviders({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const v: Record<string, any> = value && typeof value === "object" ? value : {};
+  const [name, setName] = useState("");
+  const put = (n: string, k: string, x: any) => onChange({ ...v, [n]: { ...(v[n] ?? {}), [k]: x } });
+  const field = (n: string, k: string, label: string, ph = "", type = "text") => (
+    <label className="flex flex-col gap-0.5 text-xs text-muted">
+      {label}
+      <TextField label={`${n} ${label}`} type={type} value={v[n]?.[k] ?? ""} placeholder={ph} onChange={(x) => put(n, k, x)} />
+    </label>
+  );
+  return (
+    <div className="flex w-full flex-col gap-2" data-sso-providers>
+      {Object.keys(v).map((n) => (
+        <div key={n} className="rounded-lg border border-line p-2">
+          <div className="mb-1.5 flex items-center gap-3 text-sm">
+            <code>{n}</code>
+            <label className="flex items-center gap-1.5 text-xs text-muted">On <Toggle label={`${n} on`} value={v[n]?.enabled !== false} onChange={(x) => put(n, "enabled", x)} /></label>
+            <label className="flex items-center gap-1.5 text-xs text-muted">Trust its admin claim <Toggle label={`${n} trusts admin claim`} value={v[n]?.trust_admin_claim === true} onChange={(x) => put(n, "trust_admin_claim", x)} /></label>
+            <span className="ml-auto text-xs text-muted">Remove it in the file below</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {field(n, "secret", "Shared secret", "at least 16 characters", "password")}
+            {field(n, "label", "Button label", n)}
+            {field(n, "login_url", "Login page of the other site", "https://…")}
+            {field(n, "issuer", "Issuer (iss)", n)}
+            {field(n, "prefix", "User-name prefix", "anac_")}
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <TextField label="New provider name" value={name} onChange={setName} placeholder="scmlweb" className="w-40" />
+        <button type="button" className="btn-secondary text-xs" disabled={!/^[A-Za-z0-9_-]+$/.test(name) || name in v} onClick={() => (onChange({ ...v, [name]: { enabled: true } }), setName(""))}>
+          <Plus size={13} /> Add a provider
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export const General = () => <SettingsPage kind="env" groups={GENERAL} layered={false} note={<Note>Sign-in and identity apply to the whole server, so they are saved in the shared settings folder (env.json).</Note>} />;
 
 /* ---------------- Negotiation (env.json → negotiation, per layer) ---------------- */
@@ -96,6 +157,50 @@ export const NEGOTIATION: FieldGroup[] = [
     ],
   },
 ];
+NEGOTIATION.push(
+  {
+    title: "Recording",
+    fields: [triField("recording-enabled", "recording.enabled", "Record sessions", true, "Every negotiation's events and screens, for replay and evaluation (on by default). HANI2_RECORD=0 on the server switches it off whatever this says.", { keywords: "record recording replay events" })],
+  },
+  {
+    title: "HAN league agents",
+    footer: "Where the :han<year>-<set> entries of an opponent pool come from: the current year from the submitted zips, every other year from the han-agents package.",
+    fields: [
+      { id: "han-current-year", path: "han.current_year", label: "Current HAN year", hint: "The year whose agents come from submissions (empty: every year comes from han-agents). Never taken from the clock.", type: "stepper", min: 2000, max: 2100, nullable: true, help: "opponents.han", keywords: "han year submissions competition league" },
+      { id: "han-import-dir", path: "han.import_dir", label: "Imported submissions folder", hint: "Where imported submissions are unpacked (empty: <HANI2_HOME>/han_submissions)", type: "text", mono: true, emptyNull: true, keywords: "han import submissions folder" },
+      { id: "han-submissions", path: "han.submissions", label: "Submissions of each year", hint: "The folder of each year's submitted agents", type: "custom", wide: true, keywords: "han submissions folder year", render: (s: any) => <YearFolders value={s.get("han.submissions")} onChange={(v) => s.set("han.submissions", v)} /> },
+    ],
+  },
+  {
+    title: "Who knows what (every project)",
+    footer: "negotiation.information: the defaults under every project's and study's own (Projects page). To clear a value set here, use its reset button, or the file below.",
+    fields: [{ id: "env-information", path: "negotiation.information", label: "Information", type: "custom", wide: true, keywords: "information preferences briefing past negotiations market research control", render: (s: any) => <div className="-mx-4 -my-2.5 w-[calc(100%+2rem)]"><InformationRows value={s.get("negotiation.information")} onChange={(v) => s.set("negotiation.information", v ?? {})} inherit="Default" /></div> }],
+  },
+);
+
+/** ``han.submissions``: ``{"<year>": {"dir": "<folder>"}}``. */
+function YearFolders({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const v: Record<string, any> = value && typeof value === "object" ? value : {};
+  const [year, setYear] = useState<number | null>(null);
+  const dirOf = (x: any) => (typeof x === "string" ? x : x?.dir ?? x?.path ?? "");
+  return (
+    <div className="flex w-full flex-col gap-1.5">
+      {Object.keys(v).sort().map((y) => (
+        <div key={y} className="flex items-center gap-2">
+          <code className="w-12 text-sm">{y}</code>
+          <TextField label={`Submissions of ${y}`} value={dirOf(v[y])} onChange={(x) => onChange({ ...v, [y]: { dir: x } })} className="flex-1" placeholder="~/han/2027/submissions" />
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <Stepper label="Year" value={year} nullable min={2000} max={2100} onChange={setYear} />
+        <button type="button" className="btn-secondary text-xs" disabled={!year || String(year) in v} onClick={() => (onChange({ ...v, [String(year)]: { dir: "" } }), setYear(null))}>
+          <Plus size={13} /> Add a year
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* What participants may choose (env.json → playground.choices in the settings folder, choices in a project or study) */
 const CHOICE_KINDS = [
   { kind: "scenario", label: "Scenario", hint: "Any: the types of the session's scenario set", placeholder: "Trade" },
@@ -175,6 +280,7 @@ const PREF_DEFAULTS: FieldGroup = {
     { id: "pref-offer-display", path: "interface.prefs.offer_display", label: "Offers shown as", type: "select", options: [{ value: "text", label: "Sentences" }, { value: "table", label: "Issue chips" }] },
     { id: "pref-show-scenario-picture", path: "interface.prefs.show_scenario_picture", label: "Show the scenario's picture", hint: "At the top of the Scenario Info tool", type: "toggle", keywords: "image picture scenario info" },
     { id: "pref-scenario-picture-style", path: "interface.prefs.scenario_picture_style", label: "Scenario picture style", hint: "Small: beside the story; Large: above it; Watermark: faintly behind it. Unset: the scenario's picture_style, else Small", type: "select", options: [{ value: "", label: "The scenario's (Small)" }, { value: "small", label: "Small" }, { value: "large", label: "Large" }, { value: "watermark", label: "Watermark" }], keywords: "image picture watermark scenario info" },
+    { id: "pref-font-scale", path: "interface.prefs.font_scale", label: "Text size", hint: "1 is the normal size (0.7 to 1.6)", type: "stepper", min: 0.7, max: 1.6, step: 0.05, nullable: true, placeholder: "1", keywords: "font text size scale zoom" },
     { id: "pref-open-scenario-description", path: "interface.prefs.open_scenario_description", label: "Open the full scenario description", hint: "Expanded in the Scenario Info tool when a scenario loads", type: "toggle", keywords: "long description expanded collapsed scenario info" },
   ],
 };
@@ -201,6 +307,24 @@ const INTERFACE_REST: FieldGroup[] = [
     fields: [
       { id: "allow-moving-tools", path: "negotiation.allow_moving_tools", label: "Participants may move tools between panes", hint: "The pane menu of each tool tab. The Assistant's own rearranging is its \"Rearrange tools\" ability.", type: "toggle", keywords: "move drag pane" },
       { id: "allow-tool-switch", path: "negotiation.allow_tool_switch", label: "Participants may switch tools on and off", type: "toggle" },
+    ],
+  },
+  {
+    title: "Names of the sides",
+    footer: "With an Assistant, the words \"human\" and \"agent\" of a scenario can read as the participant and their opponent.",
+    fields: [
+      { id: "names-apply", path: "names.apply", label: "Relabel the sides", type: "select", options: [{ value: "auto", label: "When an Assistant takes part (default)" }, { value: "always", label: "Always" }, { value: "never", label: "Never" }], keywords: "names labels you opponent human agent relabel" },
+      { id: "names-self", path: "names.self", label: "The participant's side", type: "text", placeholder: "You", emptyNull: true, keywords: "names labels you" },
+      { id: "names-opponent", path: "names.opponent", label: "The other side", type: "text", placeholder: "Opponent", emptyNull: true, keywords: "names labels opponent" },
+    ],
+  },
+  {
+    title: "Browser AI agents (WebMCP)",
+    footer: "The negotiation page can offer tools to an AI agent running in the participant's browser.",
+    fields: [
+      triField("webmcp-enabled", "webmcp.enabled", "Offer tools to browser AI agents", true, undefined, { keywords: "webmcp browser agent ai mcp" }),
+      triField("webmcp-actions", "webmcp.actions", "They may act (send, accept, end)", true, "No: read-only tools", { keywords: "webmcp actions read-only" }),
+      triField("webmcp-studies", "webmcp.studies", "Also for Prolific participants", false, "Default no, so a browser agent cannot play a study for them", { keywords: "webmcp prolific studies" }),
     ],
   },
   {
@@ -246,6 +370,7 @@ export const TOOLS_BASE: FieldGroup[] = [
       { id: "input-timeout", path: "tools.input_timeout", label: "Tool input and button time limit (seconds)", hint: "A tool input or button that takes longer is abandoned and the tool shows that it is not working, so the page is never stuck behind it; 0: the same limit as for rendering (and none when that is 0 too)", type: "stepper", min: 0, step: 1, keywords: "timeout slow hang stuck tool input button action" },
       { id: "show-opponent-utility", path: "tools.show_opponent_utility", label: "Participants see opponent utilities", hint: "Lets everyone switch on the opponent's utility in the Utility Plot and Trace", type: "toggle" },
       { id: "tools-extra", path: "tools.extra", label: "Extra tools", hint: "Python classes, e.g. my_pkg.tools:MyTool", type: "tags", placeholder: "pkg.mod:Tool" },
+      { id: "tools-paths", path: "tools.paths", label: "Extra tool folders", hint: "Folders searched for tool files, besides the settings folder's tools/", type: "tags", placeholder: "~/my_tools", keywords: "tools paths folders directories" },
     ],
   },
   {
@@ -260,7 +385,7 @@ export const TOOLS_BASE: FieldGroup[] = [
 ];
 const toolFields = (meta: any): FieldGroup => ({
   title: "Tools offered",
-  footer: "Off: the tool is not offered. Admins only off: every participant gets it.",
+  footer: "Off: the tool is not offered. Admins only off: every participant gets it. Appears: when the tool shows up. Starts on: the default of its on/off switch. Guests: playground users get it. First tab: it is the front tab of its pane. Where each tool goes in each view is on the Tools page.",
   fields: (meta?.tools ?? []).map((t: any) => ({
     id: `tool-${t.name}`,
     label: t.name,
@@ -270,12 +395,25 @@ const toolFields = (meta: any): FieldGroup => ({
       const disabled: string[] = s.get("tools.disabled") ?? [];
       const adminOnly = s.get(`tools.overrides.${t.name}.admin_only`) ?? t.admin_only;
       return (
-        <div className="flex items-center gap-4 text-xs text-muted">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
           <label className="flex items-center gap-2">
             Offered <Toggle label={`${t.name} offered`} value={!disabled.includes(t.name)} onChange={(v) => s.set("tools.disabled", v ? disabled.filter((x) => x !== t.name) : [...disabled, t.name])} />
           </label>
           <label className="flex items-center gap-2">
             Admins only <Toggle label={`${t.name} admins only`} value={!!adminOnly} onChange={(v) => s.set(`tools.overrides.${t.name}.admin_only`, v)} />
+          </label>
+          <label className="flex items-center gap-2">
+            Appears
+            <Select label={`${t.name} appears`} value={s.get(`tools.overrides.${t.name}.timing`) ?? t.timing} onChange={(v) => s.set(`tools.overrides.${t.name}.timing`, v)} options={[{ value: "always", label: "With the page" }, { value: "load", label: "When a scenario loads" }, { value: "start", label: "When the negotiation starts" }, { value: "end", label: "When it ends" }, { value: "agent", label: "Only when the Assistant adds it" }]} />
+          </label>
+          <label className="flex items-center gap-2">
+            Starts on <Toggle label={`${t.name} starts on`} value={s.get(`tools.overrides.${t.name}.enabled`) ?? t.enabled ?? true} onChange={(v) => s.set(`tools.overrides.${t.name}.enabled`, v)} />
+          </label>
+          <label className="flex items-center gap-2">
+            Guests <Toggle label={`${t.name} for guests`} value={s.get(`tools.overrides.${t.name}.guest`) ?? t.guest ?? true} onChange={(v) => s.set(`tools.overrides.${t.name}.guest`, v)} />
+          </label>
+          <label className="flex items-center gap-2">
+            First tab <Toggle label={`${t.name} first tab`} value={!!(s.get(`tools.overrides.${t.name}.at_front`) ?? t.at_front)} onChange={(v) => s.set(`tools.overrides.${t.name}.at_front`, v)} />
           </label>
         </div>
       );
@@ -327,6 +465,7 @@ export const ASSISTANT_GROUPS: FieldGroup[] = [
     fields: [
       { id: "assistant-mode", path: "mode", label: "Who gets the Assistant", type: "select", options: [{ value: "on", label: "Everyone" }, { value: "auto", label: "Admins only" }, { value: "off", label: "Nobody" }] },
       { id: "assistant-class", path: "agent_class", label: "Assistant class", hint: "module:Class of your own Assistant; empty for the built-in one. Pools and groups are in Assistants.", type: "text", mono: true, emptyNull: true, placeholder: "my_agent:MyAgent" },
+      { id: "assistant-toolbox", path: "toolbox", label: "Tools it may add", hint: "Tool classes (module:Class) the Assistant may add to the page, besides the registered tools", type: "tags", placeholder: "pkg.mod:Tool", keywords: "toolbox tools assistant add" },
       { id: "assistant-autonomy", path: "autonomy", label: "Highest autonomy", hint: "Suggest: points at buttons. Semi: sends counter-offers, asks before accept/end. Full: acts.", type: "select", options: [{ value: "suggest", label: "Suggest" }, { value: "semi", label: "Semi" }, { value: "full", label: "Full" }] },
     ],
   },

@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- **Everything in the settings files can be set in the admin console.** Every JSON settings page and every
+  project and study view has an editor for its whole file (**Edit the file**), so a key without a control
+  can still be changed in the console. New controls:
+  - **General:** OAuth providers on and off (they were off in the bundled `env.json`, so a client id and
+    secret typed on the page were never used), single sign-on (hand-off) providers, admins with a default
+    password, the automatic sign-in mode, and the help link.
+  - **Negotiation:** recording, the HAN league agents (current year, submissions folders), and the
+    `information` defaults for every project.
+  - **Participant interface:** text size, the names of the sides, and WebMCP.
+  - **Tool settings:** each tool's timing, starting state, guests and first tab, and extra tool folders.
+  - **Assistant settings:** the tools the Assistant may add (`toolbox`).
+  - **Projects and studies:** *Assistant starts on*, *Questionnaires* (all on or off), every `information`
+    key (briefings, issues and actions only the participant decides, the past-negotiation simulation,
+    market research details), the reference games of a project's scores, and a study's own self-hosted mode.
+    *Custom variables* now refuses the names of settings.
+  - **Study forms:** the form named in `env.json` (set or clear it), the switch for all questionnaires, and in
+    the item editor every scale label, scoring (scale, reversed, direction, range), when
+    an item is asked, and the pre-questionnaire's participant type.
+  - **Tests:** a test lists every key of the settings files from the code's own registries and fails when one
+    has no control and is not on its short list of file-only keys (generated secrets and power-user evaluation
+    settings).
 - **A different look in each negotiation.** With `interface.vary_appearance` (`{"assistant": true,
   "opponent": true}`) in the env.json of the settings folder, a project or a study, the Assistant
   and/or the opponent get a colour and an icon of their own in each negotiation of a participant, so

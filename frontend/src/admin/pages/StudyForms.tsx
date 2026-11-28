@@ -9,6 +9,7 @@ import { LayerPicker, lq, shortPath, useLayer } from "../layer";
 import { Segmented } from "../controls/Segmented";
 import { TextArea } from "../controls/TextField";
 import { Toggle } from "../controls/Toggle";
+import { Select } from "../controls/Select";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
 import { FormItemsEditor } from "./FormItemsEditor";
@@ -130,6 +131,7 @@ export function StudyForms() {
     <>
       <LayerPicker note="Each project and study can have its own forms; a study's file wins over its project's, which wins over the settings folder." />
       <ConsentSetting />
+      <AllFormsSetting />
       <div className="mb-4">
         <Segmented label="Form" value={form} onChange={setForm} options={FORMS.map(([k, l]) => [k, l])} />
         <p className="mt-1.5 px-1 text-xs text-muted">{FORMS.find((f) => f[0] === form)![2]}</p>
@@ -140,9 +142,10 @@ export function StudyForms() {
         <>
           {d.overridden && (
             <Note tone="warn">
-              <TriangleAlert size={14} className="mr-1 inline" /> {LAYER_NAME(d.source)} names this form, so it wins over every layer's file: edits here have no effect until it is unset.
+              <TriangleAlert size={14} className="mr-1 inline" /> {LAYER_NAME(d.source)} names this form, so it wins over every layer's file: edits here have no effect until it is unset{d.source === "env.json" ? " (Named form, below)" : " (an environment variable of the server cannot be changed here)"}.
             </Note>
           )}
+          <NamedForm form={form} onChange={load} />
           <Group title="In effect here" id="setting-form-source">
             <InfoRow label="Status" value={d.active ? `On: ${d.n_questions} question${d.n_questions === 1 ? "" : "s"}` : d.disabled ? "Switched off" : "Off (no form)"} />
             <InfoRow label="From" value={LAYER_NAME(d.source)} hint={shortPath(d.source_path)} />
@@ -182,7 +185,7 @@ export function StudyForms() {
           >
             {showLib && <LibraryPicker form={form} layer={layer.id} text={text} onText={(t) => (setText(t), setDirty(true))} />}
             {mode === "items" ? (
-              <FormItemsEditor key={`${form}-${layer.id}`} text={text} onText={(t) => (setText(t), setDirty(true))} />
+              <FormItemsEditor key={`${form}-${layer.id}`} form={form} text={text} onText={(t) => (setText(t), setDirty(true))} />
             ) : (
               <div className="p-3">
                 <TextArea label="Form" value={text} rows={18} mono onChange={(v) => (setText(v), setDirty(true))} />
@@ -199,6 +202,85 @@ export function StudyForms() {
         </>
       )}
     </>
+  );
+}
+
+const ENV_KEY: Record<Form, string> = { pre_questionnaire: "pre_questionnaire", per_negotiation: "questionnaire", post_session: "post_questionnaire" };
+
+/** The env.json name of a form at the chosen layer (``"pre_questionnaire": "expertise"``): a bundled or
+ *  named form that wins over every layer's file. */
+function NamedForm({ form, onChange }: { form: Form; onChange: () => void }) {
+  const { layer } = useLayer();
+  const [env, setEnv] = useState<any>(null);
+  const [names, setNames] = useState<string[]>([]);
+  const key = ENV_KEY[form];
+  const load = () => api(`/api/admin/settings/env${lq(layer)}`).then(setEnv).catch(() => setEnv(null));
+  useEffect(() => {
+    load();
+    api(`/api/admin/questionnaires/library${lq(layer)}`).then((r) => setNames(r.named_forms ?? [])).catch(() => setNames([]));
+  }, [layer.id, form]);
+  if (!env) return null;
+  const own = env.own?.[key];
+  const value = env.effective?.[key] ?? "";
+  const set = async (v: string) => {
+    try {
+      if (v) await api(`/api/admin/settings/env${lq(layer)}`, { method: "PATCH", body: { [key]: v } });
+      else {
+        if (own !== undefined) await api(`/api/admin/settings/env${lq(layer)}&key=${key}`, { method: "DELETE" });
+        // still named by a layer below: an empty name here unsets it for this layer
+        const r = await api(`/api/admin/settings/env${lq(layer)}`);
+        if (r?.effective?.[key]) await api(`/api/admin/settings/env${lq(layer)}`, { method: "PATCH", body: { [key]: "" } });
+      }
+      await load();
+      onChange();
+    } catch (e: any) {
+      toast(e.message, "error");
+    }
+  };
+  const opts = [...new Set([...names, ...(value ? [String(value)] : [])])];
+  return (
+    <Group title="Named form" id="setting-form-named" footer={`"${key}" in env.json: a form named here (a bundled one such as ${names.slice(0, 2).join(" or ") || "expertise"}, or a file in a questionnaires/ folder) wins over every layer's ${FORMS.find((f) => f[0] === form)![1].toLowerCase()} file.`}>
+      <Row label="Use the named form" help="questionnaires.named" hint={`env.json → ${key}; empty: the layers' files decide`} overridden={own !== undefined && layer.kind !== "settings"} onReset={() => set("")}>
+        <Select label="Use the named form" value={String(value)} onChange={set} options={[{ value: "", label: "None (the layers' files)" }, ...opts.map((n) => ({ value: n, label: n }))]} />
+      </Row>
+    </Group>
+  );
+}
+
+/** ``questionnaires`` in env.json at the chosen layer: false switches every form off. */
+function AllFormsSetting() {
+  const { layer } = useLayer();
+  const [env, setEnv] = useState<any>(null);
+  const load = () => api(`/api/admin/settings/env${lq(layer)}`).then(setEnv).catch(() => setEnv(null));
+  useEffect(() => {
+    load();
+  }, [layer.id]);
+  if (!env) return null;
+  const own = env.own?.questionnaires;
+  const raw = env.effective?.questionnaires;
+  const on = !(raw === false || ["0", "false", "no", "off"].includes(String(raw ?? "").toLowerCase()));
+  const set = async (v: boolean) => {
+    try {
+      await api(`/api/admin/settings/env${lq(layer)}`, { method: "PATCH", body: { questionnaires: v } });
+      load();
+    } catch (e: any) {
+      toast(e.message, "error");
+    }
+  };
+  const reset = async () => {
+    try {
+      await api(`/api/admin/settings/env${lq(layer)}&key=questionnaires`, { method: "DELETE" });
+      load();
+    } catch (e: any) {
+      toast(e.message, "error");
+    }
+  };
+  return (
+    <Group title="All questionnaires" id="setting-all-questionnaires" footer="questionnaires in env.json. A project or study can also switch them all off with Questionnaires: No in its defaults (Projects page); either wins over every form below and over the environment variables that name a form.">
+      <Row id="forms-all" label="Ask the questionnaires" help="questionnaires" hint="Off: no pre, per-negotiation or post-session questionnaire at all here" overridden={own !== undefined && layer.kind !== "settings"} onReset={reset}>
+        <Toggle label="Ask the questionnaires" value={on} onChange={set} />
+      </Row>
+    </Group>
   );
 }
 

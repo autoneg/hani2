@@ -18,7 +18,7 @@ const stable = (v: any): string =>
  *  The YAML text stays the single source of truth: it is parsed on the server, and every edit is
  *  dumped back into it (``/api/admin/questionnaires/parse`` and ``/dump``), so the page's checks,
  *  preview and Save are those of the YAML editor. */
-export function FormItemsEditor({ text, onText }: { text: string; onText: (t: string) => void }) {
+export function FormItemsEditor({ text, onText, form, kind = "form" }: { text: string; onText: (t: string) => void; form?: string; kind?: "form" | "set" }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(null);
@@ -113,12 +113,16 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
   return (
     <div className="flex flex-col gap-3 px-4 py-3" id="setting-form-items">
       {data.enabled === false && <Note>This form is switched off here. Adding an item switches it back on.</Note>}
-      <div className="grid gap-2 sm:grid-cols-[6rem_1fr] sm:items-center">
-        <span className="text-xs text-muted">Title</span>
-        <TextField label="Form title" className="w-full" value={data.title ?? ""} onChange={(v) => update({ ...data, title: v })} />
-        <span className="text-xs text-muted">Intro</span>
-        <TextArea label="Form intro" rows={2} value={data.intro ?? ""} onChange={(v) => update({ ...data, intro: v })} />
-      </div>
+      {kind === "set" ? (
+        <SetFields data={data} onChange={update} />
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-[6rem_1fr] sm:items-center">
+          <span className="text-xs text-muted">Title</span>
+          <TextField label="Form title" className="w-full" value={data.title ?? ""} onChange={(v) => update({ ...data, title: v })} />
+          <span className="text-xs text-muted">Intro</span>
+          <TextArea label="Form intro" rows={2} value={data.intro ?? ""} onChange={(v) => update({ ...data, intro: v })} />
+        </div>
+      )}
       {notices.map(({ set, scales }) => (
         <div key={set.id} className="flex items-start gap-2 rounded-lg bg-warn/10 px-3 py-2 text-xs text-warn" data-scale-notice={set.id}>
           <TriangleAlert size={14} className="mt-0.5 shrink-0" />
@@ -142,6 +146,7 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
                   {q.required ? "" : " · optional"}
                   {q.scale ? ` · scale ${q.scale}` : ""}
                   {q.reverse ? " (reversed)" : ""}
+                  {q.requires ? ` · ${REQUIRES_LABEL[q.requires] ?? `requires ${q.requires}`}` : ""}
                 </span>
               </button>
               <div className="flex shrink-0 gap-0.5">
@@ -161,6 +166,14 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
         ))}
         {!qs.length && <li className="px-3 py-2 text-sm text-muted">No items yet.</li>}
       </ol>
+      {(form === "pre_questionnaire" || data.participant_type) && (
+        <ParticipantType value={data.participant_type} questions={qs} onChange={(v) => {
+          const next = { ...data };
+          if (v) next.participant_type = v;
+          else delete next.participant_type;
+          update(next);
+        }} />
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <button className="btn-ghost text-xs" onClick={addBlank}>
           <Plus size={13} /> New item
@@ -172,16 +185,73 @@ export function FormItemsEditor({ text, onText }: { text: string; onText: (t: st
   );
 }
 
+const SET_FORMS: [string, string][] = [["pre_questionnaire", "Pre-questionnaire"], ["per_negotiation", "After each negotiation"], ["post_session", "Post-session"]];
+
+/** The header of a questionnaire library set: id, title, description, reference, based on, the forms it
+ *  suits and the parties it asks about (``tags``). */
+function SetFields({ data, onChange }: { data: any; onChange: (d: any) => void }) {
+  const put = (k: string, v: any) => {
+    const n = { ...data };
+    if (v === undefined || v === "" || (Array.isArray(v) && !v.length && k !== "tags")) delete n[k];
+    else n[k] = v;
+    onChange(n);
+  };
+  const list = (k: string): string[] => (Array.isArray(data[k]) ? data[k].map(String) : data[k] ? [String(data[k])] : []);
+  const toggle = (k: string, x: string, on: boolean) => {
+    const cur = list(k);
+    const order = k === "forms" ? SET_FORMS.map((f) => f[0]) : ["assistant", "opponent"];
+    put(k, order.filter((y) => (y === x ? on : cur.includes(y))));
+  };
+  return (
+    <div className="grid gap-2 text-xs sm:grid-cols-[6rem_1fr] sm:items-center" data-set-fields>
+      <span className="text-muted">Id</span>
+      <TextField label="Set id" className="w-64" mono commit="blur" value={data.id ?? ""} onChange={(v) => put("id", v.trim())} />
+      <span className="text-muted">Title</span>
+      <TextField label="Set title" className="w-full" value={data.title ?? ""} onChange={(v) => put("title", v)} />
+      <span className="text-muted">Description</span>
+      <TextArea label="Set description" rows={2} value={data.description ?? ""} onChange={(v) => put("description", v)} />
+      <span className="text-muted">Reference</span>
+      <TextField label="Set reference" className="w-full" value={data.reference ?? ""} onChange={(v) => put("reference", v)} />
+      <span className="text-muted">Based on</span>
+      <TextField label="Set based on" className="w-full" placeholder="The published source it adapts, if any" value={data.based_on ?? ""} onChange={(v) => put("based_on", v)} />
+      <span className="text-muted">Meant for</span>
+      <div className="flex flex-wrap gap-3">
+        {SET_FORMS.map(([k, l]) => (
+          <label key={k} className="inline-flex items-center gap-1.5">
+            <input type="checkbox" aria-label={`Meant for ${l}`} checked={list("forms").includes(k)} onChange={(e) => toggle("forms", k, e.target.checked)} /> {l}
+          </label>
+        ))}
+      </div>
+      <span className="text-muted">About</span>
+      <div className="flex flex-wrap items-center gap-3">
+        {[["assistant", "The Assistant"], ["opponent", "The opponent"]].map(([k, l]) => (
+          <label key={k} className="inline-flex items-center gap-1.5">
+            <input type="checkbox" aria-label={`About ${l}`} checked={list("tags").includes(k)} onChange={(e) => toggle("tags", k, e.target.checked)} /> {l}
+          </label>
+        ))}
+        <span className="text-muted">Both: write {"{{agent}}"} for the party and ask the items only when it took part. Neither: about the participant, the task or the system.</span>
+      </div>
+    </div>
+  );
+}
+
+const REQUIRES_LABEL: Record<string, string> = { support_agent: "only with an Assistant", agent: "only with the party asked about" };
+
+/** ``options`` as text, one per line (participants see and record the text of the option). */
+const optionsText = (opts: any[]) => opts.map((o: any) => (o && typeof o === "object" ? String(o.value ?? o.label ?? "") : String(o))).join("\n");
+const parseOptions = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
+
 function ItemFields({ q, onChange }: { q: any; onChange: (q: any) => void }) {
   const set = (k: string, v: any) => {
     const n = { ...q };
-    if (v === undefined || v === "") delete n[k];
+    if (v === undefined || v === "" || v === null) delete n[k];
     else n[k] = v;
     onChange(n);
   };
   const labels: Record<string, string> = q.labels ?? {};
   const max = q.type === "likert5" ? 5 : q.type === "likert7" ? 7 : 0;
-  const options: string = Array.isArray(q.options) ? q.options.map((o: any) => (typeof o === "object" ? o.value ?? o.label : o)).join("\n") : "";
+  const [optText, setOptText] = useState(Array.isArray(q.options) ? optionsText(q.options) : "");
+  const numeric = q.type !== "text";
   return (
     <div className="grid gap-2 border-t border-line/60 bg-paper/40 px-3 py-3 text-xs sm:grid-cols-[6rem_1fr] sm:items-center">
       <span className="text-muted">Id</span>
@@ -194,20 +264,24 @@ function ItemFields({ q, onChange }: { q: any; onChange: (q: any) => void }) {
       <label className="inline-flex items-center gap-1.5">
         <input type="checkbox" aria-label={`Required: ${q.id}`} checked={!!q.required} onChange={(e) => set("required", e.target.checked)} /> Participants must answer
       </label>
+      <span className="text-muted">Asked</span>
+      <Select label={`When ${q.id} is asked`} value={q.requires ?? ""} onChange={(v) => set("requires", v)} options={[{ value: "", label: "Always" }, { value: "support_agent", label: "Only when an Assistant took part" }, { value: "agent", label: "Only when the party it asks about ({{agent}}) took part" }]} />
       {max > 0 && (
         <>
           <span className="text-muted">Labels</span>
           <div className="flex flex-wrap items-center gap-2">
-            {[1, max].map((k) => (
+            {Array.from({ length: max }, (_, j) => j + 1).map((k) => (
               <label key={k} className="inline-flex items-center gap-1">
                 {k}:
                 <TextField
                   label={`Label ${k} of ${q.id}`}
-                  className="w-44"
+                  className={k === 1 || k === max ? "w-40" : "w-28"}
+                  placeholder={k === 1 || k === max ? "" : "(none)"}
                   value={labels[k] ?? (labels as any)[String(k)] ?? ""}
                   onChange={(v) => {
                     const l: any = { ...labels };
                     delete l[String(k)];
+                    delete l[k];
                     if (v) l[k] = v;
                     set("labels", Object.keys(l).length ? l : undefined);
                   }}
@@ -220,20 +294,76 @@ function ItemFields({ q, onChange }: { q: any; onChange: (q: any) => void }) {
       {q.type === "select" && (
         <>
           <span className="text-muted">Options</span>
-          <TextArea label={`Options of ${q.id}`} rows={4} placeholder="One option per line" value={options} onChange={(v) => set("options", v.split("\n").map((x) => x.trim()).filter(Boolean))} />
+          <div>
+            <TextArea label={`Options of ${q.id}`} rows={4} placeholder="One option per line" value={optText} onChange={(v) => (setOptText(v), set("options", parseOptions(v)))} />
+            <span className="text-[11px] text-muted">One per line, in order: a scored choice counts 1 for the first option, 2 for the second, and so on.</span>
+          </div>
         </>
       )}
-      {(q.scale || q.reverse) && (
+      {numeric && (
         <>
           <span className="text-muted">Scoring</span>
-          <span>
-            Counts towards <code>scale_{q.scale}</code>
-            {q.reverse ? ", reversed" : ""}.{" "}
-            <button className="text-you hover:underline" onClick={() => onChange({ ...q, scale: undefined, reverse: undefined })}>
-              Stop scoring it
-            </button>
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-1">
+              Scale
+              <TextField label={`Scale of ${q.id}`} className="w-36" mono commit="blur" placeholder="(not scored)" value={q.scale ?? ""} onChange={(v) => set("scale", v.trim() || undefined)} />
+            </label>
+            <label className="inline-flex items-center gap-1.5">
+              <input type="checkbox" aria-label={`Reversed: ${q.id}`} checked={!!q.reverse} onChange={(e) => set("reverse", e.target.checked || undefined)} /> Reversed
+            </label>
+            <label className="inline-flex items-center gap-1">
+              Better is
+              <Select label={`Direction of ${q.id}`} value={q.direction ?? ""} onChange={(v) => set("direction", v)} options={[{ value: "", label: q.scale ? "Higher (default)" : "Not ranked (default)" }, { value: "higher", label: "Higher" }, { value: "lower", label: "Lower" }]} />
+            </label>
+            {q.type !== "select" && (
+              <label className="inline-flex items-center gap-1" title="The answer range used for scoring and normalising (the type gives the default)">
+                Range
+                <NumberBox label={`Lowest answer of ${q.id}`} value={q.min} onChange={(v) => set("min", v)} />
+                to
+                <NumberBox label={`Highest answer of ${q.id}`} value={q.max} onChange={(v) => set("max", v)} />
+              </label>
+            )}
+          </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function NumberBox({ label, value, onChange }: { label: string; value: any; onChange: (v: number | undefined) => void }) {
+  return <TextField label={label} className="w-14" mono commit="blur" placeholder="auto" value={value == null ? "" : String(value)} onChange={(v) => onChange(v.trim() === "" || Number.isNaN(Number(v)) ? undefined : Number(v))} />;
+}
+
+/** ``participant_type`` of a pre-questionnaire: the question whose answer is the participant's type,
+ *  and how answers map to types (unmapped answers are used as they are). */
+function ParticipantType({ value, questions, onChange }: { value: any; questions: any[]; onChange: (v: any) => void }) {
+  const cfg = typeof value === "string" ? { question: value } : value ?? null;
+  const map: Record<string, string> = cfg?.map ?? {};
+  const qid = cfg?.question ?? (cfg ? "expertise" : "");
+  const q = questions.find((x) => String(x.id) === qid);
+  const answers: string[] = q?.type === "select" ? (q.options ?? []).map((o: any) => String(o && typeof o === "object" ? o.value : o)) : q?.type === "yes_no" ? ["yes", "no"] : Object.keys(map);
+  const put = (n: any) => onChange(n && (n.question || Object.keys(n.map ?? {}).length) ? n : null);
+  return (
+    <div className="rounded-lg border border-line px-3 py-2 text-xs" data-participant-type>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">Participant type</span>
+        <Select label="Question that gives the participant type" value={cfg ? qid : ""} onChange={(v) => put(v ? { ...(cfg ?? {}), question: v } : null)} options={[{ value: "", label: "None" }, ...questions.map((x) => ({ value: String(x.id), label: String(x.id) }))]} />
+        <span className="text-muted">The answer is the participant's type (boards can be split by it).</span>
+      </div>
+      {cfg && answers.length > 0 && (
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-[10rem_1fr] sm:items-center">
+          {answers.map((a) => (
+            <div key={a} className="contents">
+              <span className="truncate text-muted" title={a}>{a} →</span>
+              <TextField label={`Type for ${a}`} className="w-48" placeholder={a} value={map[a] ?? ""} onChange={(v) => {
+                const m = { ...map };
+                if (v) m[a] = v;
+                else delete m[a];
+                put({ ...cfg, question: qid, ...(Object.keys(m).length ? { map: m } : { map: undefined }) });
+              }} />
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

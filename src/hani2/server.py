@@ -165,7 +165,7 @@ def api_config(request: Request):
         "project": ref.project if ref else projects.DEFAULT_PROJECT,
         "study": None if ref is None else {"project": ref.project, "name": ref.study, "type": st.type if st else None,
                                            "title": vals.get("study_title"), "path": projects.study_url_prefix(ref)},
-        "docs_url": env.get("docs_url", "https://autoneg.github.io/hani2/"),
+        "docs_url": env.get("docs_url") or "https://autoneg.github.io/hani2/",  # empty: the documentation
     }
 
 
@@ -1502,7 +1502,11 @@ def admin_meta(_: str = Depends(require_admin)):
         "role_rules": store.ROLE_RULES,
         "scenarios": {t: store.list_scenarios(t) for t in store.available_types()},
         "tools": [dict(name=s.name, pane=s.pane, timing=s.timing, enabled=s.enabled, admin_only=s.admin_only,
-                       guest=s.guest, description=s.cls.description) for s in tool_specs()],
+                       guest=s.guest, at_front=s.at_front, description=s.cls.description) for s in tool_specs()],
+        # the names project.yaml / study.yaml give a meaning (a "custom variable" must not take one)
+        "setting_keys": {"project": sorted({*projects.DEFAULT_KEYS, *projects.PROJECT_FIELDS, "defaults", "scheduling"}),
+                         "study": sorted({*projects.DEFAULT_KEYS, *projects.STUDY_FIELDS, "project", "overrides",
+                                          "scheduling"})},
         "capabilities": {k: {"label": v[0], "description": v[1]} for k, v in CAPABILITY_INFO.items()},
         "autopilot_drivers": driver_options({"allowed_drivers": None}),
         "participant_settings": {k: {"label": v[0], "description": v[1]}

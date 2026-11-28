@@ -70,6 +70,9 @@ More: [Study management](study-management.md#study-types).
 | [Practice round](#setting-practice) | `practice` | A first negotiation that does not count |
 | [Participant's role](#setting-role-rule) | `role_rule` | Which side of the scenario the participant takes |
 | [Preferred roles](#setting-human-roles) | `human_roles` | For the roles rule: the role names the participant should take, in order |
+| [Assistant starts on](#setting-assistant-starts-on) | `assistant_starts_on` | Whether a Prolific or online participant's Assistant starts switched on |
+| [Questionnaires](#setting-questionnaires) | `questionnaires` | No switches every questionnaire of the study off: pre, per-negotiation and post-session |
+| [Named form](#setting-questionnaires-named) | `pre_questionnaire, questionnaire, post_questionnaire (env.json)` | A bundled or named form that wins over every layer's file |
 
 ### Mode {#setting-study-mode}
 
@@ -233,6 +236,30 @@ In Paired studies the host's side is chosen this way and the joiner takes the ot
 Used only with the `roles` rule: the first of these names that the scenario has is the
 participant's role (for example `Buyer`). Scenarios with none of them fall back to `auto`.
 
+### Assistant starts on {#setting-assistant-starts-on}
+
+`assistant_starts_on`: *Whether a Prolific or online participant's Assistant starts switched on*
+
+Off (the default): the participant switches their Assistant on when they want it. On: it is on from the first negotiation. The environment variable PROLIFIC_ASSISTANT_ON wins over the study and the project.
+
+More: [Study management](study-management.md).
+
+### Questionnaires {#setting-questionnaires}
+
+`questionnaires`: *No switches every questionnaire of the study off: pre, per-negotiation and post-session*
+
+`questionnaires: false` in study.yaml or project.yaml (or in a layer's env.json) means no questionnaire at all, whatever the form files say and whatever form the environment variables name. Empty or Yes: the forms decide (Study forms page).
+
+More: [Study forms](study-forms.md#what-wins-over-the-files).
+
+### Named form {#setting-questionnaires-named}
+
+`pre_questionnaire, questionnaire, post_questionnaire (env.json)`: *A bundled or named form that wins over every layer's file*
+
+`pre_questionnaire`, `questionnaire` (after each negotiation) and `post_questionnaire` in env.json name a form instead of a layer's file: a bundled one (`expertise`, `evaluation`, ...) or the stem of a file in a `questionnaires/` folder. While a name is set, editing the layers' files changes nothing. The environment variables (`HANI2_PRE_YAML`, `HANI2_PER_NEG_YAML`, `HANI2_POST_YAML`) win over this name.
+
+More: [Study forms](study-forms.md#what-wins-over-the-files).
+
 ## Information
 
 | Setting | Key | Summary |
@@ -244,6 +271,24 @@ participant's role (for example `Buyer`). Scenarios with none of them fall back 
 | [Participant's share](#setting-information-past-negotiations-human-share) | `information.past_negotiations.human_share` | The fraction of the past negotiations the participant gets; the Assistant gets the rest |
 | [Past preferences](#setting-information-past-negotiations-preferences) | `information.past_negotiations.preferences` | How the past parties' preferences relate to this negotiation's |
 | [Market research](#setting-information-market-research-audience) | `information.market_research.audience` | Who gets statistics about how preferences in the scenario are usually distributed |
+| [Briefings](#setting-information-briefing) | `information.briefing` | Private instructions for one side, added to the scenario's own |
+| [Use the scenario's briefing](#setting-information-use-scenario-briefing) | `information.use_scenario_briefing` | Add the briefing of the scenario's _info.yaml |
+| [Scenario briefings go to](#setting-information-briefing-audience) | `information.briefing_audience` | Give every scenario briefing to this side instead of the one it names |
+| [Deal values with partial preferences](#setting-information-preferences-show-totals-to-partial) | `information.preferences.show_totals_to_partial` | Show utilities to a party that knows only part of the preferences |
+| [Only the participant may set](#setting-information-control-human-only-issues) | `information.control.human_only_issues` | Issues the Assistant may only suggest values for |
+| [Only the participant may](#setting-information-control-human-only-actions) | `information.control.human_only_actions` | Actions the Assistant may only suggest |
+| [Opponent's past preferences](#setting-information-past-negotiations-opponent-preferences) | `information.past_negotiations.opponent_preferences` | Past preferences for the opponent's side only |
+| [How different is similar](#setting-information-past-negotiations-noise) | `information.past_negotiations.noise` | How far similar preferences move |
+| [Give every record to both](#setting-information-past-negotiations-shared) | `information.past_negotiations.shared` | Both get every past negotiation |
+| [Who gets which records](#setting-information-past-negotiations-assignment) | `information.past_negotiations.assignment` | Random per participant and round, or the participant gets the first ones |
+| [Utilities in a record](#setting-information-past-negotiations-utilities) | `information.past_negotiations.utilities` | Whose utilities a past negotiation shows |
+| [Rounds of a simulated negotiation](#setting-information-past-negotiations-n-steps) | `information.past_negotiations.n_steps` | Rounds of each simulated past negotiation |
+| [Simulated negotiators](#setting-information-past-negotiations-negotiators) | `information.past_negotiations.negotiators` | The negmas negotiators that play the simulated negotiations |
+| [Use the scenario's own records](#setting-information-past-negotiations-use-scenario-file) | `information.past_negotiations.use_scenario_file` | Use _past_negotiations.yaml of the scenario folder when it has one |
+| [Simulation seed](#setting-information-past-negotiations-seed) | `information.past_negotiations.seed` | An extra seed for the simulated negotiations |
+| [Market research describes](#setting-information-market-research-sides) | `information.market_research.sides` | Whose preferences it describes |
+| [Market research profiles](#setting-information-market-research-samples) | `information.market_research.samples` | How many plausible preference profiles it is computed from |
+| [Market research spread](#setting-information-market-research-noise) | `information.market_research.noise` | How spread out the profiles are |
 
 ### Participant knows {#setting-information-preferences-human}
 
@@ -314,13 +359,169 @@ More: [Information](information.md).
 
 More: [Information](information.md).
 
+### Briefings {#setting-information-briefing}
+
+`information.briefing`: *Private instructions for one side, added to the scenario's own*
+
+Each briefing is a text for the participant (the default), the Assistant or both, optionally for one role only. Constraints that are checked against the agreement and pinned briefings are written in the file (see the docs).
+
+More: [Information](information.md#private-briefings-and-hidden-constraints).
+
+### Use the scenario's briefing {#setting-information-use-scenario-briefing}
+
+`information.use_scenario_briefing`: *Add the briefing of the scenario's _info.yaml*
+
+Yes (the default): the scenario's own briefing is given too. No: only the briefings set here.
+
+More: [Information](information.md#private-briefings-and-hidden-constraints).
+
+### Scenario briefings go to {#setting-information-briefing-audience}
+
+`information.briefing_audience`: *Give every scenario briefing to this side instead of the one it names*
+
+`human`, `assistant` or `both`; empty: as each briefing says.
+
+More: [Information](information.md#private-briefings-and-hidden-constraints).
+
+### Deal values with partial preferences {#setting-information-preferences-show-totals-to-partial}
+
+`information.preferences.show_totals_to_partial`: *Show utilities to a party that knows only part of the preferences*
+
+No (the default): a party that knows only the weights or only the values does not see what deals are worth, and tools that show it are not offered. Yes: it sees them anyway.
+
+More: [Information](information.md#preferences).
+
+### Only the participant may set {#setting-information-control-human-only-issues}
+
+`information.control.human_only_issues`: *Issues the Assistant may only suggest values for*
+
+The Assistant can suggest a value for these issues but cannot set it in an offer it sends.
+
+More: [Information](information.md#decisions-only-the-human-makes).
+
+### Only the participant may {#setting-information-control-human-only-actions}
+
+`information.control.human_only_actions`: *Actions the Assistant may only suggest*
+
+Any of `send`, `accept` and `end`: the Assistant points at the button instead of acting.
+
+More: [Information](information.md#decisions-only-the-human-makes).
+
+### Opponent's past preferences {#setting-information-past-negotiations-opponent-preferences}
+
+`information.past_negotiations.opponent_preferences`: *Past preferences for the opponent's side only*
+
+`similar`, `same` or `different`; empty: as Past preferences.
+
+More: [Information](information.md#past-negotiations).
+
+### How different is similar {#setting-information-past-negotiations-noise}
+
+`information.past_negotiations.noise`: *How far similar preferences move*
+
+0: the same preferences, 1: very different. Default 0.25.
+
+More: [Information](information.md#past-negotiations).
+
+### Give every record to both {#setting-information-past-negotiations-shared}
+
+`information.past_negotiations.shared`: *Both get every past negotiation*
+
+Yes: the participant and the Assistant get every record, and the participant's share is ignored.
+
+More: [Information](information.md#past-negotiations).
+
+### Who gets which records {#setting-information-past-negotiations-assignment}
+
+`information.past_negotiations.assignment`: *Random per participant and round, or the participant gets the first ones*
+
+`random` (the default) or `first`.
+
+More: [Information](information.md#past-negotiations).
+
+### Utilities in a record {#setting-information-past-negotiations-utilities}
+
+`information.past_negotiations.utilities`: *Whose utilities a past negotiation shows*
+
+`own` (the party in the participant's role, the default), `both` or `none`.
+
+More: [Information](information.md#past-negotiations).
+
+### Rounds of a simulated negotiation {#setting-information-past-negotiations-n-steps}
+
+`information.past_negotiations.n_steps`: *Rounds of each simulated past negotiation*
+
+Default 20.
+
+More: [Information](information.md#past-negotiations).
+
+### Simulated negotiators {#setting-information-past-negotiations-negotiators}
+
+`information.past_negotiations.negotiators`: *The negmas negotiators that play the simulated negotiations*
+
+Class names, e.g. BoulwareTBNegotiator; empty: four standard time-based and tit-for-tat negotiators.
+
+More: [Information](information.md#past-negotiations).
+
+### Use the scenario's own records {#setting-information-past-negotiations-use-scenario-file}
+
+`information.past_negotiations.use_scenario_file`: *Use _past_negotiations.yaml of the scenario folder when it has one*
+
+Yes (the default): a scenario that ships its own records uses them instead of a simulation.
+
+More: [Information](information.md#past-negotiations).
+
+### Simulation seed {#setting-information-past-negotiations-seed}
+
+`information.past_negotiations.seed`: *An extra seed for the simulated negotiations*
+
+The scenario's name is always part of the seed, so every participant of a strict study meets the same records.
+
+More: [Information](information.md#past-negotiations).
+
+### Market research describes {#setting-information-market-research-sides}
+
+`information.market_research.sides`: *Whose preferences it describes*
+
+`opponent` (the default), `own` or `both`.
+
+More: [Information](information.md#market-research).
+
+### Market research profiles {#setting-information-market-research-samples}
+
+`information.market_research.samples`: *How many plausible preference profiles it is computed from*
+
+Default 40.
+
+More: [Information](information.md#market-research).
+
+### Market research spread {#setting-information-market-research-noise}
+
+`information.market_research.noise`: *How spread out the profiles are*
+
+0 to 1; default 0.3.
+
+More: [Information](information.md#market-research).
+
 ## Opponents
 
 | Setting | Key | Summary |
 |---|---|---|
+| [Self-hosted agents](#setting-hosted) | `hosted` | The Assistants and/or opponents are the teams' own hosts, registered for the project |
 | [HAN agents](#setting-opponents-han) | `opponents` | Add the entrant agents of a HAN league by year and set; the year is always written out |
 | [Opponent pool](#setting-opponents-pool) | `opponents` | Who participants face at this layer; the study's mode decides which human entries are offered |
-| [Self-hosted agents](#setting-hosted) | `hosted` | The Assistants and/or opponents are the teams' own hosts, registered for the project |
+
+### Self-hosted agents {#setting-hosted}
+
+`hosted`: *The Assistants and/or opponents are the teams' own hosts, registered for the project*
+
+`{assistants: true, opponents: false, timeout: 30, max_failures: 3}`: when a side is `true`, its pool is
+every hosted agent of that kind registered for the project and switched on (Library → Hosted agents,
+`hani2 hosted add`), unless `assistants` / `opponents` lists its own. `timeout` is the seconds HANI2 waits
+for a host per call; `max_failures` the failed calls in a row before a hosted opponent walks away (the game
+still counts).
+
+More: [Self hosting](self-hosting.md).
 
 ### HAN agents {#setting-opponents-han}
 
@@ -373,18 +574,6 @@ in red, so that it can be removed; the server refuses to save the contradiction.
 mode, the mode is derived from the pool, so every entry is offered.
 
 More: [Project management](project-management.md#pools-of-opponents-and-assistants).
-
-### Self-hosted agents {#setting-hosted}
-
-`hosted`: *The Assistants and/or opponents are the teams' own hosts, registered for the project*
-
-`{assistants: true, opponents: false, timeout: 30, max_failures: 3}`: when a side is `true`, its pool is
-every hosted agent of that kind registered for the project and switched on (Library → Hosted agents,
-`hani2 hosted add`), unless `assistants` / `opponents` lists its own. `timeout` is the seconds HANI2 waits
-for a host per call; `max_failures` the failed calls in a row before a hosted opponent walks away (the game
-still counts).
-
-More: [Self hosting](self-hosting.md).
 
 ## Assignment
 
@@ -641,6 +830,7 @@ More: [Project management](project-management.md#pairing-defaults).
 
 | Setting | Key | Summary |
 |---|---|---|
+| [Reference games](#setting-normalisation-reference) | `normalisation.reference` | The games whose medians scale the unbounded criteria of the project's scores |
 | [Scores](#setting-scores) | `scores` | The scores of this project or study: the built-ins (read-only) and your own |
 | [Criteria](#setting-scores-criteria) | `scores.criteria` | Every number a score can use: metric columns, questionnaire answers and other scores |
 | [Preview](#setting-scores-preview) | `scores.preview` | The score on the current games, before saving: weights in effect, dropped parts, its distribution, the top entrants |
@@ -654,6 +844,14 @@ More: [Project management](project-management.md#pairing-defaults).
 | [Needs an Assistant](#setting-scores-needs-assistant) | `scores.<key>.needs_assistant` | true: the score is empty for sessions without an Assistant |
 | [Scores enabled](#setting-scores-enabled) | `scores_enabled` | Which scores this project's (or study's) boards, results and exports compute and show |
 | [Same-Assistant games](#setting-scores-same-assistant) | `scores.<key>.same_assistant` | How boards count a game where both people used the same Assistant: once, or not at all |
+
+### Reference games {#setting-normalisation-reference}
+
+`normalisation.reference`: *The games whose medians scale the unbounded criteria of the project's scores*
+
+`normalisation.reference` in project.yaml (never in a study): `studies` (none: every study of the project) and `end` (only games started on or before that date). `hani2 scores freeze <project>` records the medians of these games in `results/normalisation.json`; until then the scales of unbounded criteria are provisional.
+
+More: [Project management](project-management.md#the-frozen-reference).
 
 ### Scores {#setting-scores}
 

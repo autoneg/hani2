@@ -1,0 +1,1 @@
+import{c as t}from"./index-2UgjsYsR.js";const e={name:"panel-right-close",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M15 3v18",key:"14nvp0"}],["path",{d:"m8 9 3 3-3 3",key:"12hl5m"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

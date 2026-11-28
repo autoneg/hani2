@@ -1,3 +1,4 @@
+import { RawFile } from "../RawFile";
 import { useEffect, useState } from "react";
 import { BookOpen, FlaskConical, FolderKanban, Info, Plus, Save, X } from "lucide-react";
 import { api } from "../../api";
@@ -285,6 +286,8 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effe
       <Row label="Time limit (s)" hint="Per negotiation, outside Prolific studies">{num("time_limit", 30)}</Row>
       <Row label="Rounds" hint="n_steps">{num("n_steps", 10)}</Row>
       <Row label="Expected minutes" hint="minutes, shown in texts as {{minutes}}">{num("minutes", 5)}</Row>
+      <Row label="Assistant starts on" help="assistant_starts_on" hint="assistant_starts_on: Prolific and online participants start with their Assistant switched on (No: off until they switch it on). PROLIFIC_ASSISTANT_ON wins when set">{tri("assistant_starts_on")}</Row>
+      <Row label="Questionnaires" help="questionnaires" hint="questionnaires: No switches every questionnaire of the study off (pre, per-negotiation and post-session), whatever the forms say">{tri("questionnaires")}</Row>
       <Row label="Questionnaires ask about" help="questionnaire_agent" hint="questionnaire_agent: the party that {{agent}} names in questionnaires tagged for both the Assistant and the opponent">
         <Select label="Questionnaires ask about" value={v.questionnaire_agent ?? ""} onChange={(x) => put("questionnaire_agent", x || null)} options={[{ value: "", label: inh.questionnaire_agent ? `${inherit} (${inh.questionnaire_agent})` : `From the kind (${(kind ?? live.kind) === "opponent" ? "the opponent" : "the Assistant"})` }, { value: "assistant", label: "The Assistant" }, { value: "opponent", label: "The opponent" }]} />
       </Row>
@@ -414,20 +417,35 @@ function ScoresEnabledGroup({ value, onChange, project, study, inherit, version 
 
 
 /** The ``information`` block: what the human and the Assistant each know (see the Information split guide). */
-function InformationRows({ value, onChange, inherit }: { value: any; onChange: (v: any) => void; inherit: string }) {
+export function InformationRows({ value, onChange, inherit }: { value: any; onChange: (v: any) => void; inherit: string }) {
+  const [more, setMore] = useState(false);
   const info = value ?? {};
+  const emit = (n: any) => onChange(Object.keys(n).length ? n : null);
   const set = (section: string, k: string, x: any) => {
     const sec = { ...(info[section] ?? {}) };
-    if (x === null || x === undefined || x === "") delete sec[k];
+    if (x === null || x === undefined || x === "" || (Array.isArray(x) && !x.length)) delete sec[k];
     else sec[k] = x;
     const n = { ...info, [section]: sec };
     if (!Object.keys(sec).length) delete n[section];
-    onChange(Object.keys(n).length ? n : null);
+    emit(n);
+  };
+  const setTop = (k: string, x: any) => {
+    const n = { ...info };
+    if (x === null || x === undefined || x === "" || (Array.isArray(x) && !x.length)) delete n[k];
+    else n[k] = x;
+    emit(n);
   };
   const sel = (section: string, k: string, label: string, opts: string[]) => (
     <Select label={label} value={info[section]?.[k] ?? ""} onChange={(x) => set(section, k, x)} options={[{ value: "", label: inherit }, ...opts]} />
   );
+  const yesNo = (v: any, put: (x: boolean | null) => void, label: string) => (
+    <Select label={label} value={v === undefined || v === null ? "" : v ? "yes" : "no"} onChange={(x) => put(x === "" ? null : x === "yes")} options={[{ value: "", label: inherit }, { value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
+  );
+  const num = (section: string, k: string, label: string, step: number, max?: number) => (
+    <Stepper label={label} value={info[section]?.[k] ?? null} nullable placeholder={inherit.toLowerCase()} step={step} min={0} max={max} onChange={(x) => set(section, k, x)} />
+  );
   const parts = ["full", "weights", "values", "none"];
+  const pn = (k: string) => `information.past_negotiations.${k}`;
   return (
     <>
       <Row label="Participant knows" help="information.preferences.human" hint="information.preferences.human: which part of their own preferences the participant sees">{sel("preferences", "human", "Participant knows", parts)}</Row>
@@ -441,12 +459,138 @@ function InformationRows({ value, onChange, inherit }: { value: any; onChange: (
       </Row>
       <Row label="Past preferences" help="information.past_negotiations.preferences" hint="information.past_negotiations.preferences: how the past parties' preferences relate to this negotiation's">{sel("past_negotiations", "preferences", "Past preferences", ["similar", "same", "different"])}</Row>
       <Row label="Market research" help="information.market_research.audience" hint="information.market_research.audience: who gets statistics about how preferences in the scenario are usually distributed">{sel("market_research", "audience", "Market research", ["none", "assistant", "human", "both"])}</Row>
+      <Row label="Briefings" help="information.briefing" hint="information.briefing: private instructions for one side, added to the scenario's own" wide>
+        <BriefingList value={info.briefing} onChange={(x) => setTop("briefing", x)} />
+      </Row>
+      <Row label="Only the participant may set" help="information.control.human_only_issues" hint="information.control.human_only_issues: issues the Assistant may only suggest values for">
+        <Tags label="Only the participant may set" value={info.control?.human_only_issues} onChange={(x) => set("control", "human_only_issues", x)} placeholder="price" />
+      </Row>
+      <Row label="Only the participant may" help="information.control.human_only_actions" hint="information.control.human_only_actions: actions the Assistant may only suggest" wide>
+        <Checks value={info.control?.human_only_actions} onChange={(x) => set("control", "human_only_actions", x)} columns={2} options={[{ value: "send", label: "Send an offer" }, { value: "accept", label: "Accept" }, { value: "end", label: "End the negotiation" }]} />
+      </Row>
+      <Row label="More information settings" hint="Briefing sources, past-negotiation simulation, market research details, deal values with partial preferences">
+        <button type="button" className="btn-ghost text-xs" aria-expanded={more} onClick={() => setMore(!more)} data-information-more>{more ? "Hide" : "Show"}</button>
+      </Row>
+      {more && (
+        <>
+          <Row label="Use the scenario's briefing" help="information.use_scenario_briefing" hint="information.use_scenario_briefing: add the briefing of the scenario's _info.yaml">{yesNo(info.use_scenario_briefing, (x) => setTop("use_scenario_briefing", x), "Use the scenario's briefing")}</Row>
+          <Row label="Scenario briefings go to" help="information.briefing_audience" hint="information.briefing_audience: give every scenario briefing to this side instead of the one it names">
+            <Select label="Scenario briefings go to" value={info.briefing_audience ?? ""} onChange={(x) => setTop("briefing_audience", x)} options={[{ value: "", label: `${inherit} (as written)` }, "human", "assistant", "both"]} />
+          </Row>
+          <Row label="Deal values with partial preferences" help="information.preferences.show_totals_to_partial" hint="information.preferences.show_totals_to_partial: show utilities to a party that knows only part of the preferences">{yesNo(info.preferences?.show_totals_to_partial, (x) => set("preferences", "show_totals_to_partial", x), "Deal values with partial preferences")}</Row>
+          <Row label="Opponent's past preferences" help="information.past_negotiations.opponent_preferences" hint={`${pn("opponent_preferences")}: the same as Past preferences, for the opponent's side only (empty: as Past preferences)`}>{sel("past_negotiations", "opponent_preferences", "Opponent's past preferences", ["similar", "same", "different"])}</Row>
+          <Row label="How different is similar" help="information.past_negotiations.noise" hint={`${pn("noise")}: how far "similar" preferences move (0: the same, 1: very different)`}>{num("past_negotiations", "noise", "How different is similar", 0.05, 1)}</Row>
+          <Row label="Give every record to both" help="information.past_negotiations.shared" hint={`${pn("shared")}: both get every past negotiation (the share is then ignored)`}>{yesNo(info.past_negotiations?.shared, (x) => set("past_negotiations", "shared", x), "Give every record to both")}</Row>
+          <Row label="Who gets which records" help="information.past_negotiations.assignment" hint={`${pn("assignment")}: random (per participant and round) or first (the participant gets the first ones)`}>{sel("past_negotiations", "assignment", "Who gets which records", ["random", "first"])}</Row>
+          <Row label="Utilities in a record" help="information.past_negotiations.utilities" hint={`${pn("utilities")}: whose utilities a record shows`}>{sel("past_negotiations", "utilities", "Utilities in a record", ["own", "both", "none"])}</Row>
+          <Row label="Rounds of a simulated negotiation" help="information.past_negotiations.n_steps" hint={pn("n_steps")}>{num("past_negotiations", "n_steps", "Rounds of a simulated negotiation", 5)}</Row>
+          <Row label="Simulated negotiators" help="information.past_negotiations.negotiators" hint={`${pn("negotiators")}: the negmas negotiators that play the simulated negotiations`}>
+            <Tags label="Simulated negotiators" value={info.past_negotiations?.negotiators} onChange={(x) => set("past_negotiations", "negotiators", x)} placeholder="BoulwareTBNegotiator" suggestions={["BoulwareTBNegotiator", "LinearTBNegotiator", "ConcederTBNegotiator", "NaiveTitForTatNegotiator"]} />
+          </Row>
+          <Row label="Use the scenario's own records" help="information.past_negotiations.use_scenario_file" hint={`${pn("use_scenario_file")}: use _past_negotiations.yaml of the scenario folder when it has one`}>{yesNo(info.past_negotiations?.use_scenario_file, (x) => set("past_negotiations", "use_scenario_file", x), "Use the scenario's own records")}</Row>
+          <Row label="Simulation seed" help="information.past_negotiations.seed" hint={`${pn("seed")}: an extra seed (the scenario's name is always part of it)`}>{num("past_negotiations", "seed", "Simulation seed", 1)}</Row>
+          <Row label="Market research describes" help="information.market_research.sides" hint="information.market_research.sides: whose preferences it describes">{sel("market_research", "sides", "Market research describes", ["opponent", "own", "both"])}</Row>
+          <Row label="Market research profiles" help="information.market_research.samples" hint="information.market_research.samples: how many plausible preference profiles it is computed from">{num("market_research", "samples", "Market research profiles", 10)}</Row>
+          <Row label="Market research spread" help="information.market_research.noise" hint="information.market_research.noise: how spread out the profiles are">{num("market_research", "noise", "Market research spread", 0.05, 1)}</Row>
+        </>
+      )}
     </>
   );
 }
 
-function ExtraGroup({ data, keys, onChange, prefix }: { data: any; keys: string[]; onChange: (k: string, v: any) => void; prefix: string }) {
+/** A study's own ``hosted:`` block (Self-hosted mode); it replaces the project's whole block. */
+function HostedOverride({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const v = value ?? null;
+  const put = (k: string, x: any) => {
+    const n = { ...(v ?? {}) };
+    if (x == null || x === "") delete n[k];
+    else n[k] = x;
+    onChange(Object.keys(n).length ? n : null);
+  };
+  const yn = (k: string, label: string) => (
+    <Select label={label} value={v?.[k] === undefined ? "" : v[k] ? "yes" : "no"} onChange={(x) => put(k, x === "" ? null : x === "yes")} options={[{ value: "", label: "Not self-hosted (default)" }, { value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />
+  );
+  return (
+    <Group title="Self-hosted mode" id="setting-study-hosted" footer="hosted: in study.yaml. Set, it replaces the project's block as a whole (keys left empty take the defaults, not the project's values); empty, the study follows the project (Self-hosted page).">
+      <Row label="Own self-hosted mode" help="hosted" hint="Give this study its own hosted: block">
+        <Select label="Own self-hosted mode" value={v ? "own" : ""} onChange={(x) => onChange(x ? { assistants: false, opponents: false } : null)} options={[{ value: "", label: "As the project" }, { value: "own", label: "This study's own" }]} />
+      </Row>
+      {v && (
+        <>
+          <Row label="Assistants are self-hosted">{yn("assistants", "Assistants are self-hosted")}</Row>
+          <Row label="Opponents are self-hosted">{yn("opponents", "Opponents are self-hosted")}</Row>
+          <Row label="Time limit per call (s)"><Stepper label="Time limit per call" value={v.timeout ?? null} nullable placeholder="default" min={1} max={600} onChange={(x) => put("timeout", x)} /></Row>
+          <Row label="Failures before an opponent walks away"><Stepper label="Failures before walking away" value={v.max_failures ?? null} nullable placeholder="default" min={1} max={20} onChange={(x) => put("max_failures", x)} /></Row>
+        </>
+      )}
+    </Group>
+  );
+}
+
+/** ``normalisation.reference`` of a project: the games whose medians scale the unbounded criteria of its scores. */
+function NormalisationGroup({ value, onChange, studies }: { value: any; onChange: (v: any) => void; studies: string[] }) {
+  const ref = value?.reference ?? {};
+  const st: string[] = ref.studies == null ? [] : ([] as string[]).concat(ref.studies);
+  const put = (k: string, x: any) => {
+    const r = { ...ref };
+    if (x == null || x === "" || (Array.isArray(x) && !x.length)) delete r[k];
+    else r[k] = x;
+    const n = { ...(value ?? {}) };
+    if (Object.keys(r).length) n.reference = r;
+    else delete n.reference;
+    onChange(Object.keys(n).length ? n : null);
+  };
+  return (
+    <Group title="Reference games" footer="normalisation.reference (project only). Freezing the reference (hani2 scores freeze) records the medians these games give; until then the scales are provisional.">
+      <Row label="Studies" help="normalisation.reference" hint="The studies whose games give the reference medians (none ticked: every study of the project)" wide>
+        <Checks value={st} onChange={(x) => put("studies", x)} options={[...new Set([...studies, ...st])].map((x) => ({ value: x, label: x }))} />
+      </Row>
+      <Row label="Games until" help="normalisation.reference" hint="Only games started on or before this date (empty: all)">
+        <TextField label="Games until" type="date" className="w-40" value={ref.end ?? ""} onChange={(x) => put("end", x)} />
+      </Row>
+    </Group>
+  );
+}
+
+/** ``information.briefing`` as a list of private instructions, each for the participant, the Assistant or both,
+ *  and optionally one role. Entries with more than that (``constraints``, ``pin``) are kept as they are. */
+function BriefingList({ value, onChange }: { value: any; onChange: (v: any) => void }) {
+  const toList = (raw: any): any[] => {
+    if (raw == null) return [];
+    if (typeof raw === "string") return raw.trim() ? [{ text: raw }] : [];
+    if (Array.isArray(raw)) return raw.flatMap(toList);
+    if (typeof raw === "object") {
+      if ("text" in raw || "constraints" in raw || "to" in raw) return [raw];
+      return Object.entries(raw).flatMap(([role, v]) => toList(v).map((e) => ({ role, ...e })));
+    }
+    return [];
+  };
+  const list = toList(value);
+  const put = (n: any[]) => onChange(n.length ? n : null);
+  const edit = (i: number, k: string, x: any) => put(list.map((e, j) => (j === i ? (x === "" || x == null ? (({ [k]: _, ...r }) => r)(e) : { ...e, [k]: x }) : e)));
+  return (
+    <div className="flex w-full flex-col gap-2" data-briefings>
+      {list.map((e, i) => (
+        <div key={i} className="flex flex-col gap-1.5 rounded-lg border border-line p-2">
+          <TextArea label={`Briefing ${i + 1}`} value={e.text ?? ""} rows={2} onChange={(x) => edit(i, "text", x)} placeholder="Your manager will not approve a rent above 3200." />
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Select label="For" value={e.to ?? ""} onChange={(x) => edit(i, "to", x)} options={[{ value: "", label: "The participant (default)" }, { value: "human", label: "The participant" }, { value: "assistant", label: "The Assistant" }, { value: "both", label: "Both" }]} />
+            <TextField label="Role" value={e.role ?? ""} onChange={(x) => edit(i, "role", x)} placeholder="any role" className="w-32" />
+            {(e.constraints || e.pin) && <span className="text-muted">has {[e.constraints && "constraints", e.pin && "pin"].filter(Boolean).join(" and ")}: edit those in the file below</span>}
+            <button type="button" className="btn-ghost ml-auto px-1.5 text-bad" onClick={() => put(list.filter((_, j) => j !== i))}>Remove</button>
+          </div>
+        </div>
+      ))}
+      <button type="button" className="btn-secondary self-start text-xs" onClick={() => put([...list, { text: "" }])}>
+        <Plus size={13} /> Add a briefing
+      </button>
+    </div>
+  );
+}
+
+function ExtraGroup({ data, keys, onChange, prefix, reserved = [] }: { data: any; keys: string[]; onChange: (k: string, v: any) => void; prefix: string; reserved?: string[] }) {
   const [k, setK] = useState("");
+  const taken = reserved.includes(k);
   return (
     <Group title="Custom variables" footer={`Other keys of the file; texts use them as {{${prefix}_<key>}}.`}>
       {keys.map((x) => (
@@ -457,9 +601,10 @@ function ExtraGroup({ data, keys, onChange, prefix }: { data: any; keys: string[
       ))}
       <Row label="Add a variable">
         <TextField label="New variable name" value={k} onChange={setK} className="w-40" placeholder="sponsor" />
-        <button className="btn-secondary" disabled={!/^[A-Za-z0-9_]+$/.test(k) || keys.includes(k)} onClick={() => (onChange(k, ""), setK(""))}>
+        <button className="btn-secondary" disabled={!/^[A-Za-z0-9_]+$/.test(k) || keys.includes(k) || taken} onClick={() => (onChange(k, ""), setK(""))}>
           <Plus size={14} /> Add
         </button>
+        {taken && <span className="text-xs text-warn" data-reserved-name>{k} is a setting: set it with its row above, or in the file below.</span>}
       </Row>
     </Group>
   );
@@ -477,6 +622,33 @@ function SaveRow({ dirty, save, where }: { dirty: boolean; save: () => void; whe
 }
 
 /* ---------- a project ---------- */
+/** The whole project.yaml / study.yaml as text: every key, also those without a row above. The
+ *  server checks it as it checks the rows (and refuses what they would refuse). */
+function RawYaml({ url, text, file, dirty, onSaved }: { url: string; text: string; file: string; dirty: boolean; onSaved: () => void }) {
+  return (
+    <RawFile
+      id={`raw-${file.replace(".", "-")}`}
+      title={`${file} as YAML`}
+      text={text ?? ""}
+      load={() => api(url).then((r: any) => String(r.yaml ?? ""))}
+      parse={() => ""}
+      locked={dirty}
+      lockedNote="Save or discard the changes above first: both write this file."
+      footer="Every key of the file. The server checks it when you save (unknown methods, a mode that disagrees with the pools, scores, …) and refuses it with the reason."
+      save={async (t) => {
+        try {
+          await api(url, { method: "PUT", body: { yaml: t } });
+          toast(`Saved ${file}`);
+          onSaved();
+        } catch (e: any) {
+          toast(e.message, "error");
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 export function ProjectView({ name }: { name: string }) {
   const [d, setD] = useState<any>(null);
   const [data, setData] = useState<any>(null);
@@ -549,11 +721,13 @@ export function ProjectView({ name }: { name: string }) {
       {!isDefault && (
         <>
           <ScoresGroup project={name} onChange={refreshScores} />
+          <NormalisationGroup value={data.defaults?.normalisation} onChange={(x) => set("defaults", putKey(data.defaults, "normalisation", x))} studies={d.studies.map((st: any) => st.name)} />
           <ScoresEnabledGroup value={data.defaults?.scores_enabled} onChange={(x) => set("defaults", putKey(data.defaults, "scores_enabled", x))} project={name} inherit="Default" version={scoresVersion} />
           <LeaderboardSettings value={data.defaults?.leaderboard} onChange={(x) => set("defaults", putKey(data.defaults, "leaderboard", x))} project={name} kind={data.kind ?? "none"} info={d.editor?.leaderboard} studies={d.studies.map((s: any) => s.name)} version={scoresVersion} />
         </>
       )}
-      <ExtraGroup data={data} keys={extraKeys(data, PROJECT_FIELDS, "defaults")} onChange={set} prefix="project" />
+      <ExtraGroup data={data} keys={extraKeys(data, PROJECT_FIELDS, "defaults")} onChange={set} prefix="project" reserved={meta?.setting_keys?.project} />
+      {!isDefault && <RawYaml url={url} text={d.yaml} file="project.yaml" dirty={dirty} onSaved={load} />}
       <Group title={`Studies (${d.studies.length})`}>
         {d.studies.map((s: any) => (
           <Disclosure
@@ -694,7 +868,9 @@ export function StudyView({ project, study }: { project: string; study: string }
       <ScoresGroup project={project} study={study} onChange={refreshScores} />
       <ScoresEnabledGroup value={data.overrides?.scores_enabled} onChange={(x) => set("overrides", putKey(data.overrides, "scores_enabled", x))} project={project} study={study} inherit="Project" version={scoresVersion} />
       <LeaderboardSettings value={data.overrides?.leaderboard} onChange={(x) => set("overrides", putKey(data.overrides, "leaderboard", x))} project={project} study={study} kind={d.editor?.kind ?? "none"} info={d.editor?.leaderboard} version={scoresVersion} />
-      <ExtraGroup data={data} keys={extraKeys(data, STUDY_FIELDS, "overrides")} onChange={set} prefix="study" />
+      <HostedOverride value={data.overrides?.hosted} onChange={(x) => set("overrides", putKey(data.overrides, "hosted", x))} />
+      <ExtraGroup data={data} keys={extraKeys(data, STUDY_FIELDS, "overrides")} onChange={set} prefix="study" reserved={meta?.setting_keys?.study} />
+      <RawYaml url={url} text={d.yaml} file="study.yaml" dirty={dirty} onSaved={load} />
       <SaveRow dirty={dirty} save={save} where={`study.yaml of ${project}/${study}`} />
     </>
   );

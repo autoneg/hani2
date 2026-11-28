@@ -107,6 +107,18 @@ def layer_of(path: Path) -> str:
     return "settings"
 
 
+def named_forms() -> list[str]:
+    """The names a form can be given in env.json (``"questionnaire": "evaluation"``): the bundled forms
+    and the files in the settings folder's ``questionnaires/``."""
+    from hani2.config import DEFAULT_SETTINGS_DIR, settings_dir
+
+    out: set[str] = set()
+    for d in (DEFAULT_SETTINGS_DIR / "questionnaires", settings_dir() / "questionnaires"):
+        if d.is_dir():
+            out.update(p.stem for p in d.glob("*.yaml"))
+    return sorted(out)
+
+
 def candidates(form: Form | str) -> list[tuple[str, Path]]:
     """Every file the lookup tries, in order, with where it came from."""
     from hani2.config import get_env, settings_dir, settings_layers

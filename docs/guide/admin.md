@@ -68,6 +68,10 @@ Pages whose settings can live in a layer start with an **Edit and save in** bar.
 
 When the console is opened inside a study (`/s/<project>/<study>/admin`), it starts with that study's layer chosen, and the bar names the study. It never saves to another layer behind your back: every read and write names its layer explicitly. (The API refuses a settings write that names no layer from inside a study; see the [admin API](project-management.md#admin-api).)
 
+### Editing the whole file
+
+Every settings page that edits a JSON file (General, Negotiation, Participant interface, Tool settings, Language model, Assistant settings, Autopilot) ends with **<layer>: <file> as JSON**, and every project and study ends with **project.yaml as YAML** / **study.yaml as YAML**. **Edit the file** opens the layer's own file as text: every key it sets, including any key that has no control on the page. **Save the file** replaces the file. JSON that does not parse, or is not an object, cannot be saved. A project or study file is checked as the rows are, and a refusal names what to fix. The editor stays locked while the page has unsaved changes, because both write the same file. The JSON files show only the layer's own values: everything else is inherited.
+
 General and Connections are the exceptions: sign-in, identity and the model connections apply to the whole server and are always saved in the settings folder.
 
 Saved settings apply to sessions created after saving. Sessions already open keep their settings.
@@ -114,12 +118,14 @@ Every choice whose meaning is not plain has a **?** after its name. It opens a d
 - **Defaults for its studies**:
     - **Mode** (Solo, Paired, Mixed, or derived from the opponents when unset). When the mode and the opponent pool disagree, a red note under the row says why, and **Save** is refused until they agree. When no file names an opponent pool, the check uses the pool of the `env.json` layers, and a note says so. In a HAN project, Paired shows the note "tests no HAN agent; its results are not ranked".
     - **HAN agents** (not shown for Paired): pick a year and a set (all, qualified, finalists, winners) and **Add** writes `:han<year>-<set>` into the layer's opponent pool. "This year" and "last year" are labels computed from the project's **Year**; a year that no source covers is greyed out ("no agents for 2025").
-    - the scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, the participant's role rule and preferred roles, and what the participant and the Assistant each know. An empty field keeps the default.
+    - the scenario set, counted negotiations (`n_required`), practice round, practice and counted time limits, time limit, rounds, expected minutes, whether the Assistant starts on (`assistant_starts_on`), whether there are questionnaires at all (`questionnaires`), the party the questionnaires ask about (`questionnaire_agent`), and the participant's role rule and preferred roles. An empty field keeps the default.
+    - **Who knows what** (`information`): what the participant and the Assistant each know of the preferences, the value on disagreement, past negotiations and market research, the **briefings** (private instructions for the participant, the Assistant or both, optionally for one role), and the issues and actions only the participant may decide. **More information settings** shows the rest: the scenario's own briefing and where it goes, deal values with partial preferences, how past negotiations are simulated (opponent's preferences, how different "similar" is, sharing, assignment, utilities shown, rounds, negotiators, the scenario's own records, seed) and the details of market research (sides, profiles, spread). See [Who knows what](information.md).
 - **Pairing** (only for Paired and Mixed): where people meet, how a match is formed (`cells` first in Paired, `random` first in Mixed), the slack, the scenario in a cell, same-Assistant matches, what happens when nobody fits and the fallback opponents. Each empty field shows the value in effect.
 - **Scheduling**: how opponents, Assistants and scenarios are assigned to each human (`scheduling` in the file), from the server's [scheduling methods](scheduling.md). Each row shows the method in use and a one-line summary; a method chosen here is marked *set here*, and the first entry of the menu inherits it again. The `?` of each dimension lists its methods. **K of N** compares the counted negotiations ($K$) with the number of Assistants in the pool ($N$), and turns orange when $K > N$ under a method that promises each Assistant at most once while repeats are off, since saving is then refused. **Repeats** sets `assistant_repeats` (may a person get the same Assistant twice?) and **Crossing** sets `cross` (`shift` crosses the Assistants with the opponents; the hint says whether it applies to the methods chosen). The rows follow the Mode: in Paired the opponent is the other person, so **Opponents** and **Crossing** show *not used*, and the Assistants row says that the method gives each person a set of Assistants (in a Paired HAN study, which has no Assistants, that row is *not used* too). **About these methods** opens a page that explains every method with its formulas, examples, advantages and disadvantages.
 - **Scores**: every score of the project. Built-in scores are read-only, and **Duplicate** copies one into the file; your own scores have **Edit** and **Remove**. **New score** opens the score builder (below). Score changes are saved at once.
+- **Reference games** (projects only, `normalisation.reference`): the studies and the last date whose games give the medians that scale the unbounded criteria (see [The frozen reference](project-management.md#the-frozen-reference)).
 - **Scores enabled**: which scores the boards, results views and exports compute and show. **Choose here** starts from the scores in effect; the reset button goes back to the default. This one is saved with the page.
-- **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for.
+- **Custom variables**: any other key of the file, used in texts as `{{project_<key>}}`. Add and remove them here; saving keeps every key, including those the console has no field for. A name that is a setting (`assistant_starts_on`, `scheduling`, …) cannot be added here: use its row, or the file editor.
 - **Studies**, with **New study** (a name and a type).
 
 Open a study to see and edit:
@@ -128,7 +134,7 @@ Open a study to see and edit:
 - **Results**: the number of participants and of recorded negotiations, and **Open in this study**.
 - **Assistant balance**: how many counted humans each Assistant of the pool has, and every assignment.
 - **Study**: type, title, link, year, start and end dates, organizer, contact; **Completion**: Prolific study id, completion code, completion URL and the end text.
-- **Overrides of the project's defaults** (the same rows as the project's, Mode and HAN agents included; empty: the project's value), **Pairing**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default), **Scores** (the project's and the study's: a project score can be **redefined here**), **Scores enabled** and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
+- **Overrides of the project's defaults** (the same rows as the project's, Mode and HAN agents included; empty: the project's value), **Pairing**, **Scheduling** (each dimension shows the method the study uses; empty: the project's choice, else the server default), **Scores** (the project's and the study's: a project score can be **redefined here**), **Scores enabled**, **Self-hosted mode** (the study's own `hosted:` block, which replaces the project's) and **Custom variables** (`{{study_<key>}}`). Problems in `study.yaml` (an unknown scheduling method, a setting given twice) are shown at the top of the page.
 
 **Save** writes `project.yaml` or `study.yaml`. A file the checks refuse (for example a mode that contradicts the pool) is not written, and the message names what to fix. See [Project management](project-management.md) and [Study management](study-management.md).
 
@@ -161,10 +167,12 @@ Consent is recorded per study (see [Consent per study](study-management.md#conse
 Pick the layer, then:
 
 - **Consent.** *Ask study participants for consent* (`auth.participant_consent` in the layer's `env.json`) shows the consent form to Prolific and online / lab participants before their first negotiation. The reset button removes the layer's own value.
+- **All questionnaires.** *Ask the questionnaires* (`questionnaires` in the layer's `env.json`): off, no form at all. A project or study can do the same with **Questionnaires: No** in its defaults.
 - **Form.** One of **Pre-questionnaire**, **After each negotiation** and **Post-session**.
+- **Named form.** A bundled or named form (`expertise`, `evaluation`, or a file in a `questionnaires/` folder) set in the layer's `env.json` (`pre_questionnaire`, `questionnaire`, `post_questionnaire`). It wins over every layer's file; **None** removes the name.
 - **In effect here** says whether the form is on (and how many questions it has), switched off or not set up, and where it comes from: this layer, a layer above, or an environment variable or `env.json` name that wins over every file (shown as a warning). **Copy the inherited form** starts this layer's own file from the inherited one, **Switch off here** writes `enabled: false`, and **Remove this layer's file** goes back to the inherited form.
 - **Add predefined questionnaires** lists the predefined question sets for the form (UEQ, UEQ-S, TAM, trust in automation, the Subjective Value Inventory, NASA-TLX, SUS, demographics, …) with their description, source and items; tick sets and **Add** them to the editor.
-- The editor holds the layer's file, as **Items** or as **YAML**. As items, you can reorder, remove, edit and add questions, and edit the title and intro. A notice appears when a scored item of a published instrument is edited or removed. **Preview** shows the form as participants see it, and lists any problems; **Save** refuses a file with problems.
+- The editor holds the layer's file, as **Items** or as **YAML**. As items, you can reorder, remove, edit and add questions, and edit the title and intro. Each item has its id, text, type, whether it is required, when it is asked (always, only with an Assistant, or only with the party the questionnaires ask about), every label of a 1–5 or 1–7 scale, its options, and its scoring: scale, reversed, whether higher or lower is better, and the answer range. A pre-questionnaire also has **Participant type**: the question whose answer is the participant's type, and how answers map to types. A notice appears when a scored item of a published instrument is edited or removed. **Preview** shows the form as participants see it, and lists any problems; **Save** refuses a file with problems.
 
 See [Study forms](study-forms.md#editing-the-items-of-a-form).
 
@@ -172,7 +180,7 @@ See [Study forms](study-forms.md#editing-the-items-of-a-form).
 
 The explorer of the predefined question sets: search, filter by form, and three groups (published instruments, your own sets, built-in sets). Open a set to see its questions, scales, ✓, source warning (administrators only), source link and the path of its file, with a copy button.
 
-- **Edit** (sets without a published source) opens the set's YAML with live checks. Saving a bundled set writes an override to `questionnaire_library/<id>.yaml` in the settings folder. Saving your own set rewrites its file.
+- **Edit** (sets without a published source) opens the set as **Items** (its fields and questions, as in the form item editor) or as **YAML**, with live checks. Saving a bundled set writes an override to `questionnaire_library/<id>.yaml` in the settings folder. Saving your own set rewrites its file.
 - **Copy as new** (every set) and **New set** add a set with a new id. A copy records `based_on` and `copied_from`.
 - Published instruments are read-only: the page offers only **Copy as new**, and the API refuses edits.
 - There is no delete button. Each own set shows the `rm <path>` command that deletes it. Removing an override brings the bundled set back.
@@ -323,15 +331,19 @@ Edits `env.json` in the settings folder.
 | --- | --- |
 | Title, Subtitle | `title`, `subtitle` |
 | Public address (used in participant links) | `public_url` |
-| Sign-in: username and password, OAuth only, password and OAuth, or no sign-in | `auth.mode` (`password`, `oauth`, `dual`, `none`) |
+| Help link | `docs_url` |
+| Sign-in: username and password, OAuth only, password and OAuth, no sign-in, or automatic | `auth.mode` (`password`, `oauth`, `dual`, `none`, `auto`) |
 | People can create accounts | `auth.allow_registration` |
 | Require consent | `auth.enforce_consent` |
 | Playground | `playground.enabled` |
 | Admin emails | `admin.emails` |
+| Admins with a default password: automatic, always refuse, always allow | `auth.default_password_login` (`auto`, `refuse`, `allow`) |
 | OAuth redirect base | `oauth.redirect_uri` |
+| Sign in with GitHub / Google | `oauth.providers.github.enabled`, `oauth.providers.google.enabled` |
 | GitHub and Google client id and secret | `oauth.providers.github.key` / `.secret`, `oauth.providers.google.key` / `.secret` |
+| Single sign-on (hand-off) providers: on, shared secret, button label, login page, issuer, user-name prefix, trust its admin claim | `auth.sso.<name>` (`enabled`, `secret`, `label`, `login_url`, `issuer`, `prefix`, `trust_admin_claim`) |
 
-A provider is used when it has both a key and a secret and is not explicitly disabled.
+An OAuth provider is used when it is switched on and has both a key and a secret (the bundled `env.json` switches both off). A hand-off provider needs a secret of at least 16 characters; `HANI2_SSO_<NAME>_SECRET` wins over the one in the file.
 
 ## Negotiation
 
@@ -342,6 +354,9 @@ A provider is used when it has both a key and a secret and is not explicitly dis
 | Timing | Rounds (`n_steps`), time limit (`time_limit`), time per step (`step_time_limit`), negotiator time (`negotiator_time_limit`), end probability per step and per second (`pend`, `pend_per_second`). Empty means no limit. |
 | Negotiation rules | An empty offer ends the negotiation (`end_on_no_response`), messages without an offer (`allow_text_only_offers`), the opponent's messages (`allow_text_agent`), the participant's message field (`allow_text_human`), text-only mode (`text_only_mode`), writing a message when none is given (`auto_generate`), reading the offer out of a message (`auto_extract`), where the editor starts (`init_with_last`, `init_with_best`). |
 | Scenarios and opponents | Saved scenario pools (`load_existing`), generating when none is saved (`generate_on_failure`), the scenario set (`scenario_set`), the scenario order (`predefined_order`), participants choosing the scenario (`allow_scenario_selection`, the older switch), the role rule, preferred roles and seat (`role_rule`, `human_roles`, `human_index`), showing the opponent's type (`show_opponent_type`), the opponent agents (`opponent_types`). |
+| Recording | Record sessions (`recording.enabled`, on by default; `HANI2_RECORD=0` on the server switches it off whatever the file says). |
+| HAN league agents | The current HAN year (`han.current_year`), the imported submissions folder (`han.import_dir`) and each year's submissions folder (`han.submissions.<year>.dir`). |
+| Who knows what (every project) | `negotiation.information`: the same rows as a project's, as defaults under every project and study. |
 | What participants may choose | Whether participants pick the scenario, the opponent and the Assistant of a negotiation, and from which set: *Not allowed*, *Any from the pool* or *Only these*. With the settings folder selected it is the playground's setting (`playground.choices`); with a project or a study selected, that layer's own `choices`. Never in Prolific studies. See [What participants may choose](configuration.md#what-participants-may-choose). |
 
 The links at the top open the opponent pool, the scenario sets and the Participant interface page. See [`negotiation`](configuration.md#negotiation) for every key.
@@ -353,13 +368,16 @@ The links at the top open the opponent pool, the scenario sets and the Participa
 - **Participants may change**: one switch per participant setting: the display settings (including the scenario's picture and whether the full scenario description opens), **Layout for**, the theme, the layout view, and the Assistant's on/off switch, autonomy, abilities and delivery. Off: participants of that layer do not see the control and the server refuses the change (`interface.participant_settings.<key>`).
 - **Defaults of the participant's settings** (`interface.prefs.<key>`), among them **Show the scenario's picture** (`show_scenario_picture`, on), **Scenario picture style** (`scenario_picture_style`: small, large or watermark; unset: the scenario's, else small) and **Open the full scenario description** (`open_scenario_description`, off: the *Scenario Info* tool shows it collapsed when a scenario loads).
 - **Tools**: participants may move tools between panes (`negotiation.allow_moving_tools`) and switch them on and off (`negotiation.allow_tool_switch`).
+- **Text size** of a new session (`interface.prefs.font_scale`, 0.7 to 1.6).
+- **Names of the sides**: when "human" and "agent" read as the participant and the opponent (`names.apply`: with an Assistant, always or never) and the two labels (`names.self`, `names.opponent`).
+- **Browser AI agents (WebMCP)**: whether the page offers tools to an AI agent in the browser (`webmcp.enabled`), whether they may act (`webmcp.actions`) and whether Prolific participants get them (`webmcp.studies`, off by default).
 - **Notifications**: how long they stay (`interface.notifications.toast_seconds`) and the notification list in the header (`interface.notifications.center`).
 
 How the Assistant appears (panel, character, both or the participant's choice) is on the Assistant settings page. See [`interface`](configuration.md#interface).
 
 ## Tool settings
 
-`env.json` → `tools`, per layer. **Enlarged tools open as** a large window, the full screen, or not at all (`tools.maximize`: `window`, `fullscreen`, `off`; see [The interface](interface.md#enlarge-and-put-back)). **Participants see opponent utilities** (`tools.show_opponent_utility`). **Extra tools** (`tools.extra`, class paths such as `my_pkg.tools:MyTool`). Then one row per registered tool with its description, pane and timing, and two switches: **Offered** (off adds it to `tools.disabled`) and **Admins only** (`tools.overrides.<name>.admin_only`). See [Tools](tools.md).
+`env.json` → `tools`, per layer. **Enlarged tools open as** a large window, the full screen, or not at all (`tools.maximize`: `window`, `fullscreen`, `off`; see [The interface](interface.md#enlarge-and-put-back)). **Participants see opponent utilities** (`tools.show_opponent_utility`). **Extra tools** (`tools.extra`, class paths such as `my_pkg.tools:MyTool`) and **Extra tool folders** (`tools.paths`). Then one row per registered tool with its description, pane and timing: **Offered** (off adds it to `tools.disabled`), **Admins only**, **Appears** (with the page, when a scenario loads, when the negotiation starts, when it ends, or only when the Assistant adds it), **Starts on**, **Guests** and **First tab** (`tools.overrides.<name>.admin_only`, `.timing`, `.enabled`, `.guest`, `.at_front`). Where each tool goes in each view is on the Tools page. See [Tools](tools.md).
 
 ## Language model
 

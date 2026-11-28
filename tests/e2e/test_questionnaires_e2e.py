@@ -31,6 +31,11 @@ def test_add_a_set_and_see_it_in_add_predefined_questionnaires(new_page):
     expect(details).to_contain_text("default_settings/questionnaire_library/tam_ease.yaml")
     # a new set
     p.get_by_role("button", name="New set").click()
+    # the set opens as items: its header fields and the blank set's question
+    fields = p.locator("[data-set-fields]")
+    expect(fields.get_by_label("Set title")).to_have_value("My questions")
+    expect(p.locator('[data-item="my_question"]')).to_be_visible()
+    p.locator("#questionnaire-set-editor").get_by_role("tab", name="YAML").click()
     editor = p.get_by_label("Set (YAML)")
     editor.fill(f"id: {sid}\ntitle: {title}\nforms: [post_session]\nquestions:\n  - {{id: e2e_q, text: Bad, type: nope}}\n")
     expect(p.locator("[data-problems]")).to_contain_text("unknown type")

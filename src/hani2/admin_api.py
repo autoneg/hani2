@@ -412,6 +412,7 @@ def admin_questionnaire_library(layer: str | None = None):
 
     ref = _layer_study(layer)
     return {"agent": questionnaires.agent_role(ref), "kind": projects.get_project(ref).kind,
+            "named_forms": questionnaires.named_forms(),
             "sets": [{**s, **catalog.questionnaire_payload(s["id"])} if s.get("source") == "bundled" else
                      {**s, "validated": False, "warning": ""} for s in questionnaires.library().values()],
             "validated_tooltip": catalog.VALIDATED_SOURCE_TOOLTIP,

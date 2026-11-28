@@ -1,0 +1,1 @@
+import{c as a}from"./index-2UgjsYsR.js";const e={name:"pound-sterling",size:24,node:[["path",{d:"M17 18a2 2 0 01-2 2H5a3 3 0 003-3V8a4 4 0 018 0",key:"cv9piq"}],["path",{d:"M6 12h7",key:"1re8yl"}]]};e.node;const o=a(e);export{e as __iconData,o as default};

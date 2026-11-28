@@ -8,6 +8,7 @@ import { TextArea } from "../controls/TextField";
 import { Note, Spinner } from "../schema";
 import { toast } from "../toast";
 import { VALIDATED_SOURCE_TIP, ValidatedMark } from "../../ui/metricGroups";
+import { FormItemsEditor } from "./FormItemsEditor";
 
 /** A set as ``GET /api/admin/questionnaire-library`` lists it (hani2.questionnaire_library.entries). */
 export interface QSet {
@@ -312,6 +313,7 @@ export function QuestionTable({ questions }: { questions: any[] }) {
 
 function SetEditor({ editing, set, ownDir, onClose, onSaved }: { editing: Editing; set?: QSet; ownDir: string; onClose: () => void; onSaved: (id: string) => void }) {
   const [text, setText] = useState(editing.text);
+  const [mode, setMode] = useState<"items" | "yaml">("items");
   const [problems, setProblems] = useState<string[] | null>(null);
   const original = editing.mode === "edit" ? editing.id : null;
   useEffect(() => {
@@ -357,9 +359,16 @@ function SetEditor({ editing, set, ownDir, onClose, onSaved }: { editing: Editin
             <Note tone="warn">{set.warning}</Note>
           </div>
         )}
-        <div className="p-3">
-          <TextArea label="Set (YAML)" value={text} rows={22} mono onChange={setText} />
+        <div className="flex justify-end px-4 pt-2">
+          <Segmented label="Edit as" value={mode} onChange={setMode} options={[["items", "Items"], ["yaml", "YAML"]]} />
         </div>
+        {mode === "items" ? (
+          <FormItemsEditor kind="set" text={text} onText={setText} />
+        ) : (
+          <div className="p-3">
+            <TextArea label="Set (YAML)" value={text} rows={22} mono onChange={setText} />
+          </div>
+        )}
         {problems && problems.length > 0 && (
           <div className="flex items-start gap-2 bg-warn/10 px-4 py-2 text-sm text-warn" data-problems>
             <TriangleAlert size={15} className="mt-0.5 shrink-0" />
