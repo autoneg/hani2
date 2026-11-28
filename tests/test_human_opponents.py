@@ -276,13 +276,16 @@ def test_the_opponent_picker_never_offers_human_entries(hani2_home):
 def test_a_late_joiner_gets_the_full_wait_to_press_start(hani2_home):
     code = uuid.uuid4().hex[:6]
     a = make_session(user="alice", opponent="human+assistant", query={"match": code}, load=False)
-    a.admin_prefs["human_opponent_wait"] = 4.0  # room for a slow runner to load bob's session
+    wait = 6.0  # leaves a slow runner (Windows) seconds to load bob's session within alice's wait
+    a.admin_prefs["human_opponent_wait"] = wait
     a.load()
     a.start()  # alice presses Start alone and waits
-    time.sleep(2.5)
+    t0 = time.monotonic()
+    time.sleep(1.0)
     b = make_session(user="bob", opponent="human+assistant", query={"match": code})
     assert b.match is a.match
-    time.sleep(2.0)  # alice has waited longer than the wait, but bob just arrived
+    # alice has now waited longer than the wait in all, but bob arrived less than the wait ago
+    time.sleep(max(0.0, wait + 0.5 - (time.monotonic() - t0)))
     assert b.match is a.match and a.match.paired
     b.start()
     assert a.wait(lambda: a.phase == "running" and b.phase == "running")

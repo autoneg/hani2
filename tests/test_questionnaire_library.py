@@ -63,7 +63,7 @@ def test_list_shows_origin_path_read_only_and_warnings(admin, lib_dir):
     assert mine["delete"]["command"] == f"rm {shlex.quote(str(lib_dir / 'my_set.yaml'))}" and "disappears" in mine["delete"]["effect"]
     dem = sets["demographics"]
     assert dem["origin"] == "override" and not dem["read_only"] and dem["title"] == "My demographics"
-    assert dem["bundled_path"].endswith("default_settings/questionnaire_library/demographics.yaml")
+    assert dem["bundled_path"].replace("\\", "/").endswith("default_settings/questionnaire_library/demographics.yaml")
     assert "bundled version comes back" in dem["delete"]["effect"]
     # removing the files: the own set disappears, the override reverts to the bundled set
     (lib_dir / "my_set.yaml").unlink()
