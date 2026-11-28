@@ -1,14 +1,15 @@
 id: ueq_eval
 title: "UEQ, 8 items (the evaluation selection)"
-description: "Eight 7-point semantic differentials of the User Experience Questionnaire about the Assistant (items 2, 5, 11, 12, 13, 20, 21, 22). Feeds the ueq_pragmatic and ueq_hedonic scales."
+description: "Eight 7-point semantic differentials of the User Experience Questionnaire about the Assistant or the opponent (the party the study evaluates) (items 2, 5, 11, 12, 13, 20, 21, 22). Feeds the ueq_pragmatic and ueq_hedonic scales."
 reference: "Laugwitz, Held & Schrepp (2008). Construction and evaluation of a user experience questionnaire. USAB 2008."
 forms: [per_negotiation, post_session]
+tags: [assistant, opponent]
 questions:
-  - {id: ueq_understandable, text: "The assistant was …  (1 = not understandable, 7 = understandable)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, labels: {1: "not understandable", 7: "understandable"}}
-  - {id: ueq_valuable, text: "The assistant was …  (1 = valuable, 7 = inferior)", type: likert7, required: true, requires: support_agent, scale: ueq_hedonic, reverse: true, labels: {1: "valuable", 7: "inferior"}}
-  - {id: ueq_supportive, text: "The assistant was …  (1 = obstructive, 7 = supportive)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, labels: {1: "obstructive", 7: "supportive"}}
-  - {id: ueq_good, text: "The assistant was …  (1 = good, 7 = bad)", type: likert7, required: true, requires: support_agent, scale: ueq_hedonic, reverse: true, labels: {1: "good", 7: "bad"}}
-  - {id: ueq_easy, text: "The assistant was …  (1 = complicated, 7 = easy)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, labels: {1: "complicated", 7: "easy"}}
-  - {id: ueq_efficient, text: "The assistant was …  (1 = inefficient, 7 = efficient)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, labels: {1: "inefficient", 7: "efficient"}}
-  - {id: ueq_clear, text: "The assistant was …  (1 = clear, 7 = confusing)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, reverse: true, labels: {1: "clear", 7: "confusing"}}
-  - {id: ueq_practical, text: "The assistant was …  (1 = impractical, 7 = practical)", type: likert7, required: true, requires: support_agent, scale: ueq_pragmatic, labels: {1: "impractical", 7: "practical"}}
+  - {id: ueq_understandable, text: "The {{agent}} was …  (1 = not understandable, 7 = understandable)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, labels: {1: "not understandable", 7: "understandable"}}
+  - {id: ueq_valuable, text: "The {{agent}} was …  (1 = valuable, 7 = inferior)", type: likert7, required: true, requires: agent, scale: ueq_hedonic, reverse: true, labels: {1: "valuable", 7: "inferior"}}
+  - {id: ueq_supportive, text: "The {{agent}} was …  (1 = obstructive, 7 = supportive)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, labels: {1: "obstructive", 7: "supportive"}}
+  - {id: ueq_good, text: "The {{agent}} was …  (1 = good, 7 = bad)", type: likert7, required: true, requires: agent, scale: ueq_hedonic, reverse: true, labels: {1: "good", 7: "bad"}}
+  - {id: ueq_easy, text: "The {{agent}} was …  (1 = complicated, 7 = easy)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, labels: {1: "complicated", 7: "easy"}}
+  - {id: ueq_efficient, text: "The {{agent}} was …  (1 = inefficient, 7 = efficient)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, labels: {1: "inefficient", 7: "efficient"}}
+  - {id: ueq_clear, text: "The {{agent}} was …  (1 = clear, 7 = confusing)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, reverse: true, labels: {1: "clear", 7: "confusing"}}
+  - {id: ueq_practical, text: "The {{agent}} was …  (1 = impractical, 7 = practical)", type: likert7, required: true, requires: agent, scale: ueq_pragmatic, labels: {1: "impractical", 7: "practical"}}

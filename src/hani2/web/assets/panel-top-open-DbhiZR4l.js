@@ -1,1 +1,0 @@
-import{c as t}from"./index-CatE5x23.js";const e={name:"panel-top-open",size:24,node:[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",key:"afitv7"}],["path",{d:"M3 9h18",key:"1pudct"}],["path",{d:"m15 14-3 3-3-3",key:"g215vf"}]]};e.node;const o=t(e);export{e as __iconData,o as default};

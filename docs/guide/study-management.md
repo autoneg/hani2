@@ -90,6 +90,7 @@ The consent form, the welcome text (`announcements.md`), the page title and subt
 | `n_required` | Counted negotiations per participant. |
 | `minutes` | The expected maximum duration in minutes. |
 | `completion_code` | `PROLIFIC_COMPLETION_CODE`, else `completion_code` in `study.yaml`. |
+| `agent`, `Agent` | The party the questionnaires ask about: `assistant` or `opponent` (`Assistant`, `Opponent`). `questionnaire_agent` of the study or its project, else `opponent` in a HAN project (`kind: opponent`) and `assistant` otherwise. See [Questionnaires about the Assistant or the opponent](study-forms.md#questionnaires-about-the-assistant-or-the-opponent). |
 | `project_<key>`, `study_<key>` | Any other key of `project.yaml` / `study.yaml` (and of their defaults / overrides). |
 
 So one consent text can serve every study of a project:

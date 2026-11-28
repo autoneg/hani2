@@ -3,6 +3,7 @@ title: "Opponent perception and relationship"
 description: "How kind, intelligent and human-like the opponent seemed, whether the participant would negotiate with it again and felt connected to it (exit-interview items)."
 reference: "Items of the HANI2 evaluation questionnaire; relationship items after the Subjective Value Inventory."
 forms: [per_negotiation]
+tags: [opponent]
 questions:
   - {id: opponent_kind, text: "How **kind** was your opponent?", type: likert7, required: true, scale: opponent_kindness, labels: {1: "Not at all", 7: "Very"}}
   - {id: opponent_intelligent, text: "How **intelligent** was your opponent?", type: likert7, required: true, scale: opponent_intelligence, labels: {1: "Not at all", 7: "Very"}}

@@ -3,6 +3,7 @@ title: HAN2026-PreSession
 description: 'The questions HAN 2026 asked each participant once, before their first session: negotiation experience, familiarity with AI, own negotiation skill and the skill expected of the opponent agents.'
 reference: "Questionnaires of the HAN 2026 human-agent negotiation competition"
 forms: [pre_questionnaire]
+tags: [opponent]
 questions:
   - {id: experience_negotiation, text: 'How much prior experience do you have negotiating in everyday life (e.g. salary, prices, agreements)?', type: likert5, labels: {1: None, 5: A great deal}, required: true}
   - {id: experience_ai, text: 'How familiar are you with AI / chatbot systems?', type: likert5, labels: {1: Not at all familiar, 5: Very familiar}, required: true}

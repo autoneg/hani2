@@ -3,6 +3,7 @@ title: "Experience with AI assistants"
 description: "How familiar the participant is with AI assistants and how much they expect to rely on one."
 reference: "HANI2 items."
 forms: [pre_questionnaire]
+tags: [assistant]
 questions:
   - {id: ai_use_frequency, text: "How often do you use AI assistants (ChatGPT, Claude, Gemini, Copilot, …)?", type: select, required: true, options: ["Never", "Less than once a month", "A few times a month", "Weekly", "Daily"]}
   - {id: ai_experience, text: "How experienced are you with AI assistants?", type: likert5, required: true, labels: {1: "Not at all", 5: "Very experienced"}}

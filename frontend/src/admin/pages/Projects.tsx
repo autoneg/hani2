@@ -285,6 +285,9 @@ function DefaultsGroup({ title, value, onChange, meta, inherit, footer, ed, effe
       <Row label="Time limit (s)" hint="Per negotiation, outside Prolific studies">{num("time_limit", 30)}</Row>
       <Row label="Rounds" hint="n_steps">{num("n_steps", 10)}</Row>
       <Row label="Expected minutes" hint="minutes, shown in texts as {{minutes}}">{num("minutes", 5)}</Row>
+      <Row label="Questionnaires ask about" help="questionnaire_agent" hint="questionnaire_agent: the party that {{agent}} names in questionnaires tagged for both the Assistant and the opponent">
+        <Select label="Questionnaires ask about" value={v.questionnaire_agent ?? ""} onChange={(x) => put("questionnaire_agent", x || null)} options={[{ value: "", label: inh.questionnaire_agent ? `${inherit} (${inh.questionnaire_agent})` : `From the kind (${(kind ?? live.kind) === "opponent" ? "the opponent" : "the Assistant"})` }, { value: "assistant", label: "The Assistant" }, { value: "opponent", label: "The opponent" }]} />
+      </Row>
       <Row label="Participant's role" help="role_rule" hint="role_rule">
         <Select label="Participant's role" value={v.role_rule ?? ""} onChange={(x) => put("role_rule", x)} options={[{ value: "", label: inherit }, ...Object.keys(meta?.role_rules ?? { auto: 1, index: 1, roles: 1, alternate: 1, random: 1 })]} />
       </Row>

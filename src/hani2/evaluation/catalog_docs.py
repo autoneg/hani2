@@ -216,7 +216,8 @@ def _questions_table(qs: list[dict]) -> str:
             scale += " (reversed)"
         if q.get("direction") == "lower":
             scale += " (lower is better)"
-        extra = " *(only with an Assistant)*" if q.get("requires") == "support_agent" else ""
+        extra = {"support_agent": " *(only with an Assistant)*",
+                 "agent": " *(about the Assistant: only with one)*"}.get(str(q.get("requires") or ""), "")
         rows.append(f"| {i} | `{q.get('id')}` | {_cell(q.get('text', ''))}{extra} | {_cell(_scale_of(q))} | {scale} |")
     return "\n".join(rows)
 
@@ -232,7 +233,15 @@ def _scales_line(qs: list[dict]) -> str:
         " — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`."
 
 
-def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str = "###", reference: str = "") -> list[str]:
+def _about(tags: list[str]) -> str:
+    tags = [t for t in ("assistant", "opponent") if t in (tags or [])]
+    if len(tags) == 2:
+        return "about: the Assistant or the opponent (`{{agent}}`, the party the study evaluates)"
+    return {"assistant": "about: the Assistant", "opponent": "about: the opponent"}.get(tags[0] if tags else "", "about: the participant, the task or the system")
+
+
+def _entry(qid: str, title: str, forms: list[str], qs: list[dict], heading: str = "###", reference: str = "",
+           tags: list[str] | None = None) -> list[str]:
     info = C.questionnaire_info(qid)
     v = bool(info and info.validated_by)
     mark = f" {_mark(info.validated_by, C.VALIDATED_SOURCE_TOOLTIP)}" if v else ""
@@ -281,6 +290,11 @@ def questionnaires_markdown() -> str:
            "the same marks, or with `hani2 questionnaire compose`; see [Study forms](study-forms.md#predefined-questionnaires). "
            "Their scales and items become measures of the [Questionnaires (subjective)](metric-catalog.md#group-subjective) "
            "group, usable in scores and on leaderboards.\n",
+           "Each questionnaire is tagged with the party its questions are about (`tags`): `assistant`, `opponent`, both, "
+           "or none (questions about the participant, the task or the system). A questionnaire tagged with both says "
+           "`{{agent}}` (`{{Agent}}` at the start of a sentence) for the party, and each study fills in the party it "
+           "evaluates: `opponent` in a HAN project (`kind: opponent`), `assistant` otherwise, or what the study's "
+           "`questionnaire_agent` setting says.\n",
            "| Questionnaire | Id | Questions | Validated | Source |\n| --- | --- | --- | --- | --- |"]
     for k in sourced + competition + own:
         d, qi = lib[k], info(k)
@@ -292,7 +306,7 @@ def questionnaires_markdown() -> str:
     out.append("## Standard instruments\n")
     for k in sourced:
         d = lib[k]
-        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"])
+        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"], tags=list(d.get("tags") or []))
     out.append("## Questionnaires of negotiation competitions\n")
     out.append("The questions that human-agent negotiation competitions asked their participants, as asked (typos "
                "included), so that a study can repeat them and compare with the competition's results. They are not "
@@ -300,13 +314,13 @@ def questionnaires_markdown() -> str:
     for k in competition:
         d = lib[k]
         out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"],
-                      reference=str(d.get("reference") or ""))
+                      reference=str(d.get("reference") or ""), tags=list(d.get("tags") or []))
     out.append("## HANI2's own question sets\n")
     out.append("Items written for HANI2 studies. They have no source instrument, so they are not validated against "
                "one; their scales are scored by the same validated rules as every questionnaire.\n")
     for k in own:
         d = lib[k]
-        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"])
+        out += _entry(k, str(d.get("title", k)), list(d.get("forms") or []), d["questions"], tags=list(d.get("tags") or []))
     out.append("## Bundled forms\n")
     out.append("Complete forms that a study can name instead of writing its own (`HANI2_PER_NEG_YAML=evaluation`, or "
                "`\"pre_questionnaire\": \"expertise\"` in `env.json`; see [Study forms](study-forms.md)).\n")

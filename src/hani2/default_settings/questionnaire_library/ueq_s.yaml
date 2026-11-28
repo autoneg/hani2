@@ -1,14 +1,15 @@
 id: ueq_s
 title: "UEQ-S (short User Experience Questionnaire)"
-description: "The 8-item short form of the UEQ: four pragmatic and four hedonic 7-point differentials, negative pole on the left."
+description: "The 8-item short form of the UEQ: four pragmatic and four hedonic 7-point differentials, negative pole on the left, about the Assistant or the opponent (the party the study evaluates)."
 reference: "Schrepp, Hinderks & Thomaschewski (2017). Design and evaluation of a short version of the User Experience Questionnaire (UEQ-S). IJIMAI 4(6)."
 forms: [per_negotiation, post_session]
+tags: [assistant, opponent]
 questions:
-  - {id: ueqs_supportive, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_pragmatic, labels: {1: "obstructive", 7: "supportive"}}
-  - {id: ueqs_easy, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_pragmatic, labels: {1: "complicated", 7: "easy"}}
-  - {id: ueqs_efficient, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_pragmatic, labels: {1: "inefficient", 7: "efficient"}}
-  - {id: ueqs_clear, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_pragmatic, labels: {1: "confusing", 7: "clear"}}
-  - {id: ueqs_exciting, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_hedonic, labels: {1: "boring", 7: "exciting"}}
-  - {id: ueqs_interesting, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_hedonic, labels: {1: "not interesting", 7: "interesting"}}
-  - {id: ueqs_inventive, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_hedonic, labels: {1: "conventional", 7: "inventive"}}
-  - {id: ueqs_leading_edge, text: "The assistant was …", type: likert7, required: true, requires: support_agent, scale: ueqs_hedonic, labels: {1: "usual", 7: "leading edge"}}
+  - {id: ueqs_supportive, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_pragmatic, labels: {1: "obstructive", 7: "supportive"}}
+  - {id: ueqs_easy, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_pragmatic, labels: {1: "complicated", 7: "easy"}}
+  - {id: ueqs_efficient, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_pragmatic, labels: {1: "inefficient", 7: "efficient"}}
+  - {id: ueqs_clear, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_pragmatic, labels: {1: "confusing", 7: "clear"}}
+  - {id: ueqs_exciting, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_hedonic, labels: {1: "boring", 7: "exciting"}}
+  - {id: ueqs_interesting, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_hedonic, labels: {1: "not interesting", 7: "interesting"}}
+  - {id: ueqs_inventive, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_hedonic, labels: {1: "conventional", 7: "inventive"}}
+  - {id: ueqs_leading_edge, text: "The {{agent}} was …", type: likert7, required: true, requires: agent, scale: ueqs_hedonic, labels: {1: "usual", 7: "leading edge"}}

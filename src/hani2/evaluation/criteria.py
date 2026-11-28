@@ -352,7 +352,7 @@ def study_forms(project: str | None = None, study: str | None = None) -> dict[st
     from hani2 import projects, questionnaires
 
     def forms() -> dict[str, dict | None]:
-        return {f: questionnaires.resolve(f).spec for f in FORM_PREFIX}
+        return {f: questionnaires.spec(f) for f in FORM_PREFIX}  # rendered: {{agent}} as the study says
 
     if project is None:
         return forms()

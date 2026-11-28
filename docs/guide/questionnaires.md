@@ -7,6 +7,8 @@ Every predefined questionnaire a project or study can use: what it measures, its
 
 Pick them on the admin console's **Study forms** page (**Add predefined questionnaires**), which shows the same marks, or with `hani2 questionnaire compose`; see [Study forms](study-forms.md#predefined-questionnaires). Their scales and items become measures of the [Questionnaires (subjective)](metric-catalog.md#group-subjective) group, usable in scores and on leaderboards.
 
+Each questionnaire is tagged with the party its questions are about (`tags`): `assistant`, `opponent`, both, or none (questions about the participant, the task or the system). A questionnaire tagged with both says `{{agent}}` (`{{Agent}}` at the start of a sentence) for the party, and each study fills in the party it evaluates: `opponent` in a HAN project (`kind: opponent`), `assistant` otherwise, or what the study's `questionnaire_agent` setting says.
+
 | Questionnaire | Id | Questions | Validated | Source |
 | --- | --- | --- | --- | --- |
 | [NASA-TLX workload (raw, 7-point)](#nasa-tlx) | `nasa_tlx` | 6 | <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_nasa_tlx_matches_source">✓</abbr> | [link](https://doi.org/10.1016/S0166-4115%2808%2962386-9) |
@@ -187,34 +189,34 @@ Scales: `tam_usefulness` (2 items) — each the mean of its items, reversed item
 
 Id `trust_in_automation` · 12 questions · for: `per_negotiation`, `post_session`
 
-**Measures:** Trust in the Assistant (Checklist for Trust between People and Automation).
+**Measures:** Trust in the Assistant or the opponent, the party the study evaluates (Checklist for Trust between People and Automation).
 
 **Source:** [Jian, Bisantz & Drury (2000). Foundations for an empirically determined scale of trust in automated systems. International Journal of Cognitive Ergonomics 4(1), 53–71.](https://doi.org/10.1207/S15327566IJCE0401_04)
 
-**Validated:** Checked against the checklist's 12 items as reproduced in McGrath et al. (2025, Frontiers in Artificial Intelligence, Table 1): wording, 1 = not at all … 7 = extremely, items 1–5 reverse scored, the trust score the mean of the 12. Adapted: “the system” is worded as “the assistant”.
+**Validated:** Checked against the checklist's 12 items as reproduced in McGrath et al. (2025, Frontiers in Artificial Intelligence, Table 1): wording, 1 = not at all … 7 = extremely, items 1–5 reverse scored, the trust score the mean of the 12. Adapted: “the system” is worded as “the assistant” or “the opponent” ({{agent}}).
 
 Scales: `trust_automation` (12 items) — each the mean of its items, reversed items scored backwards, as `scale_<name>` and `scale_<name>_norm`.
 
 | # | Id | Question | Answer | Scale |
 | --- | --- | --- | --- | --- |
-| 1 | `tia_deceptive` | The assistant is deceptive. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 2 | `tia_underhanded` | The assistant behaves in an underhanded manner. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 3 | `tia_suspicious` | I am suspicious of the assistant's intent, action, or output. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 4 | `tia_wary` | I am wary of the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 5 | `tia_harmful` | The assistant's action will have a harmful or injurious outcome. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
-| 6 | `tia_confident` | I am confident in the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 7 | `tia_security` | The assistant provides security. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 8 | `tia_integrity` | The assistant has integrity. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 9 | `tia_dependable` | The assistant is dependable. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 10 | `tia_reliable` | The assistant is reliable. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 11 | `tia_trust` | I can trust the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
-| 12 | `tia_familiar` | I am familiar with the assistant. *(only with an Assistant)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 1 | `tia_deceptive` | The {{agent}} is deceptive. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 2 | `tia_underhanded` | The {{agent}} behaves in an underhanded manner. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 3 | `tia_suspicious` | I am suspicious of the {{agent}}'s intent, action, or output. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 4 | `tia_wary` | I am wary of the {{agent}}. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 5 | `tia_harmful` | The {{agent}}'s action will have a harmful or injurious outcome. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` (reversed) |
+| 6 | `tia_confident` | I am confident in the {{agent}}. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 7 | `tia_security` | The {{agent}} provides security. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 8 | `tia_integrity` | The {{agent}} has integrity. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 9 | `tia_dependable` | The {{agent}} is dependable. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 10 | `tia_reliable` | The {{agent}} is reliable. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 11 | `tia_trust` | I can trust the {{agent}}. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
+| 12 | `tia_familiar` | I am familiar with the {{agent}}. *(about the Assistant: only with one)* | 1–7 (1 = Not at all, 7 = Extremely) | `trust_automation` |
 
 ### UEQ, 8 items (the evaluation selection) {#ueq-eval}
 
 Id `ueq_eval` · 8 questions · for: `per_negotiation`, `post_session`
 
-**Measures:** Usability of the Assistant with eight items of the full UEQ, as two scales (ueq_pragmatic, ueq_hedonic).
+**Measures:** Usability of the Assistant or the opponent (the party the study evaluates) with eight items of the full UEQ, as two scales (ueq_pragmatic, ueq_hedonic).
 
 **Source:** [Laugwitz, Held & Schrepp (2008). Construction and evaluation of a user experience questionnaire. USAB 2008, LNCS 5298, 63–76.](https://www.ueq-online.org/)
 
@@ -224,20 +226,20 @@ Scales: `ueq_pragmatic` (6 items), `ueq_hedonic` (2 items) — each the mean of 
 
 | # | Id | Question | Answer | Scale |
 | --- | --- | --- | --- | --- |
-| 1 | `ueq_understandable` | The assistant was …  (1 = not understandable, 7 = understandable) *(only with an Assistant)* | 1–7 (1 = not understandable, 7 = understandable) | `ueq_pragmatic` |
-| 2 | `ueq_valuable` | The assistant was …  (1 = valuable, 7 = inferior) *(only with an Assistant)* | 1–7 (1 = valuable, 7 = inferior) | `ueq_hedonic` (reversed) |
-| 3 | `ueq_supportive` | The assistant was …  (1 = obstructive, 7 = supportive) *(only with an Assistant)* | 1–7 (1 = obstructive, 7 = supportive) | `ueq_pragmatic` |
-| 4 | `ueq_good` | The assistant was …  (1 = good, 7 = bad) *(only with an Assistant)* | 1–7 (1 = good, 7 = bad) | `ueq_hedonic` (reversed) |
-| 5 | `ueq_easy` | The assistant was …  (1 = complicated, 7 = easy) *(only with an Assistant)* | 1–7 (1 = complicated, 7 = easy) | `ueq_pragmatic` |
-| 6 | `ueq_efficient` | The assistant was …  (1 = inefficient, 7 = efficient) *(only with an Assistant)* | 1–7 (1 = inefficient, 7 = efficient) | `ueq_pragmatic` |
-| 7 | `ueq_clear` | The assistant was …  (1 = clear, 7 = confusing) *(only with an Assistant)* | 1–7 (1 = clear, 7 = confusing) | `ueq_pragmatic` (reversed) |
-| 8 | `ueq_practical` | The assistant was …  (1 = impractical, 7 = practical) *(only with an Assistant)* | 1–7 (1 = impractical, 7 = practical) | `ueq_pragmatic` |
+| 1 | `ueq_understandable` | The {{agent}} was …  (1 = not understandable, 7 = understandable) *(about the Assistant: only with one)* | 1–7 (1 = not understandable, 7 = understandable) | `ueq_pragmatic` |
+| 2 | `ueq_valuable` | The {{agent}} was …  (1 = valuable, 7 = inferior) *(about the Assistant: only with one)* | 1–7 (1 = valuable, 7 = inferior) | `ueq_hedonic` (reversed) |
+| 3 | `ueq_supportive` | The {{agent}} was …  (1 = obstructive, 7 = supportive) *(about the Assistant: only with one)* | 1–7 (1 = obstructive, 7 = supportive) | `ueq_pragmatic` |
+| 4 | `ueq_good` | The {{agent}} was …  (1 = good, 7 = bad) *(about the Assistant: only with one)* | 1–7 (1 = good, 7 = bad) | `ueq_hedonic` (reversed) |
+| 5 | `ueq_easy` | The {{agent}} was …  (1 = complicated, 7 = easy) *(about the Assistant: only with one)* | 1–7 (1 = complicated, 7 = easy) | `ueq_pragmatic` |
+| 6 | `ueq_efficient` | The {{agent}} was …  (1 = inefficient, 7 = efficient) *(about the Assistant: only with one)* | 1–7 (1 = inefficient, 7 = efficient) | `ueq_pragmatic` |
+| 7 | `ueq_clear` | The {{agent}} was …  (1 = clear, 7 = confusing) *(about the Assistant: only with one)* | 1–7 (1 = clear, 7 = confusing) | `ueq_pragmatic` (reversed) |
+| 8 | `ueq_practical` | The {{agent}} was …  (1 = impractical, 7 = practical) *(about the Assistant: only with one)* | 1–7 (1 = impractical, 7 = practical) | `ueq_pragmatic` |
 
 ### UEQ-S (short User Experience Questionnaire) <abbr title="validated against the source instrument: tests/validation/test_validate_questionnaires.py::test_ueq_s_matches_source">✓</abbr> {#ueq-s}
 
 Id `ueq_s` · 8 questions · for: `per_negotiation`, `post_session`
 
-**Measures:** User experience of the Assistant: pragmatic quality (supportive, easy, efficient, clear) and hedonic quality (exciting, interesting, inventive, leading edge).
+**Measures:** User experience of the Assistant or the opponent (the party the study evaluates): pragmatic quality (supportive, easy, efficient, clear) and hedonic quality (exciting, interesting, inventive, leading edge).
 
 **Source:** [Schrepp, Hinderks & Thomaschewski (2017). Design and evaluation of a short version of the User Experience Questionnaire (UEQ-S). IJIMAI 4(6), 103–108.](https://doi.org/10.9781/ijimai.2017.09.001)
 
@@ -247,14 +249,14 @@ Scales: `ueqs_pragmatic` (4 items), `ueqs_hedonic` (4 items) — each the mean o
 
 | # | Id | Question | Answer | Scale |
 | --- | --- | --- | --- | --- |
-| 1 | `ueqs_supportive` | The assistant was … *(only with an Assistant)* | 1–7 (1 = obstructive, 7 = supportive) | `ueqs_pragmatic` |
-| 2 | `ueqs_easy` | The assistant was … *(only with an Assistant)* | 1–7 (1 = complicated, 7 = easy) | `ueqs_pragmatic` |
-| 3 | `ueqs_efficient` | The assistant was … *(only with an Assistant)* | 1–7 (1 = inefficient, 7 = efficient) | `ueqs_pragmatic` |
-| 4 | `ueqs_clear` | The assistant was … *(only with an Assistant)* | 1–7 (1 = confusing, 7 = clear) | `ueqs_pragmatic` |
-| 5 | `ueqs_exciting` | The assistant was … *(only with an Assistant)* | 1–7 (1 = boring, 7 = exciting) | `ueqs_hedonic` |
-| 6 | `ueqs_interesting` | The assistant was … *(only with an Assistant)* | 1–7 (1 = not interesting, 7 = interesting) | `ueqs_hedonic` |
-| 7 | `ueqs_inventive` | The assistant was … *(only with an Assistant)* | 1–7 (1 = conventional, 7 = inventive) | `ueqs_hedonic` |
-| 8 | `ueqs_leading_edge` | The assistant was … *(only with an Assistant)* | 1–7 (1 = usual, 7 = leading edge) | `ueqs_hedonic` |
+| 1 | `ueqs_supportive` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = obstructive, 7 = supportive) | `ueqs_pragmatic` |
+| 2 | `ueqs_easy` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = complicated, 7 = easy) | `ueqs_pragmatic` |
+| 3 | `ueqs_efficient` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = inefficient, 7 = efficient) | `ueqs_pragmatic` |
+| 4 | `ueqs_clear` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = confusing, 7 = clear) | `ueqs_pragmatic` |
+| 5 | `ueqs_exciting` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = boring, 7 = exciting) | `ueqs_hedonic` |
+| 6 | `ueqs_interesting` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = not interesting, 7 = interesting) | `ueqs_hedonic` |
+| 7 | `ueqs_inventive` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = conventional, 7 = inventive) | `ueqs_hedonic` |
+| 8 | `ueqs_leading_edge` | The {{agent}} was … *(about the Assistant: only with one)* | 1–7 (1 = usual, 7 = leading edge) | `ueqs_hedonic` |
 
 ## Questionnaires of negotiation competitions
 

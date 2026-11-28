@@ -3,6 +3,7 @@ title: "Session feedback"
 description: "Overall view of the assistants across the whole session, technical problems and free comments."
 reference: "HANI2 items."
 forms: [post_session]
+tags: [assistant]
 questions:
   - {id: assistants_differed, text: "Did the assistants feel different from one negotiation to the next?", type: likert7, required: false, requires: support_agent, labels: {1: "All the same", 7: "Very different"}}
   - {id: assistants_overall, text: "Overall, how helpful were the assistants in this session?", type: likert7, required: false, requires: support_agent, labels: {1: "Not at all", 7: "Extremely"}}

@@ -41,6 +41,32 @@ FORMS: dict[str, Form] = {
 
 #: question types the participant's form can show
 QUESTION_TYPES = ("likert5", "likert7", "yes_no", "select", "text")
+#: the parties a question set can be about (its ``tags``). A set tagged with both words its questions
+#: with ``{{agent}}`` / ``{{Agent}}``, which each study fills in with the party it evaluates
+#: (:func:`agent_role`). A set with neither tag is about the participant, the task or the system.
+TAGS = ("assistant", "opponent")
+#: ``requires`` of a question about the evaluated party (see :func:`spec`)
+REQUIRES_AGENT = "agent"
+
+
+def agent_role(ref: Any = "current") -> str:
+    """The party the questionnaires of a study are about, ``assistant`` or ``opponent``: the
+    ``questionnaire_agent`` setting of the study or its project, else ``opponent`` in a HAN
+    project (``kind: opponent``) and ``assistant`` otherwise. ``ref``: the study (default: the current one)."""
+    from hani2 import projects
+
+    r = projects.current_study() if ref == "current" else ref
+    v = str(projects.setting("questionnaire_agent", "", ref=r) or "").strip().lower()
+    if v in TAGS:
+        return v
+    return "opponent" if projects.get_project(r).kind == "opponent" else "assistant"
+
+
+def _set_tags(data: dict) -> list[str]:
+    tags = data.get("tags")
+    if isinstance(tags, str):
+        tags = [tags]
+    return [str(t) for t in tags or [] if str(t) in TAGS]
 
 
 @dataclass
@@ -139,14 +165,32 @@ def resolve(form: Form | str) -> Resolved:
     return Resolved(None)
 
 
+def for_role(spec: dict, role: str) -> dict:
+    """A form for a study about ``role``: ``requires: agent`` (a question about the evaluated
+    party) becomes ``requires: support_agent`` when that party is the Assistant (the question is
+    dropped when no Assistant took part) and is removed when it is the opponent (always there)."""
+    qs = spec.get("questions")
+    if not isinstance(qs, list) or not any(isinstance(q, dict) and q.get("requires") == REQUIRES_AGENT for q in qs):
+        return spec
+    out = []
+    for q in qs:
+        if isinstance(q, dict) and q.get("requires") == REQUIRES_AGENT:
+            q = {k: v for k, v in q.items() if k != "requires"}
+            if role == "assistant":
+                q["requires"] = "support_agent"
+        out.append(q)
+    return {**spec, "questions": out}
+
+
 def spec(form: Form | str) -> dict | None:
-    """The form in effect, with its ``{{variables}}`` filled in (``None``: no form)."""
+    """The form in effect, with its ``{{variables}}`` filled in (``{{agent}}``: the party the
+    study evaluates) and ``requires: agent`` resolved (``None``: no form)."""
     r = resolve(form)
     if r.spec is None:
         return None
     from hani2.templates import render_data
 
-    return render_data(r.spec)
+    return for_role(render_data(r.spec), agent_role())
 
 
 def validate(text: str) -> list[str]:
@@ -226,7 +270,7 @@ def library_dirs() -> list[Path]:
 
 def library() -> dict[str, dict]:
     """Every predefined question set by id: ``title``, ``description``, ``reference``,
-    ``forms`` (the forms it suits), ``questions``, ``source`` (``bundled`` or ``settings``) and ``path``
+    ``forms`` (the forms it suits), ``tags`` (the parties it asks about, :data:`TAGS`), ``questions``, ``source`` (``bundled`` or ``settings``) and ``path``
     (the file that defines it)."""
     import yaml
 
@@ -244,7 +288,7 @@ def library() -> dict[str, dict]:
                 continue
             sid = str(data.get("id") or p.stem)
             out[sid] = {"id": sid, "title": str(data.get("title") or sid), "description": str(data.get("description") or ""),
-                        "reference": str(data.get("reference") or ""), "forms": list(data.get("forms") or list(FORMS)),
+                        "reference": str(data.get("reference") or ""), "forms": list(data.get("forms") or list(FORMS)), "tags": _set_tags(data),
                         "questions": data["questions"], "source": "bundled" if i == 0 else "settings", "path": str(p)}
     return out
 

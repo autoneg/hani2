@@ -39,6 +39,7 @@ BLANK = """id: my_set
 title: "My questions"
 description: "What these questions measure."
 forms: [per_negotiation]
+tags: []
 questions:
   - {id: my_question, text: "How satisfied are you with this negotiation?", type: likert7, required: true, labels: {1: "Not at all", 7: "Very"}}
 """
@@ -200,6 +201,19 @@ def check(text: str, original: str | None = None, *, in_app: bool = True) -> lis
             bad = [str(f) for f in forms if f not in questionnaires.FORMS]
             if bad:
                 errors.append(f"unknown form(s) {', '.join(bad)} (use {', '.join(questionnaires.FORMS)})")
+    tags = data.get("tags")
+    if tags is not None:
+        if isinstance(tags, str):
+            tags = [tags]
+        if not isinstance(tags, list):
+            errors.append(f"tags must be a list of {', '.join(questionnaires.TAGS)} (or empty)")
+        else:
+            bad = [str(t) for t in tags if t not in questionnaires.TAGS]
+            if bad:
+                errors.append(f"unknown tag(s) {', '.join(bad)} (use {', '.join(questionnaires.TAGS)}: the party the "
+                              "questions are about; leave it empty for questions about the participant, the task or the system)")
+            elif set(questionnaires.TAGS) <= set(tags):
+                errors.extend(_both_problems(data.get("questions")))
     if in_app and str(data.get("url") or "").strip():
         errors.append("a set saved in the app cannot have a url (a link to a published source makes it read-only); "
                       "put the source in based_on instead")
@@ -210,6 +224,22 @@ def check(text: str, original: str | None = None, *, in_app: bool = True) -> lis
     else:
         errors.extend(questionnaires.validate(yaml.safe_dump({"questions": data["questions"]}, allow_unicode=True)))
     return errors
+
+
+def _both_problems(questions: Any) -> list[str]:
+    """A set tagged for both parties must not name one of them: it says ``{{agent}}`` instead."""
+    out = []
+    for q in questions if isinstance(questions, list) else []:
+        if not isinstance(q, dict):
+            continue
+        text = str(q.get("text") or "")
+        if re.search(r"\b(assistant|opponent)s?\b", text, re.IGNORECASE):
+            out.append(f"question {q.get('id')}: a set tagged both assistant and opponent says {{{{agent}}}} "
+                       "(or {{Agent}}) for the party, not 'assistant' or 'opponent'")
+        if q.get("requires") == "support_agent":
+            out.append(f"question {q.get('id')}: a set tagged both assistant and opponent uses requires: agent, "
+                       "not requires: support_agent")
+    return out
 
 
 def _write(path: Path, text: str) -> None:

@@ -35,6 +35,9 @@ VARIABLES: dict[str, str] = {
     "n_required": "Counted negotiations per participant (PROLIFIC_N_REQUIRED, else n_required of the study / project, else 5)",
     "minutes": "Expected maximum minutes (PROLIFIC_MAX_MINUTES, else minutes of the study / project, else 45)",
     "completion_code": "The completion code (PROLIFIC_COMPLETION_CODE, else completion_code in study.yaml)",
+    "agent": "The party the questionnaires ask about: assistant or opponent (questionnaire_agent of the study / project, "
+             "else opponent in a HAN project, assistant otherwise)",
+    "Agent": "The same, capitalised (Assistant or Opponent), for the start of a sentence",
 }
 
 
@@ -73,6 +76,10 @@ def study_variables(ref: "projects.StudyRef | None" = projects.UNSET) -> dict[st
         "minutes": _s(projects.setting("minutes", 45, env="PROLIFIC_MAX_MINUTES", cast=int, ref=r)),
         "completion_code": (os.environ.get("PROLIFIC_COMPLETION_CODE") or "").strip() or (_s(st.completion_code) if st else ""),
     }
+    from hani2.questionnaires import agent_role
+
+    role = agent_role(r)
+    out["agent"], out["Agent"] = role, role.capitalize()
     for k, v in pr.extra.items():
         if isinstance(v, (str, int, float, bool)) and re.fullmatch(r"[A-Za-z0-9_]+", str(k)):
             out.setdefault(f"project_{k}", _s(v))
