@@ -470,8 +470,13 @@ def test_a_pair_from_before_the_lobby_was_cleared_never_comes_back(hani2_home, m
     pressed Start and the other did not, never kicks the other back into the cleared lobby."""
     monkeypatch.setattr(matches, "TICK", 0.05)
     game_study(hani2_home, human_opponent_wait=0.1)
+    # the same wait bounds the lobby: keep it long until bob has joined (a slow runner may take
+    # longer than 0.1 s to start bob's session), then short for the wait on bob's Start
+    wait = [30.0]
+    monkeypatch.setattr(matches, "wait_seconds", lambda s: wait[0])
     a, b = play("alice"), play("bob")
     assert a.match is not None and a.match is b.match
+    wait[0] = 0.1
     a.start()
     matches.LOBBY.clear()
     time.sleep(0.6)  # many watcher ticks past the wait for bob's Start
